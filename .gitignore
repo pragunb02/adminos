@@ -1,0 +1,33 @@
+# Dependencies
+apps/web/node_modules/
+services/api/.gradle/
+services/api/.kotlin/
+services/api/build/
+services/api/bin/
+services/api/bin/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+services/workers/worker
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Kiro internal
+.kiro/
+
+#
+.self/

@@ -1,0 +1,128 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: adminos
+      POSTGRES_USER: adminos
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-adminos_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adminos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api-server:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/adminos
+      DB_USER: adminos
+      DB_PASSWORD: ${DB_PASSWORD:-adminos_dev}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-must-be-32-bytes}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_URL: ${API_URL:-http://localhost:8080}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-change-me-in-production-must-be-32-bytes}
+      GOOGLE_PUBSUB_AUDIENCE: ${GOOGLE_PUBSUB_AUDIENCE:-}
+      PORT: "8080"
+
+  gmail-worker:
+    profiles: ["full"]
+    build:
+      context: ./services/workers
+      dockerfile: Dockerfile
+    command: ["./worker", "--type=gmail"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://adminos:${DB_PASSWORD:-adminos_dev}@postgres:5432/adminos
+      REDIS_URL: redis://redis:6379
+
+  sms-worker:
+    profiles: ["full"]
+    build:
+      context: ./services/workers
+      dockerfile: Dockerfile
+    command: ["./worker", "--type=sms"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://adminos:${DB_PASSWORD:-adminos_dev}@postgres:5432/adminos
+      REDIS_URL: redis://redis:6379
+
+  agent-runner:
+    profiles: ["full"]
+    build:
+      context: ./services/workers
+      dockerfile: Dockerfile
+    command: ["./worker", "--type=agent"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://adminos:${DB_PASSWORD:-adminos_dev}@postgres:5432/adminos
+      REDIS_URL: redis://redis:6379
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+
+  pdf-parser:
+    profiles: ["full"]
+    build:
+      context: ./services/pdf-parser
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      R2_ACCESS_KEY: ${R2_ACCESS_KEY:-}
+      R2_SECRET_KEY: ${R2_SECRET_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-adminos-pdfs}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+
+  web-app:
+    profiles: ["full"]
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-server
+    environment:
+      NEXT_PUBLIC_API_URL: http://api-server:8080
+
+volumes:
+  postgres_data:
