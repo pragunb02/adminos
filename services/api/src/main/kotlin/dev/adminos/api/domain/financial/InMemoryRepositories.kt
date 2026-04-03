@@ -227,6 +227,16 @@ class InMemoryBillRepository : BillRepository {
         }.sortedBy { it.dueDate }
     }
 
+    // Find upcoming bills across ALL users (for cron)
+    override suspend fun findUpcoming(withinDays: Int): List<Bill> {
+        val today = LocalDate.now()
+        val cutoff = today.plusDays(withinDays.toLong())
+        return store.values.filter {
+            it.status in listOf(BillStatus.UPCOMING, BillStatus.DUE) &&
+                it.dueDate in today..cutoff
+        }
+    }
+
     override suspend fun findOverdue(): List<Bill> {
         val today = LocalDate.now()
         return store.values.filter {

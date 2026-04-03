@@ -20,6 +20,9 @@ class InMemoryUserRepository : UserRepository {
     override suspend fun findByEmail(email: String): User? =
         users.values.find { it.email == email }
 
+    override suspend fun findByOnboardingIncomplete(): List<User> =
+        users.values.filter { it.onboardingStatus != OnboardingStatus.COMPLETED && it.isActive }
+
     override suspend fun save(user: User): User {
         users[user.id] = user
         return user

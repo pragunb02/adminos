@@ -129,6 +129,7 @@ data class Bill(
     val sourceRef: String? = null,
     val reminderSent3d: Boolean = false,
     val reminderSent1d: Boolean = false,
+    val sentReminderDays: Set<Int>? = null, // Tracks all custom reminder days sent (e.g., {7, 5, 3, 1})
     val metadata: Map<String, Any?>? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()

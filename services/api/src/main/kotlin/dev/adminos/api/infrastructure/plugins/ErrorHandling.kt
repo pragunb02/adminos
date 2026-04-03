@@ -32,6 +32,26 @@ fun Application.configureErrorHandling() {
                 )
             )
         }
+        // Fix #12: DateTimeParseException → 400 instead of 500
+        exception<java.time.format.DateTimeParseException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ApiResponse.error(
+                    ApiError("VALIDATION_002", "Invalid date/time format: ${cause.message}"),
+                    call.requestId
+                )
+            )
+        }
+        // Fix #12: DateTimeException (covers ZoneId.of with invalid timezone)
+        exception<java.time.DateTimeException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ApiResponse.error(
+                    ApiError("VALIDATION_003", "Invalid date/time value: ${cause.message}"),
+                    call.requestId
+                )
+            )
+        }
         exception<Throwable> { call, cause ->
             logger.error("Unhandled exception", cause)
             call.respond(
