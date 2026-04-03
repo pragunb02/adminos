@@ -200,8 +200,9 @@ class NotificationServiceTest {
             userId = testUserId,
             pushNotifications = false,
             emailNotifications = true,
-            quietHoursStart = LocalTime.of(2, 0),
-            quietHoursEnd = LocalTime.of(3, 0)
+            // Use quiet hours that won't match current time (noon to 12:01)
+            quietHoursStart = LocalTime.of(12, 0),
+            quietHoursEnd = LocalTime.of(12, 1)
         )
         prefsRepo.save(prefs)
 

@@ -8,15 +8,9 @@
  * containing session tokens."
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+import type { ApiResponse } from "./types";
 
-interface ApiResponse<T> {
-  success: boolean;
-  data: T | null;
-  error: { code: string; message: string; details?: Record<string, unknown> } | null;
-  pagination?: { cursor: string | null; hasMore: boolean; total: number };
-  meta: { requestId: string; timestamp: string };
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 class ApiClient {
   private baseUrl: string;
