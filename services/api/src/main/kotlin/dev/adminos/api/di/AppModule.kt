@@ -1,6 +1,7 @@
 package dev.adminos.api.di
 
 import dev.adminos.api.config.AppConfig
+import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.audit.AuditRepository
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.audit.InMemoryAuditRepository
@@ -47,4 +48,12 @@ val appModule = module {
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get()) }
     single { BillTrackingService(get(), get()) }
+
+    // Agent Repositories
+    single<AnomalyRepository> { InMemoryAnomalyRepository() }
+    single<BriefingRepository> { InMemoryBriefingRepository() }
+    single<InsightRepository> { InMemoryInsightRepository() }
+
+    // Agent Services
+    single { AnomalyDetectorService(get(), get()) }
 }
