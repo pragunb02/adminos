@@ -58,6 +58,26 @@ fun Route.anomalyRoutes(
                 )
             }
 
+            // GET /api/v1/anomalies/:id — get single anomaly by ID
+            get("/{id}") {
+                val principal = call.userPrincipal
+                val anomalyId = call.parameters["id"]?.let {
+                    try { UUID.fromString(it) } catch (_: Exception) { null }
+                } ?: throw ApiException(HttpStatusCode.BadRequest, ANOMALY_NOT_FOUND)
+
+                val anomaly = anomalyRepository.findById(anomalyId)
+                    ?: throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
+
+                if (anomaly.userId != principal.userId) {
+                    throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
+                }
+
+                call.respond(
+                    HttpStatusCode.OK,
+                    ApiResponse.success(AnomalyResponse.from(anomaly), call.requestId)
+                )
+            }
+
             // PATCH /api/v1/anomalies/:id — resolve anomaly
             patch("/{id}") {
                 val principal = call.userPrincipal

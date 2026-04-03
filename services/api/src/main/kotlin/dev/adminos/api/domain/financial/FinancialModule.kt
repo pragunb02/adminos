@@ -1,12 +1,15 @@
 package dev.adminos.api.domain.financial
 
+import dev.adminos.api.domain.agent.AnomalyRepository
+import dev.adminos.api.domain.agent.BriefingRepository
+import dev.adminos.api.domain.agent.InsightRepository
 import dev.adminos.api.domain.audit.AuditService
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
 /**
- * Financial domain module — registers transaction, account, subscription, and bill routes.
+ * Financial domain module — registers transaction, account, subscription, bill, and dashboard routes.
  * Dependencies are resolved via Koin (single instances).
  */
 fun Application.financialModule() {
@@ -16,6 +19,9 @@ fun Application.financialModule() {
     val accountDiscoveryService: AccountDiscoveryService by inject()
     val billTrackingService: BillTrackingService by inject()
     val auditService: AuditService by inject()
+    val anomalyRepository: AnomalyRepository by inject()
+    val briefingRepository: BriefingRepository by inject()
+    val insightRepository: InsightRepository by inject()
 
     routing {
         route("/api/v1") {
@@ -23,6 +29,14 @@ fun Application.financialModule() {
             accountRoutes(accountDiscoveryService)
             subscriptionRoutes(subscriptionRepository)
             billRoutes(billTrackingService)
+            dashboardRoutes(
+                transactionRepository,
+                subscriptionRepository,
+                billTrackingService,
+                anomalyRepository,
+                briefingRepository,
+                insightRepository
+            )
         }
     }
 }
