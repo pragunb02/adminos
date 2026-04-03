@@ -11,6 +11,7 @@ const (
 	TypeWasteScore        = "waste_score"
 	TypeCategorizeFallback = "categorize_fallback"
 	TypeCancellationDraft  = "cancellation_draft"
+	TypeAnomalyExplain    = "anomaly_explain"
 )
 
 // Trigger types for the workflow abstraction
