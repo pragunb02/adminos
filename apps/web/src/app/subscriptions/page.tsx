@@ -44,10 +44,11 @@ export default function SubscriptionsPage() {
   const handleCancel = async (id: string) => {
     setActionLoading(id);
     try {
-      const res = await api.post<Subscription>(`/api/v1/subscriptions/${id}/cancel`, {});
-      if (res.success && res.data) {
-        setCancelDraft(res.data);
-      }
+      // TODO: The cancel endpoint queues a draft generation job.
+      // In production, poll GET /api/v1/subscriptions/:id until
+      // cancellation_draft is populated, then show the email draft modal.
+      // For MVP, we just acknowledge the cancellation request.
+      await api.post(`/api/v1/subscriptions/${id}/cancel`, {});
       await fetchData();
     } catch {
       // silent

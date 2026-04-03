@@ -23,6 +23,12 @@ export default function Home() {
       if (res.success && res.data) {
         setData(res.data);
       } else {
+        // Redirect to login on auth errors (expired JWT)
+        const code = res.error?.code;
+        if (code === "AUTH_001" || code === "AUTH_002" || code === "AUTH_004") {
+          router.push("/login");
+          return;
+        }
         setError(res.error?.message || "Failed to load dashboard");
       }
     } catch {

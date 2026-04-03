@@ -51,10 +51,12 @@ export default function OnboardingPage() {
       const res = await api.post<{ id: string }>("/api/v1/connections", { source_type: "gmail" });
       if (res.success && res.data) {
         const connectionId = res.data.id;
-        // Trigger manual sync to get a sync session ID
-        const syncRes = await api.post<{ id: string }>(`/api/v1/connections/${connectionId}/sync`, {});
+        // Trigger manual sync — response has syncSessionId (not id)
+        const syncRes = await api.post<{ syncSessionId: string; status: string; totalItems: number }>(
+          `/api/v1/connections/${connectionId}/sync`, {}
+        );
         if (syncRes.success && syncRes.data) {
-          setSyncId(syncRes.data.id);
+          setSyncId(syncRes.data.syncSessionId);
         }
         setStep("sms");
       }
