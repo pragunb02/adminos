@@ -42,6 +42,18 @@ interface TransactionRepository {
         from: Instant,
         to: Instant
     ): Map<TransactionCategory, java.math.BigDecimal>
+
+    suspend fun getCategoryAverage(
+        userId: UUID,
+        category: String,
+        days: Int
+    ): java.math.BigDecimal
+
+    suspend fun getRecentByMerchant(
+        userId: UUID,
+        merchantName: String,
+        hours: Int
+    ): List<Transaction>
 }
 
 // ── Account Repository ──

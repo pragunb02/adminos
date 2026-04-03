@@ -3,6 +3,7 @@ package dev.adminos.api
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.di.appModule
 import dev.adminos.api.domain.identity.JwtService
+import dev.adminos.api.domain.agent.agentModule
 import dev.adminos.api.domain.financial.financialModule
 import dev.adminos.api.domain.identity.identityModule
 import dev.adminos.api.domain.ingestion.ingestionModule
@@ -46,6 +47,7 @@ fun Application.module(config: AppConfig) {
     identityModule(config)
     ingestionModule(config)
     financialModule()
+    agentModule()
 
     // Health check
     configureHealthRoutes()

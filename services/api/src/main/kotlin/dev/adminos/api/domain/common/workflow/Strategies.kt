@@ -47,7 +47,8 @@ data class TransactionData(
     val accountLast4: String? = null,
     val paymentMethod: String? = null,
     val category: String = "other",
-    val transactedAt: Instant
+    val transactedAt: Instant,
+    val transactionId: String? = null
 )
 
 data class SubscriptionData(
@@ -68,12 +69,6 @@ data class GmailSignals(
     val lastLoginEmail: Instant? = null,
     val lastUsageEmail: Instant? = null
 )
-
-data class ConfidenceScores(
-    val overall: Double,
-    val merchantName: Double,
-    val amount: Double,
-    val date: Double,
-    val category: Double,
-    val account: Double
-)
+// Note: ConfidenceScores is defined in the Go workers (workflow/strategies.go)
+// and stored in transaction metadata JSONB. No Kotlin equivalent needed —
+// the API reads it as raw JsonObject from the metadata field.

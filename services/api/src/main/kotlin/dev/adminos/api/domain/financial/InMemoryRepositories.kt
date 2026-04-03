@@ -79,6 +79,33 @@ class InMemoryTransactionRepository : TransactionRepository {
             .filter { it.userId == userId && it.type == TransactionType.DEBIT && it.transactedAt in from..to }
             .groupBy { it.category }
             .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount } }
+
+    override suspend fun getCategoryAverage(
+        userId: UUID, category: String, days: Int
+    ): BigDecimal {
+        val since = Instant.now().minus(days.toLong(), java.time.temporal.ChronoUnit.DAYS)
+        val cat = try { TransactionCategory.valueOf(category.uppercase()) } catch (_: Exception) { null }
+        val txns = store.values.filter {
+            it.userId == userId &&
+                it.type == TransactionType.DEBIT &&
+                it.transactedAt >= since &&
+                (cat == null || it.category == cat)
+        }
+        if (txns.isEmpty()) return BigDecimal.ZERO
+        val total = txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount }
+        return total.divide(BigDecimal(txns.size), 2, java.math.RoundingMode.HALF_UP)
+    }
+
+    override suspend fun getRecentByMerchant(
+        userId: UUID, merchantName: String, hours: Int
+    ): List<Transaction> {
+        val since = Instant.now().minus(hours.toLong(), java.time.temporal.ChronoUnit.HOURS)
+        return store.values.filter {
+            it.userId == userId &&
+                it.merchantName?.equals(merchantName, ignoreCase = true) == true &&
+                it.transactedAt >= since
+        }.sortedByDescending { it.transactedAt }
+    }
 }
 
 // ── In-Memory Account Repository ──
