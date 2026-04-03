@@ -14,6 +14,7 @@ import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.domain.ingestion.sync.SyncSessionRepository
 import dev.adminos.api.domain.ingestion.webhook.GmailCronService
+import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.crypto.TokenEncryptor
 import org.koin.dsl.module
 
@@ -36,6 +37,11 @@ val appModule = module {
     single<SubscriptionRepository> { InMemorySubscriptionRepository() }
     single<BillRepository> { InMemoryBillRepository() }
 
+    // Notification Repositories
+    single<NotificationPreferencesRepository> { InMemoryNotificationPreferencesRepository() }
+    single<NotificationRepository> { InMemoryNotificationRepository() }
+    single<DeviceRepository> { InMemoryDeviceRepository() }
+
     // Services
     single { AuditService(get(), kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())) }
     single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth) }
@@ -56,4 +62,10 @@ val appModule = module {
 
     // Agent Services
     single { AnomalyDetectorService(get(), get()) }
+
+    // Notification Services
+    single { PushService(get()) }
+    single { NotificationService(get(), get(), get()) }
+    single { ReminderEngine(get(), get(), get()) }
+    single { DropOffNudgeService(get(), get(), get()) }
 }

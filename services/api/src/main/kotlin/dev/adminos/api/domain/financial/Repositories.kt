@@ -102,6 +102,7 @@ interface BillRepository {
     suspend fun countByUserId(userId: UUID, status: BillStatus? = null): Long
     suspend fun findPendingBills(userId: UUID): List<Bill>
     suspend fun findUpcoming(userId: UUID, withinDays: Int = 30): List<Bill>
+    suspend fun findUpcoming(withinDays: Int): List<Bill> // across all users — for cron
     suspend fun findOverdue(): List<Bill>
     suspend fun update(bill: Bill): Bill
 }

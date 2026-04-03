@@ -7,6 +7,7 @@ import dev.adminos.api.domain.agent.agentModule
 import dev.adminos.api.domain.financial.financialModule
 import dev.adminos.api.domain.identity.identityModule
 import dev.adminos.api.domain.ingestion.ingestionModule
+import dev.adminos.api.domain.notifications.notificationModule
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.server.application.*
@@ -48,6 +49,7 @@ fun Application.module(config: AppConfig) {
     ingestionModule(config)
     financialModule()
     agentModule()
+    notificationModule()
 
     // Health check
     configureHealthRoutes()
