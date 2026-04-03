@@ -4,6 +4,7 @@ import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.audit.AuditRepository
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.audit.InMemoryAuditRepository
+import dev.adminos.api.domain.financial.*
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
@@ -28,10 +29,22 @@ val appModule = module {
     single<SyncSessionRepository> { InMemorySyncSessionRepository() }
     single<AuditRepository> { InMemoryAuditRepository() }
 
+    // Financial Repositories
+    single<TransactionRepository> { InMemoryTransactionRepository() }
+    single<AccountRepository> { InMemoryAccountRepository() }
+    single<SubscriptionRepository> { InMemorySubscriptionRepository() }
+    single<BillRepository> { InMemoryBillRepository() }
+
     // Services
     single { AuditService(get(), kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())) }
     single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth) }
     single { IngestionService(get()) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
+
+    // Financial Services
+    single { CategorizationService() }
+    single { AccountDiscoveryService(get(), get()) }
+    single { SubscriptionDetectorService(get(), get()) }
+    single { BillTrackingService(get(), get()) }
 }

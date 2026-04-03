@@ -70,6 +70,8 @@ dependencies {
     testImplementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:$kotlinVersion")
+    testImplementation("net.jqwik:jqwik:1.8.2")
+    testImplementation("net.jqwik:jqwik-kotlin:1.8.2")
 }
 
 tasks.withType<Test> {

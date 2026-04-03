@@ -3,6 +3,7 @@ package dev.adminos.api
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.di.appModule
 import dev.adminos.api.domain.identity.JwtService
+import dev.adminos.api.domain.financial.financialModule
 import dev.adminos.api.domain.identity.identityModule
 import dev.adminos.api.domain.ingestion.ingestionModule
 import dev.adminos.api.infrastructure.database.DatabaseFactory
@@ -44,6 +45,7 @@ fun Application.module(config: AppConfig) {
     // Domain modules — each registers its own routes, using Koin for dependencies
     identityModule(config)
     ingestionModule(config)
+    financialModule()
 
     // Health check
     configureHealthRoutes()
