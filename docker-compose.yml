@@ -49,6 +49,12 @@ services:
       API_URL: ${API_URL:-http://localhost:8080}
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-change-me-in-production-must-be-32-bytes}
       GOOGLE_PUBSUB_AUDIENCE: ${GOOGLE_PUBSUB_AUDIENCE:-}
+      GOOGLE_GMAIL_PUBSUB_TOPIC: ${GOOGLE_GMAIL_PUBSUB_TOPIC:-}
+      GOOGLE_GMAIL_PUBSUB_SUBSCRIPTION: ${GOOGLE_GMAIL_PUBSUB_SUBSCRIPTION:-}
+      R2_ACCESS_KEY: ${R2_ACCESS_KEY:-}
+      R2_SECRET_KEY: ${R2_SECRET_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-adminos-uploads}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
       PORT: "8080"
 
   gmail-worker:
@@ -65,6 +71,10 @@ services:
     environment:
       DATABASE_URL: postgresql://adminos:${DB_PASSWORD:-adminos_dev}@postgres:5432/adminos
       REDIS_URL: redis://redis:6379
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
 
   sms-worker:
     profiles: ["full"]
@@ -96,6 +106,7 @@ services:
       DATABASE_URL: postgresql://adminos:${DB_PASSWORD:-adminos_dev}@postgres:5432/adminos
       REDIS_URL: redis://redis:6379
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
 
   pdf-parser:
     profiles: ["full"]

@@ -8,6 +8,7 @@ import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
+import dev.adminos.api.infrastructure.storage.StorageClient
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.application.*
@@ -22,7 +23,7 @@ import java.util.UUID
 private val logger = LoggerFactory.getLogger("UploadRoutes")
 private const val MAX_PDF_SIZE = 20 * 1024 * 1024L
 
-fun Route.uploadRoutes(ingestionService: IngestionService, connectionService: ConnectionService) {
+fun Route.uploadRoutes(ingestionService: IngestionService, connectionService: ConnectionService, storageClient: StorageClient) {
 
     authenticate("auth-jwt") {
         route("/upload") {
@@ -62,6 +63,14 @@ fun Route.uploadRoutes(ingestionService: IngestionService, connectionService: Co
 
                 val storageKey = "uploads/${principal.userId}/${UUID.randomUUID()}/$fileName"
                 logger.info("PDF upload: user={}, file={}, size={}, key={}", principal.userId, fileName, fileBytes!!.size, storageKey)
+
+                // Upload to R2 (or stub in dev mode)
+                try {
+                    storageClient.upload(storageKey, fileBytes!!, "application/pdf")
+                } catch (e: Exception) {
+                    logger.error("R2 upload failed: key={}, error={}", storageKey, e.message, e)
+                    throw ApiException(HttpStatusCode.InternalServerError, ApiError("UPLOAD_004", "Failed to upload file to storage"))
+                }
 
                 val connection = connectionService.getOrCreateConnection(principal.userId, SourceType.PDF)
 

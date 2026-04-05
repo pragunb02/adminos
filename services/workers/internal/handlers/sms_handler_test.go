@@ -9,7 +9,7 @@ import (
 )
 
 func TestSmsHandler_Parse(t *testing.T) {
-	h := NewSmsHandler()
+	h := NewSmsHandler(nil)
 
 	payload := SmsPayload{
 		UserID:        "user-123",
@@ -35,7 +35,7 @@ func TestSmsHandler_Parse(t *testing.T) {
 }
 
 func TestSmsHandler_Parse_EmptyBatch(t *testing.T) {
-	h := NewSmsHandler()
+	h := NewSmsHandler(nil)
 
 	payload := SmsPayload{UserID: "user-123", Records: []normalizer.SmsRecord{}}
 	raw, _ := json.Marshal(payload)
@@ -47,7 +47,7 @@ func TestSmsHandler_Parse_EmptyBatch(t *testing.T) {
 }
 
 func TestSmsHandler_Execute_ProcessesBatch(t *testing.T) {
-	h := NewSmsHandler()
+	h := NewSmsHandler(nil)
 
 	payload := &SmsPayload{
 		UserID:        "user-123",
@@ -76,7 +76,7 @@ func TestSmsHandler_Execute_ProcessesBatch(t *testing.T) {
 }
 
 func TestSmsHandler_Execute_DeduplicatesIdenticalRecords(t *testing.T) {
-	h := NewSmsHandler()
+	h := NewSmsHandler(nil)
 
 	record := normalizer.SmsRecord{
 		Merchant: "ZOMATO", Amount: 450, Date: "2025-01-15", AccountLast4: "4521",
@@ -103,7 +103,7 @@ func TestSmsHandler_Execute_DeduplicatesIdenticalRecords(t *testing.T) {
 }
 
 func TestSmsHandler_Execute_CategorizesMerchants(t *testing.T) {
-	h := NewSmsHandler()
+	h := NewSmsHandler(nil)
 
 	payload := &SmsPayload{
 		UserID:        "user-123",
@@ -125,13 +125,11 @@ func TestSmsHandler_Execute_CategorizesMerchants(t *testing.T) {
 	if r.NetNewItems != 4 {
 		t.Errorf("Expected 4 new, got %d", r.NetNewItems)
 	}
-	// Categories are applied internally — we verify via the log output
-	// In production, we'd check the persisted transactions
 }
 
 func TestSmsHandler_Idempotence(t *testing.T) {
 	// Property: re-ingesting the same batch produces zero net new items
-	h := NewSmsHandler()
+	h := NewSmsHandler(nil)
 
 	records := []normalizer.SmsRecord{
 		{Merchant: "ZOMATO", Amount: 450, Date: "2025-01-15", AccountLast4: "4521"},
@@ -160,5 +158,23 @@ func TestSmsHandler_Idempotence(t *testing.T) {
 	}
 	if r2.DuplicateItems != 2 {
 		t.Errorf("Second run: expected 2 dupes, got %d", r2.DuplicateItems)
+	}
+}
+
+func TestSmsHandler_Persist_NilDB(t *testing.T) {
+	h := NewSmsHandler(nil)
+
+	result := &SmsResult{
+		SyncSessionID:  "sync-123",
+		UserID:         "user-123",
+		TotalItems:     5,
+		ProcessedItems: 5,
+		NetNewItems:    3,
+		DuplicateItems: 2,
+	}
+
+	err := h.Persist(context.Background(), result)
+	if err != nil {
+		t.Fatalf("Persist with nil db should not error: %v", err)
 	}
 }

@@ -7,18 +7,21 @@ import (
 	"log"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/adminos/adminos/workers/internal/claude"
 	"github.com/adminos/adminos/workers/internal/jobs"
 )
 
 // AnomalyExplainPayload is the input for the anomaly explanation job.
 type AnomalyExplainPayload struct {
-	UserID        string   `json:"user_id"`
-	AnomalyID     string   `json:"anomaly_id"`
-	TransactionID string   `json:"transaction_id"`
-	Amount        float64  `json:"amount"`
-	Currency      string   `json:"currency"`
-	MerchantName  string   `json:"merchant_name"`
-	TransactedAt  string   `json:"transacted_at"`
+	UserID         string          `json:"user_id"`
+	AnomalyID      string          `json:"anomaly_id"`
+	TransactionID  string          `json:"transaction_id"`
+	Amount         float64         `json:"amount"`
+	Currency       string          `json:"currency"`
+	MerchantName   string          `json:"merchant_name"`
+	TransactedAt   string          `json:"transacted_at"`
 	TriggeredRules []TriggeredRule `json:"triggered_rules"`
 }
 
@@ -39,10 +42,13 @@ type AnomalyExplainResult struct {
 
 // AnomalyExplainHandler generates AI explanations for detected anomalies.
 // Implements the JobHandler interface.
-type AnomalyExplainHandler struct{}
+type AnomalyExplainHandler struct {
+	db           *pgxpool.Pool
+	claudeClient *claude.Client
+}
 
-func NewAnomalyExplainHandler() *AnomalyExplainHandler {
-	return &AnomalyExplainHandler{}
+func NewAnomalyExplainHandler(db *pgxpool.Pool, claudeClient *claude.Client) *AnomalyExplainHandler {
+	return &AnomalyExplainHandler{db: db, claudeClient: claudeClient}
 }
 
 func (h *AnomalyExplainHandler) JobType() string    { return jobs.TypeAnomalyExplain }
@@ -65,36 +71,61 @@ func (h *AnomalyExplainHandler) Parse(payload json.RawMessage) (any, error) {
 func (h *AnomalyExplainHandler) Execute(ctx context.Context, payload any) (any, error) {
 	p := payload.(*AnomalyExplainPayload)
 
-	// Build the prompt with transaction details and triggered rules
 	prompt := buildAnomalyPrompt(p)
-
-	// Log the prompt (Claude API stub for MVP)
 	log.Printf("[anomaly_explain] Prompt for anomaly %s:\n%s", p.AnomalyID, prompt)
 
-	// In production, this would call Claude API:
-	// response, err := claudeClient.Complete(ctx, prompt)
-	// For now, generate a deterministic explanation from the rules
-	explanation := generateStubExplanation(p)
+	var explanation string
+	var modelUsed string
+
+	if h.claudeClient != nil {
+		result, err := h.claudeClient.Complete(ctx, claude.AnomalySystemPrompt, prompt, 256)
+		if err != nil {
+			if _, ok := err.(*claude.PermanentError); ok {
+				log.Printf("[anomaly_explain] Claude permanent error, using stub: %v", err)
+				explanation = generateStubExplanation(p)
+				modelUsed = "stub"
+			} else {
+				return nil, fmt.Errorf("claude API call failed: %w", err)
+			}
+		} else {
+			explanation = result.Text
+			modelUsed = result.Model
+		}
+	} else {
+		explanation = generateStubExplanation(p)
+		modelUsed = "stub"
+	}
 
 	return &AnomalyExplainResult{
 		AnomalyID:        p.AnomalyID,
 		AgentExplanation: explanation,
 		Prompt:           prompt,
-		ModelUsed:        "claude-sonnet-stub",
+		ModelUsed:        modelUsed,
 	}, nil
 }
 
 func (h *AnomalyExplainHandler) Persist(ctx context.Context, result any) error {
 	r := result.(*AnomalyExplainResult)
-	// TODO: UPDATE anomalies SET agent_explanation = r.AgentExplanation WHERE id = r.AnomalyID
-	log.Printf("[anomaly_explain] Stored explanation for anomaly %s: %s",
+
+	if h.db == nil {
+		log.Printf("[anomaly_explain] Stored explanation for anomaly %s: %s",
+			r.AnomalyID, r.AgentExplanation)
+		return nil
+	}
+
+	_, err := h.db.Exec(ctx, `
+		UPDATE anomalies SET agent_explanation = $2, updated_at = now()
+		WHERE id = $1`,
 		r.AnomalyID, r.AgentExplanation)
+	if err != nil {
+		return fmt.Errorf("update anomaly explanation: %w", err)
+	}
+
 	return nil
 }
 
 func (h *AnomalyExplainHandler) Notify(ctx context.Context, result any) error {
 	r := result.(*AnomalyExplainResult)
-	// Anomaly notifications bypass quiet hours (critical)
 	log.Printf("[anomaly_explain] Push notification sent for anomaly %s (bypasses quiet hours)",
 		r.AnomalyID)
 	return nil
@@ -115,7 +146,7 @@ Explain in 2 sentences why this might be suspicious and what the user should che
 		strings.Join(rules, "\n"))
 }
 
-// generateStubExplanation creates a deterministic explanation from rules (stub for Claude API).
+// generateStubExplanation creates a deterministic explanation from rules.
 func generateStubExplanation(p *AnomalyExplainPayload) string {
 	if len(p.TriggeredRules) == 0 {
 		return "No anomaly rules triggered."

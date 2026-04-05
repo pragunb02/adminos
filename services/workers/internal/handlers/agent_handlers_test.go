@@ -12,7 +12,7 @@ import (
 // ── Anomaly Explain Handler Tests ──
 
 func TestAnomalyExplainHandler_Parse(t *testing.T) {
-	h := NewAnomalyExplainHandler()
+	h := NewAnomalyExplainHandler(nil, nil)
 	payload := AnomalyExplainPayload{
 		AnomalyID:     "anom-1",
 		TransactionID: "txn-1",
@@ -37,7 +37,7 @@ func TestAnomalyExplainHandler_Parse(t *testing.T) {
 }
 
 func TestAnomalyExplainHandler_Parse_MissingAnomalyID(t *testing.T) {
-	h := NewAnomalyExplainHandler()
+	h := NewAnomalyExplainHandler(nil, nil)
 	payload := AnomalyExplainPayload{TransactionID: "txn-1"}
 	raw, _ := json.Marshal(payload)
 
@@ -48,7 +48,7 @@ func TestAnomalyExplainHandler_Parse_MissingAnomalyID(t *testing.T) {
 }
 
 func TestAnomalyExplainHandler_Execute(t *testing.T) {
-	h := NewAnomalyExplainHandler()
+	h := NewAnomalyExplainHandler(nil, nil)
 	payload := &AnomalyExplainPayload{
 		AnomalyID:     "anom-1",
 		TransactionID: "txn-1",
@@ -81,7 +81,7 @@ func TestAnomalyExplainHandler_Execute(t *testing.T) {
 // ── Briefing Handler Tests ──
 
 func TestBriefingHandler_Parse(t *testing.T) {
-	h := NewBriefingHandler()
+	h := NewBriefingHandler(nil, nil)
 	payload := BriefingPayload{
 		UserID:      "user-1",
 		PeriodStart: "2025-01-06",
@@ -100,7 +100,7 @@ func TestBriefingHandler_Parse(t *testing.T) {
 }
 
 func TestBriefingHandler_Parse_DefaultsPeriod(t *testing.T) {
-	h := NewBriefingHandler()
+	h := NewBriefingHandler(nil, nil)
 	payload := BriefingPayload{UserID: "user-1"}
 	raw, _ := json.Marshal(payload)
 
@@ -115,7 +115,7 @@ func TestBriefingHandler_Parse_DefaultsPeriod(t *testing.T) {
 }
 
 func TestBriefingHandler_Execute(t *testing.T) {
-	h := NewBriefingHandler()
+	h := NewBriefingHandler(nil, nil)
 	payload := &BriefingPayload{
 		UserID:      "user-1",
 		PeriodStart: "2025-01-06",
@@ -236,7 +236,7 @@ func TestWasteScore_NewSubscription(t *testing.T) {
 }
 
 func TestWasteScoringHandler_Parse(t *testing.T) {
-	h := NewWasteScoringHandler()
+	h := NewWasteScoringHandler(nil)
 	payload := WasteScoringPayload{
 		UserID: "user-1",
 		Subscriptions: []workflow.SubscriptionData{
@@ -256,7 +256,7 @@ func TestWasteScoringHandler_Parse(t *testing.T) {
 }
 
 func TestWasteScoringHandler_Execute(t *testing.T) {
-	h := NewWasteScoringHandler()
+	h := NewWasteScoringHandler(nil)
 	payload := &WasteScoringPayload{
 		UserID: "user-1",
 		Subscriptions: []workflow.SubscriptionData{
