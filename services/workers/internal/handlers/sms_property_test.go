@@ -22,7 +22,7 @@ func TestProperty_DeduplicationIdempotence(t *testing.T) {
 
 	// Run 20 random scenarios
 	for scenario := 0; scenario < 20; scenario++ {
-		h := NewSmsHandler()
+		h := NewSmsHandler(nil)
 
 		// Generate random batch (1-10 records)
 		batchSize := rng.Intn(10) + 1
@@ -147,19 +147,19 @@ func TestProperty_DeduplicationOrderIndependence(t *testing.T) {
 	recordB := normalizer.SmsRecord{Merchant: "UBER", Amount: 120, Date: "2025-01-15", AccountLast4: "4521"}
 
 	// Order 1: [A, B, A]
-	h1 := NewSmsHandler()
+	h1 := NewSmsHandler(nil)
 	p1 := &SmsPayload{UserID: "user-1", SyncSessionID: "s1", Records: []normalizer.SmsRecord{recordA, recordB, recordA}}
 	r1, _ := h1.Execute(context.Background(), p1)
 	res1 := r1.(*SmsResult)
 
 	// Order 2: [A, A, B]
-	h2 := NewSmsHandler()
+	h2 := NewSmsHandler(nil)
 	p2 := &SmsPayload{UserID: "user-1", SyncSessionID: "s2", Records: []normalizer.SmsRecord{recordA, recordA, recordB}}
 	r2, _ := h2.Execute(context.Background(), p2)
 	res2 := r2.(*SmsResult)
 
 	// Order 3: [B, A, A]
-	h3 := NewSmsHandler()
+	h3 := NewSmsHandler(nil)
 	p3 := &SmsPayload{UserID: "user-1", SyncSessionID: "s3", Records: []normalizer.SmsRecord{recordB, recordA, recordA}}
 	r3, _ := h3.Execute(context.Background(), p3)
 	res3 := r3.(*SmsResult)

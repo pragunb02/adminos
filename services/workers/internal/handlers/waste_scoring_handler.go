@@ -8,15 +8,17 @@ import (
 	"math"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"github.com/adminos/adminos/workers/internal/jobs"
 	"github.com/adminos/adminos/workers/internal/workflow"
 )
 
 // WasteScoringPayload is the input for the waste scoring job.
 type WasteScoringPayload struct {
-	UserID         string                    `json:"user_id"`
-	Subscriptions  []workflow.SubscriptionData `json:"subscriptions"`
-	GmailSignalsMap map[string]workflow.GmailSignals `json:"gmail_signals_map"` // keyed by subscription ID
+	UserID          string                               `json:"user_id"`
+	Subscriptions   []workflow.SubscriptionData           `json:"subscriptions"`
+	GmailSignalsMap map[string]workflow.GmailSignals      `json:"gmail_signals_map"` // keyed by subscription ID
 }
 
 // WasteScoreResult holds the scoring result for a single subscription.
@@ -43,11 +45,13 @@ type WasteScoringBatchResult struct {
 // WasteScoringHandler computes waste scores for subscriptions.
 // Implements the JobHandler interface.
 type WasteScoringHandler struct {
+	db      *pgxpool.Pool
 	signals []workflow.WasteSignal
 }
 
-func NewWasteScoringHandler() *WasteScoringHandler {
+func NewWasteScoringHandler(db *pgxpool.Pool) *WasteScoringHandler {
 	return &WasteScoringHandler{
+		db:      db,
 		signals: DefaultWasteSignals(),
 	}
 }
@@ -70,8 +74,8 @@ func (h *WasteScoringHandler) Execute(ctx context.Context, payload any) (any, er
 	p := payload.(*WasteScoringPayload)
 
 	batch := &WasteScoringBatchResult{
-		UserID:  p.UserID,
-		Total:   len(p.Subscriptions),
+		UserID: p.UserID,
+		Total:  len(p.Subscriptions),
 	}
 
 	for _, sub := range p.Subscriptions {
@@ -96,9 +100,6 @@ func (h *WasteScoringHandler) Execute(ctx context.Context, payload any) (any, er
 }
 
 func (h *WasteScoringHandler) scoreSingle(sub workflow.SubscriptionData, signals workflow.GmailSignals) WasteScoreResult {
-	// Check 90-day dismissal cooldown (stub — in production, check flag_dismissed_at from DB)
-
-	// Use the canonical ComputeWasteScore algorithm (same one validated by property tests)
 	wasteScore := ComputeWasteScore(sub, signals)
 
 	usageStatus := "unknown"
@@ -127,10 +128,36 @@ func (h *WasteScoringHandler) scoreSingle(sub workflow.SubscriptionData, signals
 
 func (h *WasteScoringHandler) Persist(ctx context.Context, result any) error {
 	r := result.(*WasteScoringBatchResult)
-	// TODO: UPDATE subscriptions SET waste_score, usage_status, is_flagged, etc.
-	log.Printf("[waste_score] Scored %d subscriptions for user %s: %d flagged, %d skipped",
-		r.Total, r.UserID, r.Flagged, r.Skipped)
-	return nil
+
+	if h.db == nil {
+		log.Printf("[waste_score] Scored %d subscriptions for user %s: %d flagged, %d skipped",
+			r.Total, r.UserID, r.Flagged, r.Skipped)
+		return nil
+	}
+
+	tx, err := h.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for _, res := range r.Results {
+		if res.Skipped {
+			continue
+		}
+		_, err := tx.Exec(ctx, `
+			UPDATE subscriptions SET
+				waste_score = $2, usage_status = $3, is_flagged = $4,
+				flagged_reason = $5, waste_score_updated_at = now(), updated_at = now()
+			WHERE id = $1`,
+			res.SubscriptionID, res.WasteScore, res.UsageStatus,
+			res.IsFlagged, res.FlaggedReason)
+		if err != nil {
+			return fmt.Errorf("update subscription %s: %w", res.SubscriptionID, err)
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 func (h *WasteScoringHandler) Notify(ctx context.Context, result any) error {
@@ -141,7 +168,6 @@ func (h *WasteScoringHandler) Notify(ctx context.Context, result any) error {
 	return nil
 }
 
-
 // ComputeWasteScore calculates the waste score (0.0-1.0) for a subscription.
 // Uses 4 signals: months paid, login emails, usage emails, transaction consistency.
 func ComputeWasteScore(sub workflow.SubscriptionData, signals workflow.GmailSignals) float64 {
@@ -151,7 +177,7 @@ func ComputeWasteScore(sub workflow.SubscriptionData, signals workflow.GmailSign
 
 	// Signal 1 + 2: No engagement signals from Gmail
 	if signals.LoginEmailCount == 0 && signals.UsageEmailCount == 0 {
-		score += 0.4 // no engagement signals at all
+		score += 0.4
 	}
 
 	// Signal 2: Paying for 3+ months with no login emails
@@ -218,7 +244,7 @@ func (s *LoginEmailSignal) Name() string    { return "login_emails" }
 func (s *LoginEmailSignal) Weight() float64 { return 0.3 }
 func (s *LoginEmailSignal) Evaluate(sub workflow.SubscriptionData, signals workflow.GmailSignals) float64 {
 	if signals.LoginEmailCount == 0 {
-		return 1.0 // no login emails = high waste signal
+		return 1.0
 	}
 	if signals.LoginEmailCount <= 2 {
 		return 0.5
@@ -247,7 +273,6 @@ type TransactionConsistencySignal struct{}
 func (s *TransactionConsistencySignal) Name() string    { return "transaction_consistency" }
 func (s *TransactionConsistencySignal) Weight() float64 { return 0.2 }
 func (s *TransactionConsistencySignal) Evaluate(sub workflow.SubscriptionData, signals workflow.GmailSignals) float64 {
-	// If subscription is active but no usage, that's a waste signal
 	if sub.Status == "active" && signals.UsageEmailCount == 0 && signals.LoginEmailCount == 0 {
 		return 0.8
 	}

@@ -1,17 +1,11 @@
 package dev.adminos.api.domain.ingestion.webhook
 
-import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.jwk.source.JWKSourceBuilder
-import com.nimbusds.jose.proc.JWSVerificationKeySelector
-import com.nimbusds.jose.proc.SecurityContext
-import com.nimbusds.jwt.JWTClaimsSet
-import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier
-import com.nimbusds.jwt.proc.DefaultJWTProcessor
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.ConnectionStatus
 import dev.adminos.api.domain.ingestion.sync.IngestionService
+import dev.adminos.api.infrastructure.auth.OidcVerifier
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.requestId
 import io.ktor.http.*
@@ -22,7 +16,6 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import java.net.URL
 import java.util.Base64
 
 private val logger = LoggerFactory.getLogger("WebhookRoutes")
@@ -32,7 +25,7 @@ fun Route.webhookRoutes(
     ingestionService: IngestionService,
     pubsubAudience: String
 ) {
-    val jwtProcessor = buildGoogleJwtProcessor(pubsubAudience)
+    val oidcVerifier = OidcVerifier(pubsubAudience)
 
     route("/webhooks") {
         post("/gmail") {
@@ -44,11 +37,11 @@ fun Route.webhookRoutes(
 
             val bearerToken = authHeader.removePrefix("Bearer ")
 
-            if (pubsubAudience.isNotBlank()) {
+            if (oidcVerifier.isConfigured()) {
                 try {
-                    jwtProcessor.process(bearerToken, null)
+                    oidcVerifier.verify(bearerToken)
                 } catch (e: Exception) {
-                    logger.warn("Gmail webhook: OIDC JWT verification failed: ${e.message}")
+                    logger.warn("Gmail webhook: OIDC verification failed: ${e.message}")
                     throw ApiException(HttpStatusCode.Unauthorized, ApiError("WEBHOOK_006", "Invalid Pub/Sub OIDC token"))
                 }
             } else {
@@ -105,21 +98,6 @@ fun Route.webhookRoutes(
             ))
         }
     }
-}
-
-private fun buildGoogleJwtProcessor(audience: String): DefaultJWTProcessor<SecurityContext> {
-    val processor = DefaultJWTProcessor<SecurityContext>()
-    val jwkSource = JWKSourceBuilder
-        .create<SecurityContext>(URL("https://www.googleapis.com/oauth2/v3/certs"))
-        .retrying(true)
-        .build()
-    processor.jwsKeySelector = JWSVerificationKeySelector(JWSAlgorithm.RS256, jwkSource)
-    val expectedClaims = JWTClaimsSet.Builder().issuer("https://accounts.google.com").build()
-    processor.jwtClaimsSetVerifier = DefaultJWTClaimsVerifier(
-        if (audience.isNotBlank()) JWTClaimsSet.Builder().audience(audience).build() else expectedClaims,
-        setOf("iss", "exp", "iat")
-    )
-    return processor
 }
 
 @Serializable

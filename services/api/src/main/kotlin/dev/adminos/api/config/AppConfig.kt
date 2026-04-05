@@ -5,7 +5,9 @@ data class AppConfig(
     val redis: RedisConfig,
     val auth: AuthConfig,
     val app: AppSettings,
-    val security: SecurityConfig
+    val security: SecurityConfig,
+    val r2: R2Config,
+    val google: GoogleConfig
 ) {
     companion object {
         fun load(): AppConfig = AppConfig(
@@ -34,6 +36,16 @@ data class AppConfig(
             ),
             security = SecurityConfig(
                 tokenEncryptionKey = env("TOKEN_ENCRYPTION_KEY", "CHANGE-ME-generate-with-openssl-rand-base64-32")
+            ),
+            r2 = R2Config(
+                accessKey = env("R2_ACCESS_KEY", ""),
+                secretKey = env("R2_SECRET_KEY", ""),
+                bucket = env("R2_BUCKET", "adminos-uploads"),
+                endpoint = env("R2_ENDPOINT", "")
+            ),
+            google = GoogleConfig(
+                gmailPubsubTopic = env("GOOGLE_GMAIL_PUBSUB_TOPIC", ""),
+                gmailPubsubSubscription = env("GOOGLE_GMAIL_PUBSUB_SUBSCRIPTION", "")
             )
         )
 
@@ -71,4 +83,16 @@ data class AppSettings(
 
 data class SecurityConfig(
     val tokenEncryptionKey: String
+)
+
+data class R2Config(
+    val accessKey: String,
+    val secretKey: String,
+    val bucket: String,
+    val endpoint: String
+)
+
+data class GoogleConfig(
+    val gmailPubsubTopic: String,
+    val gmailPubsubSubscription: String
 )

@@ -35,8 +35,11 @@ class GoogleOAuthClient(private val config: AuthConfig) {
     private val httpClient = HttpClient.newHttpClient()
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun exchangeCode(code: String, redirectUri: String): GoogleUserInfo = withContext(Dispatchers.IO) {
-        // Exchange auth code for tokens
+    /**
+     * Exchanges an OAuth authorization code for tokens and user info.
+     * Returns both the token response (for storage) and user info.
+     */
+    suspend fun exchangeCodeForTokens(code: String, redirectUri: String): Pair<GoogleTokenResponse, GoogleUserInfo> = withContext(Dispatchers.IO) {
         val tokenBody = "code=$code" +
             "&client_id=${config.googleClientId}" +
             "&client_secret=${config.googleClientSecret}" +
@@ -56,7 +59,6 @@ class GoogleOAuthClient(private val config: AuthConfig) {
 
         val tokens = json.decodeFromString<GoogleTokenResponse>(tokenResponse.body())
 
-        // Fetch user info
         val userInfoRequest = HttpRequest.newBuilder()
             .uri(URI.create("https://www.googleapis.com/oauth2/v3/userinfo"))
             .header("Authorization", "Bearer ${tokens.accessToken}")
@@ -68,6 +70,15 @@ class GoogleOAuthClient(private val config: AuthConfig) {
             throw RuntimeException("Google userinfo fetch failed: ${userInfoResponse.body()}")
         }
 
-        json.decodeFromString<GoogleUserInfo>(userInfoResponse.body())
+        val userInfo = json.decodeFromString<GoogleUserInfo>(userInfoResponse.body())
+        Pair(tokens, userInfo)
+    }
+
+    /**
+     * Legacy method — exchanges code and returns only user info.
+     */
+    suspend fun exchangeCode(code: String, redirectUri: String): GoogleUserInfo {
+        val (_, userInfo) = exchangeCodeForTokens(code, redirectUri)
+        return userInfo
     }
 }

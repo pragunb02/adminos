@@ -41,6 +41,9 @@ dependencies {
     // JWT
     implementation("com.nimbusds:nimbus-jose-jwt:$nimbusVersion")
 
+    // Google Auth (OIDC verification for Pub/Sub webhooks)
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
+
     // Database - Exposed ORM
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
@@ -58,6 +61,10 @@ dependencies {
     // Redis
     implementation("io.lettuce:lettuce-core:$lettuceVersion")
 
+    // AWS S3 SDK (S3-compatible, used for Cloudflare R2)
+    implementation(platform("software.amazon.awssdk:bom:2.25.60"))
+    implementation("software.amazon.awssdk:s3")
+
     // DI — Koin
     implementation("io.insert-koin:koin-ktor:3.5.3")
     implementation("io.insert-koin:koin-logger-slf4j:3.5.3")
@@ -72,10 +79,25 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:$kotlinVersion")
     testImplementation("net.jqwik:jqwik:1.8.2")
     testImplementation("net.jqwik:jqwik-kotlin:1.8.2")
+
+    // Testcontainers for integration tests
+    testImplementation("org.testcontainers:testcontainers:1.19.3")
+    testImplementation("org.testcontainers:postgresql:1.19.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
+}
+
+// Separate task for integration tests (requires Docker)
+tasks.register<Test>("integrationTest") {
+    useJUnitPlatform {
+        includeTags("integration")
+    }
+    shouldRunAfter(tasks.test)
 }
 
 kotlin {

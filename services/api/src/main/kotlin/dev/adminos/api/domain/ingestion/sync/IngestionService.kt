@@ -1,17 +1,28 @@
 package dev.adminos.api.domain.ingestion.sync
 
 import dev.adminos.api.domain.ingestion.SmsRecord
+import dev.adminos.api.infrastructure.queue.AsynqPublisher
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.util.UUID
 
 /**
  * Handles SMS batch ingestion, sync session creation, and job publishing.
- * In MVP, jobs are tracked in-memory. Redis queue integration comes in task 3.4.
+ * When AsynqPublisher is available, jobs are published to Redis for Go workers.
+ * When absent (local dev), jobs are only logged.
  */
 class IngestionService(
-    private val syncSessionRepository: SyncSessionRepository
+    private val syncSessionRepository: SyncSessionRepository,
+    private val publisher: AsynqPublisher? = null
 ) {
     private val logger = LoggerFactory.getLogger(IngestionService::class.java)
+
+    init {
+        if (publisher == null) {
+            logger.warn("AsynqPublisher not configured — jobs will be logged but not queued")
+        }
+    }
 
     suspend fun ingestSmsBatch(
         userId: UUID,
@@ -31,7 +42,25 @@ class IngestionService(
         )
         syncSessionRepository.save(session)
 
-        logger.info("SMS batch queued: session={}, items={}", session.id, records.size)
+        // Publish to Redis queue if available
+        publisher?.enqueue(
+            jobType = "sms_process",
+            payload = mapOf(
+                "user_id" to userId.toString(),
+                "sync_session_id" to session.id.toString(),
+                "connection_id" to connectionId.toString(),
+                "records" to Json.encodeToString(records.map { r ->
+                    mapOf(
+                        "merchant" to r.merchant,
+                        "amount" to r.amount.toString(),
+                        "date" to r.date,
+                        "accountLast4" to r.accountLast4,
+                        "paymentMethod" to r.paymentMethod
+                    )
+                })
+            )
+        ) ?: logger.info("SMS batch logged (no queue): session={}, items={}", session.id, records.size)
+
         return session
     }
 
@@ -52,7 +81,16 @@ class IngestionService(
         )
         syncSessionRepository.save(session)
 
-        logger.info("Gmail ingest queued: session={}, historyId={}", session.id, historyId)
+        publisher?.enqueue(
+            jobType = "gmail_ingest",
+            payload = mapOf(
+                "user_id" to userId.toString(),
+                "sync_session_id" to session.id.toString(),
+                "connection_id" to connectionId.toString(),
+                "history_id" to historyId
+            )
+        ) ?: logger.info("Gmail ingest logged (no queue): session={}, historyId={}", session.id, historyId)
+
         return session
     }
 
@@ -70,7 +108,17 @@ class IngestionService(
         )
         syncSessionRepository.save(session)
 
-        logger.info("PDF parse queued: session={}, file={}, key={}", session.id, fileName, storageKey)
+        publisher?.enqueue(
+            jobType = "pdf_parse",
+            payload = mapOf(
+                "user_id" to userId.toString(),
+                "sync_session_id" to session.id.toString(),
+                "connection_id" to connectionId.toString(),
+                "storage_key" to storageKey,
+                "file_name" to fileName
+            )
+        ) ?: logger.info("PDF parse logged (no queue): session={}, file={}", session.id, fileName)
+
         return session
     }
 
