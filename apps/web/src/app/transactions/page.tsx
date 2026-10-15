@@ -161,7 +161,7 @@ export default function TransactionsPage() {
                 type="checkbox"
                 checked={recurring}
                 onChange={(e) => setRecurring(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded-sm border-gray-300"
               />
               Recurring only
             </label>
