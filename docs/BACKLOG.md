@@ -27,8 +27,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S1.0](tickets/AOS-S1.0.md)** | **Current, stable dependencies** | | ⬜ | 11h | |
-| └ AOS-115 | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, … | Claude | ⬜ | 5h |  |
+| **[AOS-S1.0](tickets/AOS-S1.0.md)** | **Current, stable dependencies** | | 🟦 | 11h | |
+| └ [AOS-115](tickets/AOS-115.md) | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, … | Claude | 🟦 | 5h | 1.5h |
 | └ AOS-116 | Web: Next 16, React 19, Tailwind 4, ESLint flat, TS, Node 24 | Claude | ⬜ | 3h |  |
 | └ AOS-117 | PDF parser: Python + libraries | Claude | ⬜ | 1h |  |
 | └ AOS-118 | Workers: Go 1.27 + modules, fix the Dockerfile Go version | Claude | ⬜ | 1h |  |
