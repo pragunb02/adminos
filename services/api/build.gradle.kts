@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.postgresql)
     implementation(libs.hikari)
     implementation(libs.flyway.core)
+    runtimeOnly(libs.flyway.postgresql) // Flyway 10+ ships Postgres support separately
 
     // Queue
     implementation(libs.lettuce)

@@ -5,14 +5,14 @@ kotlin = "2.4.21"
 ktor = "3.6.0"
 koin = "4.2.2"
 exposed = "1.5.1"
-flyway = "9.22.3"
-postgres = "42.7.1"
-hikari = "5.1.0"
-lettuce = "6.3.1.RELEASE"
-nimbus = "9.37.3"
-googleAuth = "1.23.0"
-awsSdk = "2.25.60"
-logback = "1.4.14"
+flyway = "13.10.3"
+postgres = "42.7.14"
+hikari = "7.1.0"
+lettuce = "7.9.0.RELEASE"
+nimbus = "10.10"
+googleAuth = "1.54.0"
+awsSdk = "2.56.0"
+logback = "1.6.5"
 jqwik = "1.10.2"
 jspecify = "1.0.1"
 testcontainers = "1.19.3"
@@ -41,6 +41,7 @@ exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", versio
 exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "exposed" }
 
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgres" }
 hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
