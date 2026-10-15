@@ -31,6 +31,8 @@
 | D-24 | Process | Every change carries a task ID | Accepted | all |
 | D-25 | Process | Amazon-style tickets: Epic → Story → Task in `docs/tickets/` | Accepted | AOS-004 |
 | D-26 | Architecture | Five-layer architecture, coding rules, testing standards, Definition of Done (`docs/ENGINEERING.md`) | Accepted | AOS-006, AOS-007 |
+| D-27 | Architecture | Design principles, pattern catalogue, design-before-code | Accepted | AOS-008 |
+| D-28 | Architecture | Latest stable dependencies, exact pins, upgrade cadence | Accepted | AOS-009, S1.0 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -226,3 +228,20 @@ Proposed
 - Applied to new and touched code; existing gaps are tracked through AOS-007, not a big-bang rewrite.
 - **Why:** Pragun asked for good architectural practice and proper unit tests. Written as
   general engineering practice (the repo is public).
+
+### D-27 — Design principles, pattern catalogue, design-before-code
+2026-10-16 · Accepted · Type: Architecture · Tasks: AOS-008
+- ENGINEERING.md §5–6 covers SOLID, DRY, KISS/YAGNI, composition, explicit config and privacy by design.
+- Patterns mapped to our features: Adapter (sources), Strategy + Registry (bank parsers),
+  Pipeline (accuracy engine), Specification (rules), Repository, Transactional Outbox,
+  Domain events, Template Method, Mappers.
+- Stories and non-trivial tasks fill in a **Design** section, approved by Pragun before coding.
+- **Why:** the code must be future-extensible. New banks, sources and rules plug in without editing the core.
+
+### D-28 — Dependencies: latest stable, pinned, regular upgrades
+2026-10-16 · Accepted · Type: Architecture · Tasks: AOS-009, story AOS-S1.0
+- Use only GA releases (no pre-releases), on the newest officially supported combination,
+  with LTS runtimes.
+- Pin exact versions.
+- Check monthly; major upgrades get their own ticket and are done one service at a time.
+- The 2026-10-16 audit found most core libraries 1+ majors behind (see AOS-009).

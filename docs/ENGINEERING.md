@@ -150,3 +150,72 @@ Layers 4 and 5 sit side by side under layer 3.
 - [ ] Ticket closed: Resolution, Actual, Done date; story/epic/board rows updated.
 - [ ] PROGRESS.md updated.
 - [ ] Commit message starts with the task ID: `AOS-xxx: …`.
+
+---
+
+## 5. Design principles
+
+| Principle | What it means here |
+|---|---|
+| **Single responsibility** | One reason to change per class: a parser parses; it doesn't save or notify |
+| **Open/closed** | New bank, source, rule or category = **new class registered**, never an edit to the engine |
+| **Liskov substitution** | Every `InMemory*` fake behaves like its `Exposed*` implementation (same tests run against both) |
+| **Interface segregation** | Small role interfaces (`TransactionReader`, `TransactionWriter`) instead of god-interfaces |
+| **Dependency inversion** | Domain code depends on interfaces it owns; infrastructure implements them; Koin wires them |
+| **DRY / single source of truth** | One categorizer, one normalizer, one enum mapping; no Kotlin/Go duplicates of the same rule |
+| **KISS / YAGNI** | Build what the ticket needs, but behind seams that let it grow |
+| **Composition over inheritance** | Assemble behaviour from small parts (pipeline steps, rules); avoid deep class trees |
+| **Explicit over implicit** | No magic defaults, no hidden global state; configuration is typed and validated at startup |
+| **Privacy by design** | Minimize data collected; raw messages filtered at the edge; secrets encrypted |
+
+## 6. Design patterns (and where we use them)
+
+| Need | Pattern | In AdminOS |
+|---|---|---|
+| Many input sources | **Adapter** → one `IngestEvent` (D-21) | `ShortcutSmsAdapter`, `GmailAdapter`, `StatementAdapter`, `WhatsAppAdapter` |
+| Bank/format-specific parsing | **Strategy** + **Registry** | `SmsParser` per bank (`HdfcSmsParser`…) chosen by TRAI sender header; `StatementParser` per bank/format |
+| Accuracy engine | **Pipeline / Chain of Responsibility** | `Normalize → Dedup → SelfTransfer → RefundLink → Categorize`; each step is a pure, separately tested `IngestStep` |
+| Categorization and anomaly rules | **Specification / Rule objects** | `MerchantRule`, `KeywordRule`, `UserOverrideRule`; `LargeAmountRule`, `CardTestingRule`; ordered by priority |
+| Data access | **Repository** | Existing `*Repository` interfaces with InMemory + Exposed implementations |
+| DB write + enqueue atomically | **Transactional Outbox** | Write the event and an `outbox` row in one transaction; a relay publishes to Redis (no lost jobs) |
+| React to changes | **Domain events / Observer** | `TransactionIngested`, `BillDetected`, consumed by detectors and notifiers |
+| Worker job flow | **Template Method** | The existing Parse → Execute → Persist → Notify workflow in Go |
+| Object creation across layers | **Factory / Mapper** | One mapper per boundary (`TransactionDtoMapper`, `TransactionRowMapper`) |
+| Optional external services | **Null Object only in explicit dev mode** | e.g. `DevStorageClient`, which logs loudly; in prod mode missing config fails startup |
+| Retries / external calls | **Retry with backoff + Circuit breaker** | Claude, Gmail, WhatsApp clients |
+
+### Design before code
+- Every **story** and every **non-trivial task** (new module, new pattern, schema change,
+  cross-service contract) fills in the **Design** section of its ticket before coding:
+  - context
+  - options considered (at least 2)
+  - choice and the pattern(s) used
+  - how it extends
+  - impact on other layers and services
+- Pragun approves the design. Significant choices become a decision (type: Architecture).
+- Diagrams: Mermaid in the ticket when the flow spans more than 2 components.
+
+## 7. Dependencies & versions
+
+- **Latest stable only:** use the newest **GA/stable** release. No alpha, beta, RC,
+  milestone, EAP, SNAPSHOT or nightly builds.
+- **Supported combinations:** when the latest versions of two libraries don't work together
+  (e.g. a framework not yet supporting the newest TypeScript major), use the newest
+  **officially supported** combination and note it in the ticket.
+- **Runtimes:** use the latest **LTS** (JDK, Node.js) or the latest stable (Go, Python) that
+  all our libraries support.
+- **Pin exact versions:**
+  - Gradle: version catalog / `gradle.properties`
+  - npm: exact versions plus a committed lockfile
+  - Python: `==` pins
+  - Go: `go.mod` / `go.sum`
+  - Docker: explicit tags, never `latest`
+- **Upgrade cadence:** check monthly (or when a ticket touches the area) with
+  `./gradlew dependencyUpdates`, `npm outdated`, `go list -m -u all`, `pip list --outdated`.
+  - Security fixes are applied immediately.
+  - Major upgrades get their own ticket and are done one service at a time, with green tests before and after.
+- **Adding a dependency:**
+  - It must be actively maintained, with a release in the last 12 months.
+  - Its license must be compatible (MIT/Apache/BSD).
+  - Prefer the standard library or an existing dependency.
+  - Record why in the ticket.

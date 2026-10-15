@@ -19,6 +19,14 @@
 ## Acceptance criteria
 - [ ] Given <context>, when <action>, then <result>
 
+## Design (fill in and get approval before coding; see docs/ENGINEERING.md §6)
+- **Context:** <what exists, constraints>
+- **Options considered:** 1) <…> 2) <…>
+- **Decision:** <chosen option> · **Patterns:** <Strategy / Adapter / …>
+- **Extensibility:** <how a new bank/source/rule plugs in>
+- **Impact:** <layers, services, contracts, schema>
+- **Diagram:** <Mermaid, if more than 2 components>
+
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|

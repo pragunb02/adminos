@@ -6,7 +6,7 @@
 | **Status** | 🟦 In progress |
 | **Priority** | P0 |
 | **Owner** | Pragun |
-| **ETA (rollup)** | 7h |
+| **ETA (rollup)** | 8.5h |
 | **Actual** | — |
 | **Target date** | TBD (AOS-005) |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
@@ -24,7 +24,7 @@ Project goal, requirements, decisions and backlog are documented, so any Claude 
 ## Stories
 | ID | Story | Status | ETA |
 |---|---|---|---|
-| [AOS-S0.1](AOS-S0.1.md) | Project documentation & backlog | 🟦 | 7h |
+| [AOS-S0.1](AOS-S0.1.md) | Project documentation & backlog | 🟦 | 8.5h |
 
 ## Out of scope
 - —

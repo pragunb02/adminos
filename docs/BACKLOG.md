@@ -8,11 +8,11 @@ Hierarchy: **Epic** (milestone) → **Story** (user-visible outcome) → **Task*
 
 _Board generated 2026-10-16. When a ticket changes, update the ticket file **and** its row here._
 
-## 🟦 [AOS-E0](tickets/AOS-E0.md) — Planning & docs · P0 · ETA 7h
+## 🟦 [AOS-E0](tickets/AOS-E0.md) — Planning & docs · P0 · ETA 8.5h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S0.1](tickets/AOS-S0.1.md)** | **Project documentation & backlog** | | 🟦 | 7h | |
+| **[AOS-S0.1](tickets/AOS-S0.1.md)** | **Project documentation & backlog** | | 🟦 | 8.5h | |
 | └ [AOS-001](tickets/AOS-001.md) | Audit codebase (API, workers, web, schema, business rules) | Claude | ✅ | 1h | 1h |
 | └ [AOS-002](tickets/AOS-002.md) | Re-scope to personal console; write BRD, DECISIONS, PROGRESS, CLAUDE.md | Claude | ✅ | 1h | 1h |
 | └ [AOS-003](tickets/AOS-003.md) | BRD v2 from research (money, email, WhatsApp, iPhone SMS) | Claude | ✅ | 1h | 1h |
@@ -20,11 +20,19 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-005](tickets/AOS-005.md) | Confirm weekly hours so ETAs become target dates | Pragun | ⬜ | — |  |
 | └ [AOS-006](tickets/AOS-006.md) | Engineering standards doc (architecture, coding, tests, DoD) | Claude | ✅ | 1h | 1h |
 | └ [AOS-007](tickets/AOS-007.md) | Audit existing code against ENGINEERING.md (read-only) and file tickets | Claude | ⬜ | 2h |  |
+| └ [AOS-008](tickets/AOS-008.md) | Design principles, patterns, design-before-code; dependency policy | Claude | ✅ | 1h | 1h |
+| └ [AOS-009](tickets/AOS-009.md) | Dependency audit: current vs latest stable | Claude | ✅ | 0.5h | 0.5h |
 
-## 🟦 [AOS-E1](tickets/AOS-E1.md) — Foundation runs · P0 · ETA 19h
+## 🟦 [AOS-E1](tickets/AOS-E1.md) — Foundation runs · P0 · ETA 30h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
+| **[AOS-S1.0](tickets/AOS-S1.0.md)** | **Current, stable dependencies** | | ⬜ | 11h | |
+| └ AOS-115 | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, … | Claude | ⬜ | 5h |  |
+| └ AOS-116 | Web: Next 16, React 19, Tailwind 4, ESLint flat, TS, Node 24 | Claude | ⬜ | 3h |  |
+| └ AOS-117 | PDF parser: Python + libraries | Claude | ⬜ | 1h |  |
+| └ AOS-118 | Workers: Go 1.27 + modules, fix the Dockerfile Go version | Claude | ⬜ | 1h |  |
+| └ AOS-119 | Docker/runtime images: JDK 25, Node 24, Postgres/Redis stable | Claude | ⬜ | 1h |  |
 | **[AOS-S1.1](tickets/AOS-S1.1.md)** | **Database starts cleanly** | | 🟦 | 7.5h | |
 | └ [AOS-100](tickets/AOS-100.md) | Schema fixes: enum union, drop hypertable, arrays → TEXT | Claude | 🟨 | 1h | 1h |
 | └ [AOS-101](tickets/AOS-101.md) | Compile API; fix the NotificationService `when` if broken by AOS-100 | Claude | ⬜ | 0.5h |  |

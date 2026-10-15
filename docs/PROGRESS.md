@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** AOS-101 (compile the API), then AOS-102, AOS-103, AOS-104.
+**Next step:** AOS-101 (compile the API, green baseline), then story S1.0 dependency upgrades (pending Pragun's OK on order), then AOS-102…104.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -97,6 +97,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-008: design principles, patterns, design-before-code, dependency policy (D-27, D-28).
+  - AOS-009: dependency audit; most libraries 1+ majors behind; worker Dockerfile Go version broken → story S1.0.
   - AOS-006: engineering standards (`docs/ENGINEERING.md`, D-26); AOS-007 audit filed.
   - AOS-004: Amazon-style tickets (7 epics, 23 stories, 20 task tickets), templates, board, decision index (D-23…D-25).
   - BRD v2 from research (problems P1–P8; iPhone Shortcuts, WhatsApp forward-to-bot, Gmail
