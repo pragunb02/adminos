@@ -4,13 +4,14 @@ import dev.adminos.api.domain.audit.*
 import dev.adminos.api.infrastructure.database.tables.AuditLogsTable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.util.UUID
 
 class ExposedAuditRepository : AuditRepository {
 
-    override suspend fun save(auditLog: AuditLog): Unit = newSuspendedTransaction {
+    override suspend fun save(auditLog: AuditLog): Unit = dbQuery {
         AuditLogsTable.insert {
             it[id] = auditLog.id
             it[userId] = auditLog.userId
@@ -27,16 +28,16 @@ class ExposedAuditRepository : AuditRepository {
         }
     }
 
-    override suspend fun findByUserId(userId: UUID, limit: Int): List<AuditLog> = newSuspendedTransaction {
-        AuditLogsTable.select { AuditLogsTable.userId eq userId }
+    override suspend fun findByUserId(userId: UUID, limit: Int): List<AuditLog> = dbQuery {
+        AuditLogsTable.selectAll().where { AuditLogsTable.userId eq userId }
             .orderBy(AuditLogsTable.createdAt, SortOrder.DESC)
             .limit(limit)
             .map { it.toAuditLog() }
     }
 
     override suspend fun findByEntity(entityType: String, entityId: UUID): List<AuditLog> =
-        newSuspendedTransaction {
-            AuditLogsTable.select {
+        dbQuery {
+            AuditLogsTable.selectAll().where {
                 (AuditLogsTable.entityType eq entityType) and
                     (AuditLogsTable.entityId eq entityId)
             }.orderBy(AuditLogsTable.createdAt, SortOrder.DESC)

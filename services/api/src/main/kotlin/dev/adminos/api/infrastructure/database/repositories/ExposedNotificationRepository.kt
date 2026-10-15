@@ -3,14 +3,14 @@ package dev.adminos.api.infrastructure.database.repositories
 import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.database.tables.NotificationsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.util.UUID
 
 class ExposedNotificationRepository : NotificationRepository {
 
-    override suspend fun save(notification: Notification): Notification = newSuspendedTransaction {
+    override suspend fun save(notification: Notification): Notification = dbQuery {
         NotificationsTable.insert {
             it[id] = notification.id
             it[userId] = notification.userId
@@ -32,27 +32,27 @@ class ExposedNotificationRepository : NotificationRepository {
         notification
     }
 
-    override suspend fun findByUserId(userId: UUID, limit: Int): List<Notification> = newSuspendedTransaction {
-        NotificationsTable.select { NotificationsTable.userId eq userId }
+    override suspend fun findByUserId(userId: UUID, limit: Int): List<Notification> = dbQuery {
+        NotificationsTable.selectAll().where { NotificationsTable.userId eq userId }
             .orderBy(NotificationsTable.createdAt, SortOrder.DESC)
             .limit(limit)
             .map { it.toNotification() }
     }
 
-    override suspend fun findById(id: UUID): Notification? = newSuspendedTransaction {
-        NotificationsTable.select { NotificationsTable.id eq id }
+    override suspend fun findById(id: UUID): Notification? = dbQuery {
+        NotificationsTable.selectAll().where { NotificationsTable.id eq id }
             .singleOrNull()?.toNotification()
     }
 
     override suspend fun findByUserAndType(userId: UUID, type: NotificationType): List<Notification> =
-        newSuspendedTransaction {
-            NotificationsTable.select {
+        dbQuery {
+            NotificationsTable.selectAll().where {
                 (NotificationsTable.userId eq userId) and
                     (NotificationsTable.type eq type.name.lowercase())
             }.map { it.toNotification() }
         }
 
-    override suspend fun update(notification: Notification): Notification = newSuspendedTransaction {
+    override suspend fun update(notification: Notification): Notification = dbQuery {
         NotificationsTable.update({ NotificationsTable.id eq notification.id }) {
             it[status] = notification.status.name.lowercase()
             it[sentAt] = notification.sentAt
@@ -63,15 +63,15 @@ class ExposedNotificationRepository : NotificationRepository {
         notification
     }
 
-    override suspend fun countByUserAndType(userId: UUID, type: NotificationType): Int = newSuspendedTransaction {
-        NotificationsTable.select {
+    override suspend fun countByUserAndType(userId: UUID, type: NotificationType): Int = dbQuery {
+        NotificationsTable.selectAll().where {
             (NotificationsTable.userId eq userId) and
                 (NotificationsTable.type eq type.name.lowercase())
         }.count().toInt()
     }
 
-    override suspend fun findPending(): List<Notification> = newSuspendedTransaction {
-        NotificationsTable.select { NotificationsTable.status eq NotificationStatus.PENDING.name.lowercase() }
+    override suspend fun findPending(): List<Notification> = dbQuery {
+        NotificationsTable.selectAll().where { NotificationsTable.status eq NotificationStatus.PENDING.name.lowercase() }
             .orderBy(NotificationsTable.createdAt, SortOrder.ASC)
             .map { it.toNotification() }
     }

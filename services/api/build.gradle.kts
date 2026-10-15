@@ -1,16 +1,8 @@
-val ktorVersion: String by project
-val kotlinVersion: String by project
-val exposedVersion: String by project
-val logbackVersion: String by project
-val nimbusVersion: String by project
-val hikariVersion: String by project
-val postgresVersion: String by project
-val lettuceVersion: String by project
-
 plugins {
-    kotlin("jvm") version "2.0.21"
-    kotlin("plugin.serialization") version "2.0.21"
-    id("io.ktor.plugin") version "2.3.12"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ktor)
+    alias(libs.plugins.versions)
     application
 }
 
@@ -26,80 +18,78 @@ repositories {
 }
 
 dependencies {
-    // Ktor Server
-    implementation("io.ktor:ktor-server-core:$ktorVersion")
-    implementation("io.ktor:ktor-server-netty:$ktorVersion")
-    implementation("io.ktor:ktor-server-auth:$ktorVersion")
-    implementation("io.ktor:ktor-server-auth-jwt:$ktorVersion")
-    implementation("io.ktor:ktor-server-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-    implementation("io.ktor:ktor-server-status-pages:$ktorVersion")
-    implementation("io.ktor:ktor-server-cors:$ktorVersion")
-    implementation("io.ktor:ktor-server-call-logging:$ktorVersion")
-    implementation("io.ktor:ktor-server-call-id:$ktorVersion")
+    // Ktor server
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.auth)
+    implementation(libs.ktor.server.auth.jwt)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.call.logging)
+    implementation(libs.ktor.server.call.id)
 
-    // JWT
-    implementation("com.nimbusds:nimbus-jose-jwt:$nimbusVersion")
+    // Auth
+    implementation(libs.nimbus.jose.jwt)
+    implementation(libs.google.auth)
 
-    // Google Auth (OIDC verification for Pub/Sub webhooks)
-    implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
+    // Database
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.java.time)
+    implementation(libs.exposed.json)
+    implementation(libs.postgresql)
+    implementation(libs.hikari)
+    implementation(libs.flyway.core)
+    runtimeOnly(libs.flyway.postgresql) // Flyway 10+ ships Postgres support separately
 
-    // Database - Exposed ORM
-    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
+    // Queue
+    implementation(libs.lettuce)
 
-    // PostgreSQL + Connection Pool
-    implementation("org.postgresql:postgresql:$postgresVersion")
-    implementation("com.zaxxer:HikariCP:$hikariVersion")
+    // Object storage (R2, S3-compatible)
+    implementation(platform(libs.aws.bom))
+    implementation(libs.aws.s3)
 
-    // Database Migrations
-    implementation("org.flywaydb:flyway-core:9.22.3")
-
-    // Redis
-    implementation("io.lettuce:lettuce-core:$lettuceVersion")
-
-    // AWS S3 SDK (S3-compatible, used for Cloudflare R2)
-    implementation(platform("software.amazon.awssdk:bom:2.25.60"))
-    implementation("software.amazon.awssdk:s3")
-
-    // DI — Koin
-    implementation("io.insert-koin:koin-ktor:3.5.3")
-    implementation("io.insert-koin:koin-logger-slf4j:3.5.3")
+    // DI
+    implementation(libs.koin.ktor)
+    implementation(libs.koin.logger.slf4j)
 
     // Logging
-    implementation("ch.qos.logback:logback-classic:$logbackVersion")
+    implementation(libs.logback)
 
-    // Testing
-    testImplementation("io.ktor:ktor-server-test-host:$ktorVersion")
-    testImplementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:$kotlinVersion")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:$kotlinVersion")
-    testImplementation("net.jqwik:jqwik:1.8.2")
-    testImplementation("net.jqwik:jqwik-kotlin:1.8.2")
-
-    // Testcontainers for integration tests
-    testImplementation("org.testcontainers:testcontainers:1.19.3")
-    testImplementation("org.testcontainers:postgresql:1.19.3")
-    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
+    // Tests
+    testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.content.negotiation)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlin.test.junit5)
+    testImplementation(libs.jqwik)
+    testImplementation(libs.jqwik.kotlin)
+    testImplementation(libs.jspecify) // nullness annotations referenced by jqwik's API
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.junit)
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform {
-        excludeTags("integration")
-    }
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
-// Separate task for integration tests (requires Docker)
+// Unit tests only; integration tests (tagged "integration", need Docker) run via `integrationTest`.
+tasks.test {
+    useJUnitPlatform { excludeTags("integration") }
+}
+
 tasks.register<Test>("integrationTest") {
-    useJUnitPlatform {
-        includeTags("integration")
-    }
+    description = "Runs integration tests (requires Docker)."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("integration") }
     shouldRunAfter(tasks.test)
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(libs.versions.jdk.get().toInt())
 }

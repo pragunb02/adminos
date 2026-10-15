@@ -1,8 +1,9 @@
 package dev.adminos.api.infrastructure.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.time
-import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.javatime.time
+import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Notifications domain.
@@ -10,9 +11,9 @@ import org.jetbrains.exposed.sql.javatime.timestamp
  */
 
 object NotificationsTable : Table("notifications") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
-    val deviceId = uuid("device_id").references(DevicesTable.id).nullable()
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val deviceId = javaUUID("device_id").references(DevicesTable.id).nullable()
     val type = varchar("type", 30)
     val title = varchar("title", 255)
     val body = text("body")
@@ -28,8 +29,8 @@ object NotificationsTable : Table("notifications") {
 }
 
 object NotificationPreferencesTable : Table("notification_preferences") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val weeklyBriefing = bool("weekly_briefing").default(true)
     val briefingDay = varchar("briefing_day", 10).default("mon")
     val briefingTime = time("briefing_time")

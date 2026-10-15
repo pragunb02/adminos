@@ -4,15 +4,16 @@ import dev.adminos.api.domain.agent.*
 import dev.adminos.api.infrastructure.database.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.BriefingsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
 class ExposedBriefingRepository : BriefingRepository {
 
-    override suspend fun save(briefing: Briefing): Briefing = newSuspendedTransaction {
+    override suspend fun save(briefing: Briefing): Briefing = dbQuery {
         BriefingsTable.insert {
             it[id] = briefing.id
             it[userId] = briefing.userId
@@ -46,20 +47,20 @@ class ExposedBriefingRepository : BriefingRepository {
         briefing
     }
 
-    override suspend fun findById(id: UUID): Briefing? = newSuspendedTransaction {
-        BriefingsTable.select { BriefingsTable.id eq id }.singleOrNull()?.toBriefing()
+    override suspend fun findById(id: UUID): Briefing? = dbQuery {
+        BriefingsTable.selectAll().where { BriefingsTable.id eq id }.singleOrNull()?.toBriefing()
     }
 
-    override suspend fun findLatestByUserId(userId: UUID): Briefing? = newSuspendedTransaction {
-        BriefingsTable.select { BriefingsTable.userId eq userId }
+    override suspend fun findLatestByUserId(userId: UUID): Briefing? = dbQuery {
+        BriefingsTable.selectAll().where { BriefingsTable.userId eq userId }
             .orderBy(BriefingsTable.createdAt, SortOrder.DESC)
             .limit(1)
             .singleOrNull()?.toBriefing()
     }
 
     override suspend fun findByUserId(userId: UUID, cursor: String?, limit: Int): List<Briefing> =
-        newSuspendedTransaction {
-            val query = BriefingsTable.select { BriefingsTable.userId eq userId }
+        dbQuery {
+            val query = BriefingsTable.selectAll().where { BriefingsTable.userId eq userId }
             cursor?.let { c ->
                 val (key, _) = CursorCodec.decode(c)
                 val cursorInstant = Instant.parse(key)
@@ -70,8 +71,8 @@ class ExposedBriefingRepository : BriefingRepository {
                 .map { it.toBriefing() }
         }
 
-    override suspend fun countByUserId(userId: UUID): Long = newSuspendedTransaction {
-        BriefingsTable.select { BriefingsTable.userId eq userId }.count()
+    override suspend fun countByUserId(userId: UUID): Long = dbQuery {
+        BriefingsTable.selectAll().where { BriefingsTable.userId eq userId }.count()
     }
 
     @Suppress("UNCHECKED_CAST")

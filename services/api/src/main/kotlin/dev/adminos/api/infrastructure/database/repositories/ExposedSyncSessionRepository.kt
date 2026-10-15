@@ -2,27 +2,27 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.ingestion.sync.*
 import dev.adminos.api.infrastructure.database.tables.SyncSessionsTable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedSyncSessionRepository : SyncSessionRepository {
 
-    override suspend fun findById(id: UUID): SyncSession? = newSuspendedTransaction {
-        SyncSessionsTable.select { SyncSessionsTable.id eq id }
+    override suspend fun findById(id: UUID): SyncSession? = dbQuery {
+        SyncSessionsTable.selectAll().where { SyncSessionsTable.id eq id }
             .singleOrNull()?.toSyncSession()
     }
 
-    override suspend fun findByUserId(userId: UUID, limit: Int): List<SyncSession> = newSuspendedTransaction {
-        SyncSessionsTable.select { SyncSessionsTable.userId eq userId }
+    override suspend fun findByUserId(userId: UUID, limit: Int): List<SyncSession> = dbQuery {
+        SyncSessionsTable.selectAll().where { SyncSessionsTable.userId eq userId }
             .orderBy(SyncSessionsTable.createdAt, SortOrder.DESC)
             .limit(limit)
             .map { it.toSyncSession() }
     }
 
-    override suspend fun save(session: SyncSession): SyncSession = newSuspendedTransaction {
+    override suspend fun save(session: SyncSession): SyncSession = dbQuery {
         SyncSessionsTable.insert {
             it[id] = session.id
             it[userId] = session.userId
@@ -43,7 +43,7 @@ class ExposedSyncSessionRepository : SyncSessionRepository {
         session
     }
 
-    override suspend fun update(session: SyncSession): SyncSession = newSuspendedTransaction {
+    override suspend fun update(session: SyncSession): SyncSession = dbQuery {
         val now = Instant.now()
         SyncSessionsTable.update({ SyncSessionsTable.id eq session.id }) {
             it[status] = session.status.name.lowercase()

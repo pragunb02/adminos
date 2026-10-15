@@ -1,8 +1,9 @@
 package dev.adminos.api.infrastructure.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.date
-import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.javatime.date
+import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Agent domain.
@@ -10,8 +11,8 @@ import org.jetbrains.exposed.sql.javatime.timestamp
  */
 
 object BriefingsTable : Table("briefings") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val periodStart = date("period_start")
     val periodEnd = date("period_end")
     val type = varchar("type", 20).default("weekly")
@@ -36,15 +37,15 @@ object BriefingsTable : Table("briefings") {
 }
 
 object InsightsTable : Table("insights") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
-    val briefingId = uuid("briefing_id").references(BriefingsTable.id).nullable()
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val briefingId = javaUUID("briefing_id").references(BriefingsTable.id).nullable()
     val type = varchar("type", 30)
     val title = varchar("title", 255)
     val body = text("body")
     val severity = varchar("severity", 20).default("info")
     val entityType = varchar("entity_type", 50).nullable()
-    val entityId = uuid("entity_id").nullable()
+    val entityId = javaUUID("entity_id").nullable()
     val actionType = varchar("action_type", 30).default("none")
     val actionPayload = text("action_payload").nullable() // JSONB
     val status = varchar("status", 20).default("pending")
@@ -57,9 +58,9 @@ object InsightsTable : Table("insights") {
 }
 
 object AnomaliesTable : Table("anomalies") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
-    val transactionId = uuid("transaction_id").references(TransactionsTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val transactionId = javaUUID("transaction_id").references(TransactionsTable.id)
     val type = varchar("type", 30)
     val confidenceScore = decimal("confidence_score", 3, 2)
     val reason = text("reason")

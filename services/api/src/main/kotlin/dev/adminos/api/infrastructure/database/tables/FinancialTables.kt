@@ -1,8 +1,9 @@
 package dev.adminos.api.infrastructure.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.date
-import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.javatime.date
+import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Financial domain.
@@ -10,8 +11,8 @@ import org.jetbrains.exposed.sql.javatime.timestamp
  */
 
 object TransactionsTable : Table("transactions") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val sourceType = varchar("source_type", 30)
     val sourceRef = varchar("source_ref", 255).nullable()
     val type = varchar("type", 20)
@@ -20,7 +21,7 @@ object TransactionsTable : Table("transactions") {
     val merchantName = varchar("merchant_name", 255).nullable()
     val merchantRaw = text("merchant_raw").nullable()
     val merchantCategory = varchar("merchant_category", 10).nullable()
-    val accountId = uuid("account_id").references(AccountsTable.id).nullable()
+    val accountId = javaUUID("account_id").references(AccountsTable.id).nullable()
     val accountLast4 = varchar("account_last4", 4).nullable()
     val paymentMethod = varchar("payment_method", 20).nullable()
     val upiVpa = varchar("upi_vpa", 255).nullable()
@@ -28,10 +29,10 @@ object TransactionsTable : Table("transactions") {
     val subcategory = varchar("subcategory", 100).nullable()
     val categorySource = varchar("category_source", 20).default("rules")
     val isRecurring = bool("is_recurring").default(false)
-    val recurringGroupId = uuid("recurring_group_id").nullable()
+    val recurringGroupId = javaUUID("recurring_group_id").nullable()
     val status = varchar("status", 20).default("completed")
     val isAnomaly = bool("is_anomaly").default(false)
-    val anomalyId = uuid("anomaly_id").nullable()
+    val anomalyId = javaUUID("anomaly_id").nullable()
     val isVerified = bool("is_verified").default(true)
     val rawEmailId = varchar("raw_email_id", 255).nullable()
     val metadata = text("metadata").nullable() // JSONB stored as text
@@ -42,8 +43,8 @@ object TransactionsTable : Table("transactions") {
 }
 
 object AccountsTable : Table("accounts") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val accountType = varchar("account_type", 20)
     val bankName = varchar("bank_name", 100).nullable()
     val bankCode = varchar("bank_code", 20).nullable()
@@ -51,7 +52,7 @@ object AccountsTable : Table("accounts") {
     val accountName = varchar("account_name", 255).nullable()
     val isPrimary = bool("is_primary").default(false)
     val currency = varchar("currency", 3).default("INR")
-    val connectionId = uuid("connection_id").references(UserConnectionsTable.id).nullable()
+    val connectionId = javaUUID("connection_id").references(UserConnectionsTable.id).nullable()
     val metadata = text("metadata").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
@@ -59,8 +60,8 @@ object AccountsTable : Table("accounts") {
 }
 
 object SubscriptionsTable : Table("subscriptions") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val name = varchar("name", 255)
     val merchantName = varchar("merchant_name", 255).nullable()
     val category = varchar("category", 30).default("other")
@@ -92,8 +93,8 @@ object SubscriptionsTable : Table("subscriptions") {
 }
 
 object BillsTable : Table("bills") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val billType = varchar("bill_type", 30)
     val billerName = varchar("biller_name", 255)
     val accountRef = varchar("account_ref", 100).nullable()
@@ -106,7 +107,7 @@ object BillsTable : Table("bills") {
     val status = varchar("status", 30).default("upcoming")
     val paidAt = timestamp("paid_at").nullable()
     val paidAmount = decimal("paid_amount", 12, 2).nullable()
-    val paymentTxnId = uuid("payment_txn_id").references(TransactionsTable.id).nullable()
+    val paymentTxnId = javaUUID("payment_txn_id").references(TransactionsTable.id).nullable()
     val detectionSource = varchar("detection_source", 30)
     val sourceRef = varchar("source_ref", 255).nullable()
     val reminderSent3d = bool("reminder_sent_3d").default(false)

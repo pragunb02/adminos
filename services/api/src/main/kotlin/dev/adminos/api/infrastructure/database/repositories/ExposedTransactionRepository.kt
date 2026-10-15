@@ -5,9 +5,9 @@ import dev.adminos.api.domain.financial.*
 import dev.adminos.api.infrastructure.database.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.TransactionsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
@@ -16,7 +16,7 @@ import java.util.UUID
 
 class ExposedTransactionRepository : TransactionRepository {
 
-    override suspend fun save(txn: DomainTransaction): DomainTransaction = newSuspendedTransaction {
+    override suspend fun save(txn: DomainTransaction): DomainTransaction = dbQuery {
         TransactionsTable.insert {
             it[id] = txn.id
             it[userId] = txn.userId
@@ -50,8 +50,8 @@ class ExposedTransactionRepository : TransactionRepository {
         txn
     }
 
-    override suspend fun findById(id: UUID): DomainTransaction? = newSuspendedTransaction {
-        TransactionsTable.select { TransactionsTable.id eq id }
+    override suspend fun findById(id: UUID): DomainTransaction? = dbQuery {
+        TransactionsTable.selectAll().where { TransactionsTable.id eq id }
             .singleOrNull()?.toTransaction()
     }
 
@@ -60,8 +60,8 @@ class ExposedTransactionRepository : TransactionRepository {
         category: TransactionCategory?, type: TransactionType?,
         accountId: UUID?, isRecurring: Boolean?,
         merchantSearch: String?, cursor: String?, limit: Int
-    ): List<DomainTransaction> = newSuspendedTransaction {
-        val query = TransactionsTable.select { TransactionsTable.userId eq userId }
+    ): List<DomainTransaction> = dbQuery {
+        val query = TransactionsTable.selectAll().where { TransactionsTable.userId eq userId }
         from?.let { f -> query.andWhere { TransactionsTable.transactedAt greaterEq f } }
         to?.let { t -> query.andWhere { TransactionsTable.transactedAt lessEq t } }
         category?.let { c -> query.andWhere { TransactionsTable.category eq c.name.lowercase() } }
@@ -96,8 +96,8 @@ class ExposedTransactionRepository : TransactionRepository {
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
         accountId: UUID?, isRecurring: Boolean?, merchantSearch: String?
-    ): Long = newSuspendedTransaction {
-        val query = TransactionsTable.select { TransactionsTable.userId eq userId }
+    ): Long = dbQuery {
+        val query = TransactionsTable.selectAll().where { TransactionsTable.userId eq userId }
         from?.let { f -> query.andWhere { TransactionsTable.transactedAt greaterEq f } }
         to?.let { t -> query.andWhere { TransactionsTable.transactedAt lessEq t } }
         category?.let { c -> query.andWhere { TransactionsTable.category eq c.name.lowercase() } }
@@ -121,7 +121,7 @@ class ExposedTransactionRepository : TransactionRepository {
         query.count()
     }
 
-    override suspend fun update(txn: DomainTransaction): DomainTransaction = newSuspendedTransaction {
+    override suspend fun update(txn: DomainTransaction): DomainTransaction = dbQuery {
         val now = Instant.now()
         TransactionsTable.update({ TransactionsTable.id eq txn.id }) {
             it[type] = txn.type.name.lowercase()
@@ -142,8 +142,8 @@ class ExposedTransactionRepository : TransactionRepository {
     }
 
     override suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<DomainTransaction> =
-        newSuspendedTransaction {
-            TransactionsTable.select {
+        dbQuery {
+            TransactionsTable.selectAll().where {
                 (TransactionsTable.userId eq userId) and
                     (TransactionsTable.type eq TransactionType.DEBIT.name.lowercase()) and
                     (TransactionsTable.transactedAt greaterEq since)
@@ -153,9 +153,10 @@ class ExposedTransactionRepository : TransactionRepository {
 
     override suspend fun spendingByCategory(
         userId: UUID, from: Instant, to: Instant
-    ): Map<TransactionCategory, BigDecimal> = newSuspendedTransaction {
-        TransactionsTable.slice(TransactionsTable.category, TransactionsTable.amount.sum())
-            .select {
+    ): Map<TransactionCategory, BigDecimal> = dbQuery {
+        val total = TransactionsTable.amount.sum()
+        TransactionsTable.select(TransactionsTable.category, total)
+            .where {
                 (TransactionsTable.userId eq userId) and
                     (TransactionsTable.type eq TransactionType.DEBIT.name.lowercase()) and
                     (TransactionsTable.transactedAt greaterEq from) and
@@ -164,32 +165,32 @@ class ExposedTransactionRepository : TransactionRepository {
             .groupBy(TransactionsTable.category)
             .associate {
                 TransactionCategory.valueOf(it[TransactionsTable.category].uppercase()) to
-                    (it[TransactionsTable.amount.sum()] ?: BigDecimal.ZERO)
+                    (it[total] ?: BigDecimal.ZERO)
             }
     }
 
     override suspend fun getCategoryAverage(
         userId: UUID, category: String, days: Int
-    ): BigDecimal = newSuspendedTransaction {
+    ): BigDecimal = dbQuery {
         val since = Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
         val cat = try { TransactionCategory.valueOf(category.uppercase()).name.lowercase() } catch (_: Exception) { null }
-        val query = TransactionsTable.select {
+        val query = TransactionsTable.selectAll().where {
             (TransactionsTable.userId eq userId) and
                 (TransactionsTable.type eq TransactionType.DEBIT.name.lowercase()) and
                 (TransactionsTable.transactedAt greaterEq since)
         }
         cat?.let { c -> query.andWhere { TransactionsTable.category eq c } }
         val txns = query.map { it[TransactionsTable.amount] }
-        if (txns.isEmpty()) return@newSuspendedTransaction BigDecimal.ZERO
+        if (txns.isEmpty()) return@dbQuery BigDecimal.ZERO
         val total = txns.fold(BigDecimal.ZERO) { acc, a -> acc + a }
         total.divide(BigDecimal(txns.size), 2, RoundingMode.HALF_UP)
     }
 
     override suspend fun getRecentByMerchant(
         userId: UUID, merchantName: String, hours: Int
-    ): List<DomainTransaction> = newSuspendedTransaction {
+    ): List<DomainTransaction> = dbQuery {
         val since = Instant.now().minus(hours.toLong(), ChronoUnit.HOURS)
-        TransactionsTable.select {
+        TransactionsTable.selectAll().where {
             (TransactionsTable.userId eq userId) and
                 (TransactionsTable.merchantName.lowerCase() eq merchantName.lowercase()) and
                 (TransactionsTable.transactedAt greaterEq since)

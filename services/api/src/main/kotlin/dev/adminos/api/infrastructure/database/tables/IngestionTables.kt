@@ -1,7 +1,8 @@
 package dev.adminos.api.infrastructure.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Ingestion domain.
@@ -9,8 +10,8 @@ import org.jetbrains.exposed.sql.javatime.timestamp
  */
 
 object UserConnectionsTable : Table("user_connections") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val sourceType = varchar("source_type", 30)
     val status = varchar("status", 20).default("pending")
     val accessToken = text("access_token").nullable()
@@ -31,9 +32,9 @@ object UserConnectionsTable : Table("user_connections") {
 }
 
 object SyncSessionsTable : Table("sync_sessions") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
-    val connectionId = uuid("connection_id").references(UserConnectionsTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val connectionId = javaUUID("connection_id").references(UserConnectionsTable.id)
     val syncType = varchar("sync_type", 20)
     val status = varchar("status", 20).default("queued")
     val totalItems = integer("total_items").default(0)
@@ -50,12 +51,12 @@ object SyncSessionsTable : Table("sync_sessions") {
 }
 
 object IngestionFingerprintsTable : Table("ingestion_fingerprints") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val fingerprint = varchar("fingerprint", 64)
     val sourceType = varchar("source_type", 30)
     val entityType = varchar("entity_type", 30).default("transaction")
-    val entityId = uuid("entity_id")
+    val entityId = javaUUID("entity_id")
     val createdAt = timestamp("created_at")
     override val primaryKey = PrimaryKey(id)
 }

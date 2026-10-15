@@ -1,7 +1,8 @@
 package dev.adminos.api.infrastructure.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Audit domain.
@@ -9,16 +10,16 @@ import org.jetbrains.exposed.sql.javatime.timestamp
  */
 
 object AuditLogsTable : Table("audit_logs") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id).nullable()
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id).nullable()
     val actor = varchar("actor", 20)
     val action = varchar("action", 100)
     val entityType = varchar("entity_type", 50)
-    val entityId = uuid("entity_id").nullable()
+    val entityId = javaUUID("entity_id").nullable()
     val beforeState = text("before_state").nullable() // JSONB
     val afterState = text("after_state").nullable() // JSONB
     val ipAddress = varchar("ip_address", 45).nullable()
-    val deviceId = uuid("device_id").nullable()
+    val deviceId = javaUUID("device_id").nullable()
     val metadata = text("metadata").nullable() // JSONB
     val createdAt = timestamp("created_at")
     override val primaryKey = PrimaryKey(id)

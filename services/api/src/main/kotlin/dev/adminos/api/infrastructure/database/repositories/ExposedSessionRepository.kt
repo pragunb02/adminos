@@ -3,28 +3,28 @@ package dev.adminos.api.infrastructure.database.repositories
 import dev.adminos.api.domain.identity.Session
 import dev.adminos.api.domain.identity.SessionRepository
 import dev.adminos.api.infrastructure.database.tables.SessionsTable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedSessionRepository : SessionRepository {
 
-    override suspend fun findByTokenHash(tokenHash: String): Session? = newSuspendedTransaction {
-        SessionsTable.select { SessionsTable.tokenHash eq tokenHash }
+    override suspend fun findByTokenHash(tokenHash: String): Session? = dbQuery {
+        SessionsTable.selectAll().where { SessionsTable.tokenHash eq tokenHash }
             .singleOrNull()?.toSession()
     }
 
-    override suspend fun findActiveByUserId(userId: UUID): List<Session> = newSuspendedTransaction {
-        SessionsTable.select {
+    override suspend fun findActiveByUserId(userId: UUID): List<Session> = dbQuery {
+        SessionsTable.selectAll().where {
             (SessionsTable.userId eq userId) and
                 SessionsTable.revokedAt.isNull() and
                 (SessionsTable.expiresAt greater Instant.now())
         }.map { it.toSession() }
     }
 
-    override suspend fun save(session: Session): Session = newSuspendedTransaction {
+    override suspend fun save(session: Session): Session = dbQuery {
         SessionsTable.insert {
             it[id] = session.id
             it[userId] = session.userId
@@ -40,13 +40,13 @@ class ExposedSessionRepository : SessionRepository {
         session
     }
 
-    override suspend fun revoke(sessionId: UUID): Unit = newSuspendedTransaction {
+    override suspend fun revoke(sessionId: UUID): Unit = dbQuery {
         SessionsTable.update({ SessionsTable.id eq sessionId }) {
             it[revokedAt] = Instant.now()
         }
     }
 
-    override suspend fun updateLastActive(sessionId: UUID): Unit = newSuspendedTransaction {
+    override suspend fun updateLastActive(sessionId: UUID): Unit = dbQuery {
         SessionsTable.update({ SessionsTable.id eq sessionId }) {
             it[lastActiveAt] = Instant.now()
         }

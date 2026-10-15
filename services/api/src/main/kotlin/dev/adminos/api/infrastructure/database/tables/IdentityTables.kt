@@ -1,7 +1,8 @@
 package dev.adminos.api.infrastructure.database.tables
 
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.javatime.timestamp
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Identity domain.
@@ -9,7 +10,7 @@ import org.jetbrains.exposed.sql.javatime.timestamp
  */
 
 object UsersTable : Table("users") {
-    val id = uuid("id").autoGenerate()
+    val id = javaUUID("id").autoGenerate()
     val email = varchar("email", 255)
     val name = varchar("name", 255).nullable()
     val avatarUrl = varchar("avatar_url", 500).nullable()
@@ -27,10 +28,10 @@ object UsersTable : Table("users") {
 }
 
 object SessionsTable : Table("sessions") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val tokenHash = varchar("token_hash", 255)
-    val deviceId = uuid("device_id").references(DevicesTable.id).nullable()
+    val deviceId = javaUUID("device_id").references(DevicesTable.id).nullable()
     val ipAddress = varchar("ip_address", 45).nullable()
     val userAgent = text("user_agent").nullable()
     val expiresAt = timestamp("expires_at")
@@ -41,8 +42,8 @@ object SessionsTable : Table("sessions") {
 }
 
 object DevicesTable : Table("devices") {
-    val id = uuid("id").autoGenerate()
-    val userId = uuid("user_id").references(UsersTable.id)
+    val id = javaUUID("id").autoGenerate()
+    val userId = javaUUID("user_id").references(UsersTable.id)
     val deviceType = varchar("device_type", 20)
     val deviceName = varchar("device_name", 255).nullable()
     val fcmToken = text("fcm_token").nullable()
