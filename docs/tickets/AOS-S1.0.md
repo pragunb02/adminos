@@ -4,11 +4,11 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E1](AOS-E1.md) |
-| **Status** | 🟦 In progress |
+| **Status** | ✅ Done |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 11h |
-| **Actual** | — |
+| **Actual** | 4.5h |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **Decisions** | D-28 |
 | **Depends on** | AOS-101 (green baseline) |
@@ -17,9 +17,9 @@
 **As** Pragun, **I want** every service on the latest stable versions, **so that** new code is built on supported, secure foundations and we don't redo work after upgrading later.
 
 ## Acceptance criteria
-- [ ] Every dependency is at its latest stable (or newest officially supported combination), pinned
-- [ ] All tests and builds are green after each service's upgrade
-- [ ] Docker images build
+- [x] Every dependency is at its latest stable (or newest officially supported combination), pinned
+- [x] All tests and builds are green after each service's upgrade
+- [x] Docker images build
 
 ## Design (awaiting Pragun's approval)
 - **Context:** most libraries are 1+ majors behind (AOS-009). The upgrades come before the
@@ -81,8 +81,9 @@
 | [AOS-116](AOS-116.md) | Web: Next 16, React 19, Tailwind 4, ESLint flat config, TypeScript (supported), Node 24 LTS | Claude | ✅ | 3h | 1h |
 | [AOS-117](AOS-117.md) | PDF parser: Python and libraries (FastAPI, Uvicorn, pdfplumber, boto3, redis, python-multipart) | Claude | ✅ | 1h | 0.5h |
 | [AOS-118](AOS-118.md) | Workers: Go 1.27, modules up to date, fix the Dockerfile Go version | Claude | ✅ | 1h | 0.5h |
-| AOS-119 | Docker/runtime images: JDK 25 LTS, Node 24 LTS, Postgres and Redis stable tags | Claude | ⬜ | 1h | |
+| [AOS-119](AOS-119.md) | Docker/runtime images: JDK 25 LTS, Node 24 LTS, Postgres and Redis stable tags | Claude | ✅ | 1h | 0.5h |
 
 ## Activity log
+- 2026-10-16 — Claude: story done. AOS-115…119 merged (PRs #8–#12). Actual 4.5h vs ETA 11h.
 - 2026-10-16 — Pragun: design approved; JDK 25 now.
 - 2026-10-16 — Claude: story created from the AOS-009 audit.

@@ -37,7 +37,7 @@ class ExposedUserRepositoryIntegrationTest {
     companion object {
         @Container
         @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:16-alpine")
+        val postgres = PostgreSQLContainer("postgres:18.6-alpine")
             .withDatabaseName("adminos_test")
             .withUsername("test")
             .withPassword("test")

@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** AOS-119 (runtime images: API Dockerfile with JDK 25, Postgres/Redis tags), then AOS-102…104.
+**Next step:** story S1.1, database starts cleanly: AOS-102 (Flyway owns migrations), AOS-103 (JDBC stringtype), AOS-104 (integration tests green).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-119: Postgres 18.6 / Redis 8.10 (compose + tests), ports bound to localhost. **Story S1.0 done** (4.5h vs 11h ETA).
   - AOS-118: workers on Go 1.27 with latest modules; first verified build/test; Dockerfile fixed (non-root). Go runs via Docker (proxy.golang.org blocked).
   - AOS-117: PDF parser on Python 3.14 with latest libraries; Docker smoke test passed.
   - AOS-116: web on Next 16.4, React 19.3, Tailwind 4.3, ESLint 10, TS 6.0.3 (D-29), Node 24. Lint runs for the first time; set-state-in-effect → AOS-308.
