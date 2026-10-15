@@ -21,7 +21,7 @@ class SubscriptionDetectorPropertyTest {
         @ForAll @IntRange(min = 3, max = 5) chargeCount: Int,
         @ForAll("merchantNames") merchantName: String,
         @ForAll("amounts") amount: Double
-    ) = runBlocking {
+    ) = runBlocking<Unit> {
         // Arrange
         val transactionRepo = InMemoryTransactionRepository()
         val subscriptionRepo = InMemorySubscriptionRepository()

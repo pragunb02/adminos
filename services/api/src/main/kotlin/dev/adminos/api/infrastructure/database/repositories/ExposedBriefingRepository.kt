@@ -6,6 +6,7 @@ import dev.adminos.api.infrastructure.database.tables.BriefingsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.JsonColumns
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.math.BigDecimal
 import java.time.Instant
@@ -22,7 +23,7 @@ class ExposedBriefingRepository : BriefingRepository {
             it[type] = briefing.type.name.lowercase()
             it[content] = briefing.content
             it[contentStructured] = briefing.contentStructured?.let { m ->
-                Json.encodeToString(kotlinx.serialization.serializer(), m)
+                JsonColumns.encode(m)
             }
             it[totalSpent] = briefing.totalSpent
             it[totalIncome] = briefing.totalIncome
@@ -89,7 +90,7 @@ class ExposedBriefingRepository : BriefingRepository {
             type = BriefingType.valueOf(this[BriefingsTable.type].uppercase()),
             content = this[BriefingsTable.content],
             contentStructured = this[BriefingsTable.contentStructured]?.let {
-                Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(it) as? Map<String, Any?>
+                JsonColumns.decode(it)
             },
             totalSpent = this[BriefingsTable.totalSpent],
             totalIncome = this[BriefingsTable.totalIncome],

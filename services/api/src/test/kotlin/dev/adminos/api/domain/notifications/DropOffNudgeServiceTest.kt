@@ -117,7 +117,7 @@ class DropOffNudgeServiceTest {
     // ── Integration: Nudge Sending ──
 
     @Test
-    fun `processUserNudges sends gmail nudge on day 1`() = runBlocking {
+    fun `processUserNudges sends gmail nudge on day 1`() = runBlocking<Unit> {
         val user = User(
             email = "test@example.com",
             googleId = "g123",
@@ -142,7 +142,7 @@ class DropOffNudgeServiceTest {
     }
 
     @Test
-    fun `processUserNudges does not send for completed users`() = runBlocking {
+    fun `processUserNudges does not send for completed users`() = runBlocking<Unit> {
         val user = User(
             email = "done@example.com",
             googleId = "g456",

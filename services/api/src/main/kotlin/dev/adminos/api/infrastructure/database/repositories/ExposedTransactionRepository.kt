@@ -7,6 +7,7 @@ import dev.adminos.api.infrastructure.database.tables.TransactionsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.JsonColumns
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -42,7 +43,7 @@ class ExposedTransactionRepository : TransactionRepository {
             it[anomalyId] = txn.anomalyId
             it[isVerified] = txn.isVerified
             it[rawEmailId] = txn.rawEmailId
-            it[metadata] = txn.metadata?.let { m -> Json.encodeToString(kotlinx.serialization.serializer(), m) }
+            it[metadata] = txn.metadata?.let { m -> JsonColumns.encode(m) }
             it[transactedAt] = txn.transactedAt
             it[createdAt] = txn.createdAt
             it[updatedAt] = txn.updatedAt
@@ -225,7 +226,7 @@ class ExposedTransactionRepository : TransactionRepository {
         isVerified = this[TransactionsTable.isVerified],
         rawEmailId = this[TransactionsTable.rawEmailId],
         metadata = this[TransactionsTable.metadata]?.let {
-            Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(it) as? Map<String, Any?>
+            JsonColumns.decode(it)
         },
         transactedAt = this[TransactionsTable.transactedAt],
         createdAt = this[TransactionsTable.createdAt],

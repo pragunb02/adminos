@@ -5,6 +5,7 @@ import dev.adminos.api.infrastructure.database.tables.InsightsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.JsonColumns
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.util.UUID
 
@@ -23,7 +24,7 @@ class ExposedInsightRepository : InsightRepository {
             it[entityId] = insight.entityId
             it[actionType] = insight.actionType.name.lowercase()
             it[actionPayload] = insight.actionPayload?.let { m ->
-                Json.encodeToString(kotlinx.serialization.serializer(), m)
+                JsonColumns.encode(m)
             }
             it[status] = insight.status.name.lowercase()
             it[seenAt] = insight.seenAt
@@ -62,7 +63,7 @@ class ExposedInsightRepository : InsightRepository {
         entityId = this[InsightsTable.entityId],
         actionType = InsightActionType.valueOf(this[InsightsTable.actionType].uppercase()),
         actionPayload = this[InsightsTable.actionPayload]?.let {
-            Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(it) as? Map<String, Any?>
+            JsonColumns.decode(it)
         },
         status = InsightStatus.valueOf(this[InsightsTable.status].uppercase()),
         seenAt = this[InsightsTable.seenAt],

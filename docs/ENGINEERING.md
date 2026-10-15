@@ -133,6 +133,8 @@ Layers 4 and 5 sit side by side under layer 3.
 - **One behaviour per test.** Name tests as sentences in backticks, e.g.
   `` `refund within 30 days links to original debit` ``. Structure the body as given / when / then.
 - Assert errors with `assertFailsWith<…>` (Kotlin) or `require.ErrorIs` / `errors.Is` (Go).
+- Test functions must return `Unit`: write `= runBlocking<Unit> { … }`. JUnit silently skips test methods that return a value; `TestConventionsTest` enforces this.
+- Persisted JSON (`Map<String, Any?>`) always goes through `JsonColumns` (D-30). Never call `serializer()` on `Any`.
 - Don't mock what you own: use the `InMemory*` fakes. Mock only external clients.
 - Tests are deterministic: inject `Clock` and ID generators; no sleeps, no real network.
 - **Every bug fix ships with a regression test** that fails before the fix.

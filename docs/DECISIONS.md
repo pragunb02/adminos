@@ -34,6 +34,7 @@
 | D-27 | Architecture | Design principles, pattern catalogue, design-before-code | Accepted | AOS-008 |
 | D-28 | Architecture | Latest stable dependencies, exact pins, upgrade cadence | Accepted | AOS-009, S1.0 |
 | D-29 | ETA | TypeScript 6.0.3 pin; set-state-in-effect at warn until AOS-308 | Accepted | AOS-116, AOS-308 |
+| D-30 | Architecture | One JSON-column mapper (`JsonColumns`); tests must return Unit (guarded) | Accepted | AOS-105 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -267,3 +268,15 @@ Proposed
 - Implemented: `V{N}__*.sql` in the API's `db/migration`; no initdb mount.
 - Startup fails fast on migration errors, with no `baselineOnMigrate`.
 - New schema changes are always a new `V{n+1}__*.sql`. Never edit an applied migration.
+
+### D-30 — One JSON-column mapper; test methods must return Unit
+2026-10-16 · Accepted · Type: Architecture · Tasks: AOS-105
+- **JSON columns:** every JSONB column holding `Map<String, Any?>` goes through
+  `infrastructure/database/JsonColumns`.
+  - Supported values: null, String, Boolean, numbers, maps, lists.
+  - BigDecimal is written as an exact literal.
+  - Other types throw.
+  - **Why:** the copy-pasted serializer calls crashed at runtime in 6 repositories, and the
+    Number path loses money precision.
+- **Tests:** `@Test` bodies use `runBlocking<Unit> { }`. `TestConventionsTest` fails the build
+  otherwise, because JUnit silently skips non-void test methods (9 tests were hidden).

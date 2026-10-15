@@ -123,7 +123,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    fun `critical notification bypasses quiet hours and is sent`() = runBlocking {
+    fun `critical notification bypasses quiet hours and is sent`() = runBlocking<Unit> {
         // Set up preferences with quiet hours active now (all day)
         val prefs = NotificationPreferences(
             userId = testUserId,
@@ -148,7 +148,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    fun `non-critical notification is held during quiet hours`() = runBlocking {
+    fun `non-critical notification is held during quiet hours`() = runBlocking<Unit> {
         // Set up preferences with quiet hours covering all day
         val prefs = NotificationPreferences(
             userId = testUserId,
@@ -175,7 +175,7 @@ class NotificationServiceTest {
     // ── Channel Routing Tests ──
 
     @Test
-    fun `notification type disabled returns empty`() = runBlocking {
+    fun `notification type disabled returns empty`() = runBlocking<Unit> {
         val prefs = NotificationPreferences(
             userId = testUserId,
             billReminders = false,
@@ -195,7 +195,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    fun `channel routing respects push disabled`() = runBlocking {
+    fun `channel routing respects push disabled`() = runBlocking<Unit> {
         val prefs = NotificationPreferences(
             userId = testUserId,
             pushNotifications = false,
@@ -221,7 +221,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    fun `channel routing respects email disabled`() = runBlocking {
+    fun `channel routing respects email disabled`() = runBlocking<Unit> {
         val prefs = NotificationPreferences(
             userId = testUserId,
             pushNotifications = false,

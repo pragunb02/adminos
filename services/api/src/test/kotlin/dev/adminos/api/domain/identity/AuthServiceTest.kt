@@ -48,7 +48,7 @@ class AuthServiceTest {
     // --- Token refresh tests ---
 
     @Test
-    fun `refresh with valid token issues new access token`() = runBlocking {
+    fun `refresh with valid token issues new access token`() = runBlocking<Unit> {
         // Arrange — create user and session
         val user = User(
             email = "test@example.com",
@@ -77,14 +77,14 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `refresh with unknown token throws SessionNotFoundException`() = runBlocking {
+    fun `refresh with unknown token throws SessionNotFoundException`() = runBlocking<Unit> {
         assertFailsWith<SessionNotFoundException> {
             authService.refreshToken("unknown-token")
         }
     }
 
     @Test
-    fun `refresh with revoked session throws SessionRevokedException`() = runBlocking {
+    fun `refresh with revoked session throws SessionRevokedException`() = runBlocking<Unit> {
         // Arrange
         val user = User(email = "test@example.com", googleId = "google_123")
         userRepository.save(user)
@@ -105,7 +105,7 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `refresh with expired session throws SessionRevokedException`() = runBlocking {
+    fun `refresh with expired session throws SessionRevokedException`() = runBlocking<Unit> {
         // Arrange
         val user = User(email = "test@example.com", googleId = "google_123")
         userRepository.save(user)
@@ -127,7 +127,7 @@ class AuthServiceTest {
     // --- Logout tests ---
 
     @Test
-    fun `logout revokes all active sessions for user`() = runBlocking {
+    fun `logout revokes all active sessions for user`() = runBlocking<Unit> {
         // Arrange
         val user = User(email = "test@example.com", googleId = "google_123")
         userRepository.save(user)
@@ -158,7 +158,7 @@ class AuthServiceTest {
     }
 
     @Test
-    fun `revoking non-existent session does not throw`() = runBlocking {
+    fun `revoking non-existent session does not throw`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         // Should not throw
         authService.revokeSession(userId, UUID.randomUUID())
@@ -167,7 +167,7 @@ class AuthServiceTest {
     // --- Session listing tests ---
 
     @Test
-    fun `getActiveSessions returns only non-revoked non-expired sessions`() = runBlocking {
+    fun `getActiveSessions returns only non-revoked non-expired sessions`() = runBlocking<Unit> {
         val user = User(email = "test@example.com", googleId = "google_123")
         userRepository.save(user)
 

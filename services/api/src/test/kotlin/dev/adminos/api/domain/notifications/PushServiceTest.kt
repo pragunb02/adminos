@@ -22,13 +22,13 @@ class PushServiceTest {
     }
 
     @Test
-    fun `sendToUser returns failure when no devices registered`() = runBlocking {
+    fun `sendToUser returns failure when no devices registered`() = runBlocking<Unit> {
         val result = pushService.sendToUser(testUserId, "Test", "Body")
         assertFalse(result.success)
     }
 
     @Test
-    fun `sendToUser returns failure when devices have no FCM token`() = runBlocking {
+    fun `sendToUser returns failure when devices have no FCM token`() = runBlocking<Unit> {
         deviceRepo.save(Device(userId = testUserId, fcmToken = null))
 
         val result = pushService.sendToUser(testUserId, "Test", "Body")
@@ -36,7 +36,7 @@ class PushServiceTest {
     }
 
     @Test
-    fun `sendToUser succeeds with valid FCM token`() = runBlocking {
+    fun `sendToUser succeeds with valid FCM token`() = runBlocking<Unit> {
         deviceRepo.save(Device(userId = testUserId, fcmToken = "valid_token_123"))
 
         val result = pushService.sendToUser(testUserId, "Test", "Body")
@@ -45,7 +45,7 @@ class PushServiceTest {
     }
 
     @Test
-    fun `sendToDevice removes invalid token`() = runBlocking {
+    fun `sendToDevice removes invalid token`() = runBlocking<Unit> {
         val device = Device(userId = testUserId, fcmToken = "INVALID_token_abc")
         deviceRepo.save(device)
 
@@ -57,7 +57,7 @@ class PushServiceTest {
     }
 
     @Test
-    fun `sendToUser handles mixed valid and invalid tokens`() = runBlocking {
+    fun `sendToUser handles mixed valid and invalid tokens`() = runBlocking<Unit> {
         val validDevice = Device(userId = testUserId, fcmToken = "valid_token_123")
         val invalidDevice = Device(userId = testUserId, fcmToken = "INVALID_token_abc")
         deviceRepo.save(validDevice)

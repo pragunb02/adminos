@@ -21,7 +21,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `createConnection creates a new Gmail connection`() = runBlocking {
+    fun `createConnection creates a new Gmail connection`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val conn = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@gmail.com")
 
@@ -32,7 +32,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `createConnection returns existing if already connected`() = runBlocking {
+    fun `createConnection returns existing if already connected`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val first = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@gmail.com")
         val second = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@gmail.com")
@@ -41,7 +41,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `disconnect updates status and clears tokens`() = runBlocking {
+    fun `disconnect updates status and clears tokens`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val conn = service.createConnection(userId, SourceType.GMAIL, accessToken = "tok", refreshToken = "ref")
 
@@ -53,7 +53,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `disconnect throws for wrong user`() = runBlocking {
+    fun `disconnect throws for wrong user`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val otherUser = UUID.randomUUID()
         val conn = service.createConnection(userId, SourceType.GMAIL)
@@ -64,7 +64,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `triggerManualSync creates queued sync session`() = runBlocking {
+    fun `triggerManualSync creates queued sync session`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val conn = service.createConnection(userId, SourceType.GMAIL)
 
@@ -76,7 +76,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `triggerManualSync throws for disconnected connection`() = runBlocking {
+    fun `triggerManualSync throws for disconnected connection`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val conn = service.createConnection(userId, SourceType.GMAIL)
         service.disconnect(userId, conn.id)
@@ -87,7 +87,7 @@ class ConnectionServiceTest {
     }
 
     @Test
-    fun `getUserConnections returns only user connections`() = runBlocking {
+    fun `getUserConnections returns only user connections`() = runBlocking<Unit> {
         val user1 = UUID.randomUUID()
         val user2 = UUID.randomUUID()
 
