@@ -48,7 +48,7 @@ CREATE TABLE notification_preferences (
   briefing_day      weekday NOT NULL DEFAULT 'mon',
   briefing_time     TIME NOT NULL DEFAULT '08:00',
   bill_reminders    BOOLEAN NOT NULL DEFAULT true,
-  bill_reminder_days INTEGER[] NOT NULL DEFAULT '{3,1}',
+  bill_reminder_days TEXT NOT NULL DEFAULT '3,1',  -- comma-separated days
   anomaly_alerts    BOOLEAN NOT NULL DEFAULT true,
   subscription_flags BOOLEAN NOT NULL DEFAULT true,
   email_notifications BOOLEAN NOT NULL DEFAULT true,

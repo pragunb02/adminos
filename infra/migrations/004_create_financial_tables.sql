@@ -1,4 +1,4 @@
--- 004: Financial domain — transactions (hypertable), accounts, subscriptions, bills
+-- 004: Financial domain — transactions, accounts, subscriptions, bills
 
 CREATE TABLE accounts (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -50,9 +50,6 @@ CREATE TABLE transactions (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- TimescaleDB hypertable
-SELECT create_hypertable('transactions', 'transacted_at');
-
 ALTER TABLE transactions ADD CONSTRAINT chk_txn_amount CHECK (amount > 0);
 CREATE INDEX idx_txn_user_time ON transactions (user_id, transacted_at DESC);
 CREATE INDEX idx_txn_user_cat ON transactions (user_id, category);
@@ -84,7 +81,7 @@ CREATE TABLE subscriptions (
   flagged_reason    TEXT,
   flagged_at        TIMESTAMPTZ,
   flag_dismissed_at TIMESTAMPTZ,
-  transaction_ids   UUID[],
+  transaction_ids   TEXT,  -- comma-separated UUIDs
   cancellation_draft TEXT,
   cancellation_draft_generated_at TIMESTAMPTZ,
   metadata          JSONB,

@@ -8,7 +8,7 @@ CREATE TABLE user_connections (
   access_token      TEXT,
   refresh_token     TEXT,
   token_expires_at  TIMESTAMPTZ,
-  oauth_scope       TEXT[],
+  oauth_scope       TEXT,  -- comma-separated
   gmail_address     VARCHAR(255),
   pubsub_expiry     TIMESTAMPTZ,
   history_id        VARCHAR(100),

@@ -152,13 +152,13 @@ class NotificationService(
          * Check if a notification type is enabled in user preferences.
          */
         fun isTypeEnabled(type: NotificationType, prefs: NotificationPreferences): Boolean = when (type) {
-            NotificationType.BILL_REMINDER -> prefs.billReminders
+            NotificationType.BILL_REMINDER, NotificationType.BILL_DUE -> prefs.billReminders
             NotificationType.ANOMALY -> prefs.anomalyAlerts
             NotificationType.BRIEFING -> prefs.weeklyBriefing
-            NotificationType.SUBSCRIPTION_FLAG -> prefs.subscriptionFlags
+            NotificationType.SUBSCRIPTION_FLAG, NotificationType.SUBSCRIPTION_FLAGGED -> prefs.subscriptionFlags
             NotificationType.OVERDUE -> prefs.billReminders
             NotificationType.NUDGE -> true  // nudges always enabled (system-level)
-            NotificationType.GENERAL -> true
+            NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM -> true
         }
     }
 }
