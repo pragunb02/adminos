@@ -15,7 +15,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.auth.*
 import io.ktor.server.config.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.routing.*
@@ -58,20 +57,7 @@ class IngestionRoutesTest {
             configureRequestId()
             configureErrorHandling()
 
-            install(Authentication) {
-                bearer("auth-jwt") {
-                    authenticate { tokenCredential ->
-                        val claims = jwtService.verifyAccessToken(tokenCredential.token)
-                        if (claims != null) {
-                            UserPrincipal(
-                                userId = claims.userId,
-                                email = claims.email,
-                                role = claims.role
-                            )
-                        } else null
-                    }
-                }
-            }
+            configureAuthentication(jwtService)
 
             routing {
                 route("/api/v1") {
