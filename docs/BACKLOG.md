@@ -8,16 +8,18 @@ Hierarchy: **Epic** (milestone) → **Story** (user-visible outcome) → **Task*
 
 _Board generated 2026-10-16. When a ticket changes, update the ticket file **and** its row here._
 
-## 🟦 [AOS-E0](tickets/AOS-E0.md) — Planning & docs · P0 · ETA 4h
+## 🟦 [AOS-E0](tickets/AOS-E0.md) — Planning & docs · P0 · ETA 7h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S0.1](tickets/AOS-S0.1.md)** | **Project documentation & backlog** | | 🟦 | 4h | |
+| **[AOS-S0.1](tickets/AOS-S0.1.md)** | **Project documentation & backlog** | | 🟦 | 7h | |
 | └ [AOS-001](tickets/AOS-001.md) | Audit codebase (API, workers, web, schema, business rules) | Claude | ✅ | 1h | 1h |
 | └ [AOS-002](tickets/AOS-002.md) | Re-scope to personal console; write BRD, DECISIONS, PROGRESS, CLAUDE.md | Claude | ✅ | 1h | 1h |
 | └ [AOS-003](tickets/AOS-003.md) | BRD v2 from research (money, email, WhatsApp, iPhone SMS) | Claude | ✅ | 1h | 1h |
 | └ [AOS-004](tickets/AOS-004.md) | Backlog, Amazon-style tickets, templates, decision index | Claude | ✅ | 1h | 1h |
 | └ [AOS-005](tickets/AOS-005.md) | Confirm weekly hours so ETAs become target dates | Pragun | ⬜ | — |  |
+| └ [AOS-006](tickets/AOS-006.md) | Engineering standards doc (architecture, coding, tests, DoD) | Claude | ✅ | 1h | 1h |
+| └ [AOS-007](tickets/AOS-007.md) | Audit existing code against ENGINEERING.md (read-only) and file tickets | Claude | ⬜ | 2h |  |
 
 ## 🟦 [AOS-E1](tickets/AOS-E1.md) — Foundation runs · P0 · ETA 19h
 

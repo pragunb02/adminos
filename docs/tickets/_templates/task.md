@@ -39,5 +39,12 @@
 ## Activity log
 - YYYY-MM-DD — <who>: <what happened, result, links to commits>
 
+## Definition of Done (docs/ENGINEERING.md §4)
+- [ ] Each acceptance criterion covered by a test or a documented manual check
+- [ ] Tests/build green (integration tests if the DB is touched)
+- [ ] Layer rules respected; no silent fallbacks; no secrets/PII in logs
+- [ ] Decisions recorded · ticket, story, epic and board updated · PROGRESS.md updated
+- [ ] Commit message starts with `AOS-<nnn>:`
+
 ## Resolution
 <Filled when closed: what was done, files changed, how it was verified, Actual vs ETA.>

@@ -7,7 +7,7 @@
 | **Status** | 🟦 In progress |
 | **Priority** | P0 |
 | **Owner** | Claude |
-| **ETA (rollup)** | 4h |
+| **ETA (rollup)** | 7h |
 | **Actual** | — |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **Decisions** | D-15…D-22, D-23, D-24, D-25, D-4…D-11 |
@@ -27,6 +27,8 @@
 | [AOS-003](AOS-003.md) | BRD v2 from research (money, email, WhatsApp, iPhone SMS) | Claude | ✅ | 1h | 1h |
 | [AOS-004](AOS-004.md) | Backlog, Amazon-style tickets, templates, decision index | Claude | ✅ | 1h | 1h |
 | [AOS-005](AOS-005.md) | Confirm weekly hours so ETAs become target dates | Pragun | ⬜ | —h |  |
+| [AOS-006](AOS-006.md) | Engineering standards doc (architecture, coding, tests, DoD) | Claude | ✅ | 1h | 1h |
+| [AOS-007](AOS-007.md) | Audit existing code against ENGINEERING.md (read-only) and file tickets | Claude | ⬜ | 2h |  |
 
 _Task tickets are created as files when this story is picked up._
 

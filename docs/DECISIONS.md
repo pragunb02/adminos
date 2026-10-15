@@ -30,6 +30,7 @@
 | D-23 | ETA | How ETAs are estimated and tracked | Accepted | all |
 | D-24 | Process | Every change carries a task ID | Accepted | all |
 | D-25 | Process | Amazon-style tickets: Epic → Story → Task in `docs/tickets/` | Accepted | AOS-004 |
+| D-26 | Architecture | Five-layer architecture, coding rules, testing standards, Definition of Done (`docs/ENGINEERING.md`) | Accepted | AOS-006, AOS-007 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -212,3 +213,16 @@ Proposed
 - Task files are created when their story is picked up. Until then the task is a row in the story.
 - **Why:** Pragun wants proper ticket tracking like at Amazon, kept in the repo so every
   Claude session can read it. GitHub Issues was considered and rejected for now.
+
+### D-26 — Engineering standards: layered architecture, coding rules, tests, Definition of Done
+2026-10-16 · Accepted · Type: Architecture · Tasks: AOS-006, AOS-007
+- `docs/ENGINEERING.md` defines five layers (API → domain logic → domain data →
+  persistence/dependencies) with three rules: adjacent layers only, calls go downward,
+  request/response.
+- Coding rules: typed values, no `!!`/null errors, fail fast with no silent fallbacks,
+  immutability, small signatures, interfaces only with 2+ implementations, safe logging,
+  wrapped errors.
+- Testing standards and a Definition of Done.
+- Applied to new and touched code; existing gaps are tracked through AOS-007, not a big-bang rewrite.
+- **Why:** Pragun asked for good architectural practice and proper unit tests. Written as
+  general engineering practice (the repo is public).

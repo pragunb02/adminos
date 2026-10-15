@@ -9,6 +9,7 @@ day, week and month. It's built for Pragun first and must stay extensible to pub
 1. `docs/BRD.md`: the goal, inputs and outputs, milestones, and scope.
 2. `docs/PROGRESS.md`: the current state of the code and business logic, the active branch, and the next step.
 3. `docs/DECISIONS.md`: past decisions and why they were made. Don't re-litigate accepted ones.
+4. `docs/ENGINEERING.md`: **mandatory** architecture layers, coding rules, testing standards and Definition of Done.
 
 ## Working rules (mandatory)
 - **Before any change** (edit, build, branch, install, commit), state **what you're trying to do and the next step**, then wait for approval.
@@ -23,6 +24,7 @@ day, week and month. It's built for Pragun first and must stay extensible to pub
 - Each decision in DECISIONS.md states its **Type** (Architecture / Product / Scope / ETA / Process) and linked tasks, and is added to the index.
 - Before ending a session, update `docs/PROGRESS.md`: what changed, what was verified, and the next step.
 - Record any meaningful choice in `docs/DECISIONS.md` (append only).
+- Code follows `docs/ENGINEERING.md`. A task is done only when its Definition of Done is met.
 - If you find a bug, report it and mention it in PROGRESS.md; don't silently fix things outside the agreed step.
 
 ## Stack
