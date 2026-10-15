@@ -3,6 +3,7 @@ package dev.adminos.api.infrastructure.queue
 import io.lettuce.core.RedisClient
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
@@ -29,6 +30,14 @@ class AsynqPublisherIntegrationTest {
         @JvmStatic
         val redis = GenericContainer("redis:7-alpine")
             .withExposedPorts(6379)
+    }
+
+    /** Tests share one Redis container; start each from an empty database so order doesn't matter. */
+    @BeforeEach
+    fun flushRedis() {
+        val client = RedisClient.create("redis://${redis.host}:${redis.getMappedPort(6379)}")
+        client.connect().use { it.sync().flushall() }
+        client.shutdown()
     }
 
     @Test
