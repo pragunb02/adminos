@@ -1,5 +1,6 @@
 package dev.adminos.api.infrastructure.database
 
+import dev.adminos.api.config.DatabaseConfig
 import dev.adminos.api.domain.common.DuplicateEntityException
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.infrastructure.database.repositories.ExposedUserRepository
@@ -45,12 +46,11 @@ class ExposedUserRepositoryIntegrationTest {
 
     @BeforeAll
     fun setup() {
-        Database.connect(
-            url = postgres.jdbcUrl,
-            driver = "org.postgresql.Driver",
-            user = postgres.username,
-            password = postgres.password
+        // Same pool configuration as production (DatabaseFactory), so tests cover its settings.
+        val dataSource = DatabaseFactory.createHikariDataSource(
+            DatabaseConfig(url = postgres.jdbcUrl, user = postgres.username, password = postgres.password, maxPoolSize = 2)
         )
+        Database.connect(dataSource)
         // Run migration SQL files directly (they don't follow Flyway naming convention)
         val sqlDir = File("../../infra/migrations")
         val sqlFiles = sqlDir.listFiles()?.filter { it.extension == "sql" }?.sortedBy { it.name } ?: emptyList()

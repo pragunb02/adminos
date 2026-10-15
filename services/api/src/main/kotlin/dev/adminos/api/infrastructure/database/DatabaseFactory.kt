@@ -26,7 +26,11 @@ object DatabaseFactory {
         logger.info("Database initialized: {}", config.url)
     }
 
-    private fun createHikariDataSource(config: DatabaseConfig): HikariDataSource {
+    /**
+     * Builds the connection pool used by the app (and by integration tests, so they exercise
+     * the same settings).
+     */
+    internal fun createHikariDataSource(config: DatabaseConfig): HikariDataSource {
         val hikariConfig = HikariConfig().apply {
             jdbcUrl = config.url
             username = config.user
@@ -34,6 +38,9 @@ object DatabaseFactory {
             maximumPoolSize = config.maxPoolSize
             isAutoCommit = false
             transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+            // Exposed maps Postgres ENUM/JSONB/INET columns as varchar/text; send strings untyped
+            // so Postgres casts them to the column type (D-13).
+            addDataSourceProperty("stringtype", "unspecified")
             validate()
         }
         return HikariDataSource(hikariConfig)
