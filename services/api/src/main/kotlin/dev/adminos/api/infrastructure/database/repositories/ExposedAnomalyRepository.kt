@@ -3,15 +3,15 @@ package dev.adminos.api.infrastructure.database.repositories
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.infrastructure.database.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.AnomaliesTable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedAnomalyRepository : AnomalyRepository {
 
-    override suspend fun save(anomaly: Anomaly): Anomaly = newSuspendedTransaction {
+    override suspend fun save(anomaly: Anomaly): Anomaly = dbQuery {
         AnomaliesTable.insert {
             it[id] = anomaly.id
             it[userId] = anomaly.userId
@@ -29,14 +29,14 @@ class ExposedAnomalyRepository : AnomalyRepository {
         anomaly
     }
 
-    override suspend fun findById(id: UUID): Anomaly? = newSuspendedTransaction {
-        AnomaliesTable.select { AnomaliesTable.id eq id }.singleOrNull()?.toAnomaly()
+    override suspend fun findById(id: UUID): Anomaly? = dbQuery {
+        AnomaliesTable.selectAll().where { AnomaliesTable.id eq id }.singleOrNull()?.toAnomaly()
     }
 
     override suspend fun findByUserId(
         userId: UUID, status: AnomalyStatus?, cursor: String?, limit: Int
-    ): List<Anomaly> = newSuspendedTransaction {
-        val query = AnomaliesTable.select { AnomaliesTable.userId eq userId }
+    ): List<Anomaly> = dbQuery {
+        val query = AnomaliesTable.selectAll().where { AnomaliesTable.userId eq userId }
         status?.let { s -> query.andWhere { AnomaliesTable.status eq s.name.lowercase() } }
         cursor?.let { c ->
             val (key, _) = CursorCodec.decode(c)
@@ -48,13 +48,13 @@ class ExposedAnomalyRepository : AnomalyRepository {
             .map { it.toAnomaly() }
     }
 
-    override suspend fun countByUserId(userId: UUID, status: AnomalyStatus?): Long = newSuspendedTransaction {
-        val query = AnomaliesTable.select { AnomaliesTable.userId eq userId }
+    override suspend fun countByUserId(userId: UUID, status: AnomalyStatus?): Long = dbQuery {
+        val query = AnomaliesTable.selectAll().where { AnomaliesTable.userId eq userId }
         status?.let { s -> query.andWhere { AnomaliesTable.status eq s.name.lowercase() } }
         query.count()
     }
 
-    override suspend fun update(anomaly: Anomaly): Anomaly = newSuspendedTransaction {
+    override suspend fun update(anomaly: Anomaly): Anomaly = dbQuery {
         val now = Instant.now()
         AnomaliesTable.update({ AnomaliesTable.id eq anomaly.id }) {
             it[agentExplanation] = anomaly.agentExplanation

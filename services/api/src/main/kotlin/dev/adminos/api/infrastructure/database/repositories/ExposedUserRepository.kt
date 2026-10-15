@@ -5,36 +5,36 @@ import dev.adminos.api.domain.common.EntityNotFoundException
 import dev.adminos.api.domain.common.RepositoryException
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.infrastructure.database.tables.UsersTable
-import org.jetbrains.exposed.exceptions.ExposedSQLException
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedUserRepository : UserRepository {
 
-    override suspend fun findById(id: UUID): User? = newSuspendedTransaction {
-        UsersTable.select { UsersTable.id eq id }.singleOrNull()?.toUser()
+    override suspend fun findById(id: UUID): User? = dbQuery {
+        UsersTable.selectAll().where { UsersTable.id eq id }.singleOrNull()?.toUser()
     }
 
-    override suspend fun findByGoogleId(googleId: String): User? = newSuspendedTransaction {
-        UsersTable.select { UsersTable.googleId eq googleId }.singleOrNull()?.toUser()
+    override suspend fun findByGoogleId(googleId: String): User? = dbQuery {
+        UsersTable.selectAll().where { UsersTable.googleId eq googleId }.singleOrNull()?.toUser()
     }
 
-    override suspend fun findByEmail(email: String): User? = newSuspendedTransaction {
-        UsersTable.select { UsersTable.email eq email }.singleOrNull()?.toUser()
+    override suspend fun findByEmail(email: String): User? = dbQuery {
+        UsersTable.selectAll().where { UsersTable.email eq email }.singleOrNull()?.toUser()
     }
 
-    override suspend fun findByOnboardingIncomplete(): List<User> = newSuspendedTransaction {
-        UsersTable.select {
+    override suspend fun findByOnboardingIncomplete(): List<User> = dbQuery {
+        UsersTable.selectAll().where {
             (UsersTable.onboardingStatus neq OnboardingStatus.COMPLETED.name.lowercase()) and
                 (UsersTable.isActive eq true) and
                 UsersTable.deletedAt.isNull()
         }.map { it.toUser() }
     }
 
-    override suspend fun save(user: User): User = newSuspendedTransaction {
+    override suspend fun save(user: User): User = dbQuery {
         try {
             UsersTable.insert {
                 it[id] = user.id
@@ -64,7 +64,7 @@ class ExposedUserRepository : UserRepository {
         }
     }
 
-    override suspend fun update(user: User): User = newSuspendedTransaction {
+    override suspend fun update(user: User): User = dbQuery {
         val now = Instant.now()
         UsersTable.update({ UsersTable.id eq user.id }) {
             it[email] = user.email
@@ -79,7 +79,7 @@ class ExposedUserRepository : UserRepository {
             it[updatedAt] = now
             it[deletedAt] = user.deletedAt
         }
-        UsersTable.select { UsersTable.id eq user.id }
+        UsersTable.selectAll().where { UsersTable.id eq user.id }
             .singleOrNull()?.toUser()
             ?: throw EntityNotFoundException("User ${user.id} not found")
     }

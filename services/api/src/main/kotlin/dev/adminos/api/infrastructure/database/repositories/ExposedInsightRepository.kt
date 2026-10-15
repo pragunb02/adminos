@@ -3,13 +3,14 @@ package dev.adminos.api.infrastructure.database.repositories
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.infrastructure.database.tables.InsightsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.util.UUID
 
 class ExposedInsightRepository : InsightRepository {
 
-    override suspend fun save(insight: Insight): Insight = newSuspendedTransaction {
+    override suspend fun save(insight: Insight): Insight = dbQuery {
         InsightsTable.insert {
             it[id] = insight.id
             it[userId] = insight.userId
@@ -34,15 +35,15 @@ class ExposedInsightRepository : InsightRepository {
         insight
     }
 
-    override suspend fun findByBriefingId(briefingId: UUID): List<Insight> = newSuspendedTransaction {
-        InsightsTable.select { InsightsTable.briefingId eq briefingId }
+    override suspend fun findByBriefingId(briefingId: UUID): List<Insight> = dbQuery {
+        InsightsTable.selectAll().where { InsightsTable.briefingId eq briefingId }
             .orderBy(InsightsTable.createdAt, SortOrder.DESC)
             .map { it.toInsight() }
     }
 
     override suspend fun findByUserId(userId: UUID, status: InsightStatus?): List<Insight> =
-        newSuspendedTransaction {
-            val query = InsightsTable.select { InsightsTable.userId eq userId }
+        dbQuery {
+            val query = InsightsTable.selectAll().where { InsightsTable.userId eq userId }
             status?.let { s -> query.andWhere { InsightsTable.status eq s.name.lowercase() } }
             query.orderBy(InsightsTable.createdAt, SortOrder.DESC)
                 .map { it.toInsight() }

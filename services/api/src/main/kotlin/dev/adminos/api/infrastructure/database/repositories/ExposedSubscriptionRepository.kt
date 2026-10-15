@@ -4,15 +4,15 @@ import dev.adminos.api.domain.financial.*
 import dev.adminos.api.infrastructure.database.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.SubscriptionsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedSubscriptionRepository : SubscriptionRepository {
 
-    override suspend fun save(subscription: Subscription): Subscription = newSuspendedTransaction {
+    override suspend fun save(subscription: Subscription): Subscription = dbQuery {
         SubscriptionsTable.insert {
             it[id] = subscription.id
             it[userId] = subscription.userId
@@ -48,15 +48,15 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
         subscription
     }
 
-    override suspend fun findById(id: UUID): Subscription? = newSuspendedTransaction {
-        SubscriptionsTable.select { SubscriptionsTable.id eq id }
+    override suspend fun findById(id: UUID): Subscription? = dbQuery {
+        SubscriptionsTable.selectAll().where { SubscriptionsTable.id eq id }
             .singleOrNull()?.toSubscription()
     }
 
     override suspend fun findByUserId(
         userId: UUID, status: SubscriptionStatus?, cursor: String?, limit: Int
-    ): List<Subscription> = newSuspendedTransaction {
-        val query = SubscriptionsTable.select { SubscriptionsTable.userId eq userId }
+    ): List<Subscription> = dbQuery {
+        val query = SubscriptionsTable.selectAll().where { SubscriptionsTable.userId eq userId }
         status?.let { s -> query.andWhere { SubscriptionsTable.status eq s.name.lowercase() } }
         cursor?.let { c ->
             val (key, _) = CursorCodec.decode(c)
@@ -68,23 +68,23 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
             .map { it.toSubscription() }
     }
 
-    override suspend fun countByUserId(userId: UUID, status: SubscriptionStatus?): Long = newSuspendedTransaction {
-        val query = SubscriptionsTable.select { SubscriptionsTable.userId eq userId }
+    override suspend fun countByUserId(userId: UUID, status: SubscriptionStatus?): Long = dbQuery {
+        val query = SubscriptionsTable.selectAll().where { SubscriptionsTable.userId eq userId }
         status?.let { s -> query.andWhere { SubscriptionsTable.status eq s.name.lowercase() } }
         query.count()
     }
 
     override suspend fun findByUserAndMerchantAndCycle(
         userId: UUID, merchantName: String, billingCycle: BillingCycle
-    ): Subscription? = newSuspendedTransaction {
-        SubscriptionsTable.select {
+    ): Subscription? = dbQuery {
+        SubscriptionsTable.selectAll().where {
             (SubscriptionsTable.userId eq userId) and
                 (SubscriptionsTable.merchantName.lowerCase() eq merchantName.lowercase()) and
                 (SubscriptionsTable.billingCycle eq billingCycle.name.lowercase())
         }.singleOrNull()?.toSubscription()
     }
 
-    override suspend fun update(subscription: Subscription): Subscription = newSuspendedTransaction {
+    override suspend fun update(subscription: Subscription): Subscription = dbQuery {
         val now = Instant.now()
         SubscriptionsTable.update({ SubscriptionsTable.id eq subscription.id }) {
             it[name] = subscription.name

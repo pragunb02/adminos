@@ -3,7 +3,7 @@ package dev.adminos.api.infrastructure.database
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import dev.adminos.api.config.DatabaseConfig
-import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.LoggerFactory
 
 /**

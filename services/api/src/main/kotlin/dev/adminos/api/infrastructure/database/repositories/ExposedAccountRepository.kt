@@ -3,15 +3,15 @@ package dev.adminos.api.infrastructure.database.repositories
 import dev.adminos.api.domain.financial.*
 import dev.adminos.api.infrastructure.database.tables.AccountsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedAccountRepository : AccountRepository {
 
-    override suspend fun save(account: Account): Account = newSuspendedTransaction {
+    override suspend fun save(account: Account): Account = dbQuery {
         AccountsTable.insert {
             it[id] = account.id
             it[userId] = account.userId
@@ -30,26 +30,26 @@ class ExposedAccountRepository : AccountRepository {
         account
     }
 
-    override suspend fun findById(id: UUID): Account? = newSuspendedTransaction {
-        AccountsTable.select { AccountsTable.id eq id }.singleOrNull()?.toAccount()
+    override suspend fun findById(id: UUID): Account? = dbQuery {
+        AccountsTable.selectAll().where { AccountsTable.id eq id }.singleOrNull()?.toAccount()
     }
 
-    override suspend fun findByUserId(userId: UUID): List<Account> = newSuspendedTransaction {
-        AccountsTable.select { AccountsTable.userId eq userId }
+    override suspend fun findByUserId(userId: UUID): List<Account> = dbQuery {
+        AccountsTable.selectAll().where { AccountsTable.userId eq userId }
             .orderBy(AccountsTable.createdAt, SortOrder.DESC)
             .map { it.toAccount() }
     }
 
     override suspend fun findByUserAndBankAndLast4(userId: UUID, bankCode: String, accountLast4: String): Account? =
-        newSuspendedTransaction {
-            AccountsTable.select {
+        dbQuery {
+            AccountsTable.selectAll().where {
                 (AccountsTable.userId eq userId) and
                     (AccountsTable.bankCode eq bankCode) and
                     (AccountsTable.accountLast4 eq accountLast4)
             }.singleOrNull()?.toAccount()
         }
 
-    override suspend fun update(account: Account): Account = newSuspendedTransaction {
+    override suspend fun update(account: Account): Account = dbQuery {
         val now = Instant.now()
         AccountsTable.update({ AccountsTable.id eq account.id }) {
             it[accountType] = account.accountType.name.lowercase()

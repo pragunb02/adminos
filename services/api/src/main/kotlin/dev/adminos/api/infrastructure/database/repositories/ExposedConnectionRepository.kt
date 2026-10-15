@@ -2,48 +2,48 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.ingestion.connection.*
 import dev.adminos.api.infrastructure.database.tables.UserConnectionsTable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedConnectionRepository : ConnectionRepository {
 
-    override suspend fun findById(id: UUID): UserConnection? = newSuspendedTransaction {
-        UserConnectionsTable.select { UserConnectionsTable.id eq id }
+    override suspend fun findById(id: UUID): UserConnection? = dbQuery {
+        UserConnectionsTable.selectAll().where { UserConnectionsTable.id eq id }
             .singleOrNull()?.toConnection()
     }
 
-    override suspend fun findByUserId(userId: UUID): List<UserConnection> = newSuspendedTransaction {
-        UserConnectionsTable.select { UserConnectionsTable.userId eq userId }
+    override suspend fun findByUserId(userId: UUID): List<UserConnection> = dbQuery {
+        UserConnectionsTable.selectAll().where { UserConnectionsTable.userId eq userId }
             .map { it.toConnection() }
     }
 
     override suspend fun findByUserAndSource(userId: UUID, sourceType: SourceType): UserConnection? =
-        newSuspendedTransaction {
-            UserConnectionsTable.select {
+        dbQuery {
+            UserConnectionsTable.selectAll().where {
                 (UserConnectionsTable.userId eq userId) and
                     (UserConnectionsTable.sourceType eq sourceType.name.lowercase())
             }.singleOrNull()?.toConnection()
         }
 
-    override suspend fun findByGmailAddress(gmailAddress: String): UserConnection? = newSuspendedTransaction {
-        UserConnectionsTable.select {
+    override suspend fun findByGmailAddress(gmailAddress: String): UserConnection? = dbQuery {
+        UserConnectionsTable.selectAll().where {
             (UserConnectionsTable.gmailAddress eq gmailAddress) and
                 (UserConnectionsTable.sourceType eq SourceType.GMAIL.name.lowercase())
         }.singleOrNull()?.toConnection()
     }
 
     override suspend fun findConnectedBySourceType(sourceType: SourceType): List<UserConnection> =
-        newSuspendedTransaction {
-            UserConnectionsTable.select {
+        dbQuery {
+            UserConnectionsTable.selectAll().where {
                 (UserConnectionsTable.sourceType eq sourceType.name.lowercase()) and
                     (UserConnectionsTable.status eq ConnectionStatus.CONNECTED.name.lowercase())
             }.map { it.toConnection() }
         }
 
-    override suspend fun save(connection: UserConnection): UserConnection = newSuspendedTransaction {
+    override suspend fun save(connection: UserConnection): UserConnection = dbQuery {
         UserConnectionsTable.insert {
             it[id] = connection.id
             it[userId] = connection.userId
@@ -67,7 +67,7 @@ class ExposedConnectionRepository : ConnectionRepository {
         connection
     }
 
-    override suspend fun update(connection: UserConnection): UserConnection = newSuspendedTransaction {
+    override suspend fun update(connection: UserConnection): UserConnection = dbQuery {
         val now = Instant.now()
         UserConnectionsTable.update({ UserConnectionsTable.id eq connection.id }) {
             it[status] = connection.status.name.lowercase()

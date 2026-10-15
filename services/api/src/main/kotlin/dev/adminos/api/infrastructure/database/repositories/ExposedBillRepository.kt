@@ -4,16 +4,16 @@ import dev.adminos.api.domain.financial.*
 import dev.adminos.api.infrastructure.database.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.BillsTable
 import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
 class ExposedBillRepository : BillRepository {
 
-    override suspend fun save(bill: Bill): Bill = newSuspendedTransaction {
+    override suspend fun save(bill: Bill): Bill = dbQuery {
         BillsTable.insert {
             it[id] = bill.id
             it[userId] = bill.userId
@@ -41,15 +41,15 @@ class ExposedBillRepository : BillRepository {
         bill
     }
 
-    override suspend fun findById(id: UUID): Bill? = newSuspendedTransaction {
-        BillsTable.select { BillsTable.id eq id }.singleOrNull()?.toBill()
+    override suspend fun findById(id: UUID): Bill? = dbQuery {
+        BillsTable.selectAll().where { BillsTable.id eq id }.singleOrNull()?.toBill()
     }
 
     override suspend fun findByUserId(
         userId: UUID, status: BillStatus?, from: LocalDate?, to: LocalDate?,
         cursor: String?, limit: Int
-    ): List<Bill> = newSuspendedTransaction {
-        val query = BillsTable.select { BillsTable.userId eq userId }
+    ): List<Bill> = dbQuery {
+        val query = BillsTable.selectAll().where { BillsTable.userId eq userId }
         status?.let { s -> query.andWhere { BillsTable.status eq s.name.lowercase() } }
         from?.let { f -> query.andWhere { BillsTable.dueDate greaterEq f } }
         to?.let { t -> query.andWhere { BillsTable.dueDate lessEq t } }
@@ -63,23 +63,23 @@ class ExposedBillRepository : BillRepository {
             .map { it.toBill() }
     }
 
-    override suspend fun countByUserId(userId: UUID, status: BillStatus?): Long = newSuspendedTransaction {
-        val query = BillsTable.select { BillsTable.userId eq userId }
+    override suspend fun countByUserId(userId: UUID, status: BillStatus?): Long = dbQuery {
+        val query = BillsTable.selectAll().where { BillsTable.userId eq userId }
         status?.let { s -> query.andWhere { BillsTable.status eq s.name.lowercase() } }
         query.count()
     }
 
-    override suspend fun findPendingBills(userId: UUID): List<Bill> = newSuspendedTransaction {
-        BillsTable.select {
+    override suspend fun findPendingBills(userId: UUID): List<Bill> = dbQuery {
+        BillsTable.selectAll().where {
             (BillsTable.userId eq userId) and
                 (BillsTable.status inList listOf("upcoming", "due", "overdue"))
         }.orderBy(BillsTable.dueDate, SortOrder.ASC).map { it.toBill() }
     }
 
-    override suspend fun findUpcoming(userId: UUID, withinDays: Int): List<Bill> = newSuspendedTransaction {
+    override suspend fun findUpcoming(userId: UUID, withinDays: Int): List<Bill> = dbQuery {
         val today = LocalDate.now()
         val cutoff = today.plusDays(withinDays.toLong())
-        BillsTable.select {
+        BillsTable.selectAll().where {
             (BillsTable.userId eq userId) and
                 (BillsTable.status inList listOf("upcoming", "due")) and
                 (BillsTable.dueDate greaterEq today) and
@@ -87,25 +87,25 @@ class ExposedBillRepository : BillRepository {
         }.orderBy(BillsTable.dueDate, SortOrder.ASC).map { it.toBill() }
     }
 
-    override suspend fun findUpcoming(withinDays: Int): List<Bill> = newSuspendedTransaction {
+    override suspend fun findUpcoming(withinDays: Int): List<Bill> = dbQuery {
         val today = LocalDate.now()
         val cutoff = today.plusDays(withinDays.toLong())
-        BillsTable.select {
+        BillsTable.selectAll().where {
             (BillsTable.status inList listOf("upcoming", "due")) and
                 (BillsTable.dueDate greaterEq today) and
                 (BillsTable.dueDate lessEq cutoff)
         }.map { it.toBill() }
     }
 
-    override suspend fun findOverdue(): List<Bill> = newSuspendedTransaction {
+    override suspend fun findOverdue(): List<Bill> = dbQuery {
         val today = LocalDate.now()
-        BillsTable.select {
+        BillsTable.selectAll().where {
             (BillsTable.status inList listOf("upcoming", "due")) and
                 (BillsTable.dueDate less today)
         }.map { it.toBill() }
     }
 
-    override suspend fun update(bill: Bill): Bill = newSuspendedTransaction {
+    override suspend fun update(bill: Bill): Bill = dbQuery {
         val now = Instant.now()
         BillsTable.update({ BillsTable.id eq bill.id }) {
             it[billType] = bill.billType.name.lowercase()

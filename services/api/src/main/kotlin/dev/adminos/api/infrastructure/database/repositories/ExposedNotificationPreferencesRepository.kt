@@ -2,21 +2,21 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.database.tables.NotificationPreferencesTable
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
 
 class ExposedNotificationPreferencesRepository : NotificationPreferencesRepository {
 
-    override suspend fun findByUserId(userId: UUID): NotificationPreferences? = newSuspendedTransaction {
-        NotificationPreferencesTable.select { NotificationPreferencesTable.userId eq userId }
+    override suspend fun findByUserId(userId: UUID): NotificationPreferences? = dbQuery {
+        NotificationPreferencesTable.selectAll().where { NotificationPreferencesTable.userId eq userId }
             .singleOrNull()?.toPreferences()
     }
 
     override suspend fun save(preferences: NotificationPreferences): NotificationPreferences =
-        newSuspendedTransaction {
+        dbQuery {
             NotificationPreferencesTable.insert {
                 it[id] = preferences.id
                 it[userId] = preferences.userId
@@ -38,7 +38,7 @@ class ExposedNotificationPreferencesRepository : NotificationPreferencesReposito
         }
 
     override suspend fun update(preferences: NotificationPreferences): NotificationPreferences =
-        newSuspendedTransaction {
+        dbQuery {
             val now = Instant.now()
             NotificationPreferencesTable.update({
                 NotificationPreferencesTable.id eq preferences.id
