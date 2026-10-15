@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** AOS-101 (compile the API, green baseline), then story S1.0 dependency upgrades (pending Pragun's OK on order), then AOS-102…104.
+**Next step:** story S1.0 dependency upgrades (pending Pragun's OK on order), then AOS-102…104.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -73,8 +73,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Weekly briefing (Go + Claude) | Prompt: summary, attention, subscription review, one tip. Data query returns zeros | Never triggered, data stubbed |
 
 ## Known issues (priority order)
-0. **AOS-101 — possible compile break from this branch:** new `NotificationType` values aren't
-   handled in the `when` at `NotificationService.kt:154`. Unverified.
+0. ~~AOS-101 compile break~~ fixed 2026-10-16 (130/130 tests green).
 1. AOS-102, AOS-103 — DB: Flyway naming (D-12) and JDBC `stringtype` (D-13).
 2. AOS-106, AOS-107 — Auth: cookie vs Bearer header; JSON field naming.
 3. AOS-201 — queue payload contract between Kotlin and Go.
@@ -97,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-101: API compiles again; 3 regression tests; 130/130 green.
   - AOS-008: design principles, patterns, design-before-code, dependency policy (D-27, D-28).
   - AOS-009: dependency audit; most libraries 1+ majors behind; worker Dockerfile Go version broken → story S1.0.
   - AOS-006: engineering standards (`docs/ENGINEERING.md`, D-26); AOS-007 audit filed.

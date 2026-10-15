@@ -254,4 +254,31 @@ class NotificationServiceTest {
         val prefs = NotificationPreferences(userId = testUserId, anomalyAlerts = true)
         assertTrue(NotificationService.isTypeEnabled(NotificationType.ANOMALY, prefs))
     }
+
+    // ── SQL alias types (AOS-101) ──
+
+    @Test
+    fun `isTypeEnabled treats BILL_DUE like bill reminders`() {
+        val prefs = NotificationPreferences(userId = testUserId, billReminders = false)
+        assertFalse(NotificationService.isTypeEnabled(NotificationType.BILL_DUE, prefs))
+    }
+
+    @Test
+    fun `isTypeEnabled treats SUBSCRIPTION_FLAGGED like subscription flags`() {
+        val prefs = NotificationPreferences(userId = testUserId, subscriptionFlags = false)
+        assertFalse(NotificationService.isTypeEnabled(NotificationType.SUBSCRIPTION_FLAGGED, prefs))
+    }
+
+    @Test
+    fun `isTypeEnabled always enables system-level types`() {
+        val prefs = NotificationPreferences(
+            userId = testUserId,
+            weeklyBriefing = false,
+            billReminders = false,
+            anomalyAlerts = false,
+            subscriptionFlags = false
+        )
+        assertTrue(NotificationService.isTypeEnabled(NotificationType.SYNC_COMPLETE, prefs))
+        assertTrue(NotificationService.isTypeEnabled(NotificationType.SYSTEM, prefs))
+    }
 }

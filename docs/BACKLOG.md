@@ -35,7 +35,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-119 | Docker/runtime images: JDK 25, Node 24, Postgres/Redis stable | Claude | ⬜ | 1h |  |
 | **[AOS-S1.1](tickets/AOS-S1.1.md)** | **Database starts cleanly** | | 🟦 | 7.5h | |
 | └ [AOS-100](tickets/AOS-100.md) | Schema fixes: enum union, drop hypertable, arrays → TEXT | Claude | 🟨 | 1h | 1h |
-| └ [AOS-101](tickets/AOS-101.md) | Compile API; fix the NotificationService `when` if broken by AOS-100 | Claude | ⬜ | 0.5h |  |
+| └ [AOS-101](tickets/AOS-101.md) | Compile API; fix the NotificationService `when` if broken by AOS-100 | Claude | ✅ | 0.5h | 0.25h |
 | └ [AOS-102](tickets/AOS-102.md) | Flyway owns migrations | Claude | ⬜ | 1h |  |
 | └ [AOS-103](tickets/AOS-103.md) | JDBC `stringtype=unspecified` | Claude | ⬜ | 0.5h |  |
 | └ [AOS-104](tickets/AOS-104.md) | Run DB integration test; fix failures | Claude | ⬜ | 1.5h |  |
