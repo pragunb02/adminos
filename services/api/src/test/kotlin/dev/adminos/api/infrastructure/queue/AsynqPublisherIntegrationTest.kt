@@ -28,7 +28,7 @@ class AsynqPublisherIntegrationTest {
     companion object {
         @Container
         @JvmStatic
-        val redis = GenericContainer("redis:7-alpine")
+        val redis = GenericContainer("redis:8.10.2-alpine")
             .withExposedPorts(6379)
     }
 
