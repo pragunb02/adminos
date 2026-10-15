@@ -30,7 +30,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S1.0](tickets/AOS-S1.0.md)** | **Current, stable dependencies** | | 🟦 | 11h | |
 | └ [AOS-115](tickets/AOS-115.md) | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, … | Claude | ✅ | 5h | 2h |
 | └ [AOS-116](tickets/AOS-116.md) | Web: Next 16, React 19, Tailwind 4, ESLint flat, TS 6.0.3, Node 24 | Claude | ✅ | 3h | 1h |
-| └ AOS-117 | PDF parser: Python + libraries | Claude | ⬜ | 1h |  |
+| └ [AOS-117](tickets/AOS-117.md) | PDF parser: Python 3.14 + libraries | Claude | ✅ | 1h | 0.5h |
 | └ AOS-118 | Workers: Go 1.27 + modules, fix the Dockerfile Go version | Claude | ⬜ | 1h |  |
 | └ AOS-119 | Docker/runtime images: JDK 25, Node 24, Postgres/Redis stable | Claude | ⬜ | 1h |  |
 | **[AOS-S1.1](tickets/AOS-S1.1.md)** | **Database starts cleanly** | | 🟦 | 7.5h | |
