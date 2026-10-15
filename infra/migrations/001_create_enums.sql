@@ -12,7 +12,7 @@ CREATE TYPE connection_status AS ENUM ('connected','disconnected','error','pendi
 CREATE TYPE sync_status AS ENUM ('success','failed','partial');
 CREATE TYPE sync_type AS ENUM ('historical','incremental','manual','cron_fallback');
 CREATE TYPE sync_session_status AS ENUM ('queued','in_progress','completed','failed','partial');
-CREATE TYPE job_type AS ENUM ('gmail_ingest','sms_process','pdf_parse','agent_briefing','subscription_detect','anomaly_check','waste_score','categorize_fallback','cancellation_draft');
+CREATE TYPE job_type AS ENUM ('gmail_ingest','sms_process','pdf_parse','agent_briefing','subscription_detect','anomaly_check','waste_score','categorize_fallback','cancellation_draft','anomaly_explain');
 CREATE TYPE job_status AS ENUM ('queued','processing','completed','failed','retrying');
 CREATE TYPE fingerprint_entity_type AS ENUM ('transaction','subscription','bill','document');
 
@@ -32,20 +32,20 @@ CREATE TYPE bill_status AS ENUM ('upcoming','due','overdue','paid','cancelled');
 -- Agent domain
 CREATE TYPE briefing_type AS ENUM ('weekly','monthly','adhoc');
 CREATE TYPE briefing_status AS ENUM ('generated','delivered','opened','failed');
-CREATE TYPE insight_type AS ENUM ('subscription_waste','spending_spike','bill_due','price_increase','unusual_merchant','savings_opportunity','income_received','goal_progress');
+CREATE TYPE insight_type AS ENUM ('subscription_waste','spending_spike','bill_due','anomaly','price_increase','unusual_merchant','savings_opportunity','income_received','goal_progress');
 CREATE TYPE severity AS ENUM ('info','warning','critical');
-CREATE TYPE insight_action_type AS ENUM ('cancel_sub','pay_bill','review_transaction','none');
+CREATE TYPE insight_action_type AS ENUM ('cancel_sub','pay_bill','review_transaction','review_anomaly','none');
 CREATE TYPE insight_status AS ENUM ('pending','seen','acted','dismissed');
-CREATE TYPE anomaly_type AS ENUM ('unusual_merchant','unusual_amount','unusual_time','foreign_charge','duplicate_charge','card_testing','large_debit');
+CREATE TYPE anomaly_type AS ENUM ('unusual_merchant','unusual_amount','unusual_time','foreign_charge','duplicate_charge','card_testing','large_debit','large_amount','foreign_currency','odd_hours');
 CREATE TYPE anomaly_status AS ENUM ('open','confirmed_safe','confirmed_fraud','dismissed');
-CREATE TYPE anomaly_resolver AS ENUM ('user','system','auto');
+CREATE TYPE anomaly_resolver AS ENUM ('user','system','auto','agent');
 
 -- Notifications domain
 CREATE TYPE reminder_type AS ENUM ('bill_due','subscription_renewal','document_expiry','custom');
 CREATE TYPE recurrence AS ENUM ('once','daily','weekly','monthly');
 CREATE TYPE reminder_status AS ENUM ('scheduled','sent','failed','cancelled');
 CREATE TYPE notification_channel AS ENUM ('push','email','in_app');
-CREATE TYPE notification_type AS ENUM ('briefing','anomaly','bill_due','subscription_flagged','sync_complete','nudge','system');
+CREATE TYPE notification_type AS ENUM ('briefing','anomaly','bill_due','subscription_flagged','sync_complete','nudge','system','bill_reminder','subscription_flag','overdue','general');
 CREATE TYPE notification_status AS ENUM ('pending','sent','delivered','failed','clicked','dismissed');
 CREATE TYPE weekday AS ENUM ('mon','tue','wed','thu','fri','sat','sun');
 
