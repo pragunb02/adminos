@@ -31,7 +31,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-115](tickets/AOS-115.md) | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, … | Claude | ✅ | 5h | 2h |
 | └ [AOS-116](tickets/AOS-116.md) | Web: Next 16, React 19, Tailwind 4, ESLint flat, TS 6.0.3, Node 24 | Claude | ✅ | 3h | 1h |
 | └ [AOS-117](tickets/AOS-117.md) | PDF parser: Python 3.14 + libraries | Claude | ✅ | 1h | 0.5h |
-| └ AOS-118 | Workers: Go 1.27 + modules, fix the Dockerfile Go version | Claude | ⬜ | 1h |  |
+| └ [AOS-118](tickets/AOS-118.md) | Workers: Go 1.27 + modules, fix the Dockerfile Go version | Claude | ✅ | 1h | 0.5h |
 | └ AOS-119 | Docker/runtime images: JDK 25, Node 24, Postgres/Redis stable | Claude | ⬜ | 1h |  |
 | **[AOS-S1.1](tickets/AOS-S1.1.md)** | **Database starts cleanly** | | 🟦 | 7.5h | |
 | └ [AOS-100](tickets/AOS-100.md) | Schema fixes: enum union, drop hypertable, arrays → TEXT | Claude | 🟨 | 1h | 1h |
@@ -49,7 +49,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-112](tickets/AOS-112.md) | End-to-end login on laptop | Claude + Pragun | ⬜ | 1h |  |
 | **[AOS-S1.3](tickets/AOS-S1.3.md)** | **Whole stack runs with docker compose** | | ⬜ | 1.25h | |
 | └ [AOS-110](tickets/AOS-110.md) | Add services/api/Dockerfile; fix compose | Claude | ⬜ | 1h |  |
-| └ [AOS-114](tickets/AOS-114.md) | Install Go locally | Pragun | ⬜ | 0.25h |  |
+| └ [AOS-114](tickets/AOS-114.md) | Install Go locally (optional since AOS-118: Docker command in CLAUDE.md) | Pragun | ⬜ | 0.25h |  |
 | **[AOS-S1.4](tickets/AOS-S1.4.md)** | **Common intake endpoint** | | ⬜ | 3h | |
 | └ [AOS-113](tickets/AOS-113.md) | Common intake endpoint (normalized ingest event) | Claude | ⬜ | 3h |  |
 
