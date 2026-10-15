@@ -74,10 +74,11 @@ interface SubscriptionRepository {
     suspend fun findByUserId(
         userId: UUID,
         status: SubscriptionStatus? = null,
+        flagged: Boolean? = null,
         cursor: String? = null,
         limit: Int = 20
     ): List<Subscription>
-    suspend fun countByUserId(userId: UUID, status: SubscriptionStatus? = null): Long
+    suspend fun countByUserId(userId: UUID, status: SubscriptionStatus? = null, flagged: Boolean? = null): Long
     suspend fun findByUserAndMerchantAndCycle(
         userId: UUID,
         merchantName: String,

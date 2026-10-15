@@ -24,7 +24,7 @@
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-106](AOS-106.md) | Auth reads the JWT from the `access_token` cookie too | Claude | ✅ | 1h | 0.5h |
-| [AOS-107](AOS-107.md) | JSON contract web ↔ API (snake_case vs camelCase) | Claude | ⬜ | 2h |  |
+| [AOS-107](AOS-107.md) | JSON/query contract web ↔ API (camelCase, D-31) | Claude | ✅ | 2h | 1.5h |
 | [AOS-108](AOS-108.md) | Web config: Google client ID, browser API URL, CORS | Claude | ⬜ | 1h |  |
 | [AOS-109](AOS-109.md) | Session refresh via cookie + logout button | Claude | ⬜ | 2h |  |
 | [AOS-111](AOS-111.md) | Create Google OAuth client | Pragun | ⬜ | 0.25h |  |

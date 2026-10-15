@@ -2,7 +2,7 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.financial.Transaction as DomainTransaction
 import dev.adminos.api.domain.financial.*
-import dev.adminos.api.infrastructure.database.CursorCodec
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.TransactionsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*

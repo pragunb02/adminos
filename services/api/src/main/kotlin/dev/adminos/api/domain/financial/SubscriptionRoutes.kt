@@ -2,10 +2,9 @@ package dev.adminos.api.domain.financial
 
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.common.Pagination
-import dev.adminos.api.infrastructure.plugins.ApiException
-import dev.adminos.api.infrastructure.plugins.requestId
-import dev.adminos.api.infrastructure.plugins.userPrincipal
+import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -21,23 +20,23 @@ fun Route.subscriptionRoutes(subscriptionRepository: SubscriptionRepository) {
             // GET /api/v1/subscriptions — list with status filter + cursor pagination
             get {
                 val principal = call.userPrincipal
-                val status = call.parameters["status"]?.let {
-                    SubscriptionStatus.valueOf(it.uppercase())
-                }
+                val status = call.enumParam<SubscriptionStatus>("status")
+                val flagged = call.booleanParam("flagged")
                 val cursor = call.parameters["cursor"]
-                val limit = (call.parameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
+                val limit = call.limitParam()
 
                 val subs = subscriptionRepository.findByUserId(
                     userId = principal.userId,
                     status = status,
+                    flagged = flagged,
                     cursor = cursor,
                     limit = limit + 1
                 )
 
                 val hasMore = subs.size > limit
                 val page = if (hasMore) subs.take(limit) else subs
-                val nextCursor = if (hasMore) page.lastOrNull()?.createdAt?.toString() else null
-                val total = subscriptionRepository.countByUserId(principal.userId, status)
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.createdAt.toString()) } else null
+                val total = subscriptionRepository.countByUserId(principal.userId, status, flagged)
 
                 call.respond(
                     HttpStatusCode.OK,

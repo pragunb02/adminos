@@ -1,7 +1,7 @@
 package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.financial.*
-import dev.adminos.api.infrastructure.database.CursorCodec
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.SubscriptionsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
@@ -55,10 +55,11 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
     }
 
     override suspend fun findByUserId(
-        userId: UUID, status: SubscriptionStatus?, cursor: String?, limit: Int
+        userId: UUID, status: SubscriptionStatus?, flagged: Boolean?, cursor: String?, limit: Int
     ): List<Subscription> = dbQuery {
         val query = SubscriptionsTable.selectAll().where { SubscriptionsTable.userId eq userId }
         status?.let { s -> query.andWhere { SubscriptionsTable.status eq s.name.lowercase() } }
+        flagged?.let { f -> query.andWhere { SubscriptionsTable.isFlagged eq f } }
         cursor?.let { c ->
             val (key, _) = CursorCodec.decode(c)
             val cursorInstant = Instant.parse(key)
@@ -69,9 +70,10 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
             .map { it.toSubscription() }
     }
 
-    override suspend fun countByUserId(userId: UUID, status: SubscriptionStatus?): Long = dbQuery {
+    override suspend fun countByUserId(userId: UUID, status: SubscriptionStatus?, flagged: Boolean?): Long = dbQuery {
         val query = SubscriptionsTable.selectAll().where { SubscriptionsTable.userId eq userId }
         status?.let { s -> query.andWhere { SubscriptionsTable.status eq s.name.lowercase() } }
+        flagged?.let { f -> query.andWhere { SubscriptionsTable.isFlagged eq f } }
         query.count()
     }
 

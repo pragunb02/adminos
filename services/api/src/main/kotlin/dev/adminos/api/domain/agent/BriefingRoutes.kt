@@ -1,9 +1,9 @@
 package dev.adminos.api.domain.agent
 
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.common.Pagination
-import dev.adminos.api.infrastructure.plugins.requestId
-import dev.adminos.api.infrastructure.plugins.userPrincipal
+import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -41,7 +41,7 @@ fun Route.briefingRoutes(
             get {
                 val principal = call.userPrincipal
                 val cursor = call.parameters["cursor"]
-                val limit = (call.parameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
+                val limit = call.limitParam()
 
                 val briefings = briefingRepository.findByUserId(
                     userId = principal.userId,
@@ -51,7 +51,7 @@ fun Route.briefingRoutes(
 
                 val hasMore = briefings.size > limit
                 val page = if (hasMore) briefings.take(limit) else briefings
-                val nextCursor = if (hasMore) page.lastOrNull()?.createdAt?.toString() else null
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.createdAt.toString()) } else null
                 val total = briefingRepository.countByUserId(principal.userId)
 
                 call.respond(

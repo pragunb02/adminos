@@ -48,7 +48,7 @@ export default function OnboardingPage() {
 
   const handleConnectGmail = useCallback(async () => {
     try {
-      const res = await api.post<{ id: string }>("/api/v1/connections", { source_type: "gmail" });
+      const res = await api.post<{ id: string }>("/api/v1/connections", { sourceType: "gmail" });
       if (res.success && res.data) {
         const connectionId = res.data.id;
         // Trigger manual sync — response has syncSessionId (not id)

@@ -89,7 +89,7 @@ export default function SettingsPage() {
 
   const handleReconnect = async (sourceType: string) => {
     try {
-      await api.post("/api/v1/connections", { source_type: sourceType });
+      await api.post("/api/v1/connections", { sourceType });
       await fetchData();
     } catch {
       // silent

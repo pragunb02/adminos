@@ -10,6 +10,13 @@ import ErrorMessage from "@/components/ErrorMessage";
 
 type Tab = "active" | "flagged" | "cancelled";
 
+// "Flagged" is a flag on any subscription, not a status.
+const TAB_QUERY: Record<Tab, string> = {
+  active: "status=active",
+  flagged: "flagged=true",
+  cancelled: "status=cancelled",
+};
+
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [summary, setSummary] = useState<SubscriptionSummary | null>(null);
@@ -24,7 +31,7 @@ export default function SubscriptionsPage() {
     setError(null);
     try {
       const [subsRes, summaryRes] = await Promise.all([
-        api.get<Subscription[]>(`/api/v1/subscriptions?status=${tab}&limit=50`),
+        api.get<Subscription[]>(`/api/v1/subscriptions?${TAB_QUERY[tab]}&limit=50`),
         api.get<SubscriptionSummary>("/api/v1/subscriptions/summary"),
       ]);
       if (subsRes.success && subsRes.data) setSubscriptions(subsRes.data);
