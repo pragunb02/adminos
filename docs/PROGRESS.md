@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** AOS-102 (Flyway owns migrations), then AOS-104/105.
+**Next step:** AOS-104 (close: integration tests are green) and AOS-105 (round-trip tests for all 15 repositories).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -34,7 +34,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 
 | Component | Built | Works end to end | Notes |
 |---|---|---|---|
-| DB schema (`infra/migrations`, 20 tables) | ✅ | ❌ | Flyway ignores `001_*` names; enum/JSONB columns mapped as varchar in Exposed |
+| DB schema (Flyway `db/migration`, 20 tables) | ✅ | ✅ | Migrates on startup (verified 2026-10-16); enum/JSONB via stringtype |
 | API routes (~35) | ✅ | ❌ | Auth reads only the Bearer header, but the web sends a cookie; JSON snake_case vs camelCase |
 | Google login | ✅ | ❌ | See above; `NEXT_PUBLIC_GOOGLE_CLIENT_ID` not configured |
 | API → worker queue | ✅ | ❌ | `AsynqPublisher` stringifies payload values; split workers drop task types; manual sync never enqueues |
@@ -74,7 +74,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 
 ## Known issues (priority order)
 0. ~~AOS-101 compile break~~ fixed 2026-10-16 (130/130 tests green).
-1. AOS-102 — DB: Flyway naming (D-12). ~~AOS-103 stringtype~~ fixed 2026-10-16.
+1. ~~AOS-102 Flyway~~ and ~~AOS-103 stringtype~~ fixed 2026-10-16.
 2. AOS-106, AOS-107 — Auth: cookie vs Bearer header; JSON field naming.
 3. AOS-201 — queue payload contract between Kotlin and Go.
 4. AOS-110 — missing API Dockerfile.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-102: Flyway owns migrations (D-12); startup fails fast; real `./gradlew run` verified (8 applied, restart 0).
   - AOS-103: JDBC stringtype=unspecified; integration tests 8/8 for the first time.
   - AOS-119: Postgres 18.6 / Redis 8.10 (compose + tests), ports bound to localhost. **Story S1.0 done** (4.5h vs 11h ETA).
   - AOS-118: workers on Go 1.27 with latest modules; first verified build/test; Dockerfile fixed (non-root). Go runs via Docker (proxy.golang.org blocked).

@@ -3,26 +3,33 @@ package dev.adminos.api.infrastructure.database
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import dev.adminos.api.config.DatabaseConfig
+import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.LoggerFactory
+import javax.sql.DataSource
 
 /**
  * Initializes the database connection pool and runs Flyway migrations.
- * Called once at application startup.
+ * Called once at application startup. Flyway is the only migration runner (D-12):
+ * migrations live in `src/main/resources/db/migration` and ship inside the API.
  */
 object DatabaseFactory {
 
     private val logger = LoggerFactory.getLogger(DatabaseFactory::class.java)
 
+    private const val MIGRATIONS_LOCATION = "classpath:db/migration"
+
+    /**
+     * Single source of truth for "is a database configured?". Used by DI to choose
+     * Exposed vs in-memory repositories, and by startup to decide whether to migrate.
+     */
+    fun isConfigured(): Boolean = !System.getenv("DATABASE_URL").isNullOrBlank()
+
+    /** Creates the pool, applies pending migrations and connects Exposed. Fails fast on any error. */
     fun init(config: DatabaseConfig) {
         val dataSource = createHikariDataSource(config)
-
-        // Run Flyway migrations
-        runMigrations(dataSource)
-
-        // Connect Exposed ORM
+        migrate(dataSource)
         Database.connect(dataSource)
-
         logger.info("Database initialized: {}", config.url)
     }
 
@@ -46,18 +53,23 @@ object DatabaseFactory {
         return HikariDataSource(hikariConfig)
     }
 
-    private fun runMigrations(dataSource: HikariDataSource) {
-        try {
-            val flyway = org.flywaydb.core.Flyway.configure()
-                .dataSource(dataSource)
-                .locations("classpath:db/migration", "filesystem:infra/migrations")
-                .baselineOnMigrate(true)
-                .load()
-
-            val result = flyway.migrate()
-            logger.info("Flyway migrations applied: {} migrations", result.migrationsExecuted)
-        } catch (e: Exception) {
-            logger.warn("Flyway migration skipped (DB may not be available): {}", e.message)
-        }
+    /**
+     * Applies pending migrations. Throws if any migration fails, so the app never starts
+     * against a half-migrated schema. No `baselineOnMigrate`: an unexpected non-empty schema
+     * must fail loudly rather than be silently marked as current.
+     *
+     * @return number of migrations applied (0 when the schema is already current)
+     */
+    internal fun migrate(dataSource: DataSource): Int {
+        val result = Flyway.configure()
+            .dataSource(dataSource)
+            .locations(MIGRATIONS_LOCATION)
+            .load()
+            .migrate()
+        logger.info(
+            "Flyway: {} migration(s) applied, schema now at version {}",
+            result.migrationsExecuted, result.targetSchemaVersion ?: "unchanged"
+        )
+        return result.migrationsExecuted
     }
 }

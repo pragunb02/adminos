@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Financial domain.
- * Maps 1:1 to infra/migrations/004_create_financial_tables.sql
+ * Maps 1:1 to db/migration/V4__create_financial_tables.sql
  */
 
 object TransactionsTable : Table("transactions") {

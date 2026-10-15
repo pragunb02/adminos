@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Notifications domain.
- * Maps 1:1 to infra/migrations/006_create_notification_tables.sql
+ * Maps 1:1 to db/migration/V6__create_notification_tables.sql
  */
 
 object NotificationsTable : Table("notifications") {

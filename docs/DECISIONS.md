@@ -16,7 +16,7 @@
 | D-9 | Architecture | Enum union | Accepted | AOS-100, AOS-101 |
 | D-10 | Architecture | Arrays as TEXT | Accepted | AOS-100 |
 | D-11 | Process | Announce before acting; update PROGRESS | Accepted | — |
-| D-12 | Architecture | Flyway owns migrations | Proposed | AOS-102 |
+| D-12 | Architecture | Flyway owns migrations | Accepted | AOS-102 |
 | D-13 | Architecture | JDBC stringtype=unspecified | Accepted | AOS-103 |
 | D-14 | Product | Google login for Milestone 1 | Accepted | AOS-106…112 |
 | D-15 | Scope | No Account Aggregator for now | Accepted | — |
@@ -261,3 +261,9 @@ Proposed
 ### D-13 (update) — JDBC `stringtype=unspecified` accepted
 2026-10-16 · Accepted · Type: Architecture · Tasks: AOS-103
 - Implemented and verified: integration tests go from 4/8 to 8/8.
+
+### D-12 (update) — Flyway owns migrations: accepted
+2026-10-16 · Accepted by Pragun · Type: Architecture · Tasks: AOS-102
+- Implemented: `V{N}__*.sql` in the API's `db/migration`; no initdb mount.
+- Startup fails fast on migration errors, with no `baselineOnMigrate`.
+- New schema changes are always a new `V{n+1}__*.sql`. Never edit an applied migration.

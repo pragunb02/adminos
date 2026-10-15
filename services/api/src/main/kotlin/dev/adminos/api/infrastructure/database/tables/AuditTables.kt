@@ -6,7 +6,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Audit domain.
- * Maps 1:1 to infra/migrations/007_create_audit_tables.sql
+ * Maps 1:1 to db/migration/V7__create_audit_tables.sql
  */
 
 object AuditLogsTable : Table("audit_logs") {

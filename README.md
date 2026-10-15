@@ -18,7 +18,7 @@ The API server runs on `http://localhost:8080`. The web app runs on `http://loca
 ## Architecture
 
 ```
-Next.js Web App → Kotlin+Ktor API → Redis Queue → Go Workers → PostgreSQL+TimescaleDB
+Next.js Web App → Kotlin+Ktor API → Redis Queue → Go Workers → PostgreSQL
                                                  → Python PDF Parser
                                                  → Claude API (Agent)
 ```
@@ -26,7 +26,7 @@ Next.js Web App → Kotlin+Ktor API → Redis Queue → Go Workers → PostgreSQ
 - **API Server**: Kotlin + Ktor (modular monolith)
 - **Workers**: Go (Gmail ingestion, SMS processing, Agent Runner)
 - **PDF Parser**: Python + FastAPI (pdfplumber)
-- **Database**: PostgreSQL + TimescaleDB (20 tables, 6 domains)
+- **Database**: PostgreSQL 18 (20 tables, 6 domains; Flyway migrations in `services/api/src/main/resources/db/migration`)
 - **Queue**: Redis + Asynq
 - **Frontend**: Next.js + TypeScript + Tailwind
 
@@ -40,8 +40,6 @@ adminos/
 │   ├── api/                  # Kotlin + Ktor API server
 │   ├── workers/              # Go worker pool
 │   └── pdf-parser/           # Python PDF parser
-├── infra/
-│   └── migrations/           # PostgreSQL migration files
 ├── docker-compose.yml        # Full stack in one command
 ├── .env.example              # Required environment variables
 └── README.md
