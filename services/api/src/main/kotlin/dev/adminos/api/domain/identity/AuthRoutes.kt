@@ -6,6 +6,7 @@ import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.audit.ActorType
 import dev.adminos.api.domain.audit.AuditActions
+import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
@@ -90,7 +91,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 // Item 2: Set JWT in HttpOnly cookie (OWASP Session Management)
                 call.response.cookies.append(
                     Cookie(
-                        name = "access_token",
+                        name = ACCESS_TOKEN_COOKIE,
                         value = result.accessToken,
                         maxAge = result.expiresIn.toInt(),
                         path = "/",
@@ -134,7 +135,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 // Update HttpOnly cookie with new access token
                 call.response.cookies.append(
                     Cookie(
-                        name = "access_token",
+                        name = ACCESS_TOKEN_COOKIE,
                         value = newAccessToken,
                         maxAge = accessTokenTtl.toInt(),
                         path = "/",
@@ -177,7 +178,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 // Clear the HttpOnly cookie
                 call.response.cookies.append(
                     Cookie(
-                        name = "access_token",
+                        name = ACCESS_TOKEN_COOKIE,
                         value = "",
                         maxAge = 0,
                         path = "/",

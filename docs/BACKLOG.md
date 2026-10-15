@@ -40,8 +40,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-103](tickets/AOS-103.md) | JDBC `stringtype=unspecified` | Claude | ✅ | 0.5h | 0.25h |
 | └ [AOS-104](tickets/AOS-104.md) | Run DB integration test; fix failures | Claude | ✅ | 1.5h | 0h |
 | └ [AOS-105](tickets/AOS-105.md) | Integration tests for all Exposed repositories | Claude | ✅ | 3h | 2h |
-| **[AOS-S1.2](tickets/AOS-S1.2.md)** | **I can log in with Google** | | ⬜ | 7.25h | |
-| └ [AOS-106](tickets/AOS-106.md) | Auth reads the JWT from the `access_token` cookie too | Claude | ⬜ | 1h |  |
+| **[AOS-S1.2](tickets/AOS-S1.2.md)** | **I can log in with Google** | | 🟦 | 7.25h | |
+| └ [AOS-106](tickets/AOS-106.md) | Auth reads the JWT from the `access_token` cookie too | Claude | ✅ | 1h | 0.5h |
 | └ [AOS-107](tickets/AOS-107.md) | JSON contract web ↔ API (snake_case vs camelCase) | Claude | ⬜ | 2h |  |
 | └ [AOS-108](tickets/AOS-108.md) | Web config: Google client ID, browser API URL, CORS | Claude | ⬜ | 1h |  |
 | └ [AOS-109](tickets/AOS-109.md) | Session refresh via cookie + logout button | Claude | ⬜ | 2h |  |
