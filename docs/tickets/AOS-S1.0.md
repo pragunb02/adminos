@@ -21,9 +21,58 @@
 - [ ] All tests and builds are green after each service's upgrade
 - [ ] Docker images build
 
-## Design (to be filled in and approved before coding)
-- Order: API → web → pdf-parser → workers → images. One commit per service.
-- Ktor 3, Exposed 1.x and Flyway 13 have breaking API changes; the migration notes go in each task.
+## Design (awaiting Pragun's approval)
+- **Context:** most libraries are 1+ majors behind (AOS-009). The upgrades come before the
+  M1 fixes so we don't fix code against old APIs twice.
+  - Baseline is green: 130/130 API tests, web build OK.
+- **Options considered:**
+  1. Upgrade everything in one change. Rejected: failures would be hard to pinpoint.
+  2. **One service per task, tests green before and after, one commit each.** Chosen.
+  3. Upgrade later, after M1. Rejected: AOS-102…113 would be written against Ktor 2 /
+     Exposed 0.x and then rewritten.
+- **Order:** AOS-115 API → AOS-116 Web → AOS-117 PDF parser → AOS-118 Workers (needs Go,
+  AOS-114) → AOS-119 images.
+  - Within the API: Gradle → Kotlin → Ktor + Koin → Exposed → Flyway → the rest → Testcontainers,
+    compiling and testing after each step.
+- **Known breaking changes** (to be confirmed against official migration guides at upgrade time):
+  - **Gradle 9:** needs JDK 17+ (we have 21); update the wrapper via `gradle wrapper`.
+  - **Ktor 3:**
+    - `embeddedServer` returns `EmbeddedServer`; some engine/config APIs moved.
+    - `testApplication` client config changed.
+    - Must pair with **Koin 4**.
+  - **Exposed 1.x:**
+    - Packages renamed (`org.jetbrains.exposed.sql.*` → `org.jetbrains.exposed.v1.core/jdbc.*`, java-time → `v1.javatime`).
+    - `transaction {}` import moved.
+    - Mechanical but touches the 6 table files and 15 repositories.
+  - **Flyway 10+:** Postgres support is a separate artifact `flyway-database-postgresql`.
+    This lines up with AOS-102 (Flyway owns migrations).
+  - **Testcontainers 2:** module/artifact renames (e.g. `testcontainers-postgresql`); JUnit 5 integration updated.
+  - **Next 15/16:**
+    - React 19 is required.
+    - Route `params`/`cookies()` are async (affects `/anomalies/[id]`).
+    - `middleware.ts` moves to the new proxy convention (verify).
+    - `next lint` is removed, so we use the ESLint CLI.
+  - **Tailwind 4:**
+    - CSS-first config (`@import "tailwindcss"`) and the `@tailwindcss/postcss` plugin; autoprefixer no longer needed.
+    - `tailwind.config.ts` is migrated with the official upgrade tool.
+  - **ESLint 9+:** flat config (`eslint.config.mjs`).
+  - **TypeScript:** use the newest major that Next 16 officially supports. If 7.x isn't supported yet, use the latest supported one and note it (D-28).
+  - **Python:** pin the latest versions; check FastAPI/Starlette and `python-multipart` behaviour in upload handling.
+  - **Go:** `go.mod` already needs 1.25. Bump the toolchain to 1.27 and run `go get -u ./... && go mod tidy`; fix the Dockerfile.
+  - **JDK:** keep building on JDK **21 LTS** locally for now. Move to **25 LTS** in AOS-119 (Docker image + Gradle toolchain) once you install JDK 25, or let Gradle download it automatically.
+- **Extensibility:** move all API versions into a Gradle **version catalog**
+  (`gradle/libs.versions.toml`): one place to bump, and Dependabot/Renovate-ready.
+  Exact pins everywhere; lockfiles committed.
+- **Impact:**
+  - No behaviour change intended.
+  - Tests must stay green; any test changes are API-adaptation only, never weakened assertions.
+- **Rollback:** each task is one commit; revert that commit.
+- **Verification per task:**
+  - API: `./gradlew test` plus the integration tests.
+  - Web: `next build` + lint + typecheck.
+  - PDF parser: import/startup smoke test.
+  - Workers: `go build ./... && go test ./...`.
+  - Images: `docker compose build`.
 
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
