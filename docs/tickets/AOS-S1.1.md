@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E1](AOS-E1.md) |
-| **Status** | 🟦 In progress |
+| **Status** | ✅ Done |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 7.5h |
@@ -16,8 +16,8 @@
 **As** Pragun (owner, India, iPhone), **I want** the database to create all tables on a fresh start and accept writes from the API, **so that** nothing else is blocked by schema errors.
 
 ## Acceptance criteria
-- [ ] Given an empty Postgres, when the API starts, then Flyway applies every migration
-- [ ] Given the Exposed repositories, when their integration tests run, then inserts and reads succeed
+- [x] Given an empty Postgres, when the API starts, then Flyway applies every migration (AOS-102, verified with a real run)
+- [x] Given the Exposed repositories, when their integration tests run, then inserts and reads succeed (AOS-105: 31/31)
 
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
@@ -27,7 +27,7 @@
 | [AOS-102](AOS-102.md) | Flyway owns migrations | Claude | ✅ | 1h | 0.75h |
 | [AOS-103](AOS-103.md) | JDBC `stringtype=unspecified` | Claude | ✅ | 0.5h | 0.25h |
 | [AOS-104](AOS-104.md) | Run DB integration test; fix failures | Claude | ✅ | 1.5h | 0h |
-| [AOS-105](AOS-105.md) | Integration tests for all Exposed repositories | Claude | ⬜ | 3h |  |
+| [AOS-105](AOS-105.md) | Integration tests for all Exposed repositories | Claude | ✅ | 3h | 2h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -35,4 +35,5 @@ _Task tickets are created as files when this story is picked up._
 `./gradlew test` including the integration tests is green
 
 ## Activity log
+- 2026-10-16 — Claude: story done (AOS-100…105).
 - 2026-10-16 — Claude: story created (AOS-004).

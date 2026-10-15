@@ -6,6 +6,7 @@ import dev.adminos.api.infrastructure.database.tables.SubscriptionsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.JsonColumns
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
@@ -41,7 +42,7 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
                 ?.joinToString(",") { uuid -> uuid.toString() }
             it[cancellationDraft] = subscription.cancellationDraft
             it[cancellationDraftGeneratedAt] = subscription.cancellationDraftGeneratedAt
-            it[metadata] = subscription.metadata?.let { m -> Json.encodeToString(kotlinx.serialization.serializer(), m) }
+            it[metadata] = subscription.metadata?.let { m -> JsonColumns.encode(m) }
             it[createdAt] = subscription.createdAt
             it[updatedAt] = subscription.updatedAt
         }
@@ -145,7 +146,7 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
         cancellationDraft = this[SubscriptionsTable.cancellationDraft],
         cancellationDraftGeneratedAt = this[SubscriptionsTable.cancellationDraftGeneratedAt],
         metadata = this[SubscriptionsTable.metadata]?.let {
-            Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(it) as? Map<String, Any?>
+            JsonColumns.decode(it)
         },
         createdAt = this[SubscriptionsTable.createdAt],
         updatedAt = this[SubscriptionsTable.updatedAt]

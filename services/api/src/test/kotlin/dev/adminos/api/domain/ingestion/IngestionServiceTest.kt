@@ -23,7 +23,7 @@ class IngestionServiceTest {
     }
 
     @Test
-    fun `ingestSmsBatch creates sync session with correct item count`() = runBlocking {
+    fun `ingestSmsBatch creates sync session with correct item count`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val connectionId = UUID.randomUUID()
         val records = listOf(
@@ -40,7 +40,7 @@ class IngestionServiceTest {
     }
 
     @Test
-    fun `ingestSmsBatch rejects records with raw text`() = runBlocking {
+    fun `ingestSmsBatch rejects records with raw text`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val connectionId = UUID.randomUUID()
         val records = listOf(
@@ -59,7 +59,7 @@ class IngestionServiceTest {
     }
 
     @Test
-    fun `getSyncSession returns session by ID`() = runBlocking {
+    fun `getSyncSession returns session by ID`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val connectionId = UUID.randomUUID()
         val records = listOf(
@@ -75,13 +75,13 @@ class IngestionServiceTest {
     }
 
     @Test
-    fun `getSyncSession returns null for unknown ID`() = runBlocking {
+    fun `getSyncSession returns null for unknown ID`() = runBlocking<Unit> {
         val result = service.getSyncSession(UUID.randomUUID())
         assertNull(result)
     }
 
     @Test
-    fun `getUserSyncSessions returns sessions for user only`() = runBlocking {
+    fun `getUserSyncSessions returns sessions for user only`() = runBlocking<Unit> {
         val user1 = UUID.randomUUID()
         val user2 = UUID.randomUUID()
         val connId = UUID.randomUUID()

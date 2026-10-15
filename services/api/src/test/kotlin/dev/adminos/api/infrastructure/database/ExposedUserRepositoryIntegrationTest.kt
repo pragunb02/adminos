@@ -1,18 +1,13 @@
 package dev.adminos.api.infrastructure.database
 
-import dev.adminos.api.config.DatabaseConfig
 import dev.adminos.api.domain.common.DuplicateEntityException
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.infrastructure.database.repositories.ExposedUserRepository
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.v1.jdbc.Database
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.postgresql.PostgreSQLContainer
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -28,41 +23,21 @@ import kotlin.test.assertNull
  *
  * **Validates: Requirements 1.8, 8.5, 8.6**
  */
-@Testcontainers
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ExposedUserRepositoryIntegrationTest {
 
-    companion object {
-        @Container
-        @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:18.6-alpine")
-            .withDatabaseName("adminos_test")
-            .withUsername("test")
-            .withPassword("test")
-    }
-
-    private lateinit var dataSource: javax.sql.DataSource
-
     @BeforeAll
-    fun setup() {
-        // Same pool configuration as production (DatabaseFactory), so tests cover its settings.
-        dataSource = DatabaseFactory.createHikariDataSource(
-            DatabaseConfig(url = postgres.jdbcUrl, user = postgres.username, password = postgres.password, maxPoolSize = 2)
-        )
-        // Real Flyway run against the shipped migrations (same path as production startup).
-        DatabaseFactory.migrate(dataSource)
-        Database.connect(dataSource)
-    }
+    fun setup() = PostgresTestDatabase.ensureStarted()
 
     @Test
     fun `re-running migrations is a no-op`() {
-        val applied = DatabaseFactory.migrate(dataSource)
+        val applied = DatabaseFactory.migrate(PostgresTestDatabase.dataSource)
         assertEquals(0, applied, "Second Flyway run must not apply anything")
     }
 
     @Test
-    fun `save and findById round-trip`() = runBlocking {
+    fun `save and findById round-trip`() = runBlocking<Unit> {
         val repo = ExposedUserRepository()
         val user = User(
             id = UUID.randomUUID(),
@@ -93,7 +68,7 @@ class ExposedUserRepositoryIntegrationTest {
     }
 
     @Test
-    fun `findByGoogleId returns saved user`() = runBlocking {
+    fun `findByGoogleId returns saved user`() = runBlocking<Unit> {
         val repo = ExposedUserRepository()
         val googleId = "google_find_${UUID.randomUUID()}"
         val user = User(
@@ -110,7 +85,7 @@ class ExposedUserRepositoryIntegrationTest {
     }
 
     @Test
-    fun `findByEmail returns saved user`() = runBlocking {
+    fun `findByEmail returns saved user`() = runBlocking<Unit> {
         val repo = ExposedUserRepository()
         val email = "email-find-${UUID.randomUUID()}@example.com"
         val user = User(
@@ -127,14 +102,14 @@ class ExposedUserRepositoryIntegrationTest {
     }
 
     @Test
-    fun `findById returns null for non-existent user`() = runBlocking {
+    fun `findById returns null for non-existent user`() = runBlocking<Unit> {
         val repo = ExposedUserRepository()
         val found = repo.findById(UUID.randomUUID())
         assertNull(found)
     }
 
     @Test
-    fun `duplicate email throws DuplicateEntityException`() = runBlocking {
+    fun `duplicate email throws DuplicateEntityException`() = runBlocking<Unit> {
         val repo = ExposedUserRepository()
         val email = "dup-${UUID.randomUUID()}@example.com"
         val user1 = User(email = email, googleId = "google_dup1_${UUID.randomUUID()}", name = "User 1")
@@ -147,7 +122,7 @@ class ExposedUserRepositoryIntegrationTest {
     }
 
     @Test
-    fun `update modifies user fields`() = runBlocking {
+    fun `update modifies user fields`() = runBlocking<Unit> {
         val repo = ExposedUserRepository()
         val user = User(
             email = "update-${UUID.randomUUID()}@example.com",

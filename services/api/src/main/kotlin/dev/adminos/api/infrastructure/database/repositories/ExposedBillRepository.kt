@@ -6,6 +6,7 @@ import dev.adminos.api.infrastructure.database.tables.BillsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.JsonColumns
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.time.LocalDate
@@ -34,7 +35,7 @@ class ExposedBillRepository : BillRepository {
             it[sourceRef] = bill.sourceRef
             it[reminderSent3d] = bill.reminderSent3d
             it[reminderSent1d] = bill.reminderSent1d
-            it[metadata] = bill.metadata?.let { m -> Json.encodeToString(kotlinx.serialization.serializer(), m) }
+            it[metadata] = bill.metadata?.let { m -> JsonColumns.encode(m) }
             it[createdAt] = bill.createdAt
             it[updatedAt] = bill.updatedAt
         }
@@ -146,7 +147,7 @@ class ExposedBillRepository : BillRepository {
         reminderSent3d = this[BillsTable.reminderSent3d],
         reminderSent1d = this[BillsTable.reminderSent1d],
         metadata = this[BillsTable.metadata]?.let {
-            Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(it) as? Map<String, Any?>
+            JsonColumns.decode(it)
         },
         createdAt = this[BillsTable.createdAt],
         updatedAt = this[BillsTable.updatedAt]

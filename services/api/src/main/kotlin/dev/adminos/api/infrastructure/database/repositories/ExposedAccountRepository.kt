@@ -5,6 +5,7 @@ import dev.adminos.api.infrastructure.database.tables.AccountsTable
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import dev.adminos.api.infrastructure.database.JsonColumns
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
 import java.util.UUID
@@ -23,7 +24,7 @@ class ExposedAccountRepository : AccountRepository {
             it[isPrimary] = account.isPrimary
             it[currency] = account.currency
             it[connectionId] = account.connectionId
-            it[metadata] = account.metadata?.let { m -> Json.encodeToString(kotlinx.serialization.serializer(), m) }
+            it[metadata] = account.metadata?.let { m -> JsonColumns.encode(m) }
             it[createdAt] = account.createdAt
             it[updatedAt] = account.updatedAt
         }
@@ -75,7 +76,7 @@ class ExposedAccountRepository : AccountRepository {
         currency = this[AccountsTable.currency],
         connectionId = this[AccountsTable.connectionId],
         metadata = this[AccountsTable.metadata]?.let {
-            Json.decodeFromString<Map<String, kotlinx.serialization.json.JsonElement>>(it) as? Map<String, Any?>
+            JsonColumns.decode(it)
         },
         createdAt = this[AccountsTable.createdAt],
         updatedAt = this[AccountsTable.updatedAt]

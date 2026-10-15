@@ -72,7 +72,7 @@ class BillTrackingServiceTest {
     // ── Payment matching ──
 
     @Test
-    fun `matchPayment links transaction to matching bill`() = runBlocking {
+    fun `matchPayment links transaction to matching bill`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val bill = Bill(
             userId = userId,
@@ -101,7 +101,7 @@ class BillTrackingServiceTest {
     }
 
     @Test
-    fun `matchPayment returns null when no bill matches`() = runBlocking {
+    fun `matchPayment returns null when no bill matches`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val txn = Transaction(
             userId = userId,
@@ -116,7 +116,7 @@ class BillTrackingServiceTest {
     }
 
     @Test
-    fun `matchPayment does not match when amount differs by more than 5 percent`() = runBlocking {
+    fun `matchPayment does not match when amount differs by more than 5 percent`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val bill = Bill(
             userId = userId,
@@ -143,7 +143,7 @@ class BillTrackingServiceTest {
     // ── Overdue detection ──
 
     @Test
-    fun `markOverdueBills transitions past-due bills to overdue`() = runBlocking {
+    fun `markOverdueBills transitions past-due bills to overdue`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val bill = Bill(
             userId = userId,
@@ -162,7 +162,7 @@ class BillTrackingServiceTest {
     }
 
     @Test
-    fun `markOverdueBills does not affect already paid bills`() = runBlocking {
+    fun `markOverdueBills does not affect already paid bills`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
         val bill = Bill(
             userId = userId,

@@ -41,7 +41,7 @@ class AsynqPublisherIntegrationTest {
     }
 
     @Test
-    fun `enqueue writes correct JSON to Redis list`() = runBlocking {
+    fun `enqueue writes correct JSON to Redis list`() = runBlocking<Unit> {
         val redisUrl = "redis://${redis.host}:${redis.getMappedPort(6379)}"
         val redisClient = RedisClient.create(redisUrl)
         val publisher = AsynqPublisher(redisClient)
@@ -79,7 +79,7 @@ class AsynqPublisherIntegrationTest {
     }
 
     @Test
-    fun `enqueue supports all job types`() = runBlocking {
+    fun `enqueue supports all job types`() = runBlocking<Unit> {
         val redisUrl = "redis://${redis.host}:${redis.getMappedPort(6379)}"
         val redisClient = RedisClient.create(redisUrl)
         val publisher = AsynqPublisher(redisClient)
@@ -110,7 +110,7 @@ class AsynqPublisherIntegrationTest {
     }
 
     @Test
-    fun `enqueue sets default retry and timeout values`() = runBlocking {
+    fun `enqueue sets default retry and timeout values`() = runBlocking<Unit> {
         val redisUrl = "redis://${redis.host}:${redis.getMappedPort(6379)}"
         val redisClient = RedisClient.create(redisUrl)
         val publisher = AsynqPublisher(redisClient)
