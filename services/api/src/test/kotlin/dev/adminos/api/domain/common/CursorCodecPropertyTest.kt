@@ -1,4 +1,4 @@
-package dev.adminos.api.infrastructure.database
+package dev.adminos.api.domain.common
 
 import net.jqwik.api.*
 

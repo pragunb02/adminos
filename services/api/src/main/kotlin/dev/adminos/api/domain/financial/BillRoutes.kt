@@ -2,10 +2,9 @@ package dev.adminos.api.domain.financial
 
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.common.Pagination
-import dev.adminos.api.infrastructure.plugins.ApiException
-import dev.adminos.api.infrastructure.plugins.requestId
-import dev.adminos.api.infrastructure.plugins.userPrincipal
+import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -21,13 +20,11 @@ fun Route.billRoutes(billTrackingService: BillTrackingService) {
             // GET /api/v1/bills — list with status filter + date range
             get {
                 val principal = call.userPrincipal
-                val status = call.parameters["status"]?.let {
-                    BillStatus.valueOf(it.uppercase())
-                }
-                val from = call.parameters["from"]?.let { LocalDate.parse(it) }
-                val to = call.parameters["to"]?.let { LocalDate.parse(it) }
+                val status = call.enumParam<BillStatus>("status")
+                val from = call.dateParam("from")
+                val to = call.dateParam("to")
                 val cursor = call.parameters["cursor"]
-                val limit = (call.parameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
+                val limit = call.limitParam()
 
                 val bills = billTrackingService.getUserBills(
                     userId = principal.userId,
@@ -40,7 +37,7 @@ fun Route.billRoutes(billTrackingService: BillTrackingService) {
 
                 val hasMore = bills.size > limit
                 val page = if (hasMore) bills.take(limit) else bills
-                val nextCursor = if (hasMore) page.lastOrNull()?.dueDate?.toString() else null
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.dueDate.toString()) } else null
                 val total = billTrackingService.countUserBills(principal.userId, status)
 
                 call.respond(

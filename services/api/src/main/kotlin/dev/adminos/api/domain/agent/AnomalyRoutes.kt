@@ -5,10 +5,9 @@ import dev.adminos.api.domain.audit.AuditActions
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.common.Pagination
-import dev.adminos.api.infrastructure.plugins.ApiException
-import dev.adminos.api.infrastructure.plugins.requestId
-import dev.adminos.api.infrastructure.plugins.userPrincipal
+import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -30,11 +29,9 @@ fun Route.anomalyRoutes(
             // GET /api/v1/anomalies — list with status filter + cursor pagination
             get {
                 val principal = call.userPrincipal
-                val status = call.parameters["status"]?.let {
-                    try { AnomalyStatus.valueOf(it.uppercase()) } catch (_: Exception) { null }
-                }
+                val status = call.enumParam<AnomalyStatus>("status")
                 val cursor = call.parameters["cursor"]
-                val limit = (call.parameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
+                val limit = call.limitParam()
 
                 val anomalies = anomalyRepository.findByUserId(
                     userId = principal.userId,
@@ -45,7 +42,7 @@ fun Route.anomalyRoutes(
 
                 val hasMore = anomalies.size > limit
                 val page = if (hasMore) anomalies.take(limit) else anomalies
-                val nextCursor = if (hasMore) page.lastOrNull()?.createdAt?.toString() else null
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.createdAt.toString()) } else null
                 val total = anomalyRepository.countByUserId(principal.userId, status)
 
                 call.respond(

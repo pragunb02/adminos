@@ -42,7 +42,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-105](tickets/AOS-105.md) | Integration tests for all Exposed repositories | Claude | ✅ | 3h | 2h |
 | **[AOS-S1.2](tickets/AOS-S1.2.md)** | **I can log in with Google** | | 🟦 | 7.25h | |
 | └ [AOS-106](tickets/AOS-106.md) | Auth reads the JWT from the `access_token` cookie too | Claude | ✅ | 1h | 0.5h |
-| └ [AOS-107](tickets/AOS-107.md) | JSON contract web ↔ API (snake_case vs camelCase) | Claude | ⬜ | 2h |  |
+| └ [AOS-107](tickets/AOS-107.md) | JSON/query contract web ↔ API (camelCase, D-31) | Claude | ✅ | 2h | 1.5h |
 | └ [AOS-108](tickets/AOS-108.md) | Web config: Google client ID, browser API URL, CORS | Claude | ⬜ | 1h |  |
 | └ [AOS-109](tickets/AOS-109.md) | Session refresh via cookie + logout button | Claude | ⬜ | 2h |  |
 | └ [AOS-111](tickets/AOS-111.md) | Create Google OAuth client | Pragun | ⬜ | 0.25h |  |
@@ -81,6 +81,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-301 | Analytics API (series, breakdowns, comparisons) | Claude | ⬜ | 4h |  |
 | └ AOS-302 | Choose chart library + design system | Claude + Pragun | ⬜ | 1h |  |
 | └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer (replace setState-in-effect) | Claude | ⬜ | 3h |  |
+| └ [AOS-120](tickets/AOS-120.md) | Per-user timezone for date-range params | Claude | ⬜ | 1h |  |
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ⬜ | 6h | |
 | └ AOS-303 | Today / this week view | Claude | ⬜ | 3h |  |
 | └ AOS-304 | Monthly view | Claude | ⬜ | 3h |  |

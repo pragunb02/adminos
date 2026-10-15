@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~ done, AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~ done; next AOS-108 web config, AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -75,7 +75,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 ## Known issues (priority order)
 0. ~~AOS-101 compile break~~ fixed 2026-10-16 (130/130 tests green).
 1. ~~AOS-102 Flyway~~ and ~~AOS-103 stringtype~~ fixed 2026-10-16.
-2. ~~AOS-106 cookie auth~~ fixed. AOS-107: JSON field naming (snake_case chosen).
+2. ~~AOS-106 cookie auth~~ and ~~AOS-107 contract~~ fixed.
 3. AOS-201 — queue payload contract between Kotlin and Go.
 4. AOS-110 — missing API Dockerfile.
 5. AOS-205 — every transaction stored as `debit`; empty `payment_method` violates the enum.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-107: contract audit. **camelCase** (D-31, switched from snake_case after the audit). Fixed: transaction filters, the Flagged tab, **pagination broken against the DB** (cursor format), silent/opaque param errors. QueryParams helpers + route contract tests. Unit 154, integration 32.
   - AOS-106: API accepts the access_token cookie (header first); 6 auth tests; route test uses production auth. Unit 148/148.
   - AOS-105: integration tests for all 15 repositories (31/31). Found and fixed: metadata JSON crashed on save in 6 repos (`JsonColumns`, exact decimals); 9 tests silently skipped by JUnit (now run + guard). **Story S1.1 done.** Unit 142/142.
   - AOS-104: closed (integration 9/9 met by AOS-115/103/102). Merge rule: wait for the security check (CLAUDE.md).

@@ -49,6 +49,12 @@ Layers 4 and 5 sit side by side under layer 3.
 
 ---
 
+## 1a. API contract (D-31)
+- JSON fields and query params are **camelCase**. External services keep their names via `@SerialName`.
+- Parse query params only with `QueryParams` helpers (`enumParam`, `booleanParam`, `rangeStartParam`…). Bad input → 400 with allowed values.
+- Pagination cursors are opaque (`CursorCodec`). Never return or accept raw sort keys.
+- Money in new DTOs is exact (string or BigDecimal-backed), never `Double` (existing DTOs: AOS-301).
+
 ## 2. Coding rules
 
 ### Typed values, not strings

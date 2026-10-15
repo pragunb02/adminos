@@ -1,7 +1,7 @@
 package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.agent.*
-import dev.adminos.api.infrastructure.database.CursorCodec
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.AnomaliesTable
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*

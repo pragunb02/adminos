@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial
 
+import dev.adminos.api.domain.common.CursorCodec
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -37,7 +38,7 @@ class InMemoryTransactionRepository : TransactionRepository {
         }
         results = results.sortedByDescending { it.transactedAt }
         cursor?.let { c ->
-            val cursorInstant = Instant.parse(c)
+            val cursorInstant = Instant.parse(CursorCodec.key(c))
             results = results.filter { it.transactedAt < cursorInstant }
         }
         return results.take(limit)
@@ -145,21 +146,23 @@ class InMemorySubscriptionRepository : SubscriptionRepository {
     override suspend fun findById(id: UUID): Subscription? = store[id]
 
     override suspend fun findByUserId(
-        userId: UUID, status: SubscriptionStatus?, cursor: String?, limit: Int
+        userId: UUID, status: SubscriptionStatus?, flagged: Boolean?, cursor: String?, limit: Int
     ): List<Subscription> {
         var results = store.values.filter { it.userId == userId }
         status?.let { s -> results = results.filter { it.status == s } }
+        flagged?.let { f -> results = results.filter { it.isFlagged == f } }
         results = results.sortedByDescending { it.createdAt }
         cursor?.let { c ->
-            val cursorInstant = Instant.parse(c)
+            val cursorInstant = Instant.parse(CursorCodec.key(c))
             results = results.filter { it.createdAt < cursorInstant }
         }
         return results.take(limit)
     }
 
-    override suspend fun countByUserId(userId: UUID, status: SubscriptionStatus?): Long {
+    override suspend fun countByUserId(userId: UUID, status: SubscriptionStatus?, flagged: Boolean?): Long {
         var results = store.values.filter { it.userId == userId }
         status?.let { s -> results = results.filter { it.status == s } }
+        flagged?.let { f -> results = results.filter { it.isFlagged == f } }
         return results.size.toLong()
     }
 
@@ -200,7 +203,7 @@ class InMemoryBillRepository : BillRepository {
         to?.let { t -> results = results.filter { it.dueDate <= t } }
         results = results.sortedBy { it.dueDate }
         cursor?.let { c ->
-            val cursorDate = LocalDate.parse(c)
+            val cursorDate = LocalDate.parse(CursorCodec.key(c))
             results = results.filter { it.dueDate > cursorDate }
         }
         return results.take(limit)

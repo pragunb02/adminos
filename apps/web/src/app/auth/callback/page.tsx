@@ -23,7 +23,7 @@ function CallbackContent() {
       try {
         const res = await api.post<AuthResponse>("/api/v1/auth/google", {
           code,
-          redirect_uri: `${window.location.origin}/auth/callback`,
+          redirectUri: `${window.location.origin}/auth/callback`,
         });
 
         if (res.success && res.data) {

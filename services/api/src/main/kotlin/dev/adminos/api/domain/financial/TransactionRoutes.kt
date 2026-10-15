@@ -5,8 +5,9 @@ import dev.adminos.api.domain.audit.AuditActions
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.common.Pagination
-import dev.adminos.api.infrastructure.plugins.ApiException
+import dev.adminos.api.infrastructure.plugins.*
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
 import io.ktor.http.*
@@ -31,19 +32,15 @@ fun Route.transactionRoutes(
             // GET /api/v1/transactions — browse with filters + cursor pagination
             get {
                 val principal = call.userPrincipal
-                val from = call.parameters["from"]?.let { Instant.parse(it) }
-                val to = call.parameters["to"]?.let { Instant.parse(it) }
-                val category = call.parameters["category"]?.let {
-                    TransactionCategory.valueOf(it.uppercase())
-                }
-                val type = call.parameters["type"]?.let {
-                    TransactionType.valueOf(it.uppercase())
-                }
-                val accountId = call.parameters["account"]?.let { UUID.fromString(it) }
-                val isRecurring = call.parameters["is_recurring"]?.toBooleanStrictOrNull()
-                val merchantSearch = call.parameters["q"]
+                val from = call.rangeStartParam("from")
+                val to = call.rangeEndParam("to")
+                val category = call.enumParam<TransactionCategory>("category")
+                val type = call.enumParam<TransactionType>("type")
+                val accountId = call.uuidParam("account")
+                val isRecurring = call.booleanParam("isRecurring")
+                val merchantSearch = call.parameters["merchant"]?.takeIf { it.isNotBlank() }
                 val cursor = call.parameters["cursor"]
-                val limit = (call.parameters["limit"]?.toIntOrNull() ?: 20).coerceIn(1, 100)
+                val limit = call.limitParam()
 
                 val transactions = transactionRepository.findByUserId(
                     userId = principal.userId,
@@ -54,7 +51,7 @@ fun Route.transactionRoutes(
 
                 val hasMore = transactions.size > limit
                 val page = if (hasMore) transactions.take(limit) else transactions
-                val nextCursor = if (hasMore) page.lastOrNull()?.transactedAt?.toString() else null
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.transactedAt.toString()) } else null
                 val total = transactionRepository.countByUserId(
                     userId = principal.userId,
                     from = from, to = to, category = category, type = type,
@@ -75,10 +72,8 @@ fun Route.transactionRoutes(
             // GET /api/v1/transactions/summary — spending by category
             get("/summary") {
                 val principal = call.userPrincipal
-                val from = call.parameters["from"]?.let { Instant.parse(it) }
-                    ?: Instant.now().minusSeconds(30L * 24 * 3600)
-                val to = call.parameters["to"]?.let { Instant.parse(it) }
-                    ?: Instant.now()
+                val from = call.rangeStartParam("from") ?: Instant.now().minusSeconds(30L * 24 * 3600)
+                val to = call.rangeEndParam("to") ?: Instant.now()
 
                 val byCategory = transactionRepository.spendingByCategory(principal.userId, from, to)
                 val totalSpending = byCategory.values.fold(0.0) { acc, v -> acc + v.toDouble() }

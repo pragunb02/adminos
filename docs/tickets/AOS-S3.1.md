@@ -24,6 +24,7 @@
 | AOS-301 | Analytics API (series, breakdowns, comparisons) | Claude | ⬜ | 4h |  |
 | AOS-302 | Choose chart library + design system | Claude + Pragun | ⬜ | 1h |  |
 | [AOS-308](AOS-308.md) | Web: shared data-fetching layer (replace setState-in-effect) | Claude | ⬜ | 3h | |
+| [AOS-120](AOS-120.md) | Per-user timezone for date-range params | Claude | ⬜ | 1h | |
 
 _Task tickets are created as files when this story is picked up._
 

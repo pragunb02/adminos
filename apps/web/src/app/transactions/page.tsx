@@ -55,7 +55,7 @@ export default function TransactionsPage() {
       if (debouncedMerchant) params.set("merchant", debouncedMerchant);
       if (dateFrom) params.set("from", dateFrom);
       if (dateTo) params.set("to", dateTo);
-      if (recurring) params.set("is_recurring", "true");
+      if (recurring) params.set("isRecurring", "true");
       if (cursorVal) params.set("cursor", cursorVal);
       params.set("limit", "20");
       return `/api/v1/transactions?${params}`;

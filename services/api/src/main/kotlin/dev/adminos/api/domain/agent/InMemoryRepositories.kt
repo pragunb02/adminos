@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.agent
 
+import dev.adminos.api.domain.common.CursorCodec
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -23,7 +24,7 @@ class InMemoryAnomalyRepository : AnomalyRepository {
         status?.let { s -> results = results.filter { it.status == s } }
         results = results.sortedByDescending { it.createdAt }
         cursor?.let { c ->
-            val cursorInstant = Instant.parse(c)
+            val cursorInstant = Instant.parse(CursorCodec.key(c))
             results = results.filter { it.createdAt < cursorInstant }
         }
         return results.take(limit)
@@ -63,7 +64,7 @@ class InMemoryBriefingRepository : BriefingRepository {
         var results = store.values.filter { it.userId == userId }
         results = results.sortedByDescending { it.createdAt }
         cursor?.let { c ->
-            val cursorInstant = Instant.parse(c)
+            val cursorInstant = Instant.parse(CursorCodec.key(c))
             results = results.filter { it.createdAt < cursorInstant }
         }
         return results.take(limit)

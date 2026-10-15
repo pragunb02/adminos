@@ -1,5 +1,6 @@
 package dev.adminos.api.infrastructure.database.repositories
 
+import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.financial.*
 import dev.adminos.api.infrastructure.database.PostgresTestDatabase
 import kotlinx.coroutines.runBlocking
@@ -88,6 +89,21 @@ class FinancialRepositoriesIntegrationTest {
         assertTrue(TransactionCategory.TRANSFER !in byCategory, "credits are not spending")
 
         assertEquals(2, transactions.getRecentByMerchant(userId, "Swiggy", hours = 72).size)
+    }
+
+    @Test
+    fun `cursor pagination pages through transactions without overlap`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val now = Instant.now()
+        (1..5).forEach { transactions.save(txn(userId, at = now.minus(it.toLong(), ChronoUnit.HOURS))) }
+
+        val page1 = transactions.findByUserId(userId, limit = 2)
+        val cursor = CursorCodec.encode(page1.last().transactedAt.toString()) // what the route returns
+        val page2 = transactions.findByUserId(userId, cursor = cursor, limit = 2)
+        val page3 = transactions.findByUserId(userId, cursor = CursorCodec.encode(page2.last().transactedAt.toString()), limit = 2)
+
+        assertEquals(listOf(2, 2, 1), listOf(page1.size, page2.size, page3.size))
+        assertEquals(5, (page1 + page2 + page3).map { it.id }.toSet().size)
     }
 
     // ── Accounts ──

@@ -35,6 +35,7 @@
 | D-28 | Architecture | Latest stable dependencies, exact pins, upgrade cadence | Accepted | AOS-009, S1.0 |
 | D-29 | ETA | TypeScript 6.0.3 pin; set-state-in-effect at warn until AOS-308 | Accepted | AOS-116, AOS-308 |
 | D-30 | Architecture | One JSON-column mapper (`JsonColumns`); tests must return Unit (guarded) | Accepted | AOS-105 |
+| D-31 | Architecture | API contract: camelCase JSON and query params, opaque cursors, validated params | Accepted | AOS-107, AOS-120 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -280,3 +281,15 @@ Proposed
     Number path loses money precision.
 - **Tests:** `@Test` bodies use `runBlocking<Unit> { }`. `TestConventionsTest` fails the build
   otherwise, because JUnit silently skips non-void test methods (9 tests were hidden).
+
+### D-31 — API contract: camelCase, opaque cursors, validated query params
+2026-10-16 · Accepted by Pragun · Type: Architecture · Tasks: AOS-107, AOS-120
+- **camelCase** for JSON request/response fields **and** query parameters (e.g. `isRecurring`).
+  - Pragun briefly chose snake_case on my recommendation. The audit showed the API (46 DTOs) and
+    web (89 fields) already used camelCase with only 3 mismatches, so we switched.
+  - External APIs keep their own names via `@SerialName` (e.g. Google's `access_token`).
+- **Cursors** are opaque: `CursorCodec` (domain/common). Routes encode, and every repository
+  implementation decodes the same way.
+- **Query params** are parsed only via `infrastructure/plugins/QueryParams`. Invalid values are a
+  400 `VALIDATION_003` naming the allowed values. Never a 500, never silently ignored.
+- **Date-only ranges** are whole days in Asia/Kolkata until per-user timezones (AOS-120).
