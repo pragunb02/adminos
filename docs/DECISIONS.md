@@ -17,7 +17,7 @@
 | D-10 | Architecture | Arrays as TEXT | Accepted | AOS-100 |
 | D-11 | Process | Announce before acting; update PROGRESS | Accepted | — |
 | D-12 | Architecture | Flyway owns migrations | Proposed | AOS-102 |
-| D-13 | Architecture | JDBC stringtype=unspecified | Proposed | AOS-103 |
+| D-13 | Architecture | JDBC stringtype=unspecified | Accepted | AOS-103 |
 | D-14 | Product | Google login for Milestone 1 | Accepted | AOS-106…112 |
 | D-15 | Scope | No Account Aggregator for now | Accepted | — |
 | D-16 | Architecture | iPhone SMS via Shortcuts | Accepted | AOS-203, AOS-404 |
@@ -257,3 +257,7 @@ Proposed
   properly needs a shared data-fetching layer, an architecture choice that belongs with the
   Milestone 3 console work (AOS-308). Until then the rule is a **warning**, so the issues stay
   visible without blocking. **Why:** don't mix a version upgrade with a page-by-page refactor.
+
+### D-13 (update) — JDBC `stringtype=unspecified` accepted
+2026-10-16 · Accepted · Type: Architecture · Tasks: AOS-103
+- Implemented and verified: integration tests go from 4/8 to 8/8.
