@@ -7,7 +7,7 @@
 | **Status** | ⬜ Todo |
 | **Priority** | P0 |
 | **Owner** | Claude |
-| **ETA (rollup)** | 5h |
+| **ETA (rollup)** | 8h |
 | **Actual** | — |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **Decisions** | D-4 |
@@ -23,6 +23,7 @@
 |---|---|---|---|---|---|
 | AOS-301 | Analytics API (series, breakdowns, comparisons) | Claude | ⬜ | 4h |  |
 | AOS-302 | Choose chart library + design system | Claude + Pragun | ⬜ | 1h |  |
+| [AOS-308](AOS-308.md) | Web: shared data-fetching layer (replace setState-in-effect) | Claude | ⬜ | 3h | |
 
 _Task tickets are created as files when this story is picked up._
 

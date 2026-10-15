@@ -29,7 +29,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 |---|---|---|---|---|---|
 | **[AOS-S1.0](tickets/AOS-S1.0.md)** | **Current, stable dependencies** | | 🟦 | 11h | |
 | └ [AOS-115](tickets/AOS-115.md) | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, … | Claude | ✅ | 5h | 2h |
-| └ AOS-116 | Web: Next 16, React 19, Tailwind 4, ESLint flat, TS, Node 24 | Claude | ⬜ | 3h |  |
+| └ [AOS-116](tickets/AOS-116.md) | Web: Next 16, React 19, Tailwind 4, ESLint flat, TS 6.0.3, Node 24 | Claude | ✅ | 3h | 1h |
 | └ AOS-117 | PDF parser: Python + libraries | Claude | ⬜ | 1h |  |
 | └ AOS-118 | Workers: Go 1.27 + modules, fix the Dockerfile Go version | Claude | ⬜ | 1h |  |
 | └ AOS-119 | Docker/runtime images: JDK 25, Node 24, Postgres/Redis stable | Claude | ⬜ | 1h |  |
@@ -73,13 +73,14 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-209 | Refund/reversal linking | Claude | ⬜ | 2h |  |
 | └ AOS-210 | Single categorizer with remembered corrections | Claude | ⬜ | 4h |  |
 
-## ⬜ [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 19h
+## ⬜ [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 22h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | ⬜ | 5h | |
+| **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | ⬜ | 8h | |
 | └ AOS-301 | Analytics API (series, breakdowns, comparisons) | Claude | ⬜ | 4h |  |
 | └ AOS-302 | Choose chart library + design system | Claude + Pragun | ⬜ | 1h |  |
+| └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer (replace setState-in-effect) | Claude | ⬜ | 3h |  |
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ⬜ | 6h | |
 | └ AOS-303 | Today / this week view | Claude | ⬜ | 3h |  |
 | └ AOS-304 | Monthly view | Claude | ⬜ | 3h |  |

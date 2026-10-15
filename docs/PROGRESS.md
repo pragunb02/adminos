@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** AOS-116 (web upgrade), then AOS-117…119, then AOS-102…104.
+**Next step:** AOS-117 (PDF parser), AOS-118 (workers; needs Go), AOS-119 (images), then AOS-102…104.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-116: web on Next 16.4, React 19.3, Tailwind 4.3, ESLint 10, TS 6.0.3 (D-29), Node 24. Lint runs for the first time; set-state-in-effect → AOS-308.
   - AOS-115: API on latest stable (Gradle 9.8, Kotlin 2.4, Ktor 3.6, Exposed 1.5, Flyway 13, Koin 4.2, Testcontainers 2, JDK 25). Integration tests now run (they never did); all migrations apply on real Postgres; 4 enum failures → AOS-103.
   - AOS-101: API compiles again; 3 regression tests; 130/130 green.
   - AOS-008: design principles, patterns, design-before-code, dependency policy (D-27, D-28).

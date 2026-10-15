@@ -33,6 +33,7 @@
 | D-26 | Architecture | Five-layer architecture, coding rules, testing standards, Definition of Done (`docs/ENGINEERING.md`) | Accepted | AOS-006, AOS-007 |
 | D-27 | Architecture | Design principles, pattern catalogue, design-before-code | Accepted | AOS-008 |
 | D-28 | Architecture | Latest stable dependencies, exact pins, upgrade cadence | Accepted | AOS-009, S1.0 |
+| D-29 | ETA | TypeScript 6.0.3 pin; set-state-in-effect at warn until AOS-308 | Accepted | AOS-116, AOS-308 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -245,3 +246,14 @@ Proposed
 - Pin exact versions.
 - Check monthly; major upgrades get their own ticket and are done one service at a time.
 - The 2026-10-16 audit found most core libraries 1+ majors behind (see AOS-009).
+
+### D-29 — TypeScript 6.0.3 pin; React hooks rule at warn until the data layer exists
+2026-10-16 · Accepted · Type: ETA · Tasks: AOS-116, AOS-308
+- **TypeScript:** 7.0.2 is the latest stable, but typescript-eslint (used by eslint-config-next)
+  supports `<6.1.0`. Per D-28 ("newest officially supported combination") we pin **6.0.3**.
+  Revisit when typescript-eslint supports TS 7. Running TS 6 and 7 side by side was rejected
+  as needless complexity.
+- **Lint rule:** `react-hooks/set-state-in-effect` flags data fetching in 7 pages. Fixing it
+  properly needs a shared data-fetching layer, an architecture choice that belongs with the
+  Milestone 3 console work (AOS-308). Until then the rule is a **warning**, so the issues stay
+  visible without blocking. **Why:** don't mix a version upgrade with a page-by-page refactor.
