@@ -3,12 +3,14 @@ package dev.adminos.api.infrastructure.queue
 import io.lettuce.core.RedisClient
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
-import org.junit.jupiter.api.*
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Property 3: Asynq Wire Format Correctness (full integration)

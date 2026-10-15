@@ -6,15 +6,20 @@ import dev.adminos.api.infrastructure.database.repositories.ExposedUserRepositor
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.junit.jupiter.api.*
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.io.File
 import java.time.Instant
 import java.util.UUID
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 /**
  * Property 2: Repository Save/FindById Round-Trip (Exposed)
@@ -136,7 +141,7 @@ class ExposedUserRepositoryIntegrationTest {
         val user2 = User(email = email, googleId = "google_dup2_${UUID.randomUUID()}", name = "User 2")
 
         repo.save(user1)
-        assertThrows<DuplicateEntityException> {
+        assertFailsWith<DuplicateEntityException> {
             runBlocking { repo.save(user2) }
         }
     }
