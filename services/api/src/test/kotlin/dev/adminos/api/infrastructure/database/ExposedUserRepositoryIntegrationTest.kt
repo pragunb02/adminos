@@ -6,7 +6,6 @@ import dev.adminos.api.domain.identity.*
 import dev.adminos.api.infrastructure.database.repositories.ExposedUserRepository
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.TestInstance
 import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.io.File
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -44,21 +42,23 @@ class ExposedUserRepositoryIntegrationTest {
             .withPassword("test")
     }
 
+    private lateinit var dataSource: javax.sql.DataSource
+
     @BeforeAll
     fun setup() {
         // Same pool configuration as production (DatabaseFactory), so tests cover its settings.
-        val dataSource = DatabaseFactory.createHikariDataSource(
+        dataSource = DatabaseFactory.createHikariDataSource(
             DatabaseConfig(url = postgres.jdbcUrl, user = postgres.username, password = postgres.password, maxPoolSize = 2)
         )
+        // Real Flyway run against the shipped migrations (same path as production startup).
+        DatabaseFactory.migrate(dataSource)
         Database.connect(dataSource)
-        // Run migration SQL files directly (they don't follow Flyway naming convention)
-        val sqlDir = File("../../infra/migrations")
-        val sqlFiles = sqlDir.listFiles()?.filter { it.extension == "sql" }?.sortedBy { it.name } ?: emptyList()
-        transaction {
-            for (file in sqlFiles) {
-                exec(file.readText())
-            }
-        }
+    }
+
+    @Test
+    fun `re-running migrations is a no-op`() {
+        val applied = DatabaseFactory.migrate(dataSource)
+        assertEquals(0, applied, "Second Flyway run must not apply anything")
     }
 
     @Test

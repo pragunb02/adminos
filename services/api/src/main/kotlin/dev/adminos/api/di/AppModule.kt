@@ -1,6 +1,7 @@
 package dev.adminos.api.di
 
 import dev.adminos.api.config.AppConfig
+import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.audit.AuditRepository
 import dev.adminos.api.domain.audit.AuditService
@@ -30,8 +31,8 @@ val appModule = module {
     single { JwtService(get<AppConfig>().auth) }
     single { GoogleOAuthClient(get<AppConfig>().auth) }
 
-    // Repository bindings — switch on DATABASE_URL
-    val useDatabase = System.getenv("DATABASE_URL")?.isNotBlank() == true
+    // Repository bindings: Exposed when a database is configured, else in-memory (dev mode)
+    val useDatabase = DatabaseFactory.isConfigured()
 
     if (useDatabase) {
         // Identity

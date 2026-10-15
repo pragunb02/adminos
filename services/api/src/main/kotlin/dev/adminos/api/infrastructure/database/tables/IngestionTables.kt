@@ -6,7 +6,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Ingestion domain.
- * Maps 1:1 to infra/migrations/003_create_ingestion_tables.sql
+ * Maps 1:1 to db/migration/V3__create_ingestion_tables.sql
  */
 
 object UserConnectionsTable : Table("user_connections") {

@@ -34,5 +34,5 @@ day, week and month. It's built for Pragun first and must stay extensible to pub
 | Workers | `services/workers` | Go 1.27 + Asynq | Go isn't installed locally and `proxy.golang.org` is blocked, so run in Docker: `docker run --rm -e GOPROXY=direct -v "$PWD":/src -v aos-gomod:/go/pkg/mod -w /src golang:1.27 sh -c 'go build ./... && go vet ./... && go test ./...'` |
 | PDF parser | `services/pdf-parser` | Python 3.14 + FastAPI, pdfplumber | no tests yet (AOS-202); smoke-test via `docker build` + `/health` |
 | Web | `apps/web` | Next 16 + React 19 + TS 6 + Tailwind 4 | `npm ci && npm run typecheck && npm run lint && npx next build` |
-| DB schema | `infra/migrations` | Postgres SQL | `ExposedUserRepositoryIntegrationTest` (Testcontainers) |
+| DB schema | `services/api/src/main/resources/db/migration` (`V{N}__*.sql`, Flyway; never edit applied ones) | Postgres 18 | `./gradlew integrationTest` |
 | Run all | `docker-compose.yml` | Docker | `docker compose up` (currently broken, see PROGRESS) |

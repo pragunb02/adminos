@@ -32,12 +32,12 @@ fun Application.module(config: AppConfig) {
         modules(appModule)
     }
 
-    // Initialize database (Flyway migrations + connection pool)
-    // Wrapped in try-catch so the app can start without DB for development
-    try {
+    // Database: with DATABASE_URL, migrate and connect (startup fails if that fails).
+    // Without it, the app runs on in-memory repositories (local dev only; see AppModule).
+    if (DatabaseFactory.isConfigured()) {
         DatabaseFactory.init(config.database)
-    } catch (e: Exception) {
-        log.warn("Database initialization skipped: ${e.message}")
+    } else {
+        log.warn("DATABASE_URL not set: using IN-MEMORY repositories. Data is lost on restart (dev mode only).")
     }
 
     // Configure all Ktor plugins — JwtService from Koin (single instance)

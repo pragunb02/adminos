@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.javatime.timestamp
 
 /**
  * Exposed table objects for the Agent domain.
- * Maps 1:1 to infra/migrations/005_create_agent_tables.sql
+ * Maps 1:1 to db/migration/V5__create_agent_tables.sql
  */
 
 object BriefingsTable : Table("briefings") {
