@@ -103,7 +103,7 @@ export default function SubscriptionsPage() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                tab === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                tab === t.key ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {t.label}

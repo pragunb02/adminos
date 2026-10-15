@@ -78,7 +78,7 @@
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-115](AOS-115.md) | API: Gradle 9, Kotlin 2.4, Ktor 3, Exposed 1.x, Koin 4, Flyway 13, Nimbus 10, Hikari 7, Lettuce 7, Testcontainers 2, others | Claude | ✅ | 5h | 2h |
-| AOS-116 | Web: Next 16, React 19, Tailwind 4, ESLint flat config, TypeScript (supported), Node 24 LTS | Claude | ⬜ | 3h | |
+| [AOS-116](AOS-116.md) | Web: Next 16, React 19, Tailwind 4, ESLint flat config, TypeScript (supported), Node 24 LTS | Claude | ✅ | 3h | 1h |
 | AOS-117 | PDF parser: Python and libraries (FastAPI, Uvicorn, pdfplumber, boto3, redis, python-multipart) | Claude | ⬜ | 1h | |
 | AOS-118 | Workers: Go 1.27, modules up to date, fix the Dockerfile Go version | Claude | ⬜ | 1h | |
 | AOS-119 | Docker/runtime images: JDK 25 LTS, Node 24 LTS, Postgres and Redis stable tags | Claude | ⬜ | 1h | |
