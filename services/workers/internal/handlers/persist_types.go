@@ -1,5 +1,7 @@
 package handlers
 
+import "time"
+
 // FingerprintRecord represents a fingerprint to be persisted.
 type FingerprintRecord struct {
 	UserID      string
@@ -19,4 +21,15 @@ type BillRecord struct {
 	DueDate    string
 	Status     string
 	SourceType string
+}
+
+// IngestEventRecord is a Gmail transaction for the common intake (ingest_events, D-21, AOS-205).
+type IngestEventRecord struct {
+	UserID      string
+	SourceRef   string // Gmail message ID: re-syncing the same email is a duplicate
+	OccurredAt  time.Time
+	Direction   string // "debit" or "credit"
+	Amount      string // exact decimal, 2 places
+	MerchantRaw *string
+	AccountHint *string
 }

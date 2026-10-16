@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/mail"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/adminos/adminos/workers/internal/categorizer"
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/jobs"
 	"github.com/adminos/adminos/workers/internal/normalizer"
@@ -49,25 +49,32 @@ type ExtractedFinancialData struct {
 	BillDueDate  string  `json:"bill_due_date,omitempty"`
 	AccountLast4 string  `json:"account_last4,omitempty"`
 	Confidence   float64 `json:"confidence"`
+	// Direction is "debit" or "credit" for transactions; "" when the email doesn't say clearly (D-43).
+	Direction string `json:"direction,omitempty"`
+	// OccurredAt is when the money moved: the email's Date header, else the date in the body.
+	OccurredAt time.Time `json:"occurred_at"`
+	// MessageID is the Gmail message ID: the idempotency key of the ingest event.
+	MessageID string `json:"message_id"`
 }
 
 // GmailResult is the output of Gmail processing.
 type GmailResult struct {
-	SyncSessionID    string `json:"sync_session_id"`
-	UserID           string `json:"user_id"`
-	ConnectionID     string `json:"connection_id"`
-	TotalEmails      int    `json:"total_emails"`
-	TransactionsFound int   `json:"transactions_found"`
-	BillsFound       int    `json:"bills_found"`
-	DuplicateItems   int    `json:"duplicate_items"`
-	NetNewItems      int    `json:"net_new_items"`
-	FailedItems      int    `json:"failed_items"`
-	NewHistoryID     string `json:"new_history_id,omitempty"`
+	SyncSessionID     string `json:"sync_session_id"`
+	UserID            string `json:"user_id"`
+	ConnectionID      string `json:"connection_id"`
+	TotalEmails       int    `json:"total_emails"`
+	TransactionsFound int    `json:"transactions_found"`
+	BillsFound        int    `json:"bills_found"`
+	DuplicateItems    int    `json:"duplicate_items"`
+	NetNewItems       int    `json:"net_new_items"`
+	FailedItems       int    `json:"failed_items"`
+	NewHistoryID      string `json:"new_history_id,omitempty"`
 
-	// Enriched data for Persist
-	Transactions []normalizer.NormalizedTransaction `json:"transactions,omitempty"`
-	Bills        []BillRecord                       `json:"bills,omitempty"`
-	Fingerprints []FingerprintRecord                `json:"fingerprints,omitempty"`
+	// Enriched data for Persist. Transactions go to the common intake as events (AOS-205, D-21):
+	// the API's pipeline does dedup, transfers, refunds and categories.
+	Events       []IngestEventRecord `json:"events,omitempty"`
+	Bills        []BillRecord        `json:"bills,omitempty"`
+	Fingerprints []FingerprintRecord `json:"fingerprints,omitempty"`
 
 	// Confidence distribution
 	HighConf      int     `json:"high_conf"`
@@ -98,7 +105,7 @@ func NewGmailHandler(db *pgxpool.Pool, gmailClient *gmail.Client, clientID, clie
 	}
 }
 
-func (h *GmailHandler) JobType() string    { return jobs.TypeGmailIngest }
+func (h *GmailHandler) JobType() string     { return jobs.TypeGmailIngest }
 func (h *GmailHandler) TriggerType() string { return jobs.TriggerEvent }
 
 func (h *GmailHandler) Parse(payload json.RawMessage) (any, error) {
@@ -118,27 +125,17 @@ func (h *GmailHandler) Parse(payload json.RawMessage) (any, error) {
 func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
 	p := payload.(*GmailPayload)
 
-	// Get a valid access token for the Gmail API
-	var accessToken string
-	if h.gmailClient != nil && h.db != nil && p.ConnectionID != "" {
-		var err error
-		accessToken, err = h.getAccessToken(ctx, p.ConnectionID)
-		if err != nil {
-			log.Printf("[gmail] Failed to get access token: %v — falling back to stub emails", err)
-		}
+	// No silent fallback: if Gmail can't be reached the job fails and is retried (AOS-205).
+	if h.gmailClient == nil || h.db == nil {
+		return nil, fmt.Errorf("gmail ingestion needs a database and a Gmail client")
 	}
-
-	var emails []GmailEmail
-	if accessToken != "" && h.gmailClient != nil {
-		fetched, err := h.fetchRealEmails(ctx, accessToken, p.HistoryID)
-		if err != nil {
-			log.Printf("[gmail] Failed to fetch real emails: %v — falling back to stub", err)
-			emails = fetchFinancialEmails(p.GmailAddress, p.HistoryID)
-		} else {
-			emails = fetched
-		}
-	} else {
-		emails = fetchFinancialEmails(p.GmailAddress, p.HistoryID)
+	accessToken, err := h.getAccessToken(ctx, p.ConnectionID)
+	if err != nil {
+		return nil, fmt.Errorf("gmail access token: %w", err)
+	}
+	emails, err := h.fetchRealEmails(ctx, accessToken, p.HistoryID)
+	if err != nil {
+		return nil, fmt.Errorf("fetch gmail messages: %w", err)
 	}
 
 	result := &GmailResult{
@@ -168,7 +165,7 @@ func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
 			h.processBill(p.UserID, extracted, result)
 		} else {
 			result.TransactionsFound++
-			h.processTransaction(p.UserID, extracted, result, &confSum, &confCount)
+			processTransaction(p.UserID, extracted, result, &confSum, &confCount)
 		}
 	}
 
@@ -269,92 +266,53 @@ func (h *GmailHandler) fetchRealEmails(ctx context.Context, accessToken, history
 	return emails, nil
 }
 
-func (h *GmailHandler) processTransaction(userID string, data *ExtractedFinancialData, result *GmailResult, confSum *float64, confCount *int) {
-	record := normalizer.SmsRecord{
-		Merchant:     data.Merchant,
-		Amount:       data.Amount,
-		Date:         data.Date,
-		AccountLast4: data.AccountLast4,
+// processTransaction turns an extracted email transaction into an ingest event (AOS-205).
+// Duplicates are decided at insert time (unique per user + source + message ID) and by the pipeline.
+func processTransaction(userID string, data *ExtractedFinancialData, result *GmailResult, confSum *float64, confCount *int) {
+	if data.Direction == "" {
+		result.NeedsReview++ // never guess debit (D-43)
+		log.Printf("[gmail] Skipped message %s: direction unclear", data.MessageID)
+		return
 	}
-
-	normalized, err := normalizer.Normalize(record, userID)
-	if err != nil {
-		log.Printf("[gmail] Failed to normalize transaction: %v", err)
+	if data.MessageID == "" || data.OccurredAt.IsZero() {
 		result.FailedItems++
 		return
 	}
 
-	normalized.SourceType = "gmail"
-	normalized.Confidence.Overall = math.Round(
-		(normalized.Confidence.Overall*0.7+data.Confidence*0.3)*100) / 100
-
-	normalized.Fingerprint = normalizer.ComputeFingerprint(
-		userID, normalized.Amount, normalized.MerchantName,
-		normalized.Date, normalized.AccountLast4,
-	)
-
-	isDupe, err := h.isDuplicate(context.Background(), userID, normalized.Fingerprint)
-	if err != nil {
-		log.Printf("[gmail] Fingerprint check error, falling back to in-memory: %v", err)
-		h.mu.Lock()
-		isDupe = h.fingerprints[normalized.Fingerprint]
-		if !isDupe {
-			h.fingerprints[normalized.Fingerprint] = true
-		}
-		h.mu.Unlock()
-	}
-
-	if isDupe {
-		result.DuplicateItems++
-		return
-	}
-
-	// Within-batch dedup
-	h.mu.Lock()
-	alreadySeen := h.fingerprints[normalized.Fingerprint]
-	h.fingerprints[normalized.Fingerprint] = true
-	h.mu.Unlock()
-
-	if alreadySeen {
-		result.DuplicateItems++
-		return
-	}
-
-	catResult := categorizer.Categorize(normalized.MerchantName)
-	normalized.Category = catResult.Category
-	normalized.Confidence.Category = catResult.Confidence
-
-	// Track confidence
-	*confSum += normalized.Confidence.Overall
+	*confSum += data.Confidence
 	*confCount++
 	switch {
-	case normalized.Confidence.Overall >= 0.8:
+	case data.Confidence >= 0.8:
 		result.HighConf++
-	case normalized.Confidence.Overall >= 0.5:
+	case data.Confidence >= 0.5:
 		result.MedConf++
-	case normalized.Confidence.Overall >= 0.3:
-		result.LowConf++
 	default:
-		result.NeedsReview++
+		result.LowConf++
 	}
 
-	entityID := uuid.New().String()
-	result.Transactions = append(result.Transactions, *normalized)
-	result.Fingerprints = append(result.Fingerprints, FingerprintRecord{
+	result.Events = append(result.Events, IngestEventRecord{
 		UserID:      userID,
-		Fingerprint: normalized.Fingerprint,
-		SourceType:  "gmail",
-		EntityType:  "transaction",
-		EntityID:    entityID,
+		SourceRef:   data.MessageID,
+		OccurredAt:  data.OccurredAt,
+		Direction:   data.Direction,
+		Amount:      strconv.FormatFloat(data.Amount, 'f', 2, 64),
+		MerchantRaw: optional(truncate(data.Merchant, 255), "Unknown"),
+		AccountHint: optional(data.AccountLast4, ""),
 	})
+}
 
-	log.Printf("[gmail] Transaction: %s ₹%.2f %s (cat=%s, conf=%.2f)",
-		normalized.MerchantName, normalized.Amount,
-		normalized.Date.Format("2006-01-02"),
-		normalized.Category, normalized.Confidence.Overall,
-	)
+func optional(s, empty string) *string {
+	if s == "" || s == empty {
+		return nil
+	}
+	return &s
+}
 
-	result.NetNewItems++
+func truncate(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
 
 func (h *GmailHandler) processBill(userID string, data *ExtractedFinancialData, result *GmailResult) {
@@ -447,19 +405,21 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 	}
 	defer tx.Rollback(ctx)
 
-	// Insert transactions
-	for _, txn := range r.Transactions {
-		_, err := tx.Exec(ctx, `
-			INSERT INTO transactions (id, user_id, source_type, type, amount, currency,
-				merchant_name, merchant_raw, account_last4, payment_method, category,
-				category_source, transacted_at, created_at, updated_at)
-			VALUES (gen_random_uuid(), $1, $2, 'debit', $3, 'INR',
-				$4, $5, $6, $7, $8, 'rules', $9, now(), now())`,
-			txn.UserID, txn.SourceType, txn.Amount,
-			txn.MerchantName, txn.MerchantRaw, txn.AccountLast4, txn.PaymentMethod,
-			txn.Category, txn.Date)
+	// Transactions → common intake (AOS-205). A re-synced email is a duplicate, not a second row.
+	for _, e := range r.Events {
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO ingest_events (user_id, source, source_ref, occurred_at, direction, amount, currency,
+				merchant_raw, account_hint, status)
+			VALUES ($1, 'gmail', $2, $3, $4::ingest_direction, $5::numeric, 'INR', $6, $7, 'pending')
+			ON CONFLICT (user_id, source, source_ref) DO NOTHING`,
+			e.UserID, e.SourceRef, e.OccurredAt, e.Direction, e.Amount, e.MerchantRaw, e.AccountHint)
 		if err != nil {
-			return fmt.Errorf("insert transaction: %w", err)
+			return fmt.Errorf("insert ingest event: %w", err)
+		}
+		if tag.RowsAffected() == 1 {
+			r.NetNewItems++
+		} else {
+			r.DuplicateItems++
 		}
 	}
 
@@ -579,11 +539,6 @@ var (
 	}
 )
 
-// fetchFinancialEmails simulates fetching emails from Gmail API.
-func fetchFinancialEmails(gmailAddress string, historyID string) []GmailEmail {
-	return []GmailEmail{}
-}
-
 // parseFinancialEmail extracts financial data from an email.
 func parseFinancialEmail(email GmailEmail) *ExtractedFinancialData {
 	content := email.Subject + " " + email.Body
@@ -637,6 +592,8 @@ func parseFinancialEmail(email GmailEmail) *ExtractedFinancialData {
 	return &ExtractedFinancialData{
 		Type: "transaction", Merchant: merchant, Amount: amount, Date: date,
 		AccountLast4: accountLast4, Confidence: confidence,
+		Direction: detectDirection(content), OccurredAt: occurredAt(email.Date, extractDate(content)),
+		MessageID: email.MessageID,
 	}
 }
 
@@ -732,4 +689,47 @@ func parseDateOrNow(dateStr string) time.Time {
 		}
 	}
 	return time.Now()
+}
+
+// Direction words (D-43). What happened to *your* account decides: a bank email often says both
+// "debited from your a/c" and "credited to <payee>", so an account-anchored phrase wins.
+var (
+	anchoredDirection = regexp.MustCompile(`(?i)\b(debited|credited)\s+(?:from|to|in(?:to)?)\s+(?:your\s+)?(?:a/c|ac|acct|account|card|credit card|bank account)\b`)
+	debitWords        = regexp.MustCompile(`(?i)\b(debited|spent|paid|charged|purchase|withdrawn|sent)\b`)
+	creditWords       = regexp.MustCompile(`(?i)\b(credited|received|refund(?:ed)?|deposited|cashback|reversed)\b`)
+)
+
+// detectDirection returns "debit", "credit", or "" when the email doesn't say clearly.
+func detectDirection(content string) string {
+	if m := anchoredDirection.FindStringSubmatch(content); m != nil {
+		if strings.EqualFold(m[1], "credited") {
+			return "credit"
+		}
+		return "debit"
+	}
+	debit, credit := debitWords.MatchString(content), creditWords.MatchString(content)
+	switch {
+	case debit && !credit:
+		return "debit"
+	case credit && !debit:
+		return "credit"
+	default:
+		return ""
+	}
+}
+
+var ist = time.FixedZone("IST", 5*60*60+30*60)
+
+// occurredAt prefers the email's Date header (alerts are sent within minutes, with a time);
+// otherwise the date in the body at 00:00 India time. Zero if neither parses.
+func occurredAt(header, bodyDate string) time.Time {
+	if t, err := mail.ParseDate(header); err == nil {
+		return t
+	}
+	for _, f := range []string{"2006-01-02", "02/01/2006", "02-01-2006", "2 Jan 2006", "2 January 2006"} {
+		if t, err := time.ParseInLocation(f, bodyDate, ist); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }

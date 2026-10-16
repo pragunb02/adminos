@@ -68,7 +68,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S2.4](tickets/AOS-S2.4.md)** | **Cash quick-add** | | ✅ | 2h | 2h |
 | └ [AOS-204](tickets/AOS-204.md) | Cash quick-add (API + two-tap UI); ATM = transfer to cash (D-42) | Claude | ✅ | 2h | 2h |
 | **[AOS-S2.5](tickets/AOS-S2.5.md)** | **Numbers I can trust** | | 🟦 | 15h | |
-| └ AOS-205 | Correct debit/credit everywhere (pipeline ✅ AOS-201; Gmail/PDF Go paths left → AOS-401/202) | Claude | ⬜ | 1h |  |
+| └ [AOS-205](tickets/AOS-205.md) | Correct debit/credit everywhere: Gmail into the pipeline (D-43) | Claude | ✅ | 1.5h | 1.5h |
 | └ AOS-206 | Merchant normalization: grow alias catalogue (deterministic normalizer ✅ AOS-201) | Claude | ⬜ | 2h |  |
 | └ [AOS-207](tickets/AOS-207.md) | Cross-source dedup: reference → score bands → merge/suggest, review API (D-38) | Claude | ✅ | 3h | 3.5h |
 | └ [AOS-208](tickets/AOS-208.md) | Own-account transfers + card bill payments; transaction nature (D-39) | Claude | ✅ | 3h | 2h |
@@ -98,7 +98,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S4.1](tickets/AOS-S4.1.md)** | **Gmail import** | | ⬜ | 6h | |
-| └ AOS-401 | Gmail incremental sync, full body, sender filters, encrypted tokens | Claude | ⬜ | 6h |  |
+| └ AOS-401 | Gmail incremental sync (real history ID), full body, sender filters, encrypted tokens (pipeline hand-off ✅ AOS-205) | Claude | ⬜ | 5h |  |
 | **[AOS-S4.2](tickets/AOS-S4.2.md)** | **WhatsApp capture** | | ⬜ | 9h | |
 | └ AOS-402 | WhatsApp forward-to-bot (Cloud API) | Claude + Pragun | ⬜ | 6h |  |
 | └ AOS-403 | WhatsApp export `.txt` import | Claude | ⬜ | 3h |  |

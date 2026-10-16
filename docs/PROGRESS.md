@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~ done. Left in M2: AOS-205/206 (small), then Milestone 3 console; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~ done. Left in M2: AOS-206 merchant names, then Milestone 3 console; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -39,7 +39,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Google login | ✅ | 🟡 | Web↔API path verified live; needs Pragun's OAuth client (AOS-111) for the real check (AOS-112) |
 | API → worker queue | ✅ | ❌ | `AsynqPublisher` stringifies payload values; split workers drop task types; manual sync never enqueues |
 | SMS ingest (API + Go) | ✅ | ❌ | Payload bug; every transaction saved as `debit`; no phone app |
-| Gmail ingest (Go) | 🟡 | ❌ | Parses snippet only; no incremental sync; no Pub/Sub watch |
+| Gmail ingest (Go → pipeline) | 🟡 | ❌ | Writes `ingest_events` (AOS-205), so dedup/transfers/refunds/categories apply. Still: snippet only, fake history ID, no Pub/Sub watch (AOS-401). Needs login + OAuth (AOS-111) |
 | Statement import (API → parser) | ✅ | ✅ | PDF/CSV/Excel, passwords; files never stored (D-37) |
 | Statement parser (Python) | ✅ | ✅ | Called by the API; 31 tests |
 | Cash quick-add (AOS-204) | ✅ | 🟡 | `POST /transactions/cash` + "+ Cash" button; through the pipeline; tested (unit, route, Postgres). Not yet used live: needs login (AOS-112) |
@@ -56,7 +56,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Feature | Rule (as implemented) | State |
 |---|---|---|
 | Merchant normalization (Go `normalizer.go:60`) | Uppercase, then first of 13 aliases contained (GPay, Swiggy, Uber…), else title-case. Map order is random, so overlapping names can misfire (`UBER EATS` → Uber) | Live, buggy |
-| Categorization, Go (`categorizer.go:23`) | 10 ordered substring rules; no match gives `other` (0.3). Only the old Go Gmail path uses it; it goes when AOS-401 moves Gmail to the pipeline | Live, buggy (`jio cinema` → utilities) |
+| Categorization, Go | Removed in AOS-205: Gmail goes through the Kotlin pipeline | Removed |
 | Categorization, Kotlin (`CategorizationService.kt`, AOS-210, D-41) | The only categorizer for pipeline sources. Order: your remembered rule (UPI ID, else merchant), then 22 known merchants, then 7 whole-word patterns, else Other. It never guesses Transfer (TransferStep does). Corrections re-label past spend/refunds except hand-set ones | Live |
 | Dedup (`normalizer.go:47`) | SHA256(user, amount, merchant, date-to-hour, last4) in `ingestion_fingerprints` | Live |
 | Subscription detection (`SubscriptionDetectorService.kt`) | 90 days of debits per merchant, ≥2 charges. Day-gap mean/sd: weekly 6–8, monthly 25–35, quarterly 85–95, yearly 355–375. Price change >5% | Dead |
@@ -78,7 +78,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
 2. ~~AOS-106 cookie auth~~ and ~~AOS-107 contract~~ fixed.
 3. ~~AOS-201~~ SMS no longer crosses Kotlin→Go (D-34). Gmail/PDF Go paths → AOS-401/202.
 4. ~~AOS-110 missing API Dockerfile~~ fixed; the whole stack runs.
-5. AOS-205 — every transaction stored as `debit`; empty `payment_method` violates the enum.
+5. ~~AOS-205~~ fixed: Gmail now writes ingest events with a detected direction (D-43); no Go path writes `transactions` any more.
+7. AOS-401 — the Gmail worker stores a made-up `history_id` (`history_<unix time>`) after each sync, so incremental sync can't work yet.
 6. AOS-601 — Gmail tokens stored in plain text (`gmail_handler.go:185`).
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
@@ -96,6 +97,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-205: Go Gmail worker writes `ingest_events` (message ID ref, direction by D-43, unclear → needs-review, NULL payment method) instead of `transactions`; no silent "success" when Gmail is unreachable; Go categorizer removed. Go unit + integration (real Postgres, migrated to V16) green; API unit 294, integration 50.
   - AOS-204: cash quick-add (D-42): API through the common intake (V16 `ingest_events.category`, chosen category kept, idempotent clientRef, cash never deduped), ATM/cash withdrawals → transfer to cash, web "+ Cash" (amount → tap category). Unit 293, integration 50; web typecheck/lint/build green.
   - AOS-210: single categorizer with remembered corrections (D-41, V15 `category_rules`): one rule per payee, future and past re-labelled (not hand-set), `remember:false` opt-out. Removed wrong guesses (unknown UPI/NEFT/IMPS/Paytm/PhonePe/GPay → Transfer), substring false matches (Motorola → Ola), dead strategy and AI-queue code. Unit 283, integration 49.
   - AOS-209: refunds/reversals (D-40): reversals net to zero; refunds capped at the original, same merchant, ≤90 days, net their category's spend; works in either order. Unit 275, integration 47.
