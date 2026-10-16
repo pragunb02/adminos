@@ -47,8 +47,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-109](tickets/AOS-109.md) | Session refresh via cookie + logout (this device) | Claude | ✅ | 2h | 1h |
 | └ [AOS-111](tickets/AOS-111.md) | Create Google OAuth client | Pragun | ⬜ | 0.25h |  |
 | └ [AOS-112](tickets/AOS-112.md) | End-to-end login on laptop | Claude + Pragun | ⬜ | 1h |  |
-| **[AOS-S1.3](tickets/AOS-S1.3.md)** | **Whole stack runs with docker compose** | | ⬜ | 1.25h | |
-| └ [AOS-110](tickets/AOS-110.md) | Add services/api/Dockerfile; fix compose | Claude | ⬜ | 1h |  |
+| **[AOS-S1.3](tickets/AOS-S1.3.md)** | **Whole stack runs with docker compose** | | ✅ | 1.25h | |
+| └ [AOS-110](tickets/AOS-110.md) | API Dockerfile (JDK 25, non-root, healthcheck); compose waits for API | Claude | ✅ | 1h | 0.75h |
 | └ [AOS-114](tickets/AOS-114.md) | Install Go locally (optional since AOS-118: Docker command in CLAUDE.md) | Pragun | ⬜ | 0.25h |  |
 | **[AOS-S1.4](tickets/AOS-S1.4.md)** | **Common intake endpoint** | | ⬜ | 3h | |
 | └ [AOS-113](tickets/AOS-113.md) | Common intake endpoint (normalized ingest event) | Claude | ⬜ | 3h |  |

@@ -9,11 +9,14 @@ AdminOS is an open-source, India-first personal finance agent. It watches bank t
 ```bash
 git clone https://github.com/adminos/adminos
 cd adminos
-cp .env.example .env   # Add your Google OAuth + Claude API key
-docker compose up
+cp .env.example .env               # add your Google OAuth client (and Claude API key)
+docker compose --profile full up --build
 ```
 
-The API server runs on `http://localhost:8080`. The web app runs on `http://localhost:3000`.
+Open `http://localhost:3000`. The web app proxies `/api/*` to the API (`localhost:8080`); all ports are bound to localhost only.
+
+- `docker compose up`: Postgres, Redis and the API only (no workers or web).
+- The API runs the database migrations on startup; workers and web start once it's healthy.
 
 ## Architecture
 
@@ -49,11 +52,8 @@ adminos/
 
 ### Prerequisites
 
-- JDK 21+
-- Go 1.21+
-- Python 3.11+
-- Node.js 20+
-- Docker + Docker Compose
+- Docker + Docker Compose (enough to run everything)
+- For local development: JDK 25 (or let Gradle download it), Node.js 24, Python 3.14. Go isn't needed locally; see `CLAUDE.md` for the Docker command.
 
 ### Run API server locally
 

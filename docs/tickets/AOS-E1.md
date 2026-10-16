@@ -18,9 +18,9 @@
 I can run the whole app on my laptop with `docker compose up` and log in with Google.
 
 ## Success criteria (exit criteria)
-- [ ] `docker compose up` starts DB, API and web with no errors
+- [x] `docker compose --profile full up` starts DB, API and web with no errors (AOS-110)
 - [ ] Login with Google lands on the dashboard; the session survives a refresh
-- [ ] DB migrations apply on a fresh database
+- [x] DB migrations apply on a fresh database (AOS-102)
 - [ ] The common intake endpoint accepts a normalized event
 
 ## Stories
@@ -29,7 +29,7 @@ I can run the whole app on my laptop with `docker compose up` and log in with Go
 | [AOS-S1.0](AOS-S1.0.md) | Current, stable dependencies | ✅ | 11h |
 | [AOS-S1.1](AOS-S1.1.md) | Database starts cleanly | ✅ | 7.5h |
 | [AOS-S1.2](AOS-S1.2.md) | I can log in with Google | ⬜ | 7.25h |
-| [AOS-S1.3](AOS-S1.3.md) | Whole stack runs with docker compose | ⬜ | 1.25h |
+| [AOS-S1.3](AOS-S1.3.md) | Whole stack runs with docker compose | ✅ | 1.25h |
 | [AOS-S1.4](AOS-S1.4.md) | Common intake endpoint | ⬜ | 3h |
 
 ## Out of scope
