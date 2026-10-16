@@ -11,7 +11,6 @@ import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import com.sun.net.httpserver.HttpServer
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Disabled
 import java.net.InetSocketAddress
 import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
@@ -47,7 +46,8 @@ class AuthOidcVerifierCoverageTest {
         start()
     }
     private val jwksUrl = "http://127.0.0.1:${server.address.port}/oauth2/v3/certs"
-    private val verifier = OidcVerifier(AUDIENCE, jwksUrl)
+    private val pushAccount = "gmail-api-push@system.gserviceaccount.com"
+    private val verifier = OidcVerifier(AUDIENCE, pushAccount, jwksUrl)
 
     @AfterEach
     fun stop() = server.stop(0)
@@ -169,19 +169,20 @@ class AuthOidcVerifierCoverageTest {
     @Test
     fun `a failing JWKS endpoint makes verification fail closed`() {
         val token = sign(claims())
-        val offline = OidcVerifier(AUDIENCE, "http://127.0.0.1:${server.address.port}/missing")
+        val offline = OidcVerifier(AUDIENCE, pushAccount, "http://127.0.0.1:${server.address.port}/missing")
 
         assertFailsWith<OidcVerificationException> { offline.verify(token) }
     }
 
     @Test
     fun `a verifier with an audience is configured`() {
-        assertTrue(OidcVerifier(AUDIENCE).isConfigured())
+        assertTrue(OidcVerifier(AUDIENCE, pushAccount).isConfigured())
     }
 
     @Test
     fun `a verifier with a blank audience is not configured`() {
-        assertFalse(OidcVerifier("  ").isConfigured())
+        assertFalse(OidcVerifier("  ", pushAccount).isConfigured())
+        assertFalse(OidcVerifier(AUDIENCE, " ").isConfigured(), "the service account is required too (AOS-609)")
     }
 
     @Test
@@ -195,8 +196,32 @@ class AuthOidcVerifierCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: OidcVerifier.kt:57-64 only requires iss to be present; Google says iss must be accounts.google.com or https://accounts.google.com")
-    fun `a token with a non-Google issuer is rejected`() {
+    fun `a token with a non-Google issuer is rejected (AOS-609 regression)`() {
         assertFailsWith<OidcVerificationException> { verifier.verify(sign(claims(iss = "https://evil.example.com"))) }
+    }
+
+    @Test
+    fun `both of Google's issuer spellings are accepted`() {
+        verifier.verify(sign(claims(iss = "accounts.google.com")))
+        verifier.verify(sign(claims(iss = "https://accounts.google.com")))
+    }
+
+    @Test
+    fun `a Google-signed token from another service account is rejected (AOS-609)`() {
+        val other = OidcVerifier(AUDIENCE, "attacker@their-project.iam.gserviceaccount.com", jwksUrl)
+        assertFailsWith<OidcVerificationException> { other.verify(sign(claims())) }
+    }
+
+    @Test
+    fun `the service account match ignores case`() {
+        OidcVerifier(AUDIENCE, pushAccount.uppercase(), jwksUrl).verify(sign(claims()))
+    }
+
+    @Test
+    fun `an unverified or missing email is rejected (AOS-609)`() {
+        val unverified = JWTClaimsSet.Builder(claims()).claim("email_verified", false).build()
+        val noEmail = JWTClaimsSet.Builder(claims()).claim("email", null).build()
+        val notBoolean = JWTClaimsSet.Builder(claims()).claim("email_verified", "yes").build()
+        for (c in listOf(unverified, noEmail, notBoolean)) assertFailsWith<OidcVerificationException> { verifier.verify(sign(c)) }
     }
 }

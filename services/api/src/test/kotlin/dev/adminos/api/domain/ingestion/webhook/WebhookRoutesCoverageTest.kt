@@ -25,7 +25,9 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
-import org.junit.jupiter.api.Disabled
+import dev.adminos.api.infrastructure.auth.OidcVerificationException
+import dev.adminos.api.infrastructure.auth.OidcVerifier
+import dev.adminos.api.infrastructure.auth.PushTokenVerifier
 import java.util.Base64
 import java.util.Date
 import java.util.UUID
@@ -40,14 +42,24 @@ class WebhookRoutesCoverageTest {
     private val userId = UUID.randomUUID()
     private val audience = "https://api.adminos.example.in/api/v1/webhooks/gmail"
 
-    private fun webhookTest(audience: String = "", block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
+    private val pushAccount = "gmail-api-push@system.gserviceaccount.com"
+    /** Accepts the test token only: stands in for a verified Pub/Sub push (OidcVerifier has its own tests). */
+    private val acceptsTestToken = PushTokenVerifier { token ->
+        if (token != "pubsub-oidc-token") throw OidcVerificationException("not the test token")
+        com.nimbusds.jwt.JWTClaimsSet.Builder().build()
+    }
+
+    private fun webhookTest(verifier: PushTokenVerifier? = acceptsTestToken, block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling()
-            routing { route("/api/v1") { webhookRoutes(connections, ingestion, audience) } }
+            routing { route("/api/v1") { webhookRoutes(connections, ingestion, verifier) } }
         }
         block()
     }
+
+    private fun webhookTest(audience: String, block: suspend ApplicationTestBuilder.() -> Unit) =
+        webhookTest(OidcVerifier(audience, pushAccount), block)
 
     private fun push(notification: String) =
         """{"message":{"data":"${Base64.getEncoder().encodeToString(notification.toByteArray())}","messageId":"136969346945"},"subscription":"projects/adminos/subscriptions/gmail-push"}"""
@@ -119,13 +131,34 @@ class WebhookRoutesCoverageTest {
         .issueTime(Date()).expirationTime(Date(System.currentTimeMillis() + 600_000)).build()
 
     @Test
-    @Disabled("BUG AOS-312 (tracked as AOS-601): with GOOGLE_PUBSUB_AUDIENCE unset the webhook skips OIDC verification and accepts any bearer token")
-    fun `without an audience configured an unverifiable token is rejected`() = webhookTest(audience = "") {
+    fun `without configuration every push is refused and nothing syncs (AOS-609 regression, AOS-601)`() = webhookTest(verifier = null) {
         gmail()
 
         val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""), authorization = "Bearer anything")
 
+        assertEquals(HttpStatusCode.ServiceUnavailable, res.status)
+        assertEquals("WEBHOOK_007", res.errorCode())
+        assertTrue(syncSessions.findByUserId(userId).isEmpty())
+    }
+
+    @Test
+    fun `the production wiring refuses everything until both audience and service account are set`() {
+        for ((aud, sa) in listOf("" to "", audience to "", "" to pushAccount)) testApplication {
+            environment { config = MapApplicationConfig() }
+            application {
+                configureSerialization(); configureRequestId(); configureErrorHandling()
+                routing { route("/api/v1") { webhookRoutes(connections, ingestion, aud, sa) } }
+            }
+            assertEquals(HttpStatusCode.ServiceUnavailable, deliver(push("""{"emailAddress":"x@gmail.com"}""")).status)
+        }
+    }
+
+    @Test
+    fun `a token the verifier rejects is a 401 and nothing syncs`() = webhookTest {
+        gmail()
+        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""), authorization = "Bearer forged")
         assertEquals(HttpStatusCode.Unauthorized, res.status)
+        assertEquals("WEBHOOK_006", res.errorCode())
         assertTrue(syncSessions.findByUserId(userId).isEmpty())
     }
 

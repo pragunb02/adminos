@@ -27,7 +27,9 @@ data class AppConfig(
                 refreshTokenTtlDays = env("REFRESH_TOKEN_TTL_DAYS", "30").toLong(),
                 googleClientId = env("GOOGLE_CLIENT_ID", ""),
                 googleClientSecret = env("GOOGLE_CLIENT_SECRET", ""),
-                googlePubsubAudience = env("GOOGLE_PUBSUB_AUDIENCE", "")
+                googlePubsubAudience = env("GOOGLE_PUBSUB_AUDIENCE", ""),
+                // The service account the Pub/Sub push subscription signs as (AOS-609). Gmail push stays off until set.
+                googlePubsubServiceAccount = env("GOOGLE_PUBSUB_SERVICE_ACCOUNT", "")
             ),
             app = AppSettings(
                 port = env("PORT", "8080").toInt(),
@@ -99,7 +101,8 @@ data class AuthConfig(
     val refreshTokenTtlDays: Long,
     val googleClientId: String,
     val googleClientSecret: String,
-    val googlePubsubAudience: String
+    val googlePubsubAudience: String,
+    val googlePubsubServiceAccount: String = ""
 )
 
 data class AppSettings(

@@ -6,6 +6,7 @@ import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.ConnectionStatus
 import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.infrastructure.auth.OidcVerifier
+import dev.adminos.api.infrastructure.auth.PushTokenVerifier
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.requestId
 import io.ktor.http.*
@@ -20,15 +21,29 @@ import java.util.Base64
 
 private val logger = LoggerFactory.getLogger("WebhookRoutes")
 
+/** Production wiring: a Google OIDC verifier, or none (the endpoint then refuses everything) when not configured. */
 fun Route.webhookRoutes(
     connectionService: ConnectionService,
     ingestionService: IngestionService,
-    pubsubAudience: String
-) {
-    val oidcVerifier = OidcVerifier(pubsubAudience)
+    pubsubAudience: String,
+    pubsubServiceAccount: String
+) = webhookRoutes(connectionService, ingestionService, OidcVerifier(pubsubAudience, pubsubServiceAccount).takeIf { it.isConfigured() })
 
+/**
+ * POST /api/v1/webhooks/gmail — Gmail push via Pub/Sub. Fails closed (AOS-609): with no [verifier]
+ * configured it answers 503 and accepts nothing; every call must carry a verified push token.
+ */
+fun Route.webhookRoutes(
+    connectionService: ConnectionService,
+    ingestionService: IngestionService,
+    verifier: PushTokenVerifier?
+) {
     route("/webhooks") {
         post("/gmail") {
+            if (verifier == null) {
+                logger.warn("Gmail webhook called but GOOGLE_PUBSUB_AUDIENCE / GOOGLE_PUBSUB_SERVICE_ACCOUNT are not set: refusing")
+                throw ApiException(HttpStatusCode.ServiceUnavailable, ApiError("WEBHOOK_007", "Gmail push is not configured"))
+            }
             val authHeader = call.request.header(HttpHeaders.Authorization)
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 logger.warn("Gmail webhook: missing or invalid Authorization header")
@@ -37,15 +52,11 @@ fun Route.webhookRoutes(
 
             val bearerToken = authHeader.removePrefix("Bearer ")
 
-            if (oidcVerifier.isConfigured()) {
-                try {
-                    oidcVerifier.verify(bearerToken)
-                } catch (e: Exception) {
-                    logger.warn("Gmail webhook: OIDC verification failed: ${e.message}")
-                    throw ApiException(HttpStatusCode.Unauthorized, ApiError("WEBHOOK_006", "Invalid Pub/Sub OIDC token"))
-                }
-            } else {
-                logger.warn("Gmail webhook: GOOGLE_PUBSUB_AUDIENCE not set, skipping OIDC verification")
+            try {
+                verifier.verify(bearerToken)
+            } catch (e: Exception) {
+                logger.warn("Gmail webhook: OIDC verification failed: ${e.message}")
+                throw ApiException(HttpStatusCode.Unauthorized, ApiError("WEBHOOK_006", "Invalid Pub/Sub OIDC token"))
             }
 
             val body = call.receiveText()

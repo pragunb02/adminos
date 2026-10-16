@@ -41,7 +41,7 @@ fun Application.ingestionModule(config: AppConfig) {
             rawSmsRoutes(smsIntake)
             cashRoutes(cashIntake)
             connectionRoutes(connectionService, auditService, googleOAuthClient)
-            webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience)
+            webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience, config.auth.googlePubsubServiceAccount)
             statementRoutes(statementImportService)
         }
     }
