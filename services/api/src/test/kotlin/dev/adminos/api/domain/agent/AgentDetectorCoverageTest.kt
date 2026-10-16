@@ -6,6 +6,7 @@ import dev.adminos.api.domain.financial.InMemoryTransactionRepository
 import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.Transaction
 import dev.adminos.api.domain.financial.TransactionCategory
+import dev.adminos.api.domain.financial.TransactionNature
 import dev.adminos.api.domain.financial.TransactionType
 import kotlinx.coroutines.runBlocking
 import java.math.BigDecimal
@@ -27,15 +28,11 @@ class AgentDetectorCoverageTest {
     private val userId = UUID.randomUUID()
     private val anomalies = InMemoryAnomalyRepository()
     private val transactions = InMemoryTransactionRepository()
-    private val service = AnomalyDetectorService(anomalies, transactions)
+    private val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
+    private val service = AnomalyDetectorService(anomalies, transactions, users)
 
-    /**
-     * The repository windows (30 days / 24 hours) are relative to the real clock and cannot be
-     * injected, so pick a recent daytime instant: the latest IST hour 0/6/12/18 not after now.
-     * None of those hours is in the odd-hours window (01:00-04:59), so OddHoursRule stays quiet.
-     */
-    private val txnTime: Instant = ZonedDateTime.now(ist).truncatedTo(ChronoUnit.HOURS)
-        .let { it.withHour(it.hour / 6 * 6) }.toInstant()
+    /** A fixed daytime instant (12:00 IST): context windows are relative to the transaction, not the clock (AOS-505). */
+    private val txnTime: Instant = Instant.parse("2026-03-10T06:30:00Z")
 
     private fun txnData(
         amount: String = "349.00", currency: String = "INR", merchant: String = "Swiggy",
@@ -54,65 +51,113 @@ class AgentDetectorCoverageTest {
         category = TransactionCategory.FOOD, transactedAt = at
     ))
 
-    // ── evaluate ──
+    // ── evaluate (AOS-505: windows relative to the transaction) ──
+
+    private suspend fun spend(
+        amount: String, merchant: String = "Swiggy", at: Instant = txnTime, currency: String = "INR",
+        category: TransactionCategory = TransactionCategory.FOOD, nature: TransactionNature = TransactionNature.SPEND, save: Boolean = true
+    ) = Transaction(
+        userId = userId, type = TransactionType.DEBIT, nature = nature, amount = BigDecimal(amount), currency = currency,
+        merchantName = merchant, merchantRaw = "UPI-$merchant", accountLast4 = "4521", paymentMethod = PaymentMethod.UPI,
+        category = category, transactedAt = at
+    ).let { if (save) transactions.save(it) else it }
 
     @Test
-    fun `an ordinary transaction creates no anomaly`() = runBlocking<Unit> {
-        val result = service.evaluate(txnData())
-
-        assertNull(result)
+    fun `an ordinary spend creates no anomaly`() = runBlocking<Unit> {
+        assertNull(service.evaluate(spend("349.00")))
         assertEquals(0L, anomalies.countByUserId(userId))
     }
 
     @Test
-    fun `an amount over 3x the repository category average is saved as a large amount anomaly`() = runBlocking<Unit> {
-        saveDebit("400.00", merchant = "Zomato", at = txnTime.minus(3, ChronoUnit.DAYS))
-        saveDebit("600.00", merchant = "Zomato", at = txnTime.minus(2, ChronoUnit.DAYS))
-        val txn = txnData(amount = "1600.00")
-
-        val result = service.evaluate(txn)
-
-        assertNotNull(result)
-        assertEquals(AnomalyType.LARGE_AMOUNT, result.type)
-        assertEquals(0.7, result.confidenceScore)
-        assertEquals(UUID.fromString(txn.transactionId), result.transactionId)
-        assertEquals(result, anomalies.findById(result.id))
+    fun `only spends are checked, never refunds, income or transfers`() = runBlocking<Unit> {
+        listOf(TransactionNature.REFUND, TransactionNature.INCOME, TransactionNature.TRANSFER).forEach {
+            assertNull(service.evaluate(spend("1.00", currency = "USD", nature = it)), "$it")
+        }
     }
 
     @Test
-    fun `the same amount at the same merchant earlier today is saved as a duplicate charge`() = runBlocking<Unit> {
-        saveDebit("349.00", method = PaymentMethod.UPI)
-        saveDebit("120.00", method = null)
+    fun `over 3x the average of the 30 days before it, from 2,000 rupees, is a large amount`() = runBlocking<Unit> {
+        listOf(400, 600, 500).forEachIndexed { i, a -> spend("$a.00", merchant = "Zomato", at = txnTime.minus(i + 1L, ChronoUnit.DAYS)) }
+        spend("90000.00", merchant = "Old", at = txnTime.minus(31, ChronoUnit.DAYS)) // outside the window
+        spend("90000.00", merchant = "Later", at = txnTime.plus(1, ChronoUnit.DAYS)) // after it: not history
+        spend("90000.00", merchant = "Trip", category = TransactionCategory.SHOPPING, at = txnTime.minus(1, ChronoUnit.DAYS)) // other category
+        val big = spend("2400.00", merchant = "Barbeque Nation")
 
-        val result = service.evaluate(txnData(amount = "349.00"))
+        val result = assertNotNull(service.evaluate(big))
+        assertEquals(AnomalyType.LARGE_AMOUNT, result.type)
+        assertEquals(0.7, result.confidenceScore)
+        assertEquals(big.id, result.transactionId)
+        assertEquals("Amount ₹2400.00 exceeds 3x category average of ₹500.00", result.reason)
+    }
 
-        assertNotNull(result)
+    @Test
+    fun `under 2,000 rupees, or with fewer than 3 earlier spends, it isn't a large amount`() = runBlocking<Unit> {
+        listOf(100, 120, 110).forEachIndexed { i, a -> spend("$a.00", merchant = "Chai", at = txnTime.minus(i + 1L, ChronoUnit.DAYS)) }
+        assertNull(service.evaluate(spend("1500.00", merchant = "Dinner")), "over 3x, but small")
+        val fresh = UUID.randomUUID()
+        val firstEver = Transaction(userId = fresh, type = TransactionType.DEBIT, amount = BigDecimal("50000.00"), merchantName = "Laptop",
+            category = TransactionCategory.SHOPPING, transactedAt = txnTime)
+        transactions.save(firstEver)
+        assertNull(service.evaluate(firstEver), "no history to compare with")
+    }
+
+    @Test
+    fun `an imported statement row is compared with the days before it, not with today`() = runBlocking<Unit> {
+        // March history; checking a March row long after: today's spending must not matter.
+        listOf(400, 600, 500).forEachIndexed { i, a -> spend("$a.00", merchant = "Zomato", at = txnTime.minus(i + 1L, ChronoUnit.DAYS)) }
+        spend("100000.00", merchant = "Recent", at = Instant.now().minus(1, ChronoUnit.DAYS))
+        assertNotNull(service.evaluate(spend("2400.00")))
+    }
+
+    @Test
+    fun `the same amount at the same merchant in the 24 hours up to it, even the same minute, is a duplicate`() = runBlocking<Unit> {
+        spend("349.00", merchant = "SWIGGY", at = txnTime)
+        val result = assertNotNull(service.evaluate(spend("349.00")))
         assertEquals(AnomalyType.DUPLICATE_CHARGE, result.type)
-        assertEquals(0.75, result.confidenceScore)
-        assertTrue(result.reason.contains("Swiggy"))
+        assertEquals("Same amount ₹349.00 at Swiggy within 24 hours", result.reason)
+    }
+
+    @Test
+    fun `a charge 25 hours earlier, or a different amount, isn't a duplicate`() = runBlocking<Unit> {
+        spend("349.00", at = txnTime.minus(25, ChronoUnit.HOURS))
+        spend("350.00", at = txnTime.minus(1, ChronoUnit.HOURS))
+        assertNull(service.evaluate(spend("349.00")))
+    }
+
+    @Test
+    fun `odd hours are judged in the user's own time zone`() = runBlocking<Unit> {
+        // 21:00Z is 02:30 in India (odd) but 21:00 in London (not).
+        users.save(dev.adminos.api.domain.identity.User(id = userId, email = "p@example.com", googleId = "g", timezone = "Europe/London"))
+        assertNull(service.evaluate(spend("349.00", at = Instant.parse("2026-03-10T21:00:00Z"))))
+        val other = UUID.randomUUID()
+        val late = Transaction(userId = other, type = TransactionType.DEBIT, amount = BigDecimal("349.00"), merchantName = "Swiggy", transactedAt = Instant.parse("2026-03-10T21:00:00Z"))
+        transactions.save(late)
+        assertEquals(AnomalyType.ODD_HOURS, assertNotNull(service.evaluate(late)).type, "no user record: India time")
+        users.save(dev.adminos.api.domain.identity.User(id = other, email = "q@example.com", googleId = "g2", timezone = "Not/AZone"))
+        val again = late.copy(id = UUID.randomUUID(), amount = BigDecimal("410.00"))
+        transactions.save(again)
+        assertEquals(AnomalyType.ODD_HOURS, assertNotNull(service.evaluate(again)).type, "invalid zone: India time")
     }
 
     @Test
     fun `several firing rules combine confidence and pick the strongest rule as the type`() = runBlocking<Unit> {
-        val result = service.evaluate(txnData(amount = "1.00", currency = "USD", merchant = "STRIPE*TEST"))
-
-        assertNotNull(result)
+        val result = assertNotNull(service.evaluate(spend("1.00", currency = "USD", merchant = "STRIPE*TEST")))
         assertEquals(AnomalyType.CARD_TESTING, result.type)
         assertEquals(0.95, result.confidenceScore, 1e-9)
-        assertEquals(
-            "Foreign currency charge in USD; Amount of exactly ₹1.00 matches card testing pattern",
-            result.reason
-        )
+        assertEquals("Foreign currency charge in USD; Amount of exactly ₹1.00 matches card testing pattern", result.reason)
     }
 
     @Test
-    fun `a transaction without an id gets a generated transaction id`() = runBlocking<Unit> {
-        val first = service.evaluate(txnData(currency = "USD", id = null))
-        val second = service.evaluate(txnData(currency = "USD", id = null))
-
-        assertNotNull(first); assertNotNull(second)
-        assertNotEquals(first.transactionId, second.transactionId)
-        assertEquals(AnomalyType.FOREIGN_CURRENCY, first.type)
+    fun `a transaction is checked once, so a second check or a racing save adds nothing`() = runBlocking<Unit> {
+        val t = spend("1.00")
+        assertNotNull(service.evaluate(t))
+        assertNull(service.evaluate(t))
+        assertEquals(1L, anomalies.countByUserId(userId))
+        val racing = AnomalyDetectorService(object : AnomalyRepository by anomalies {
+            override suspend fun findByTransactionId(transactionId: UUID): Anomaly? = null // looked before the other instance saved
+        }, transactions, users)
+        assertNull(racing.evaluate(t))
+        assertEquals(1L, anomalies.countByUserId(userId))
     }
 
     // ── computeConfidence / determineType ──
@@ -211,9 +256,22 @@ class AgentDetectorCoverageTest {
             txnData(amount = "350.00", at = txnTime.minus(1, ChronoUnit.HOURS)),
             txnData(at = txnTime.minus(25, ChronoUnit.HOURS)),
             txnData(at = txnTime.plus(1, ChronoUnit.HOURS)),
-            txnData(at = txnTime)
+            txnData(at = txnTime, id = "self")
         )
-        assertNull(DuplicateChargeRule(recent).evaluate(txnData()))
+        assertNull(DuplicateChargeRule(recent).evaluate(txnData(id = "self")))
+    }
+
+    @Test
+    fun `without ids, only earlier charges count as duplicates`() {
+        assertNull(DuplicateChargeRule(listOf(txnData(id = null))).evaluate(txnData(id = null)))
+        assertNotNull(DuplicateChargeRule(listOf(txnData(id = null, at = txnTime.minusSeconds(60)))).evaluate(txnData(id = null)))
+    }
+
+    @Test
+    fun `large amount rule respects its minimum`() {
+        val rule = LargeAmountRule(mapOf("food" to BigDecimal("100")), minimumAmount = BigDecimal(2000))
+        assertNull(rule.evaluate(txnData(amount = "1999.99")))
+        assertNotNull(rule.evaluate(txnData(amount = "2000.00")))
     }
 
     @Test

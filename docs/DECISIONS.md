@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 
@@ -558,4 +559,14 @@ Proposed
 - **Privacy:** endpoints identify a device, so they are never logged or returned; keys are never printed.
 - **iPhone:** Web Push works for Home Screen apps (iOS 16.4+). The app has a manifest and icons, and Settings explains Add to Home Screen. The manifest, service worker and icons are served without a session, because browsers fetch the manifest without cookies.
 - **Keys:** one VAPID pair per deployment (`./gradlew -q vapidKeys`). Rotating it means re-subscribing every device.
+
+### D-53 — Unusual-charge alerts: when to check, when to tell
+2026-10-16 · Accepted (Pragun: "continue" on the E5 plan) · Type: Product (+ Architecture for the hook) · Tasks: AOS-505
+- **When:** after the pipeline stores a transaction, through a `TransactionCreatedListener` (Observer) outside the write transaction. A listener's failure never affects the event. Bill matching (AOS-508) will use the same hook.
+- **What:** spends only. The context comes from the transaction's own past, so imported statements are judged fairly:
+  - the 30-day same-category average needs at least 3 earlier spends, and the transaction must be at least ₹2,000;
+  - a duplicate is the same amount at the same merchant within 24 h, the same minute included;
+  - odd hours are 01:00–04:59 in the user's zone.
+- **Once:** at most one anomaly per transaction, enforced by the V20 unique index.
+- **Tell:** every anomaly is recorded and visible. Only those with confidence ≥ 0.7 on spends from the last 3 days send a critical alert, which ignores quiet hours (D-51). This avoids alert fatigue from late-night orders and from importing old statements.
 

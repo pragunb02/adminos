@@ -251,7 +251,7 @@ class InfraRepositoryBranchesIntegrationTest {
         val t = transactions.save(txn(user)).id
         val old = anomalies.save(Anomaly(userId = user, transactionId = t, type = AnomalyType.LARGE_AMOUNT, confidenceScore = 0.9, reason = "5x usual",
             createdAt = now.minus(1, ChronoUnit.DAYS)))
-        anomalies.save(Anomaly(userId = user, transactionId = t, type = AnomalyType.ODD_HOURS, confidenceScore = 0.6, reason = "3am",
+        anomalies.save(Anomaly(userId = user, transactionId = transactions.save(txn(user)).id, type = AnomalyType.ODD_HOURS, confidenceScore = 0.6, reason = "3am",
             status = AnomalyStatus.DISMISSED, resolvedBy = AnomalyResolver.USER, resolvedAt = now, createdAt = now))
         assertEquals(1, anomalies.findByUserId(user, status = AnomalyStatus.OPEN).size)
         assertEquals(listOf(old.id), anomalies.findByUserId(user, cursor = CursorCodec.encode(now.toString())).map { it.id })

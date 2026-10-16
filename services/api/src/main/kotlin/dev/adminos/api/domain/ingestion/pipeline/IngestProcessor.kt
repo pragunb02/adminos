@@ -19,8 +19,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /** Persistence of a pipeline outcome. Implementations write the transaction and the event status atomically. */
 interface IngestOutcomeWriter {
-    /** Inserts [transaction] (if none exists yet for the event), records [suggestion] if any, marks the event processed. */
-    suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion? = null, relations: List<Relation> = emptyList())
+    /**
+     * Inserts [transaction] (if none exists yet for the event), records [suggestion] if any, marks the event processed.
+     * @return the stored transaction: [transaction], or the one an earlier attempt already stored
+     */
+    suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion? = null, relations: List<Relation> = emptyList()): Transaction
     /** Links the event to [target] (already enriched), saves [target], marks the event processed. */
     suspend fun merged(event: IngestEvent, target: Transaction, score: Int, reason: String)
     suspend fun ignored(event: IngestEvent, reason: String)
@@ -38,7 +41,9 @@ class IngestProcessor(
     private val clock: Clock = Clock.systemUTC(),
     private val batchSize: Int = 100,
     /** Claims older than this are assumed abandoned (crashed processor) and retried. */
-    private val claimTimeout: Duration = Duration.ofMinutes(5)
+    private val claimTimeout: Duration = Duration.ofMinutes(5),
+    /** Told about each stored transaction, after the commit (AOS-505). */
+    private val listeners: List<TransactionCreatedListener> = emptyList()
 ) {
     private val logger = LoggerFactory.getLogger(IngestProcessor::class.java)
     private val wakeups = Channel<Unit>(Channel.CONFLATED)
@@ -54,7 +59,7 @@ class IngestProcessor(
         for (event in claimed) {
             try {
                 when (val outcome = pipeline.run(event)) {
-                    is PipelineOutcome.Created -> writer.processed(event, outcome.transaction, outcome.suggestion, outcome.relations)
+                    is PipelineOutcome.Created -> notify(writer.processed(event, outcome.transaction, outcome.suggestion, outcome.relations))
                     is PipelineOutcome.Merged -> writer.merged(event, outcome.target, outcome.score, outcome.reason)
                     is PipelineOutcome.Ignored -> writer.ignored(event, outcome.reason)
                 }
@@ -65,6 +70,19 @@ class IngestProcessor(
             }
         }
         return claimed.size
+    }
+
+    /** Each listener on its own: one failing never affects the event or the other listeners. */
+    private suspend fun notify(stored: Transaction) {
+        for (listener in listeners) {
+            try {
+                listener.onCreated(stored)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn("Listener {} failed for transaction {}", listener::class.simpleName, stored.id, e)
+            }
+        }
     }
 
     /** Processes until no work is left, then waits for a [wake] or the sweep interval. */

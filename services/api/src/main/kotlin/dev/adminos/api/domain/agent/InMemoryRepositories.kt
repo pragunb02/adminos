@@ -10,12 +10,18 @@ import java.util.concurrent.ConcurrentHashMap
 class InMemoryAnomalyRepository : AnomalyRepository {
     private val store = ConcurrentHashMap<UUID, Anomaly>()
 
-    override suspend fun save(anomaly: Anomaly): Anomaly {
+    override suspend fun save(anomaly: Anomaly): Anomaly = synchronized(this) {
+        // Same rule as the database (V20): one anomaly per transaction.
+        if (store.values.any { it.transactionId == anomaly.transactionId && it.id != anomaly.id }) {
+            throw dev.adminos.api.domain.common.DuplicateEntityException("Transaction ${anomaly.transactionId} already has an anomaly")
+        }
         store[anomaly.id] = anomaly
-        return anomaly
+        anomaly
     }
 
     override suspend fun findById(id: UUID): Anomaly? = store[id]
+
+    override suspend fun findByTransactionId(transactionId: UUID): Anomaly? = store.values.firstOrNull { it.transactionId == transactionId }
 
     override suspend fun findByUserId(
         userId: UUID, status: AnomalyStatus?, cursor: String?, limit: Int

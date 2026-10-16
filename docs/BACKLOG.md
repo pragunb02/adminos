@@ -124,8 +124,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-502 | Recurring / UPI AutoPay mandate tracker | Claude | ⬜ | 4h |  |
 | └ AOS-503 | Dues & renewals calendar + reminders (fix: custom reminder days persisted, user-zone dates, Gmail bills without a due date) | Claude | ⬜ | 4h |  |
 | └ AOS-508 | Bill-payment matching after each transaction, incl. card bills paid by transfer | Claude | ⬜ | — |  |
-| **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | ⬜ | 5h | |
-| └ AOS-505 | Unusual-charge alerts: rules as a pipeline step, judged at the transaction's time | Claude | ⬜ | 2h |  |
+| **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | 🟦 | 5h | |
+| └ [AOS-505](tickets/AOS-505.md) | Unusual-charge alerts: every new spend checked against its own past; alert if confident and recent (D-53) | Claude | ✅ | 2h | 1.5h |
 | └ AOS-506 | Weekly briefing with real data (fix: queue payload types) | Claude | ⬜ | 3h |  |
 | └ AOS-509 | Subscription waste score from SMS/statement signals | Claude | ⬜ | — |  |
 | **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ⬜ | 6h | |

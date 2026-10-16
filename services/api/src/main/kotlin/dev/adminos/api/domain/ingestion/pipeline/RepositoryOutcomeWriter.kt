@@ -22,8 +22,15 @@ class RepositoryOutcomeWriter(
     private val unitOfWork: suspend (suspend () -> Unit) -> Unit = { it() }
 ) : IngestOutcomeWriter {
 
-    override suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion?, relations: List<Relation>) = unitOfWork {
-        if (transactions.findByIngestEventId(event.id) == null) {
+    override suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion?, relations: List<Relation>): Transaction {
+        var stored = transaction
+        unitOfWork { stored = write(event, transaction, suggestion, relations) }
+        return stored
+    }
+
+    private suspend fun write(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion?, relations: List<Relation>): Transaction {
+        val existing = transactions.findByIngestEventId(event.id)
+        if (existing == null) {
             transactions.save(transaction)
             relations.forEach { r ->
                 r.updatedExisting?.let { transactions.update(it) }
@@ -43,6 +50,7 @@ class RepositoryOutcomeWriter(
             }
         }
         events.finish(event.id, IngestEventStatus.PROCESSED)
+        return existing ?: transaction
     }
 
     override suspend fun merged(event: IngestEvent, target: Transaction, score: Int, reason: String) = unitOfWork {

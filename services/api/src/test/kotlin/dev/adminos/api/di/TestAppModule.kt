@@ -61,7 +61,7 @@ val testAppModule = module {
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get()) }
     single { BillTrackingService(get(), get()) }
-    single { AnomalyDetectorService(get(), get()) }
+    single { AnomalyDetectorService(get(), get(), get()) }
     single { dev.adminos.api.domain.notifications.delivery.NotificationDispatcher(listOf(dev.adminos.api.domain.notifications.delivery.InAppChannel()), get(), get()) }
     single { NotificationService(get(), get(), get()) }
     single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
