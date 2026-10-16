@@ -1,6 +1,9 @@
 package dev.adminos.api.domain.ingestion.sync
 
 import dev.adminos.api.domain.ingestion.SmsRecord
+import dev.adminos.api.domain.ingestion.SmsRecordAdapter
+import dev.adminos.api.domain.ingestion.events.IngestEventService
+import java.time.Instant
 import dev.adminos.api.infrastructure.queue.AsynqPublisher
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -13,6 +16,7 @@ import java.util.UUID
  * When absent (local dev), jobs are only logged.
  */
 class IngestionService(
+    private val ingestEvents: IngestEventService,
     private val syncSessionRepository: SyncSessionRepository,
     private val publisher: AsynqPublisher? = null
 ) {
@@ -24,6 +28,10 @@ class IngestionService(
         }
     }
 
+    /**
+     * SMS adapter: records become common intake events (D-34); the pipeline turns them into
+     * transactions. The sync session reports what was accepted vs. already seen.
+     */
     suspend fun ingestSmsBatch(
         userId: UUID,
         connectionId: UUID,
@@ -32,35 +40,23 @@ class IngestionService(
         records.forEach { record ->
             require(record.rawText == null) { "Raw SMS text is not accepted" }
         }
+        val events = records.mapIndexed { i, r -> SmsRecordAdapter.toEvent(userId, r, "batch[$i]") }
+        val result = ingestEvents.ingest(events)
 
+        val now = Instant.now()
         val session = SyncSession(
             userId = userId,
             connectionId = connectionId,
             syncType = SyncType.INCREMENTAL,
-            status = SyncSessionStatus.QUEUED,
-            totalItems = records.size
+            status = SyncSessionStatus.COMPLETED,
+            totalItems = records.size,
+            processedItems = records.size,
+            duplicateItems = result.duplicates,
+            netNewItems = result.accepted,
+            startedAt = now,
+            completedAt = now
         )
         syncSessionRepository.save(session)
-
-        // Publish to Redis queue if available
-        publisher?.enqueue(
-            jobType = "sms_process",
-            payload = mapOf(
-                "user_id" to userId.toString(),
-                "sync_session_id" to session.id.toString(),
-                "connection_id" to connectionId.toString(),
-                "records" to Json.encodeToString(records.map { r ->
-                    mapOf(
-                        "merchant" to r.merchant,
-                        "amount" to r.amount.toString(),
-                        "date" to r.date,
-                        "accountLast4" to r.accountLast4,
-                        "paymentMethod" to r.paymentMethod
-                    )
-                })
-            )
-        ) ?: logger.info("SMS batch logged (no queue): session={}, items={}", session.id, records.size)
-
         return session
     }
 

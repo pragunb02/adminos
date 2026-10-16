@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.ingestion
 
+import dev.adminos.api.domain.ingestion.events.IngestEventService
+import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.identity.JwtService
 import dev.adminos.api.domain.identity.User
@@ -45,7 +47,7 @@ class IngestionRoutesTest {
     private fun ApplicationTestBuilder.configureTestApp(): IngestionService {
         val syncRepo = InMemorySyncSessionRepository()
         val connRepo = InMemoryConnectionRepository()
-        val ingestionService = IngestionService(syncRepo)
+        val ingestionService = IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncRepo)
         val connectionService = ConnectionService(connRepo, syncRepo)
 
         environment {
@@ -97,7 +99,7 @@ class IngestionRoutesTest {
 
         val data = body["data"]?.jsonObject
         assertNotNull(data)
-        assertEquals("queued", data["status"]?.jsonPrimitive?.content)
+        assertEquals("completed", data["status"]?.jsonPrimitive?.content)
         assertEquals("1", data["totalItems"]?.jsonPrimitive?.content)
         assertNotNull(data["syncSessionId"]?.jsonPrimitive?.content)
     }
@@ -138,7 +140,7 @@ class IngestionRoutesTest {
         val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         val data = body["data"]?.jsonObject
         assertNotNull(data)
-        assertEquals("queued", data["status"]?.jsonPrimitive?.content)
+        assertEquals("completed", data["status"]?.jsonPrimitive?.content)
         assertEquals("1", data["totalItems"]?.jsonPrimitive?.content)
     }
 

@@ -7,6 +7,7 @@ import dev.adminos.api.domain.agent.agentModule
 import dev.adminos.api.domain.financial.financialModule
 import dev.adminos.api.domain.identity.identityModule
 import dev.adminos.api.domain.ingestion.ingestionModule
+import dev.adminos.api.domain.ingestion.pipeline.IngestProcessor
 import dev.adminos.api.domain.notifications.notificationModule
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.infrastructure.plugins.*
@@ -53,4 +54,8 @@ fun Application.module(config: AppConfig) {
 
     // Health check
     configureHealthRoutes()
+
+    // Background processing of intake events (D-34); stops with the application.
+    val ingestProcessor: IngestProcessor by inject()
+    ingestProcessor.start(this)
 }

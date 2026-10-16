@@ -44,6 +44,7 @@ class ExposedTransactionRepository : TransactionRepository {
             it[isVerified] = txn.isVerified
             it[rawEmailId] = txn.rawEmailId
             it[metadata] = txn.metadata?.let { m -> JsonColumns.encode(m) }
+            it[ingestEventId] = txn.ingestEventId
             it[transactedAt] = txn.transactedAt
             it[createdAt] = txn.createdAt
             it[updatedAt] = txn.updatedAt
@@ -53,6 +54,11 @@ class ExposedTransactionRepository : TransactionRepository {
 
     override suspend fun findById(id: UUID): DomainTransaction? = dbQuery {
         TransactionsTable.selectAll().where { TransactionsTable.id eq id }
+            .singleOrNull()?.toTransaction()
+    }
+
+    override suspend fun findByIngestEventId(ingestEventId: UUID): dev.adminos.api.domain.financial.Transaction? = dbQuery {
+        TransactionsTable.selectAll().where { TransactionsTable.ingestEventId eq ingestEventId }
             .singleOrNull()?.toTransaction()
     }
 
@@ -228,6 +234,7 @@ class ExposedTransactionRepository : TransactionRepository {
         metadata = this[TransactionsTable.metadata]?.let {
             JsonColumns.decode(it)
         },
+        ingestEventId = this[TransactionsTable.ingestEventId],
         transactedAt = this[TransactionsTable.transactedAt],
         createdAt = this[TransactionsTable.createdAt],
         updatedAt = this[TransactionsTable.updatedAt]

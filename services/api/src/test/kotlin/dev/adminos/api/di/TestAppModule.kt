@@ -1,5 +1,7 @@
 package dev.adminos.api.di
 
+import dev.adminos.api.domain.ingestion.events.IngestEventService
+import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.audit.AuditRepository
@@ -53,7 +55,7 @@ val testAppModule = module {
     // Services
     single { AuditService(get(), kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())) }
     single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth) }
-    single { IngestionService(get()) }
+    single { IngestionService(IngestEventService(InMemoryIngestEventRepository()), get()) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
     single { CategorizationService() }

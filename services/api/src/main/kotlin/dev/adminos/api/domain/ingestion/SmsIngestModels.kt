@@ -15,6 +15,8 @@ data class SmsRecord(
     val date: String,
     val accountLast4: String,
     val paymentMethod: String? = null,
+    /** "debit" (default) or "credit". */
+    val direction: String = "debit",
     val rawText: String? = null // Must be null — rejected if present
 )
 

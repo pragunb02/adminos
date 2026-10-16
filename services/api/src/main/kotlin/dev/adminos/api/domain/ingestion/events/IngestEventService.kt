@@ -6,7 +6,9 @@ import java.time.Duration
 /** Validates and stores normalized events from every source adapter (D-21). */
 class IngestEventService(
     private val repository: IngestEventRepository,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    /** Called when new events were stored, e.g. to wake the processor (D-34). */
+    private val onAccepted: () -> Unit = {}
 ) {
     companion object {
         const val MAX_BATCH = 100
@@ -24,6 +26,7 @@ class IngestEventService(
         // Duplicates inside the same batch count as duplicates too.
         val unique = events.distinctBy { Triple(it.userId, it.source, it.sourceRef) }
         val accepted = repository.saveNew(unique)
+        if (accepted > 0) onAccepted()
         return IngestResult(accepted = accepted, duplicates = events.size - accepted)
     }
 }

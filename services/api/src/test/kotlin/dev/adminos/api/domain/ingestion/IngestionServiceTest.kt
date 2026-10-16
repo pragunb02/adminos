@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.ingestion
 
+import dev.adminos.api.domain.ingestion.events.IngestEventService
+import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.domain.ingestion.sync.SyncSessionStatus
@@ -19,7 +21,7 @@ class IngestionServiceTest {
     @BeforeTest
     fun setup() {
         syncRepo = InMemorySyncSessionRepository()
-        service = IngestionService(syncRepo)
+        service = IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncRepo)
     }
 
     @Test
@@ -33,10 +35,23 @@ class IngestionServiceTest {
 
         val session = service.ingestSmsBatch(userId, connectionId, records)
 
-        assertEquals(SyncSessionStatus.QUEUED, session.status)
+        assertEquals(SyncSessionStatus.COMPLETED, session.status)
         assertEquals(2, session.totalItems)
-        assertEquals(0, session.processedItems)
+        assertEquals(2, session.processedItems) // taken in; becoming transactions is async (pipeline)
+        assertEquals(2, session.netNewItems)
         assertEquals(userId, session.userId)
+    }
+
+    @Test
+    fun `resending the same SMS records is reported as duplicates`() = runBlocking<Unit> {
+        val userId = UUID.randomUUID()
+        val connectionId = UUID.randomUUID()
+        val records = listOf(SmsRecord(merchant = "Swiggy", amount = 249.5, date = "2026-10-01T09:12:00+05:30", accountLast4 = "1234"))
+        val first = service.ingestSmsBatch(userId, connectionId, records)
+        val second = service.ingestSmsBatch(userId, connectionId, records)
+        assertEquals(1, first.netNewItems)
+        assertEquals(0, second.netNewItems)
+        assertEquals(1, second.duplicateItems)
     }
 
     @Test

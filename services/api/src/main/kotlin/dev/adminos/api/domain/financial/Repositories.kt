@@ -9,6 +9,7 @@ import java.util.UUID
 interface TransactionRepository {
     suspend fun save(transaction: Transaction): Transaction
     suspend fun findById(id: UUID): Transaction?
+    suspend fun findByIngestEventId(ingestEventId: UUID): Transaction?
     suspend fun findByUserId(
         userId: UUID,
         from: Instant? = null,

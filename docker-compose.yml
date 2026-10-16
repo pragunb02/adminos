@@ -75,21 +75,6 @@ services:
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
 
-  sms-worker:
-    profiles: ["full"]
-    build:
-      context: ./services/workers
-      dockerfile: Dockerfile
-    command: ["--type=sms"]
-    depends_on:
-      api-server:
-        condition: service_healthy   # the API runs the DB migrations (D-12)
-      redis:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://adminos:${DB_PASSWORD:-adminos_dev}@postgres:5432/adminos
-      REDIS_URL: redis://redis:6379
-
   agent-runner:
     profiles: ["full"]
     build:
