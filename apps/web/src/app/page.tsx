@@ -10,13 +10,16 @@ import Section, { Skeleton } from "@/components/console/Section";
 import Hero from "@/components/console/Hero";
 import ReviewBanner from "@/components/console/ReviewBanner";
 import DailyBars from "@/components/console/DailyBars";
+import CumulativeLine from "@/components/console/CumulativeLine";
+import { cumulativeByDay } from "@/lib/cumulative";
+import { delta } from "@/lib/format";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantList from "@/components/console/MerchantList";
 import FeedRow from "@/components/console/FeedRow";
 import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
 import { browserZone } from "@/lib/format";
 import { formatInr } from "@/lib/money";
-import { comparisonRange, isCurrent, parsePeriod, rangeOf, todayIn, type Period } from "@/lib/period";
+import { comparisonRange, describe as describePeriod, isCurrent, parsePeriod, rangeOf, shift, todayIn, type Period } from "@/lib/period";
 import { errorMessage, getData } from "@/lib/query";
 import type { Bill, DashboardHome, Transaction } from "@/lib/types";
 
@@ -40,7 +43,12 @@ function HomeContent() {
 
   const summary = useQuery({ queryKey: ["analytics", "summary", ...key], queryFn: () => getData<SummaryData>(analyticsPath("summary", range.from, range.to)) });
   const compared = useQuery({ queryKey: ["analytics", "summary", "compare", compare.from, compare.to], queryFn: () => getData<SummaryData>(analyticsPath("summary", compare.from, compare.to)) });
-  const series = useQuery({ queryKey: ["analytics", "series", week.from, week.to], queryFn: () => getData<SeriesData>(analyticsPath("series", week.from, week.to, { bucket: "day" })) });
+  const isMonth = period.kind === "month";
+  const prevMonth = rangeOf(shift({ kind: "month", anchor: range.from }, -1, today), today);
+  const series = useQuery({ queryKey: ["analytics", "series", week.from, week.to], enabled: !isMonth, queryFn: () => getData<SeriesData>(analyticsPath("series", week.from, week.to, { bucket: "day" })) });
+  // Month view (AOS-304): every day of this month, and all of last month for the comparison line.
+  const monthSeries = useQuery({ queryKey: ["analytics", "series", range.from, range.to], enabled: isMonth, queryFn: () => getData<SeriesData>(analyticsPath("series", range.from, range.to, { bucket: "day" })) });
+  const lastMonthSeries = useQuery({ queryKey: ["analytics", "series", prevMonth.from, prevMonth.to], enabled: isMonth, queryFn: () => getData<SeriesData>(analyticsPath("series", prevMonth.from, prevMonth.to, { bucket: "day" })) });
   const categories = useQuery({ queryKey: ["analytics", "categories", ...key], queryFn: () => getData<{ categories: CategoryRow[] }>(analyticsPath("categories", range.from, range.to)) });
   const merchants = useQuery({ queryKey: ["analytics", "merchants", ...key], queryFn: () => getData<{ merchants: MerchantRow[] }>(analyticsPath("merchants", range.from, range.to, { limit: "5" })) });
   const latest = useQuery({ queryKey: ["transactions", "latest", ...key], queryFn: () => getData<Transaction[]>(`/api/v1/transactions?${new URLSearchParams({ from: range.from, to: range.to, limit: "5" })}`) });
@@ -80,9 +88,29 @@ function HomeContent() {
         <EmptyState period={period} today={today} />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Section title={period.kind === "week" || period.kind === "today" ? "This week" : `Week of ${formatDay(week.from)}`} error={series.error ? errorMessage(series.error) : null} onRetry={() => series.refetch()}>
-            {series.data ? <DailyBars points={series.data.points} today={today} title="Spending this week" /> : <Skeleton />}
-          </Section>
+          {isMonth ? (
+            <>
+              <Section title="Running total" error={monthSeries.error || lastMonthSeries.error ? errorMessage(monthSeries.error ?? lastMonthSeries.error) : null} onRetry={() => { monthSeries.refetch(); lastMonthSeries.refetch(); }}>
+                {monthSeries.data && lastMonthSeries.data && summary.data && compared.data ? (
+                  <CumulativeLine
+                    current={cumulativeByDay(monthSeries.data.points)}
+                    previous={cumulativeByDay(lastMonthSeries.data.points)}
+                    todayDay={isCurrent(period, today) ? Number(today.slice(8, 10)) : null}
+                    sentence={runningSentence(summary.data.totals.spent, compared.data.totals.spent, range.to, compare.label, isCurrent(period, today))}
+                    currentLabel={describePeriod(period, today)}
+                    previousLabel={describePeriod({ kind: "month", anchor: prevMonth.from }, today)}
+                  />
+                ) : <Skeleton />}
+              </Section>
+              <Section title="Day by day" error={monthSeries.error ? errorMessage(monthSeries.error) : null} onRetry={() => monthSeries.refetch()}>
+                {monthSeries.data ? <DailyBars points={monthSeries.data.points} today={today} title="Spending each day" /> : <Skeleton />}
+              </Section>
+            </>
+          ) : (
+            <Section title="This week" error={series.error ? errorMessage(series.error) : null} onRetry={() => series.refetch()}>
+              {series.data ? <DailyBars points={series.data.points} today={today} title="Spending this week" /> : <Skeleton />}
+            </Section>
+          )}
 
           <Section title="Where it went" action={<Link href="/spending" className="text-xs text-accent">All ›</Link>} error={categories.error ? errorMessage(categories.error) : null} onRetry={() => categories.refetch()}>
             {categories.data ? (categories.data.categories.length ? <CategoryBars rows={categories.data.categories} limit={5} /> : <Quiet>Nothing spent in this period.</Quiet>) : <Skeleton />}
@@ -131,6 +159,13 @@ function HomeContent() {
 
 const DAY = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 const formatDay = (d: string) => DAY.format(new Date(`${d}T00:00:00Z`));
+
+/** One sentence for the running-total chart (its text alternative). */
+function runningSentence(spent: string, comparedSpent: string, to: string, comparedLabel: string, current: boolean) {
+  const d = delta(spent, comparedSpent);
+  const change = d.direction === "same" ? `the same as ${comparedLabel}` : `${d.text} than ${comparedLabel}`;
+  return `Spent ${formatInr(spent)} ${current ? `by ${formatDay(to)}` : "this month"}; ${change}.`;
+}
 function addDays(d: string, n: number) {
   return new Date(new Date(`${d}T00:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
 }
