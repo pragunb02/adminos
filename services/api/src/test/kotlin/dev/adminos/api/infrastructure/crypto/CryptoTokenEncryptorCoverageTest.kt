@@ -1,6 +1,6 @@
 package dev.adminos.api.infrastructure.crypto
 
-import org.junit.jupiter.api.Disabled
+import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
@@ -8,198 +8,106 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/** AES-256-GCM token encryption (AOS-312): round trip, IV freshness, key validation, tamper detection. */
+/** AES-256-GCM at rest (AOS-312, AOS-608): whole 256-bit key, row-bound ciphertext, tamper detection, legacy reads. */
 class CryptoTokenEncryptorCoverageTest {
 
-    private val key = "k3y-for-tests-0123456789abcdefghijklmnopqrstuvwxyz" // 50 ASCII bytes
+    private fun newKey() = Base64.getEncoder().encodeToString(ByteArray(32).also(SecureRandom()::nextBytes))
+    private val key = newKey()
     private val encryptor = TokenEncryptor(key)
+    private val ctx = "user_connections:6f1c0d6e-0000-4000-8000-000000000001:refresh_token"
     private val gmailRefreshToken = "1//0gHdfcRefreshToken-AbCdEfGhIjKlMnOpQrStUvWxYz_0123456789"
 
-    private fun decode(s: String) = Base64.getDecoder().decode(s)
-    private fun encode(b: ByteArray) = Base64.getEncoder().encodeToString(b)
+    private fun body(s: String) = Base64.getDecoder().decode(s.removePrefix("v2:"))
+    private fun v2(b: ByteArray) = "v2:" + Base64.getEncoder().encodeToString(b)
 
     @Test
-    fun `encrypt then decrypt returns the original OAuth token`() {
-        val encrypted = encryptor.encrypt(gmailRefreshToken)
-
-        assertEquals(gmailRefreshToken, encryptor.decrypt(encrypted))
+    fun `round trip returns the original token, including multi-byte and empty text`() {
+        for (t in listOf(gmailRefreshToken, "₹1,250.00 debited — नमस्ते", "")) assertEquals(t, encryptor.decrypt(encryptor.encrypt(t, ctx), ctx))
     }
 
     @Test
-    fun `round trip preserves multi-byte UTF-8 text`() {
-        val text = "₹1,250.00 debited from HDFC A/c XX1234 — नमस्ते"
-
-        assertEquals(text, encryptor.decrypt(encryptor.encrypt(text)))
-    }
-
-    @Test
-    fun `round trip of an empty string returns an empty string`() {
-        assertEquals("", encryptor.decrypt(encryptor.encrypt("")))
-    }
-
-    @Test
-    fun `ciphertext does not contain the plaintext`() {
-        val encrypted = encryptor.encrypt(gmailRefreshToken)
-
-        assertTrue(!encrypted.contains(gmailRefreshToken))
-        assertTrue(!String(decode(encrypted), Charsets.ISO_8859_1).contains("HdfcRefreshToken"))
-    }
-
-    @Test
-    fun `output is base64 of a 12-byte IV, the ciphertext and a 16-byte tag`() {
-        val plaintext = "upi:pragun@okhdfcbank"
-
-        val combined = decode(encryptor.encrypt(plaintext))
-
-        assertEquals(12 + plaintext.toByteArray().size + 16, combined.size)
-    }
-
-    @Test
-    fun `encrypting the same plaintext twice yields different ciphertexts`() {
-        val a = encryptor.encrypt(gmailRefreshToken)
-        val b = encryptor.encrypt(gmailRefreshToken)
-
-        assertNotEquals(a, b)
+    fun `output is v2 and base64 of a 12-byte IV, the ciphertext and a 16-byte tag, without the plaintext`() {
+        val e = encryptor.encrypt("upi:pragun@okhdfcbank", ctx)
+        assertTrue(e.startsWith("v2:"))
+        assertEquals(12 + "upi:pragun@okhdfcbank".length + 16, body(e).size)
+        assertFalse(e.contains("pragun"))
+        assertFalse(encryptor.needsReEncryption(e))
     }
 
     @Test
     fun `every encryption uses a fresh IV`() {
-        val ivs = (1..200).map { decode(encryptor.encrypt("same")).copyOfRange(0, 12).toList() }.toSet()
-
-        assertEquals(200, ivs.size)
+        val a = encryptor.encrypt(gmailRefreshToken, ctx); val b = encryptor.encrypt(gmailRefreshToken, ctx)
+        assertNotEquals(a, b)
+        assertNotEquals(body(a).copyOf(12).toList(), body(b).copyOf(12).toList())
     }
 
     @Test
-    fun `ciphertext matches standard AES-GCM with the first 32 key bytes`() {
-        val combined = decode(encryptor.encrypt(gmailRefreshToken))
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            SecretKeySpec(key.toByteArray().copyOf(32), "AES"),
-            GCMParameterSpec(128, combined.copyOfRange(0, 12))
-        )
-
-        val plain = cipher.doFinal(combined.copyOfRange(12, combined.size))
-
-        assertEquals(gmailRefreshToken, String(plain, Charsets.UTF_8))
+    fun `a ciphertext moved to another row or field does not decrypt`() {
+        val e = encryptor.encrypt(gmailRefreshToken, ctx)
+        assertFailsWith<AEADBadTagException> { encryptor.decrypt(e, ctx.replace("0001", "0002")) }
+        assertFailsWith<AEADBadTagException> { encryptor.decrypt(e, ctx.replace("refresh_token", "access_token")) }
     }
 
     @Test
-    fun `a key shorter than 32 bytes is rejected`() {
-        val e = assertFailsWith<IllegalArgumentException> { TokenEncryptor("a".repeat(31)) }
-
-        assertTrue(e.message!!.contains("at least 32 bytes"))
-        assertTrue(e.message!!.contains("Current: 31 bytes"))
+    fun `tampering with the IV, ciphertext or tag is detected`() {
+        val raw = body(encryptor.encrypt(gmailRefreshToken, ctx))
+        for (i in listOf(0, 15, raw.size - 1)) {
+            val t = raw.copyOf().also { it[i] = (it[i].toInt() xor 1).toByte() }
+            assertFailsWith<AEADBadTagException> { encryptor.decrypt(v2(t), ctx) }
+        }
+        assertFailsWith<AEADBadTagException> { encryptor.decrypt(v2(raw.copyOf(raw.size - 1)), ctx) }
     }
 
     @Test
-    fun `a key of exactly 32 bytes is accepted`() {
-        val e = TokenEncryptor("b".repeat(32))
-
-        assertEquals("ok", e.decrypt(e.encrypt("ok")))
+    fun `a different key cannot decrypt`() {
+        assertFailsWith<AEADBadTagException> { TokenEncryptor(newKey()).decrypt(encryptor.encrypt(gmailRefreshToken, ctx), ctx) }
     }
 
     @Test
-    fun `key length is measured in UTF-8 bytes, not characters`() {
-        // 11 rupee signs = 11 chars but 33 UTF-8 bytes.
-        val e = TokenEncryptor("₹".repeat(11))
-
-        assertEquals("ok", e.decrypt(e.encrypt("ok")))
+    fun `the whole 256-bit key is used, not a prefix (AOS-608 regression)`() {
+        val k = ByteArray(32).also(SecureRandom()::nextBytes)
+        val other = k.copyOf().also { it[31] = (it[31].toInt() xor 1).toByte() } // differs only in the last byte
+        val a = TokenEncryptor(Base64.getEncoder().encodeToString(k))
+        val b = TokenEncryptor(Base64.getEncoder().encodeToString(other))
+        assertFailsWith<AEADBadTagException> { b.decrypt(a.encrypt("x", ctx), ctx) }
+        // and it is exactly AES-256-GCM over the decoded key with the context as AAD
+        val raw = body(a.encrypt("check", ctx))
+        val c = Cipher.getInstance("AES/GCM/NoPadding").apply {
+            init(Cipher.DECRYPT_MODE, SecretKeySpec(k, "AES"), GCMParameterSpec(128, raw.copyOf(12))); updateAAD(ctx.toByteArray())
+        }
+        assertEquals("check", String(c.doFinal(raw.copyOfRange(12, raw.size))))
     }
 
     @Test
-    fun `a key of 10 multi-byte characters (30 bytes) is rejected`() {
-        assertFailsWith<IllegalArgumentException> { TokenEncryptor("₹".repeat(10)) }
+    fun `the key must be base64 of exactly 32 bytes`() {
+        for (bad in listOf("k3y-for-tests-0123456789abcdefghijklmnopqrstuvwxyz", "not base64 !!", Base64.getEncoder().encodeToString(ByteArray(16)),
+                           Base64.getEncoder().encodeToString(ByteArray(33)), "")) {
+            val e = assertFailsWith<IllegalArgumentException>(bad) { TokenEncryptor(bad) }
+            assertTrue(e.message!!.contains("openssl rand -base64 32"))
+        }
+        TokenEncryptor(" $key\n") // surrounding whitespace from an env file is fine
     }
 
     @Test
-    fun `a ciphertext cannot be decrypted with a different key`() {
-        val other = TokenEncryptor("z".repeat(32))
-
-        assertFailsWith<AEADBadTagException> { other.decrypt(encryptor.encrypt(gmailRefreshToken)) }
+    fun `a value too short to hold an IV is rejected`() {
+        assertFailsWith<IllegalArgumentException> { encryptor.decrypt(v2(ByteArray(12)), ctx) }
     }
 
     @Test
-    fun `flipping a ciphertext byte is detected`() {
-        val combined = decode(encryptor.encrypt(gmailRefreshToken))
-        combined[12] = (combined[12].toInt() xor 0x01).toByte()
-
-        assertFailsWith<AEADBadTagException> { encryptor.decrypt(encode(combined)) }
-    }
-
-    @Test
-    fun `flipping an IV byte is detected`() {
-        val combined = decode(encryptor.encrypt(gmailRefreshToken))
-        combined[0] = (combined[0].toInt() xor 0x80).toByte()
-
-        assertFailsWith<AEADBadTagException> { encryptor.decrypt(encode(combined)) }
-    }
-
-    @Test
-    fun `flipping a tag byte is detected`() {
-        val combined = decode(encryptor.encrypt(gmailRefreshToken))
-        combined[combined.size - 1] = (combined.last().toInt() xor 0x01).toByte()
-
-        assertFailsWith<AEADBadTagException> { encryptor.decrypt(encode(combined)) }
-    }
-
-    @Test
-    fun `a truncated ciphertext is rejected`() {
-        val combined = decode(encryptor.encrypt(gmailRefreshToken))
-
-        assertFailsWith<AEADBadTagException> { encryptor.decrypt(encode(combined.copyOf(combined.size - 4))) }
-    }
-
-    @Test
-    fun `swapping the IV of two ciphertexts is detected`() {
-        val a = decode(encryptor.encrypt("token-a"))
-        val b = decode(encryptor.encrypt("token-b"))
-        val spliced = b.copyOfRange(0, 12) + a.copyOfRange(12, a.size)
-
-        assertFailsWith<AEADBadTagException> { encryptor.decrypt(encode(spliced)) }
-    }
-
-    @Test
-    fun `input that is not base64 is rejected`() {
-        assertFailsWith<IllegalArgumentException> { encryptor.decrypt("not base64 !!") }
-    }
-
-    @Test
-    fun `input shorter than an IV is rejected`() {
-        assertFails { encryptor.decrypt(encode(ByteArray(5))) }
-    }
-
-    @Test
-    fun `plaintext token stored before encryption was enabled is rejected, not returned`() {
-        assertFails { encryptor.decrypt("ya29.a0AfH6SMBplaintextAccessToken") }
-    }
-
-    @Test
-    fun `two encryptors built from the same key interoperate`() {
-        val other = TokenEncryptor(key)
-
-        assertEquals(gmailRefreshToken, other.decrypt(encryptor.encrypt(gmailRefreshToken)))
-    }
-
-    @Test
-    @Disabled("BUG AOS-312: TokenEncryptor.kt:35 keeps only the first 32 bytes of TOKEN_ENCRYPTION_KEY; the rest is silently ignored (same class of bug as AOS-607)")
-    fun `keys that differ only after byte 32 are different keys`() {
-        val prefix = "0123456789abcdef0123456789abcdef"
-        val a = TokenEncryptor(prefix + "-rotated-key-A")
-        val b = TokenEncryptor(prefix + "-rotated-key-B")
-
-        assertFailsWith<AEADBadTagException> { b.decrypt(a.encrypt(gmailRefreshToken)) }
-    }
-
-    @Test
-    fun `iv bytes are not all zero`() {
-        val iv = decode(encryptor.encrypt("x")).copyOfRange(0, 12)
-
-        assertTrue(!iv.contentEquals(ByteArray(12)))
+    fun `values written before AOS-608 still decrypt and are flagged for re-encryption`() {
+        // Old format: no prefix, key = first 32 UTF-8 bytes of the key text, no AAD.
+        val legacyKey = SecretKeySpec(key.toByteArray().copyOf(32), "AES")
+        val iv = ByteArray(12).also(SecureRandom()::nextBytes)
+        val ct = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, legacyKey, GCMParameterSpec(128, iv)) }
+            .doFinal(gmailRefreshToken.toByteArray())
+        val old = Base64.getEncoder().encodeToString(iv + ct)
+        assertTrue(encryptor.needsReEncryption(old))
+        assertEquals(gmailRefreshToken, encryptor.decrypt(old, ctx))
+        assertFailsWith<IllegalArgumentException> { encryptor.decrypt(Base64.getEncoder().encodeToString(ByteArray(5)), ctx) }
     }
 }

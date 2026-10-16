@@ -35,13 +35,15 @@ class ConnectionService(
             return existing
         }
 
+        val id = UUID.randomUUID()
         val connection = UserConnection(
+            id = id,
             userId = userId,
             sourceType = sourceType,
             status = ConnectionStatus.CONNECTED,
             gmailAddress = gmailAddress,
-            accessToken = accessToken?.let { encryptToken(it) },
-            refreshToken = refreshToken?.let { encryptToken(it) },
+            accessToken = accessToken?.let { encryptToken(it, tokenContext(id, "access_token")) },
+            refreshToken = refreshToken?.let { encryptToken(it, tokenContext(id, "refresh_token")) },
             createdAt = Instant.now()
         )
 
@@ -116,13 +118,11 @@ class ConnectionService(
             ?: createConnection(userId, sourceType)
     }
 
-    private fun encryptToken(token: String): String {
-        return tokenEncryptor?.encrypt(token) ?: token
-    }
+    /** Where a token is stored: bound into its ciphertext so it can't be moved to another row or field (AOS-608). */
+    internal fun tokenContext(connectionId: UUID, field: String) = "user_connections:$connectionId:$field"
 
-    @Suppress("unused")
-    private fun decryptToken(encrypted: String): String {
-        return tokenEncryptor?.decrypt(encrypted) ?: encrypted
+    private fun encryptToken(token: String, context: String): String {
+        return tokenEncryptor?.encrypt(token, context) ?: token
     }
 }
 

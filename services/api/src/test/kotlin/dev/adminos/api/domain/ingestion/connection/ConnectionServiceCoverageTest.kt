@@ -13,7 +13,7 @@ class ConnectionServiceCoverageTest {
 
     private val connections = InMemoryConnectionRepository()
     private val syncSessions = InMemorySyncSessionRepository()
-    private val encryptor = TokenEncryptor("a-test-token-encryption-key-of-32+bytes!")
+    private val encryptor = TokenEncryptor(java.util.Base64.getEncoder().encodeToString(ByteArray(32) { it.toByte() }))
     private val service = ConnectionService(connections, syncSessions, encryptor)
     private val userId = UUID.randomUUID()
 
@@ -23,8 +23,8 @@ class ConnectionServiceCoverageTest {
 
         val stored = assertNotNull(connections.findById(conn.id))
         assertNotEquals("ya29.secret", stored.accessToken)
-        assertEquals("ya29.secret", encryptor.decrypt(stored.accessToken!!))
-        assertEquals("1//0g-secret", encryptor.decrypt(stored.refreshToken!!))
+        assertEquals("ya29.secret", encryptor.decrypt(stored.accessToken!!, "user_connections:${stored.id}:access_token"))
+        assertEquals("1//0g-secret", encryptor.decrypt(stored.refreshToken!!, "user_connections:${stored.id}:refresh_token"))
     }
 
     @Test

@@ -14,14 +14,14 @@ data class AppConfig(
             database = DatabaseConfig(
                 url = env("DATABASE_URL", "jdbc:postgresql://localhost:5432/adminos"),
                 user = env("DB_USER", "adminos"),
-                password = env("DB_PASSWORD", "adminos"),
+                password = secret("DB_PASSWORD") { "" },
                 maxPoolSize = env("DB_MAX_POOL_SIZE", "10").toInt()
             ),
             redis = RedisConfig(
                 url = env("REDIS_URL", "redis://localhost:6379")
             ),
             auth = AuthConfig(
-                jwtSecret = env("JWT_SECRET", "CHANGE-ME-generate-with-openssl-rand-base64-32"),
+                jwtSecret = secret("JWT_SECRET") { DevSecrets.jwtSecret },
                 jwtIssuer = env("JWT_ISSUER", "adminos"),
                 accessTokenTtlSeconds = env("ACCESS_TOKEN_TTL", "3600").toLong(),
                 refreshTokenTtlDays = env("REFRESH_TOKEN_TTL_DAYS", "30").toLong(),
@@ -37,7 +37,7 @@ data class AppConfig(
                 apiUrl = env("API_URL", "http://localhost:8080")
             ),
             security = SecurityConfig(
-                tokenEncryptionKey = env("TOKEN_ENCRYPTION_KEY", "CHANGE-ME-generate-with-openssl-rand-base64-32")
+                tokenEncryptionKey = secret("TOKEN_ENCRYPTION_KEY") { DevSecrets.tokenEncryptionKey }
             ),
             statementParser = StatementParserConfig(
                 // Internal service (D-37); compose sets http://pdf-parser:8000.
@@ -51,7 +51,34 @@ data class AppConfig(
 
         private fun env(key: String, default: String): String =
             System.getenv(key) ?: default
+
+        /**
+         * A secret from the environment — never a default anyone can read in this public repo (AOS-608).
+         * With a database (real data) a missing or placeholder secret stops start-up; in in-memory dev
+         * mode a random per-process secret is used and a warning is logged.
+         */
+        internal fun secret(key: String, getenv: (String) -> String? = System::getenv, dev: () -> String): String {
+            val value = getenv(key)?.trim()
+            if (!value.isNullOrEmpty() && !isPlaceholder(value)) return value
+            check(getenv("DATABASE_URL").isNullOrBlank()) {
+                "$key is required when DATABASE_URL is set. Generate one with: openssl rand -base64 32"
+            }
+            org.slf4j.LoggerFactory.getLogger(AppConfig::class.java)
+                .warn("{} not set: using a random secret for this process only (in-memory dev mode).", key)
+            return dev()
+        }
+
+        private val PLACEHOLDER = Regex("(?i)^(change[-_]?me|generate[-_]|your[-_])")
+        internal fun isPlaceholder(value: String) = PLACEHOLDER.containsMatchIn(value)
     }
+}
+
+/** Random secrets for in-memory dev mode, stable for the life of the process. */
+internal object DevSecrets {
+    private fun random(bytes: Int) = java.util.Base64.getEncoder()
+        .encodeToString(ByteArray(bytes).also(java.security.SecureRandom()::nextBytes))
+    val jwtSecret: String by lazy { random(48) }
+    val tokenEncryptionKey: String by lazy { random(32) }
 }
 
 data class DatabaseConfig(

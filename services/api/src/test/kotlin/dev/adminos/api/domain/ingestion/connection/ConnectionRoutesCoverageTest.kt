@@ -34,7 +34,7 @@ class ConnectionRoutesCoverageTest {
     private val google = FakeGoogleServer()
     private val connections = InMemoryConnectionRepository()
     private val syncSessions = InMemorySyncSessionRepository()
-    private val encryptor = TokenEncryptor("a-test-token-encryption-key-of-32+bytes!")
+    private val encryptor = TokenEncryptor(java.util.Base64.getEncoder().encodeToString(ByteArray(32) { it.toByte() }))
     private val service = ConnectionService(connections, syncSessions, encryptor)
     private val audit = InMemoryAuditRepository()
     private val me = User(id = UUID.randomUUID(), email = "pragun.b@gmail.com", googleId = "g-me")
@@ -114,8 +114,8 @@ class ConnectionRoutesCoverageTest {
         assertEquals(HttpStatusCode.Created, res.status)
         assertEquals("pragun.b@gmail.com", res.json()["data"]!!.jsonObject["gmailAddress"]!!.jsonPrimitive.content)
         val stored = assertNotNull(service.findByGmailAddress("pragun.b@gmail.com"))
-        assertEquals("ya29.a0-test-access", encryptor.decrypt(stored.accessToken!!))
-        assertEquals("1//0g-test-refresh", encryptor.decrypt(stored.refreshToken!!))
+        assertEquals("ya29.a0-test-access", encryptor.decrypt(stored.accessToken!!, "user_connections:${stored.id}:access_token"))
+        assertEquals("1//0g-test-refresh", encryptor.decrypt(stored.refreshToken!!, "user_connections:${stored.id}:refresh_token"))
         assertEquals(redirect, google.lastTokenForm()["redirect_uri"])
     }
 
