@@ -83,7 +83,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 |---|---|---|---|---|---|
 | **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | 🟦 | 8h | |
 | └ [AOS-301](tickets/AOS-301.md) | Analytics API: summary, series, categories, merchants (D-46) | Claude | ✅ | 4h | 2h |
-| └ AOS-302 | Chart library + design system: Recharts (D-45) | Claude + Pragun | ⬜ | 1h |  |
+| └ [AOS-302](tickets/AOS-302.md) | Design system: spec (`docs/design/console.md`), tokens, formatters, 5-tab nav, period in URL (D-49) | Claude + Pragun | 🟦 | 4h |  |
 | └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer: TanStack Query (D-45) | Claude | ✅ | 3h | 1.5h |
 | └ [AOS-120](tickets/AOS-120.md) | Per-user timezone for date-range params (tz in the access token) | Claude | ✅ | 1h | 1h |
 | └ [AOS-310](tickets/AOS-310.md) | Web unit tests + coverage gate (156 tests; 99.1% lines, 97.3% branches) (D-47) | Claude | ✅ | 4h | 2.5h |

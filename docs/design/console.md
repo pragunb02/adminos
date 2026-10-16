@@ -1,6 +1,6 @@
 # AdminOS console — design spec (AOS-302)
 
-Status: **Proposed**, for Pragun's review · 2026-10-16 · Decisions D-45, D-46, D-47, D-49.
+Status: **Accepted** (Plan 3 approved; Pragun may still change it before AOS-303 ships) · 2026-10-16 · Decisions D-45, D-46, D-47, D-49.
 Each frame below is named so it can be redrawn 1:1 in Figma (page "Console", frames `M/…` for mobile at 390×844 and `D/…` for desktop at 1440×900).
 
 ## 1. What the console is for

@@ -53,6 +53,7 @@
 | D-46 | Business logic | Console totals are never clipped: total = Σ categories = Σ buckets; a refund-only day or category shows as negative | Accepted | AOS-301 |
 | D-47 | Process | Web tests: Vitest + Testing Library + MSW (unit), Playwright (end-to-end); coverage gate 90% lines / 85% branches; console state (period, filters) lives in the URL | Accepted | AOS-310, AOS-311, AOS-312, AOS-303…309 |
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
+| D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -519,3 +520,14 @@ Proposed
 - **The legacy MVP modules stay as live code** and are held to the same bar: agents/briefings, notifications/nudges, Gmail connect/webhook, crypto.
   - Their features are wired in through Epic E5 (AOS-501…506). The two gaps get new tickets: bill-payment matching and the subscription waste score.
 - **A bug found by a test is never "fixed" by weakening the test.** It is committed `@Disabled("BUG …")` with a fix ticket; the fix enables it.
+
+### D-49 — Console design
+2026-10-16 · Accepted (Pragun: "very minimalistic and very convenient to scroll or do all sorts of analyses"; Plan 3 approved) · Type: Product · Tasks: AOS-302…309
+- The full spec is `docs/design/console.md`, research-backed with sources.
+- **Navigation:** exactly 5 destinations on phones (Home · Spending · Activity · Review · More), and a rail on desktop.
+- **Home** answers one question: what I spent today, this week, this month, and on what.
+- **Charts:** bars for comparisons and lines for change over time. No pies, donuts, stacked bars or gauges. Every chart has a text alternative and a table view.
+- **Comparisons:** "so far" is compared with the *same days* of the previous period.
+- **Undo instead of confirmation** for re-categorize, confirm and reject.
+- **Colour is never the only signal:** refunds show "+" and a label; the palette is Okabe–Ito; contrast meets WCAG AA (enforced by axe, AOS-311).
+- **Money:** Indian grouping (₹12,34,567); ₹1.2L / ₹1.2Cr on axes; amounts stay exact strings (D-30).
