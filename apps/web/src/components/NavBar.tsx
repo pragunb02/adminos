@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { api } from "@/lib/api";
 
 const links = [
   { href: "/", label: "Home", icon: "🏠" },
@@ -37,6 +38,15 @@ export default function NavBar() {
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => api.logout()}
+          aria-label="Log out"
+          className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors sm:ml-auto"
+        >
+          <span className="text-base sm:text-sm">🚪</span>
+          <span className="text-[10px] sm:text-sm">Log out</span>
+        </button>
       </div>
     </nav>
   );

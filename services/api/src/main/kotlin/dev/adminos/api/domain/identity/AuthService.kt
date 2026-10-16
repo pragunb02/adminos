@@ -97,6 +97,16 @@ class AuthService(
         return jwtService.generateAccessToken(user)
     }
 
+    /**
+     * Revokes the session that owns [refreshToken] (logout of *this* device only).
+     * @return the session's user id, or null if no such active session
+     */
+    suspend fun logoutByRefreshToken(refreshToken: String): UUID? {
+        val session = sessionRepository.findByTokenHash(JwtService.hashToken(refreshToken)) ?: return null
+        if (session.isActive) sessionRepository.revoke(session.id)
+        return session.userId
+    }
+
     suspend fun logout(userId: UUID, sessionTokenHash: String) {
         val sessions = sessionRepository.findActiveByUserId(userId)
         val session = sessions.find { it.tokenHash == sessionTokenHash }

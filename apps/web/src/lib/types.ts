@@ -205,7 +205,6 @@ export interface SyncSession {
 // ── Auth ──
 
 export interface AuthResponse {
-  refreshToken: string;
   expiresIn: number;
   user: {
     id: string;

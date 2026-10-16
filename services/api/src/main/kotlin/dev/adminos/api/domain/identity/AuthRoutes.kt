@@ -6,7 +6,6 @@ import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.audit.ActorType
 import dev.adminos.api.domain.audit.AuditActions
-import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.clientIp
 import dev.adminos.api.infrastructure.plugins.requestId
@@ -28,23 +27,18 @@ data class GoogleLoginRequest(
     val redirectUri: String
 )
 
-@Serializable
-data class RefreshTokenRequest(
-    val refreshToken: String
-)
-
+/**
+ * Tokens travel only in HttpOnly cookies (AuthCookies), never in response bodies, so page
+ * JavaScript (and any XSS) can't read them. Non-browser clients get a token flow in AOS-604.
+ */
 @Serializable
 data class AuthTokenResponse(
-    val refreshToken: String,
     val expiresIn: Long,
     val user: UserResponse
-    // Note: accessToken is set via HttpOnly cookie for web clients.
-    // Mobile clients should use the refresh token to get access tokens.
 )
 
 @Serializable
 data class AccessTokenResponse(
-    val accessToken: String,
     val expiresIn: Long
 )
 
@@ -58,6 +52,7 @@ data class SessionResponse(
 )
 
 fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: AppConfig, auditService: AuditService) {
+    val cookies = AuthCookies(config)
 
     route("/auth") {
 
@@ -89,18 +84,8 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     userAgent = userAgent
                 )
 
-                // Item 2: Set JWT in HttpOnly cookie (OWASP Session Management)
-                call.response.cookies.append(
-                    Cookie(
-                        name = ACCESS_TOKEN_COOKIE,
-                        value = result.accessToken,
-                        maxAge = result.expiresIn.toInt(),
-                        path = "/",
-                        httpOnly = true,
-                        secure = !config.app.appUrl.startsWith("http://localhost"),
-                        extensions = mapOf("SameSite" to "Strict")
-                    )
-                )
+                // Session cookies: HttpOnly, SameSite=Strict (OWASP Session Management)
+                cookies.setSession(call, result.accessToken, result.refreshToken)
 
                 // Item 7: Audit login
                 auditService.log(
@@ -115,7 +100,6 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     HttpStatusCode.OK,
                     ApiResponse.success(
                         AuthTokenResponse(
-                            refreshToken = result.refreshToken,
                             expiresIn = result.expiresIn,
                             user = UserResponse.from(result.user)
                         ),
@@ -127,82 +111,44 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
             }
         }
 
+        // Uses the HttpOnly refresh cookie; sets a fresh access cookie.
         post("/refresh") {
-            val request = call.receive<RefreshTokenRequest>()
-
+            val refreshToken = cookies.refreshToken(call)
+                ?: throw ApiException(HttpStatusCode.Unauthorized, ApiError.TOKEN_INVALID)
             try {
-                val newAccessToken = authService.refreshToken(request.refreshToken)
-
-                // Update HttpOnly cookie with new access token
-                call.response.cookies.append(
-                    Cookie(
-                        name = ACCESS_TOKEN_COOKIE,
-                        value = newAccessToken,
-                        maxAge = accessTokenTtl.toInt(),
-                        path = "/",
-                        httpOnly = true,
-                        secure = !config.app.appUrl.startsWith("http://localhost"),
-                        extensions = mapOf("SameSite" to "Strict")
-                    )
-                )
-
-                call.respond(
-                    HttpStatusCode.OK,
-                    ApiResponse.success(
-                        AccessTokenResponse(
-                            accessToken = newAccessToken,
-                            expiresIn = accessTokenTtl
-                        ),
-                        call.requestId
-                    )
-                )
+                cookies.setAccess(call, authService.refreshToken(refreshToken))
+                call.respond(HttpStatusCode.OK, ApiResponse.success(AccessTokenResponse(expiresIn = accessTokenTtl), call.requestId))
             } catch (e: SessionNotFoundException) {
+                cookies.clear(call)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.TOKEN_INVALID)
             } catch (e: SessionRevokedException) {
+                cookies.clear(call)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.SESSION_REVOKED)
             } catch (e: UserNotFoundException) {
+                cookies.clear(call)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.USER_NOT_FOUND)
             }
+        }
+
+        // Public: must work after the access JWT has expired. Revokes only this device's session.
+        post("/logout") {
+            val userId = cookies.refreshToken(call)?.let { authService.logoutByRefreshToken(it) }
+            cookies.clear(call)
+            if (userId != null) {
+                auditService.log(
+                    userId = userId,
+                    actor = ActorType.USER,
+                    action = AuditActions.AUTH_LOGOUT,
+                    entityType = "session",
+                    ipAddress = call.clientIp
+                )
+            }
+            call.respond(HttpStatusCode.OK, ApiResponse.success(mapOf("message" to "Logged out"), call.requestId))
         }
 
         // Protected routes (JWT required)
 
         authenticate("auth-jwt") {
-
-            post("/logout") {
-                val principal = call.userPrincipal
-                val ipAddress = call.clientIp
-                // Revoke all active sessions for simplicity
-                val sessions = authService.getActiveSessions(principal.userId)
-                sessions.forEach { authService.revokeSession(principal.userId, it.id) }
-
-                // Clear the HttpOnly cookie
-                call.response.cookies.append(
-                    Cookie(
-                        name = ACCESS_TOKEN_COOKIE,
-                        value = "",
-                        maxAge = 0,
-                        path = "/",
-                        httpOnly = true,
-                        secure = !config.app.appUrl.startsWith("http://localhost"),
-                        extensions = mapOf("SameSite" to "Strict")
-                    )
-                )
-
-                // Item 7: Audit logout
-                auditService.log(
-                    userId = principal.userId,
-                    actor = ActorType.USER,
-                    action = AuditActions.AUTH_LOGOUT,
-                    entityType = "session",
-                    ipAddress = ipAddress
-                )
-
-                call.respond(
-                    HttpStatusCode.OK,
-                    ApiResponse.success(mapOf("message" to "Logged out"), call.requestId)
-                )
-            }
 
             get("/sessions") {
                 val principal = call.userPrincipal
