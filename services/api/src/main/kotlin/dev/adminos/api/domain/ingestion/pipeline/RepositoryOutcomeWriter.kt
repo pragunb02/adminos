@@ -22,9 +22,18 @@ class RepositoryOutcomeWriter(
     private val unitOfWork: suspend (suspend () -> Unit) -> Unit = { it() }
 ) : IngestOutcomeWriter {
 
-    override suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion?) = unitOfWork {
+    override suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion?, relations: List<Relation>) = unitOfWork {
         if (transactions.findByIngestEventId(event.id) == null) {
             transactions.save(transaction)
+            relations.forEach { r ->
+                r.updatedExisting?.let { transactions.update(it) }
+                links.save(TransactionLink(
+                    userId = transaction.userId, transactionId = r.existing.id, relatedTransactionId = transaction.id,
+                    ingestEventId = event.id, source = transaction.sourceType,
+                    kind = if (r.applied) LinkKind.MERGED else LinkKind.SUGGESTED, relation = r.relation,
+                    score = r.score, reason = r.reason, rulesVersion = TransactionMatcher.RULES_VERSION
+                ))
+            }
             suggestion?.let {
                 links.save(TransactionLink(
                     userId = transaction.userId, transactionId = it.target.id, relatedTransactionId = transaction.id,

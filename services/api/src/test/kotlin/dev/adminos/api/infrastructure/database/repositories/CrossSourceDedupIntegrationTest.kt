@@ -2,7 +2,7 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.financial.CategorizationService
 import dev.adminos.api.domain.financial.PaymentMethod
-import dev.adminos.api.domain.financial.links.DuplicateService
+import dev.adminos.api.domain.financial.links.SuggestionService
 import dev.adminos.api.domain.financial.links.LinkKind
 import dev.adminos.api.domain.financial.links.TransactionMatcher
 import dev.adminos.api.domain.ingestion.events.*
@@ -35,7 +35,7 @@ class CrossSourceDedupIntegrationTest {
             CrossSourceDedupStep(RepositoryMatchCandidates(txns, links), TransactionMatcher()), CategorizeStep(CategorizationService()))),
         RepositoryOutcomeWriter(txns, events, links) { w -> dbQuery { w() } }
     )
-    private val duplicates = DuplicateService(links, txns) { w -> dbQuery { w() } }
+    private val duplicates = SuggestionService(links, txns) { w -> dbQuery { w() } }
 
     @BeforeAll
     fun start() = PostgresTestDatabase.ensureStarted()
@@ -72,6 +72,21 @@ class CrossSourceDedupIntegrationTest {
         assertEquals(1, txns.findByUserId(user, limit = 10).size)
         val link = links.findById(s.link.id)!!
         assertEquals(LinkKind.MERGED, link.kind); assertNull(link.relatedTransactionId)
-        assertEquals(setOf("manual"), links.mergedSources(listOf(s.kept.id))[s.kept.id])
+        assertEquals(setOf("manual"), links.mergedSources(listOf(s.primary.id))[s.primary.id])
+    }
+
+    @Test
+    fun `nature persists and spending excludes transfers`() = runBlocking<Unit> {
+        val user = PostgresTestDatabase.newUser()
+        val t0 = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS)
+        txns.save(dev.adminos.api.domain.financial.Transaction(userId = user, type = dev.adminos.api.domain.financial.TransactionType.DEBIT,
+            amount = BigDecimal("100.00"), transactedAt = t0, category = dev.adminos.api.domain.financial.TransactionCategory.FOOD))
+        txns.save(dev.adminos.api.domain.financial.Transaction(userId = user, type = dev.adminos.api.domain.financial.TransactionType.DEBIT,
+            amount = BigDecimal("9000.00"), transactedAt = t0, nature = dev.adminos.api.domain.financial.TransactionNature.TRANSFER,
+            category = dev.adminos.api.domain.financial.TransactionCategory.TRANSFER))
+        val spend = txns.spendingByCategory(user, t0.minus(1, ChronoUnit.HOURS), t0.plus(1, ChronoUnit.HOURS))
+        assertEquals(setOf(dev.adminos.api.domain.financial.TransactionCategory.FOOD), spend.keys)
+        assertEquals(setOf(dev.adminos.api.domain.financial.TransactionNature.SPEND, dev.adminos.api.domain.financial.TransactionNature.TRANSFER),
+            txns.findByUserId(user, limit = 10).map { it.nature }.toSet())
     }
 }

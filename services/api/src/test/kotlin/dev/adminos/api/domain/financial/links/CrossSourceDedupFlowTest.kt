@@ -31,7 +31,7 @@ class CrossSourceDedupFlowTest {
             CrossSourceDedupStep(RepositoryMatchCandidates(txns, links), TransactionMatcher()), CategorizeStep(CategorizationService()))),
         RepositoryOutcomeWriter(txns, events, links)
     )
-    private val duplicates = DuplicateService(links, txns)
+    private val duplicates = SuggestionService(links, txns)
 
     private fun at(day: Int, h: Int, m: Int = 0) = LocalDate.of(2026, 10, day).atTime(LocalTime.of(h, m)).atZone(ist).toInstant()
 
@@ -104,7 +104,7 @@ class CrossSourceDedupFlowTest {
         ingest(IngestEvent(userId = user, source = IngestSource.MANUAL, sourceRef = "m1", occurredAt = at(1, 20), direction = IngestDirection.DEBIT,
             amount = BigDecimal("249.00"), merchantRaw = "Shop A cash"))
         val s = duplicates.suggestions(user).single()
-        assertEquals("manual", s.duplicate.sourceType)
+        assertEquals("manual", s.related.sourceType)
 
         assertEquals(false, duplicates.confirm(UUID.randomUUID(), s.link.id), "another user can't confirm it")
         assertTrue(duplicates.confirm(user, s.link.id))

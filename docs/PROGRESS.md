@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. Next in M2: AOS-208 self-transfers, AOS-209 refunds/reversals, AOS-210 categories, AOS-204 cash quick-add; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~ done. Next in M2: AOS-209 refunds/reversals, AOS-210 categories, AOS-204 cash quick-add; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-208: transaction nature (D-39) drives totals; own-account transfer pairs + card bill payments; generic relation side effects; suggestions API generalised. Unit 262, integration 45.
   - AOS-207: cross-source dedup (D-38, research-backed): RRN first, score bands, 1:1, payment-type windows, links table (V13), enrich blanks only, review API. Fixed: transaction update silently dropped account/VPA/method. Unit 251, integration 44.
   - AOS-202: statement import end to end (Python parser: CSV/XLSX/XLS/PDF+password, column roles, reconciliation; Kotlin import with occurrence-aware fingerprints; Import page). Retired R2/upload/Go PDF. Fixed: VPA regex, API Docker build on this network (official Gradle image). Unit 228, integration 42 (incl. real Python image via Testcontainers).
   - AOS-203: iPhone SMS end to end. Parsers (5 banks + generic, drop rules); device tokens (D-36, fixed latent token-type hole); POST /ingest/sms/raw; Mac Messages reader (Go, read-only chat.db, business senders only, localhost only, smoke-tested on this Mac); Settings → Connected devices; setup guide. D-35 transport. Unit 218, integration 41, reader 10.

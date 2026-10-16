@@ -4,6 +4,7 @@ import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.financial.TransactionResponse
 import dev.adminos.api.infrastructure.plugins.ApiException
+import dev.adminos.api.infrastructure.plugins.enumParam
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
 import io.ktor.http.*
@@ -15,22 +16,25 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 @Serializable
-data class DuplicateSuggestionResponse(
+data class SuggestionResponse(
     val id: String,
+    /** duplicate | transfer | refund | reversal */
+    val relation: String,
     val score: Int,
     val reason: String,
-    val kept: TransactionResponse,
-    val duplicate: TransactionResponse
+    val primary: TransactionResponse,
+    val related: TransactionResponse
 )
 
-/** Review possible duplicates found across sources (AOS-207). */
-fun Route.duplicateRoutes(service: DuplicateService) {
+/** Review suggested relations between transactions (AOS-207/208/209). Owner-only. */
+fun Route.suggestionRoutes(service: SuggestionService) {
     authenticate("auth-jwt") {
-        route("/transactions/duplicates") {
+        route("/transactions/suggestions") {
             get {
-                val list = service.suggestions(call.userPrincipal.userId).map {
-                    DuplicateSuggestionResponse(it.link.id.toString(), it.link.score, it.link.reason,
-                        TransactionResponse.from(it.kept), TransactionResponse.from(it.duplicate))
+                val relation = call.enumParam<LinkRelation>("relation")
+                val list = service.suggestions(call.userPrincipal.userId, relation).map {
+                    SuggestionResponse(it.link.id.toString(), it.link.relation.name.lowercase(), it.link.score, it.link.reason,
+                        TransactionResponse.from(it.primary), TransactionResponse.from(it.related))
                 }
                 call.respond(HttpStatusCode.OK, ApiResponse.success(list, call.requestId))
             }
@@ -44,7 +48,7 @@ private suspend fun decide(call: ApplicationCall, action: suspend (UUID, UUID) -
     val id = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
         ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("VALIDATION_003", "Invalid suggestion id"))
     if (!action(call.userPrincipal.userId, id)) {
-        throw ApiException(HttpStatusCode.NotFound, ApiError("DUPLICATE_001", "Suggestion not found or already decided"))
+        throw ApiException(HttpStatusCode.NotFound, ApiError("SUGGESTION_001", "Suggestion not found or already decided"))
     }
     call.respond(HttpStatusCode.OK, ApiResponse.success(mapOf("id" to id.toString()), call.requestId))
 }

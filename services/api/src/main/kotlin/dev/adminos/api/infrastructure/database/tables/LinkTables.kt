@@ -13,6 +13,7 @@ object TransactionLinksTable : Table("transaction_links") {
     val ingestEventId = javaUUID("ingest_event_id").nullable()
     val sourceType = varchar("source", 20) // "source" clashes with ColumnSet.source
     val kind = varchar("kind", 20)
+    val relation = varchar("relation", 20)
     val score = integer("score")
     val reason = text("reason")
     val rulesVersion = varchar("rules_version", 20)

@@ -22,13 +22,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class DuplicateRoutesTest {
+class SuggestionRoutesTest {
     private val jwt = JwtService(AppConfig.load().auth)
     private val me = User(id = UUID.randomUUID(), email = "me@example.com", googleId = "g-1", role = UserRole.OWNER)
     private val other = User(id = UUID.randomUUID(), email = "o@example.com", googleId = "g-2", role = UserRole.OWNER)
     private val txns = InMemoryTransactionRepository()
     private val links = InMemoryTransactionLinkRepository()
-    private val service = DuplicateService(links, txns)
+    private val service = SuggestionService(links, txns)
 
     private fun seed(owner: UUID): TransactionLink = runBlocking {
         val a = txns.save(Transaction(userId = owner, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("99.00"), transactedAt = Instant.now()))
@@ -41,19 +41,19 @@ class DuplicateRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwt)
-            routing { route("/api/v1") { duplicateRoutes(service) } }
+            routing { route("/api/v1") { suggestionRoutes(service) } }
         }
         block()
     }
 
     private suspend fun ApplicationTestBuilder.call(method: HttpMethod, path: String, user: User = me) =
-        client.request("/api/v1/transactions/duplicates$path") { this.method = method; cookie(ACCESS_TOKEN_COOKIE, jwt.generateAccessToken(user)) }
+        client.request("/api/v1/transactions/suggestions$path") { this.method = method; cookie(ACCESS_TOKEN_COOKIE, jwt.generateAccessToken(user)) }
 
     @Test
     fun `list, confirm and reject`() = app {
         val l1 = seed(me.id); val l2 = seed(me.id)
         val list = call(HttpMethod.Get, "").bodyAsText()
-        assertTrue(l1.id.toString() in list && "\"score\":7" in list && "\"duplicate\"" in list, list)
+        assertTrue(l1.id.toString() in list && "\"score\":7" in list && "\"related\"" in list, list)
         assertEquals(HttpStatusCode.OK, call(HttpMethod.Post, "/${l1.id}/confirm").status)
         assertEquals(HttpStatusCode.NotFound, call(HttpMethod.Post, "/${l1.id}/confirm").status, "already decided")
         assertEquals(HttpStatusCode.OK, call(HttpMethod.Post, "/${l2.id}/reject").status)

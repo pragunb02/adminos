@@ -74,3 +74,42 @@ class CrossSourceDedupStep(
         }
     }
 }
+
+/**
+ * Own-account transfers (AOS-208): card bill payments, and debit/credit pairs across your accounts.
+ * Runs after categorisation so it can set the Transfer category; a category the user chose is kept.
+ */
+class TransferStep(
+    private val candidates: MatchCandidateSource,
+    private val detector: dev.adminos.api.domain.financial.links.TransferDetector
+) : IngestStep {
+    override suspend fun apply(context: PipelineContext): StepResult {
+        val t = context.txn
+        if (detector.isCardBillPayment(t)) {
+            return StepResult.Continue(context.copy(transaction = asTransfer(t, "credit_card_bill")))
+        }
+        val opposite = if (t.type == dev.adminos.api.domain.financial.TransactionType.DEBIT)
+            dev.adminos.api.domain.financial.TransactionType.CREDIT else dev.adminos.api.domain.financial.TransactionType.DEBIT
+        val pool = candidates.candidatesFor(t.copy(type = opposite)).map { it.transaction }
+        return when (val d = detector.decide(t, pool)) {
+            dev.adminos.api.domain.financial.links.TransferDecision.None -> StepResult.Continue(context)
+            is dev.adminos.api.domain.financial.links.TransferDecision.Pair -> {
+                val relation = Relation(
+                    relation = dev.adminos.api.domain.financial.links.LinkRelation.TRANSFER,
+                    existing = d.counterpart,
+                    updatedExisting = if (d.auto) asTransfer(d.counterpart, "self_transfer") else null,
+                    applied = d.auto, score = d.score, reason = d.reason
+                )
+                val self = if (d.auto) asTransfer(t, "self_transfer") else t
+                StepResult.Continue(context.copy(transaction = self, relations = context.relations + relation))
+            }
+        }
+    }
+}
+
+/** Marks a transaction as a transfer; keeps a category the user chose themselves. */
+internal fun asTransfer(t: dev.adminos.api.domain.financial.Transaction, kind: String) = t.copy(
+    nature = dev.adminos.api.domain.financial.TransactionNature.TRANSFER,
+    category = if (t.categorySource == "user") t.category else dev.adminos.api.domain.financial.TransactionCategory.TRANSFER,
+    subcategory = if (t.categorySource == "user") t.subcategory else kind
+)
