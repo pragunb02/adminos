@@ -20,6 +20,7 @@ import kotlin.test.assertTrue
 class IdentityRepositoriesIntegrationTest {
 
     private val sessions = ExposedSessionRepository()
+    private val deviceTokens = ExposedDeviceTokenRepository()
 
     @BeforeAll
     fun start() = PostgresTestDatabase.ensureStarted()
@@ -57,5 +58,20 @@ class IdentityRepositoriesIntegrationTest {
 
         assertTrue(sessions.findActiveByUserId(userId).isEmpty())
         assertNotNull(sessions.findByTokenHash(session.tokenHash)?.revokedAt)
+    }
+
+    @Test
+    fun `device token round-trips, is touched and revoked`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val t = dev.adminos.api.domain.identity.DeviceToken(
+            userId = userId, name = "My Mac", scopes = setOf(dev.adminos.api.domain.identity.Scopes.INGEST_SMS),
+            createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS), expiresAt = Instant.now().plus(365, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS)
+        )
+        deviceTokens.save(t)
+        assertEquals(t, deviceTokens.findById(t.id)?.let { it.copy(createdAt = it.createdAt.truncatedTo(ChronoUnit.MILLIS), expiresAt = it.expiresAt.truncatedTo(ChronoUnit.MILLIS)) })
+        deviceTokens.touch(t.id, Instant.now())
+        deviceTokens.revoke(t.id, Instant.now())
+        val after = deviceTokens.findByUser(userId).single()
+        assertNotNull(after.lastUsedAt); assertNotNull(after.revokedAt)
     }
 }

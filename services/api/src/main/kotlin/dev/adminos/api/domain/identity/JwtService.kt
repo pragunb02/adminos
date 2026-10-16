@@ -23,6 +23,13 @@ data class JwtClaims(
     val role: String
 )
 
+/** Claims of a scoped device token (AOS-203). [tokenId] is the revocable `device_tokens` row. */
+data class DeviceTokenClaims(
+    val userId: UUID,
+    val tokenId: UUID,
+    val scopes: Set<String>
+)
+
 class JwtService(private val config: AuthConfig) {
 
     init {
@@ -53,6 +60,7 @@ class JwtService(private val config: AuthConfig) {
         val now = Instant.now()
         val claims = JWTClaimsSet.Builder()
             .subject(user.id.toString())
+            .claim("typ", TYPE_ACCESS)
             .claim("email", user.email)
             .claim("role", user.role.name.lowercase())
             .issuer(config.jwtIssuer)
@@ -74,6 +82,9 @@ class JwtService(private val config: AuthConfig) {
 
             val claims = signedJwt.jwtClaimsSet
             if (claims.expirationTime.before(Date())) return null
+            if (claims.issuer != config.jwtIssuer) return null
+            // Only access tokens: a device token must never work as a login (tokens before `typ` existed are access tokens).
+            if ((claims.getStringClaim("typ") ?: TYPE_ACCESS) != TYPE_ACCESS) return null
 
             JwtClaims(
                 userId = UUID.fromString(claims.subject),
@@ -85,6 +96,36 @@ class JwtService(private val config: AuthConfig) {
         }
     }
 
+    /** A long-lived, scoped token for a device (e.g. the Mac SMS reader). Revocation is checked by the caller. */
+    fun generateDeviceToken(userId: UUID, tokenId: UUID, scopes: Set<String>, ttl: java.time.Duration): String {
+        val now = Instant.now()
+        val claims = JWTClaimsSet.Builder()
+            .subject(userId.toString())
+            .jwtID(tokenId.toString())
+            .claim("typ", TYPE_DEVICE)
+            .claim("scope", scopes.sorted().joinToString(" "))
+            .issuer(config.jwtIssuer)
+            .issueTime(Date.from(now))
+            .expirationTime(Date.from(now.plus(ttl)))
+            .build()
+        return SignedJWT(JWSHeader.Builder(JWSAlgorithm.HS256).build(), claims).apply { sign(signer) }.serialize()
+    }
+
+    /** Verifies signature, issuer, expiry and type. Returns null for anything that isn't a valid device token. */
+    fun verifyDeviceToken(token: String): DeviceTokenClaims? = try {
+        val jwt = SignedJWT.parse(token)
+        val c = jwt.jwtClaimsSet
+        if (!jwt.verify(verifier) || c.expirationTime?.before(Date()) != false || c.issuer != config.jwtIssuer ||
+            c.getStringClaim("typ") != TYPE_DEVICE) null
+        else DeviceTokenClaims(
+            userId = UUID.fromString(c.subject),
+            tokenId = UUID.fromString(c.jwtid),
+            scopes = c.getStringClaim("scope").orEmpty().split(' ').filter { it.isNotBlank() }.toSet()
+        )
+    } catch (e: Exception) {
+        null
+    }
+
     private fun generateRefreshToken(): String {
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
@@ -92,6 +133,9 @@ class JwtService(private val config: AuthConfig) {
     }
 
     companion object {
+        const val TYPE_ACCESS = "access"
+        const val TYPE_DEVICE = "device"
+
         /** Hash a refresh token for storage — never store raw tokens */
         fun hashToken(token: String): String {
             val digest = MessageDigest.getInstance("SHA-256")
