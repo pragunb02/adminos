@@ -8,6 +8,7 @@ import dev.adminos.api.domain.audit.ActorType
 import dev.adminos.api.domain.audit.AuditActions
 import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.infrastructure.plugins.ApiException
+import dev.adminos.api.infrastructure.plugins.clientIp
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
 import io.ktor.http.*
@@ -63,7 +64,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
         // Rate limit: 10 req/min per IP on all auth endpoints
         install(RateLimitPlugin) {
             limiter = RateLimiters.auth
-            keyExtractor = { call -> call.request.local.remoteHost }
+            keyExtractor = { call -> call.clientIp }
         }
 
         // Public routes (no JWT required)
@@ -77,7 +78,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 throw ApiException(HttpStatusCode.BadRequest, ApiError("AUTH_005", "Invalid redirect URI"))
             }
 
-            val ipAddress = call.request.local.remoteHost
+            val ipAddress = call.clientIp
             val userAgent = call.request.userAgent()
 
             try {
@@ -170,7 +171,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
 
             post("/logout") {
                 val principal = call.userPrincipal
-                val ipAddress = call.request.local.remoteHost
+                val ipAddress = call.clientIp
                 // Revoke all active sessions for simplicity
                 val sessions = authService.getActiveSessions(principal.userId)
                 sessions.forEach { authService.revokeSession(principal.userId, it.id) }
@@ -225,7 +226,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
 
             delete("/sessions/{id}") {
                 val principal = call.userPrincipal
-                val ipAddress = call.request.local.remoteHost
+                val ipAddress = call.clientIp
                 val sessionId = call.parameters["id"]
                     ?: throw ApiException(HttpStatusCode.BadRequest, ApiError.TOKEN_INVALID)
 

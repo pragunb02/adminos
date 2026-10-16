@@ -5,6 +5,12 @@ const PUBLIC_PATHS = ["/login", "/auth/callback", "/health"];
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // API calls are proxied to the API server, which does its own authentication (D-32).
+  // Not guarded here: the login call itself (POST /api/v1/auth/google) has no cookie yet.
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();

@@ -52,6 +52,10 @@ fun Application.configureErrorHandling() {
                 )
             )
         }
+        // Auth challenges (missing/invalid JWT) carry no body by default; clients always get the envelope.
+        status(HttpStatusCode.Unauthorized) { call, status ->
+            call.respond(status, ApiResponse.error(ApiError.TOKEN_INVALID, call.requestId))
+        }
         exception<Throwable> { call, cause ->
             logger.error("Unhandled exception", cause)
             call.respond(

@@ -36,6 +36,7 @@
 | D-29 | ETA | TypeScript 6.0.3 pin; set-state-in-effect at warn until AOS-308 | Accepted | AOS-116, AOS-308 |
 | D-30 | Architecture | One JSON-column mapper (`JsonColumns`); tests must return Unit (guarded) | Accepted | AOS-105 |
 | D-31 | Architecture | API contract: camelCase JSON and query params, opaque cursors, validated params | Accepted | AOS-107, AOS-120 |
+| D-32 | Architecture | Same-origin proxy: web forwards /api/* to the API; edge proxy owns X-Forwarded-For | Accepted | AOS-108, AOS-605 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -293,3 +294,17 @@ Proposed
 - **Query params** are parsed only via `infrastructure/plugins/QueryParams`. Invalid values are a
   400 `VALIDATION_003` naming the allowed values. Never a 500, never silently ignored.
 - **Date-only ranges** are whole days in Asia/Kolkata until per-user timezones (AOS-120).
+
+### D-32 — Same-origin proxy for the API
+2026-10-16 · Accepted by Pragun · Type: Architecture · Tasks: AOS-108, AOS-605
+- The browser talks only to the web origin. Next rewrites `/api/*` to the API (`API_INTERNAL_URL`).
+  - Cookies are first-party, no CORS is needed, and the web guard sees the session cookie.
+  - The same pattern works on real domains.
+- Rejected: direct browser → API calls with CORS. They work on localhost only because cookies
+  ignore ports; real domains would need shared-domain cookies.
+- **Client IP:**
+  - The API uses `XForwardedHeaders(useLastProxy)` and reads `call.clientIp`.
+  - Next forwards client-supplied XFF unchanged, so a deployment **must** run an edge proxy that
+    sets XFF from the real connection (AOS-605).
+  - Locally everything is 127.0.0.1 behind localhost-bound ports.
+- The web login guard never applies to `/api/*`; the API authenticates itself.

@@ -1,8 +1,8 @@
 /**
  * API client for AdminOS backend.
  * Handles standard envelope parsing and error handling.
- * JWT is stored in an HttpOnly cookie — the browser sends it automatically
- * via credentials: "include". No manual token injection needed.
+ * Calls are same-origin (`/api/*` is proxied to the API by next.config.js, D-32), so the
+ * HttpOnly JWT cookie is first-party and sent automatically. No manual token injection.
  *
  * OWASP Session Management: "Set the HttpOnly attribute for cookies
  * containing session tokens."
@@ -10,7 +10,6 @@
 
 import type { ApiResponse } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 class ApiClient {
   private baseUrl: string;
@@ -28,10 +27,24 @@ class ApiClient {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...options,
       headers,
-      credentials: "include",
+      credentials: "same-origin",
     });
 
-    return response.json();
+    // Always resolve to the envelope, even for empty or non-JSON bodies (e.g. a proxy error page).
+    const text = await response.text();
+    try {
+      return JSON.parse(text) as ApiResponse<T>;
+    } catch {
+      return {
+        success: false,
+        data: null,
+        error: {
+          code: response.status === 401 ? "AUTH_002" : `HTTP_${response.status}`,
+          message: response.statusText || "Unexpected response from the server",
+        },
+        meta: { requestId: response.headers.get("x-request-id") ?? "", timestamp: new Date().toISOString() },
+      };
+    }
   }
 
   get<T>(path: string) {
@@ -51,4 +64,4 @@ class ApiClient {
   }
 }
 
-export const api = new ApiClient(API_URL);
+export const api = new ApiClient("");

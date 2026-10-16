@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~ done; next AOS-108 web config, AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; next AOS-109 refresh/logout, AOS-110 API Dockerfile, AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -36,7 +36,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 |---|---|---|---|
 | DB schema (Flyway `db/migration`, 20 tables) | ✅ | ✅ | Migrates on startup (verified 2026-10-16); enum/JSONB via stringtype |
 | API routes (~35) | ✅ | ❌ | Auth reads only the Bearer header, but the web sends a cookie; JSON snake_case vs camelCase |
-| Google login | ✅ | ❌ | See above; `NEXT_PUBLIC_GOOGLE_CLIENT_ID` not configured |
+| Google login | ✅ | 🟡 | Web↔API path verified live; needs Pragun's OAuth client (AOS-111) for the real check (AOS-112) |
 | API → worker queue | ✅ | ❌ | `AsynqPublisher` stringifies payload values; split workers drop task types; manual sync never enqueues |
 | SMS ingest (API + Go) | ✅ | ❌ | Payload bug; every transaction saved as `debit`; no phone app |
 | Gmail ingest (Go) | 🟡 | ❌ | Parses snippet only; no incremental sync; no Pub/Sub watch |
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-108: same-origin /api proxy (D-32). Found live: the web guard blocked the login API call (login could never have worked); empty-body 401s crashed the web client; client IP behind proxy (XForwardedHeaders + clientIp; edge proxy required for public, AOS-605). Unit 158.
   - AOS-107: contract audit. **camelCase** (D-31, switched from snake_case after the audit). Fixed: transaction filters, the Flagged tab, **pagination broken against the DB** (cursor format), silent/opaque param errors. QueryParams helpers + route contract tests. Unit 154, integration 32.
   - AOS-106: API accepts the access_token cookie (header first); 6 auth tests; route test uses production auth. Unit 148/148.
   - AOS-105: integration tests for all 15 repositories (31/31). Found and fixed: metadata JSON crashed on save in 6 repos (`JsonColumns`, exact decimals); 9 tests silently skipped by JUnit (now run + guard). **Story S1.1 done.** Unit 142/142.

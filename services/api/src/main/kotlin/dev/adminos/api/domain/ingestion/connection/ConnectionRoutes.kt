@@ -8,6 +8,7 @@ import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.identity.GoogleOAuthClient
 import dev.adminos.api.domain.ingestion.SmsBatchResponse
 import dev.adminos.api.infrastructure.plugins.ApiException
+import dev.adminos.api.infrastructure.plugins.clientIp
 import dev.adminos.api.infrastructure.plugins.RateLimitPlugin
 import dev.adminos.api.infrastructure.plugins.RateLimiters
 import dev.adminos.api.infrastructure.plugins.requestId
@@ -38,7 +39,7 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
             post {
                 val principal = call.userPrincipal
                 val request = call.receive<CreateConnectionRequest>()
-                val ipAddress = call.request.local.remoteHost
+                val ipAddress = call.clientIp
 
                 val sourceType = try {
                     SourceType.valueOf(request.sourceType.uppercase())
@@ -81,7 +82,7 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
 
             delete("/{id}") {
                 val principal = call.userPrincipal
-                val ipAddress = call.request.local.remoteHost
+                val ipAddress = call.clientIp
                 val connectionId = call.parameters["id"]
                     ?: throw ApiException(HttpStatusCode.BadRequest, ApiError.CONNECTION_NOT_FOUND)
 

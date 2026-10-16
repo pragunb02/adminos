@@ -15,6 +15,7 @@ import io.ktor.server.testing.*
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** Production auth (configureAuthentication): Bearer header or the access_token cookie (AOS-106). */
 class AuthenticationTest {
@@ -26,8 +27,14 @@ class AuthenticationTest {
     private fun authTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
         application {
+            configureSerialization()
+            configureRequestId()
+            configureErrorHandling()
             configureAuthentication(jwtService)
-            routing { authenticate("auth-jwt") { get("/me") { call.respondText(call.userPrincipal.userId.toString()) } } }
+            routing {
+                authenticate("auth-jwt") { get("/me") { call.respondText(call.userPrincipal.userId.toString()) } }
+                get("/expired") { throw ApiException(HttpStatusCode.Unauthorized, dev.adminos.api.domain.common.ApiError.TOKEN_EXPIRED) }
+            }
         }
         block()
     }
@@ -59,6 +66,21 @@ class AuthenticationTest {
     @Test
     fun `no credentials is rejected`() = authTest {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/me").status)
+    }
+
+    @Test
+    fun `401 carries the standard JSON error envelope`() = authTest {
+        val res = client.get("/me")
+        assertEquals(HttpStatusCode.Unauthorized, res.status)
+        val error = kotlinx.serialization.json.Json.parseToJsonElement(res.bodyAsText())
+            .let { it as kotlinx.serialization.json.JsonObject }["error"].toString()
+        assertTrue("AUTH_002" in error, "body was: ${res.bodyAsText()}")
+    }
+
+    @Test
+    fun `specific 401 errors keep their own code`() = authTest {
+        val body = client.get("/expired").bodyAsText()
+        assertTrue("AUTH_001" in body, "body was: $body")
     }
 
     @Test
