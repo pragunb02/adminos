@@ -4,11 +4,11 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E3](AOS-E3.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ✅ Done |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 8h |
-| **Actual** | — |
+| **Actual** | 12.5h |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **Decisions** | D-4 |
 
@@ -16,7 +16,7 @@
 **As** Pragun (owner, India, iPhone), **I want** fast, correct aggregates, **so that** views are snappy and consistent.
 
 ## Acceptance criteria
-- [ ] Daily/weekly/monthly series and breakdowns from one API
+- [x] Daily/weekly/monthly series and breakdowns from one API
 
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
@@ -36,3 +36,4 @@ API returns series for my data
 
 ## Activity log
 - 2026-10-16 — Claude: story created (AOS-004).
+- 2026-10-16 — Claude: done (all tasks ✅).
