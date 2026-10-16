@@ -91,3 +91,16 @@ tasks.register<Test>("integrationTest") {
 kotlin {
     jvmToolchain(libs.versions.jdk.get().toInt())
 }
+
+// Coverage gate (AOS-312, D-47): unit + integration tests over the whole API.
+// `./gradlew test integrationTest koverVerify` fails below the bar; the HTML report is `koverHtmlReport`.
+kover {
+    reports {
+        verify {
+            rule("whole API") {
+                minBound(90, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.LINE)
+                minBound(85, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
+            }
+        }
+    }
+}

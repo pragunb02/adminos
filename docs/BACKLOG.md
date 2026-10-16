@@ -73,6 +73,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-207](tickets/AOS-207.md) | Cross-source dedup: reference → score bands → merge/suggest, review API (D-38) | Claude | ✅ | 3h | 3.5h |
 | └ [AOS-208](tickets/AOS-208.md) | Own-account transfers + card bill payments; transaction nature (D-39) | Claude | ✅ | 3h | 2h |
 | └ [AOS-209](tickets/AOS-209.md) | Refund/reversal linking; refunds net category spend (D-40) | Claude | ✅ | 2h | 2h |
+| └ [AOS-612](tickets/AOS-612.md) | Bills and dashboard correctness (paging, refunds, ₹0, user timezone) | Claude | ⬜ | 1.5h |  |
+| └ [AOS-613](tickets/AOS-613.md) | Notifications and Gmail connect correctness | Claude | ⬜ | 1.5h |  |
 | └ [AOS-210](tickets/AOS-210.md) | Single categorizer with remembered corrections (D-41) | Claude | ✅ | 4h | 2h |
 
 ## 🟦 [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 24h
@@ -86,7 +88,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-120](tickets/AOS-120.md) | Per-user timezone for date-range params (tz in the access token) | Claude | ✅ | 1h | 1h |
 | └ [AOS-310](tickets/AOS-310.md) | Web unit tests + coverage gate (156 tests; 99.1% lines, 97.3% branches) (D-47) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-311](tickets/AOS-311.md) | Playwright end-to-end: 131 tests on desktop Chrome, iPhone Safari, Android Chrome + full stack (D-47) | Claude | ✅ | 5h | 2.5h |
-| └ AOS-312 | API coverage: Kover report + gate, fill gaps (D-47) | Claude | ⬜ | 2h |  |
+| └ [AOS-312](tickets/AOS-312.md) | API coverage: 99.6% lines / 95.4% branches, gate 90/85; found 18 bugs (D-48) | Claude | ✅ | 10h | 4h |
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ⬜ | 6h | |
 | └ AOS-303 | Today / this week view | Claude | ⬜ | 3h |  |
 | └ AOS-304 | Monthly view | Claude | ⬜ | 3h |  |
@@ -94,6 +96,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-305 | Categories and top merchants views | Claude | ⬜ | 3h |  |
 | └ AOS-306 | Trend charts | Claude | ⬜ | 2h |  |
 | **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ⬜ | 5h | |
+| └ [AOS-611](tickets/AOS-611.md) | Exact money everywhere (D-30): summaries, subscription totals, transaction list + nature | Claude | ⬜ | 1.5h |  |
 | └ AOS-307 | Transaction feed: search, filter, edit, re-categorize | Claude | ⬜ | 3h |  |
 | └ AOS-309 | Review suggested duplicates / transfers / refunds (D-45) | Claude | ⬜ | 2h |  |
 
@@ -139,4 +142,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S6.3](tickets/AOS-S6.3.md)** | **Launch** | | ⬜ | 8h | |
 | └ [AOS-605](tickets/AOS-605.md) | Onboarding + hosting (edge proxy owns XFF, D-32) | Claude + Pragun | ⬜ | 8h |  |
 | └ [AOS-607](tickets/AOS-607.md) | JWT key now uses the whole `JWT_SECRET` (found by AOS-311) | Claude | ✅ | 0.5h | 0.5h |
+| └ [AOS-608](tickets/AOS-608.md) | Token encryption: whole 256-bit key, row-bound ciphertext; no public default secrets | Claude | ⬜ | 1.5h |  |
+| └ [AOS-609](tickets/AOS-609.md) | Gmail Pub/Sub webhook authentication (issuer, service account, fail closed) | Claude | ⬜ | 1h |  |
+| └ [AOS-610](tickets/AOS-610.md) | Login hardening: inactive users, OAuth form encoding, Secure cookies, session revoke | Claude | ⬜ | 1.5h |  |
 | └ AOS-606 | Dev-dependency advisories: ESLint chain (`eslint-config-next` → `braces`, high, dev-only); upgrade when a non-breaking fix exists | Claude | ⬜ | 0.5h |  |
