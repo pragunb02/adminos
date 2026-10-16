@@ -18,6 +18,8 @@ data class ApiError(
 
         // User
         val USER_NOT_FOUND = ApiError("USER_001", "User not found")
+        val USER_INACTIVE = ApiError("USER_002", "This account is deactivated")
+        val SESSION_NOT_FOUND = ApiError("AUTH_006", "Session not found")
 
         // Connection
         val CONNECTION_NOT_FOUND = ApiError("CONN_001", "Connection not found")

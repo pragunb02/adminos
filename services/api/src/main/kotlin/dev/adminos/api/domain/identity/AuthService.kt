@@ -39,6 +39,9 @@ class AuthService(
         val existingUser = userRepository.findByGoogleId(googleUser.sub)
         val isNewUser = existingUser == null
 
+        // A deactivated or deleted account can't sign back in (AOS-610).
+        if (existingUser != null && !existingUser.canSignIn()) throw UserInactiveException()
+
         val user = if (existingUser != null) {
             // Update profile from Google (name/avatar may change)
             userRepository.update(existingUser.copy(
@@ -91,6 +94,12 @@ class AuthService(
         val user = userRepository.findById(session.userId)
             ?: throw UserNotFoundException()
 
+        // A deactivated or deleted account loses its sessions (AOS-610).
+        if (!user.canSignIn()) {
+            sessionRepository.revoke(session.id)
+            throw UserInactiveException()
+        }
+
         // Update last active
         sessionRepository.updateLastActive(session.id)
 
@@ -119,12 +128,11 @@ class AuthService(
         return sessionRepository.findActiveByUserId(userId)
     }
 
-    suspend fun revokeSession(userId: UUID, sessionId: UUID) {
-        val sessions = sessionRepository.findActiveByUserId(userId)
-        val session = sessions.find { it.id == sessionId }
-        if (session != null) {
-            sessionRepository.revoke(session.id)
-        }
+    /** Revokes one of [userId]'s own active sessions. @return false if they have no such session (AOS-610). */
+    suspend fun revokeSession(userId: UUID, sessionId: UUID): Boolean {
+        val session = sessionRepository.findActiveByUserId(userId).find { it.id == sessionId } ?: return false
+        sessionRepository.revoke(session.id)
+        return true
     }
 }
 
@@ -132,3 +140,7 @@ class SessionNotFoundException : RuntimeException("Session not found")
 class SessionRevokedException : RuntimeException("Session has been revoked")
 class UserNotFoundException : RuntimeException("User not found")
 class UnverifiedEmailException : RuntimeException("Google email is not verified")
+class UserInactiveException : RuntimeException("This account is deactivated")
+
+/** Active and not deleted (AOS-610). */
+fun User.canSignIn(): Boolean = isActive && deletedAt == null

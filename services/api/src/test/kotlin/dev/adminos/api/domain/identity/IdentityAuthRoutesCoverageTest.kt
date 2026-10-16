@@ -152,7 +152,6 @@ class IdentityAuthRoutesCoverageTest {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("BUG AOS-312: AuthCookies treats any APP_URL starting with 'http://localhost' (e.g. http://localhost.example.in) as local and drops the Secure flag")
     fun `cookies are Secure for a host that merely starts with localhost`() = routesTest(baseConfig.copy(app = baseConfig.app.copy(appUrl = "http://localhost.example.in"))) {
         val res = postJson("/api/v1/auth/google", loginBody("http://localhost.example.in/auth/callback"))
 
@@ -305,9 +304,24 @@ class IdentityAuthRoutesCoverageTest {
         val victim = newUser()
         val (session, _) = newSession(victim.id)
 
-        client.delete("/api/v1/auth/sessions/${session.id}") { header("X-Forwarded-For", ip); bearerAuth(jwt.generateAccessToken(newUser())) }
+        val res = client.delete("/api/v1/auth/sessions/${session.id}") { header("X-Forwarded-For", ip); bearerAuth(jwt.generateAccessToken(newUser())) }
 
         assertEquals(listOf(session.id), sessions.findActiveByUserId(victim.id).map { it.id })
+        // AOS-610: "not found" (it isn't yours), and no revoke is audited.
+        assertEquals(HttpStatusCode.NotFound, res.status)
+        assertEquals("AUTH_006", res.errorCode())
+        assertTrue(audit.saved.none { it.action == AuditActions.AUTH_SESSION_REVOKE })
+    }
+
+    @Test
+    fun `a deactivated user's refresh is refused, the cookies are cleared and the session revoked (AOS-610)`() = routesTest {
+        val user = runBlocking { users.save(User(email = "gone-${UUID.randomUUID()}@example.com", googleId = "g-${UUID.randomUUID()}", name = "Gone", isActive = false)) }
+        val (session, refresh) = newSession(user.id)
+        val res = client.post("/api/v1/auth/refresh") { header("X-Forwarded-For", ip); cookie("refresh_token", refresh) }
+        assertEquals(HttpStatusCode.Forbidden, res.status)
+        assertEquals("USER_002", res.errorCode())
+        assertTrue(res.headers.getAll(HttpHeaders.SetCookie)!!.any { it.startsWith("refresh_token=;") })
+        assertTrue(sessions.findActiveByUserId(user.id).none { it.id == session.id })
     }
 
     @Test

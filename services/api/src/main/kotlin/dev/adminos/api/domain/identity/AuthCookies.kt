@@ -20,7 +20,7 @@ private const val REFRESH_COOKIE_PATH = "/api/v1/auth"
 class AuthCookies(private val config: AppConfig) {
 
     private val sessionMaxAge = (config.auth.refreshTokenTtlDays * 24 * 3600).toInt()
-    private val secure = !config.app.appUrl.startsWith("http://localhost")
+    private val secure = !isLocalDevUrl(config.app.appUrl)
 
     fun setSession(call: ApplicationCall, accessToken: String, refreshToken: String) {
         setAccess(call, accessToken)
@@ -42,4 +42,14 @@ class AuthCookies(private val config: AppConfig) {
         name = name, value = value, maxAge = maxAge, path = path,
         httpOnly = true, secure = secure, extensions = mapOf("SameSite" to "Strict")
     )
+}
+
+/**
+ * Cookies drop `Secure` only for plain-http local development: the host must be exactly a loopback
+ * name (AOS-610). `http://localhost.example.in` is a real domain and keeps `Secure`.
+ */
+internal fun isLocalDevUrl(appUrl: String): Boolean {
+    val uri = runCatching { java.net.URI(appUrl) }.getOrNull() ?: return false
+    return uri.scheme.equals("http", ignoreCase = true) &&
+        uri.host?.lowercase()?.removeSurrounding("[", "]") in setOf("localhost", "127.0.0.1", "::1")
 }

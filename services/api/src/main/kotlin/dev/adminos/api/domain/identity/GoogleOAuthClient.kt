@@ -45,11 +45,14 @@ class GoogleOAuthClient(
      * Returns both the token response (for storage) and user info.
      */
     suspend fun exchangeCodeForTokens(code: String, redirectUri: String): Pair<GoogleTokenResponse, GoogleUserInfo> = withContext(Dispatchers.IO) {
-        val tokenBody = "code=$code" +
-            "&client_id=${config.googleClientId}" +
-            "&client_secret=${config.googleClientSecret}" +
-            "&redirect_uri=$redirectUri" +
-            "&grant_type=authorization_code"
+        // Every value is form-encoded (AOS-610): a raw '&', '+' or '%' in the code would corrupt the form or add fields.
+        val tokenBody = formEncode(
+            "code" to code,
+            "client_id" to config.googleClientId,
+            "client_secret" to config.googleClientSecret,
+            "redirect_uri" to redirectUri,
+            "grant_type" to "authorization_code"
+        )
 
         val tokenRequest = HttpRequest.newBuilder()
             .uri(URI.create(tokenUrl))
@@ -87,3 +90,9 @@ class GoogleOAuthClient(
         return userInfo
     }
 }
+
+/** application/x-www-form-urlencoded body with every name and value encoded. */
+internal fun formEncode(vararg fields: Pair<String, String>): String =
+    fields.joinToString("&") { (k, v) ->
+        java.net.URLEncoder.encode(k, Charsets.UTF_8) + "=" + java.net.URLEncoder.encode(v, Charsets.UTF_8)
+    }

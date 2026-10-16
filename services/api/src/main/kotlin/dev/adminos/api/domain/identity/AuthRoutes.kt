@@ -106,6 +106,8 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                         call.requestId
                     )
                 )
+            } catch (e: UserInactiveException) {
+                throw ApiException(HttpStatusCode.Forbidden, ApiError.USER_INACTIVE)
             } catch (e: RuntimeException) {
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.OAUTH_FAILED)
             }
@@ -127,6 +129,9 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
             } catch (e: UserNotFoundException) {
                 cookies.clear(call)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.USER_NOT_FOUND)
+            } catch (e: UserInactiveException) {
+                cookies.clear(call)
+                throw ApiException(HttpStatusCode.Forbidden, ApiError.USER_INACTIVE)
             }
         }
 
@@ -176,7 +181,11 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 val sessionId = call.parameters["id"]
                     ?: throw ApiException(HttpStatusCode.BadRequest, ApiError.TOKEN_INVALID)
 
-                authService.revokeSession(principal.userId, UUID.fromString(sessionId))
+                val sessionUuid = UUID.fromString(sessionId) // malformed → 400 (IllegalArgumentException)
+                // Only your own sessions; anything else is "not found", and nothing is audited (AOS-610).
+                if (!authService.revokeSession(principal.userId, sessionUuid)) {
+                    throw ApiException(HttpStatusCode.NotFound, ApiError.SESSION_NOT_FOUND)
+                }
 
                 // Item 7: Audit session revoke
                 auditService.log(
@@ -184,7 +193,7 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     actor = ActorType.USER,
                     action = AuditActions.AUTH_SESSION_REVOKE,
                     entityType = "session",
-                    entityId = UUID.fromString(sessionId),
+                    entityId = sessionUuid,
                     ipAddress = ipAddress
                 )
 
