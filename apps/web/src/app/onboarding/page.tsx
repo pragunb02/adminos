@@ -58,8 +58,9 @@ export default function OnboardingPage() {
         if (syncRes.success && syncRes.data) {
           setSyncId(syncRes.data.syncSessionId);
         }
-        setStep("sms");
       }
+      // Connected or not, move on: Gmail can be connected later from Settings.
+      setStep("sms");
     } catch {
       setStep("sms");
     }
@@ -169,7 +170,8 @@ export default function OnboardingPage() {
                 if (skippedGmail) {
                   router.replace("/");
                 } else {
-                  setStep("processing");
+                  // Nothing to wait for if the Gmail sync never started (AOS-310: was an endless spinner).
+                  setStep(syncId ? "processing" : "magic");
                 }
               }}
               className="w-full py-3 text-gray-500 hover:text-gray-700 text-sm"

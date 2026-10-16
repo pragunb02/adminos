@@ -136,6 +136,8 @@ Layers 4 and 5 sit side by side under layer 3.
 | **Integration** | Every `Exposed*` repository round-trip on real Postgres; queue publisher | Testcontainers (`@Tag("integration")`) | `infrastructure/...IntegrationTest.kt` |
 | **Contract** | Kotlin publisher payload ↔ Go handler payload; web ↔ API JSON | shared JSON fixtures in `contracts/` | both sides test the same fixture |
 | **Route** | Status codes, auth, validation, error mapping | Ktor `testApplication` | `*RoutesTest.kt` |
+| **Web unit/component** (D-47) | Every helper, component and page: loading, empty, error + retry, data; every action's success and failure | Vitest + Testing Library + user-event + MSW (unmocked requests fail the test) | `apps/web/src/**/*.test.tsx`; fixtures in `apps/web/test/` |
+| **Web end-to-end** (D-47, AOS-311) | Real browser: navigation, back/forward, deep links, URL state, keyboard, a11y, mobile + desktop | Playwright (mocked API + full stack) | `apps/web/e2e/` |
 
 ### Rules
 - **One behaviour per test.** Name tests as sentences in backticks, e.g.
@@ -148,6 +150,8 @@ Layers 4 and 5 sit side by side under layer 3.
 - **Every bug fix ships with a regression test** that fails before the fix.
 - **Every acceptance criterion in a ticket maps to at least one test** (or a documented manual check).
 - Test data uses realistic Indian bank formats (HDFC/SBI/ICICI SMS, UPI VPAs, ₹ amounts).
+- **Web coverage gate (D-47):** `npm run test:coverage` fails below 90% lines/statements and 85% branches/functions over `apps/web/src`.
+- Web tests find elements by role and accessible name (what a user or screen reader sees), not by CSS classes. An input without a label is a bug to fix.
 
 ---
 

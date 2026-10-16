@@ -51,6 +51,7 @@
 | D-44 | Architecture | One merchant catalogue as data (JSON), validated on load, shared by normalizer and categorizer; narration cleaning before title-case | Accepted | AOS-206 |
 | D-45 | Architecture | Console plan: one analytics API (spent = spend − refunds, received = income, transfers excluded) in the user's timezone; Recharts; TanStack Query; review screen AOS-309 | Accepted | AOS-120, AOS-301…309 |
 | D-46 | Business logic | Console totals are never clipped: total = Σ categories = Σ buckets; a refund-only day or category shows as negative | Accepted | AOS-301 |
+| D-47 | Process | Web tests: Vitest + Testing Library + MSW (unit), Playwright (end-to-end); coverage gate 90% lines / 85% branches; console state (period, filters) lives in the URL | Accepted | AOS-310, AOS-311, AOS-312, AOS-303…309 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -496,3 +497,17 @@ Proposed
   - days are in the user's timezone;
   - weeks start on Monday;
   - edge buckets can be partial and are labelled by their start.
+
+### D-47 — Testing bar for the web, and URL state
+2026-10-16 · Accepted by Pragun ("yes yes") · Type: Process · Tasks: AOS-310, AOS-311, AOS-312, AOS-303…309
+- **Unit/component tests:** Vitest + Testing Library + user-event, with network mocks in MSW.
+  - An unmocked request fails the test.
+  - Elements are found by role and accessible name.
+- **End-to-end tests:** Playwright, in a real browser.
+  - It runs against a mocked API (every branch, fast) and against the full stack (real API + Postgres).
+  - For the full stack the test signs a session with the test secret; there is no auth bypass in production code.
+  - Covers navigation chains (back → next → back → back), deep links, refresh, keyboard, accessibility (axe), and mobile + desktop.
+- **Coverage gate:** 90% lines/statements and 85% branches/functions on the web. The same bar applies to the API through Kover (AOS-312).
+- **The period and filters live in the URL** (e.g. `/?month=2026-10`, `/transactions?category=food`), so back/forward, refresh and sharing work.
+  - Moving to another period adds a history entry; typing in search replaces the current one.
+- **Design direction:** minimal and calm, easy to scroll and analyse (Pragun). The research is in the AOS-302 design spec.
