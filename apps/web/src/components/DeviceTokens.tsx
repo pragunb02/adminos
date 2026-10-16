@@ -104,7 +104,7 @@ export default function DeviceTokens() {
       {error && <p role="alert" className="text-sm text-red-600 mb-2">{error}</p>}
 
       {active.length === 0 ? (
-        <p className="text-sm text-gray-400">No devices connected.</p>
+        <p className="text-sm text-gray-500">No devices connected.</p>
       ) : (
         <ul className="divide-y divide-gray-100">
           {active.map((t) => (

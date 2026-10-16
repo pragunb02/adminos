@@ -66,7 +66,7 @@ export default function SubscriptionsPage() {
             <div className="text-right text-sm text-gray-500 space-y-0.5">
               <p>{summary.activeCount} active</p>
               {summary.flaggedCount > 0 && (
-                <p className="text-orange-600 font-medium">{summary.flaggedCount} flagged</p>
+                <p className="text-orange-700 font-medium">{summary.flaggedCount} flagged</p>
               )}
             </div>
           </div>
@@ -79,11 +79,11 @@ export default function SubscriptionsPage() {
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                tab === t.key ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-700"
+                tab === t.key ? "bg-white text-gray-900 shadow-xs" : "text-gray-600 hover:text-gray-800"
               }`}
             >
               {t.label}
-              {t.count != null && <span className="ml-1 text-xs text-gray-400">({t.count})</span>}
+              {t.count != null && <span className="ml-1 text-xs text-gray-600">({t.count})</span>}
             </button>
           ))}
         </div>
@@ -105,7 +105,7 @@ export default function SubscriptionsPage() {
                       <p className="font-medium text-gray-900">{sub.name}</p>
                       <StatusBadge status={sub.status} />
                       {sub.priceChanged && (
-                        <span className="text-xs text-orange-600">
+                        <span className="text-xs text-orange-700">
                           {sub.priceChangePct == null
                             ? "price changed"
                             : `${sub.priceChangePct > 0 ? "↑" : "↓"}${Math.abs(sub.priceChangePct).toFixed(0)}%`}
@@ -117,7 +117,7 @@ export default function SubscriptionsPage() {
                       {sub.nextBillingDate && ` · Next: ${sub.nextBillingDate}`}
                     </p>
                     {sub.isFlagged && sub.flaggedReason && (
-                      <p className="text-xs text-orange-600 mt-1">{sub.flaggedReason}</p>
+                      <p className="text-xs text-orange-700 mt-1">{sub.flaggedReason}</p>
                     )}
                   </div>
                   <p className="font-semibold text-gray-900 whitespace-nowrap">

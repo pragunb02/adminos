@@ -31,7 +31,7 @@ describe("Transactions feed", () => {
     expect(swiggy).toHaveTextContent("⚠️");
     expect(swiggy).toHaveTextContent("🔄");
     expect(screen.getByText("-₹349")).toBeInTheDocument();
-    expect(screen.getByText("+₹1,00,000")).toHaveClass("text-green-600");
+    expect(screen.getByText("+₹1,00,000")).toHaveClass("text-green-700");
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(screen.getByText("••1234")).toBeInTheDocument();
   });

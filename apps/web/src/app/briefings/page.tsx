@@ -75,7 +75,7 @@ export default function BriefingsPage() {
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900">Latest Briefing</h3>
-              <span className="text-xs text-gray-400">{formatPeriod(latest.periodStart, latest.periodEnd)}</span>
+              <span className="text-xs text-gray-500">{formatPeriod(latest.periodStart, latest.periodEnd)}</span>
             </div>
 
             {/* Stats row */}
@@ -89,7 +89,7 @@ export default function BriefingsPage() {
               {latest.totalIncome != null && (
                 <div>
                   <span className="text-gray-500">Income: </span>
-                  <span className="font-medium text-green-600">₹{latest.totalIncome.toLocaleString("en-IN")}</span>
+                  <span className="font-medium text-green-700">₹{latest.totalIncome.toLocaleString("en-IN")}</span>
                 </div>
               )}
             </div>
