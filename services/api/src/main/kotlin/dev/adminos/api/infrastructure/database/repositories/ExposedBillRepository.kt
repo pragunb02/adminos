@@ -56,10 +56,13 @@ class ExposedBillRepository : BillRepository {
         to?.let { t -> query.andWhere { BillsTable.dueDate lessEq t } }
         cursor?.let { c ->
             val (key, _) = CursorCodec.decode(c)
-            val cursorDate = LocalDate.parse(key)
-            query.andWhere { BillsTable.dueDate greater cursorDate }
+            val (cursorDate, cursorId) = dev.adminos.api.domain.financial.parseBillCursor(key)
+            query.andWhere {
+                if (cursorId == null) BillsTable.dueDate greater cursorDate
+                else (BillsTable.dueDate greater cursorDate) or ((BillsTable.dueDate eq cursorDate) and (BillsTable.id greater cursorId))
+            }
         }
-        query.orderBy(BillsTable.dueDate, SortOrder.ASC)
+        query.orderBy(BillsTable.dueDate to SortOrder.ASC, BillsTable.id to SortOrder.ASC)
             .limit(limit)
             .map { it.toBill() }
     }

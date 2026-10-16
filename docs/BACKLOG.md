@@ -73,7 +73,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-207](tickets/AOS-207.md) | Cross-source dedup: reference → score bands → merge/suggest, review API (D-38) | Claude | ✅ | 3h | 3.5h |
 | └ [AOS-208](tickets/AOS-208.md) | Own-account transfers + card bill payments; transaction nature (D-39) | Claude | ✅ | 3h | 2h |
 | └ [AOS-209](tickets/AOS-209.md) | Refund/reversal linking; refunds net category spend (D-40) | Claude | ✅ | 2h | 2h |
-| └ [AOS-612](tickets/AOS-612.md) | Bills and dashboard correctness (paging, refunds, ₹0, user timezone) | Claude | ⬜ | 1.5h |  |
+| └ [AOS-612](tickets/AOS-612.md) | Bills and dashboard correctness (paging, refunds, ₹0, user timezone) | Claude | ✅ | 1.5h | 1h |
 | └ [AOS-613](tickets/AOS-613.md) | Notifications and Gmail connect correctness | Claude | ⬜ | 1.5h |  |
 | └ [AOS-210](tickets/AOS-210.md) | Single categorizer with remembered corrections (D-41) | Claude | ✅ | 4h | 2h |
 

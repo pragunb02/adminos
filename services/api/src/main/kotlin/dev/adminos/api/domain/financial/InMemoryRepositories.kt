@@ -224,10 +224,10 @@ class InMemoryBillRepository(private val clock: java.time.Clock = java.time.Cloc
         status?.let { s -> results = results.filter { it.status == s } }
         from?.let { f -> results = results.filter { it.dueDate >= f } }
         to?.let { t -> results = results.filter { it.dueDate <= t } }
-        results = results.sortedBy { it.dueDate }
+        results = results.sortedWith(compareBy<Bill>({ it.dueDate }, { it.id }))
         cursor?.let { c ->
-            val cursorDate = LocalDate.parse(CursorCodec.key(c))
-            results = results.filter { it.dueDate > cursorDate }
+            val (cursorDate, cursorId) = parseBillCursor(CursorCodec.key(c))
+            results = results.filter { it.dueDate > cursorDate || (cursorId != null && it.dueDate == cursorDate && it.id > cursorId) }
         }
         return results.take(limit)
     }

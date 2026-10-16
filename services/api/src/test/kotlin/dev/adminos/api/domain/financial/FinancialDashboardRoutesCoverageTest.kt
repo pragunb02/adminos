@@ -222,8 +222,6 @@ class FinancialDashboardRoutesCoverageTest {
         assertEquals(HttpStatusCode.Unauthorized, status)
         assertEquals("AUTH_002", body.errorCode())
     }
-
-    @Disabled("BUG AOS-312: DashboardRoutes greets by Asia/Kolkata hour, not the signed-in user's timezone (AOS-120)")
     @Test
     fun `greeting follows the user's own timezone`() {
         val nyUser = newUser(timezone = "America/New_York")
@@ -233,8 +231,6 @@ class FinancialDashboardRoutesCoverageTest {
             assertEquals("Good morning", homeOf(tokenFor(nyUser)).str("greeting"))
         }
     }
-
-    @Disabled("BUG AOS-312: DashboardRoutes counts days to a bill's due date in the server clock's zone, not the user's timezone")
     @Test
     fun `a bill due today in India says due today even when the server runs on UTC`() {
         // 01:30 on 17 Oct in India is still 16 Oct on a UTC server.

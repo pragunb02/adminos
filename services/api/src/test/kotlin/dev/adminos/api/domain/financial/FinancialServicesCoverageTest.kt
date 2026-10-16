@@ -46,8 +46,6 @@ class FinancialServicesCoverageTest {
         assertEquals(BillStatus.PAID, paid.status)
         assertEquals(0, BigDecimal("1800.00").compareTo(paid.paidAmount))
     }
-
-    @Disabled("BUG AOS-312: BillTrackingService.kt:24 matchPayment ignores the transaction's direction, so a ₹599 refund credited by Airtel marks the ₹599 Airtel bill paid")
     @Test
     fun `money credited by the biller does not mark the bill paid`() = runBlocking<Unit> {
         val bill = bills.save(Bill(userId = userId, billerName = "Airtel", amount = BigDecimal("599.00"), dueDate = today.plusDays(2)))
@@ -103,8 +101,6 @@ class FinancialServicesCoverageTest {
         assertTrue(BillTrackingService.isAmountWithinTolerance(BigDecimal.ZERO, BigDecimal.ZERO, 0.05))
         assertFalse(BillTrackingService.isAmountWithinTolerance(BigDecimal.ZERO, BigDecimal("10.00"), 0.05))
     }
-
-    @Disabled("BUG AOS-312: BillTrackingService.kt:139 compares with BigDecimal.ZERO by equals(), so a ₹0.00 bill (scale 2) divides by zero and never matches a ₹0.00 payment")
     @Test
     fun `a zero bill written with paise matches a zero payment`() {
         assertTrue(BillTrackingService.isAmountWithinTolerance(BigDecimal("0.00"), BigDecimal("0.00"), 0.05))

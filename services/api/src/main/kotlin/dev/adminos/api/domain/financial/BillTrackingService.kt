@@ -22,6 +22,8 @@ class BillTrackingService(
      * Uses fuzzy name matching (>0.8 similarity) and amount within 5% tolerance.
      */
     suspend fun matchPayment(transaction: Transaction): Bill? {
+        // Only money going out pays a bill: a refund or income from the same biller must not (AOS-612).
+        if (transaction.nature != TransactionNature.SPEND) return null
         val merchantName = transaction.merchantName ?: return null
         val pendingBills = billRepository.findPendingBills(transaction.userId)
 
@@ -135,10 +137,10 @@ class BillTrackingService(
             return jaro + prefix * 0.1 * (1 - jaro)
         }
 
+        /** |expected − actual| ≤ tolerance × |expected|, exactly (AOS-612: ₹0.00 used to divide by zero). */
         fun isAmountWithinTolerance(expected: BigDecimal, actual: BigDecimal, tolerance: Double): Boolean {
-            if (expected == BigDecimal.ZERO) return actual == BigDecimal.ZERO
-            val diff = abs(expected.subtract(actual).toDouble())
-            return diff / expected.toDouble() <= tolerance
+            if (expected.signum() == 0) return actual.signum() == 0
+            return expected.subtract(actual).abs() <= expected.abs().multiply(BigDecimal.valueOf(tolerance))
         }
     }
 }
