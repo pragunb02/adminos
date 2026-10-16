@@ -67,8 +67,8 @@ Pragun asked for it to be **minimal, calm, easy to scroll, and good for analysis
 
 ```
 /                         ?p=month|week|today  &d=2026-10-16
-/spending                 ?m=2026-10  &view=categories|merchants|trends  &cat=food
-/spending/category/food   ?m=2026-10
+/spending                 ?p=…&d=…  &view=categories|merchants|trends   (same period params as Home, AOS-305)
+/spending/category/food   ?p=…&d=…
 /transactions             ?q=swiggy&cat=food&type=spend|income|refund|transfer&from=2026-10-01&to=2026-10-31
 /review                   ?kind=duplicate|transfer|refund|reversal
 ```

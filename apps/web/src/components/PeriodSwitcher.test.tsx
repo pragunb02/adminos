@@ -36,4 +36,12 @@ describe("PeriodSwitcher (URL state, D-47)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Day" }));
     expect(nav.router.push).toHaveBeenLastCalledWith("/?p=today&d=2026-10-16", { scroll: false });
   });
+
+  it("keeps the other URL parameters (e.g. the view)", async () => {
+    nav.pathname = "/spending";
+    nav.search = new URLSearchParams("view=merchants");
+    render(<PeriodSwitcher period={{ kind: "month", anchor: today }} today={today} />);
+    await userEvent.click(screen.getByRole("button", { name: "Previous period" }));
+    expect(nav.router.push).toHaveBeenCalledWith("/spending?view=merchants&p=month&d=2026-09-01", { scroll: false });
+  });
 });

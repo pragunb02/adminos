@@ -111,4 +111,14 @@ class AnalyticsServiceTest {
         val tooMany = assertFailsWith<IllegalArgumentException> { service.series(user, DateRange(LocalDate.of(2025, 1, 1), LocalDate.of(2026, 3, 1)), Bucket.DAY, IST) }
         assertTrue(tooMany.message!!.startsWith("bucket"))
     }
+
+    @Test
+    fun `a category filter narrows the series and merchants to that category (AOS-305)`() = runBlocking<Unit> {
+        val shopping = service.series(user, october, Bucket.MONTH, IST, TransactionCategory.SHOPPING).single()
+        eq("699.00", shopping.money.spent, "999 − 300 refund")
+        eq("0", shopping.money.received, "income isn't part of a category")
+        val food = service.merchants(user, october, IST, 10, TransactionCategory.FOOD)
+        assertEquals(listOf("Swiggy", "Unknown"), food.map { it.merchant })
+        assertTrue(service.merchants(user, october, IST, 10, TransactionCategory.HEALTH).isEmpty())
+    }
 }

@@ -23,7 +23,7 @@
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-305 | Categories and top merchants views | Claude | ⬜ | 3h |  |
+| [AOS-305](AOS-305.md) | Spending: categories, merchants, category detail | Claude | ✅ | 3h | 1.5h |
 | AOS-306 | Trend charts | Claude | ⬜ | 2h |  |
 
 _Task tickets are created as files when this story is picked up._

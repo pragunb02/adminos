@@ -67,11 +67,14 @@ class AnalyticsService(private val repository: AnalyticsRepository, private val 
         return Summary(range, money(now), now.filter { it.nature == TransactionNature.SPEND }.sumOf { it.count }, prev, money(before))
     }
 
-    suspend fun series(userId: UUID, range: DateRange, bucket: Bucket, zone: ZoneId): List<SeriesPoint> {
+    /** Per bucket; with [category], only that category's spending and refunds (AOS-305). */
+    suspend fun series(userId: UUID, range: DateRange, bucket: Bucket, zone: ZoneId, category: TransactionCategory? = null): List<SeriesPoint> {
         validate(range)
         val starts = generateSequence(bucketStart(range.from, bucket)) { next(it, bucket) }.takeWhile { !it.isAfter(range.to) }.toList()
         require(starts.size <= MAX_BUCKETS) { "bucket: ${starts.size} ${bucket.name.lowercase()}s is too many; use a larger bucket or a shorter range" }
-        val byBucket = repository.facts(userId, range.from, range.to, zone).groupBy { bucketStart(it.day, bucket) }
+        val byBucket = repository.facts(userId, range.from, range.to, zone)
+            .filter { category == null || (it.category == category && it.nature != TransactionNature.INCOME) }
+            .groupBy { bucketStart(it.day, bucket) }
         return starts.map { SeriesPoint(it, money(byBucket[it].orEmpty())) }
     }
 
@@ -90,10 +93,11 @@ class AnalyticsService(private val repository: AnalyticsRepository, private val 
         }.sortedByDescending { it.spent }
     }
 
-    suspend fun merchants(userId: UUID, range: DateRange, zone: ZoneId, limit: Int): List<MerchantSpend> {
+    /** Top merchants by spent; with [category], their spending in that category only (AOS-305). */
+    suspend fun merchants(userId: UUID, range: DateRange, zone: ZoneId, limit: Int, category: TransactionCategory? = null): List<MerchantSpend> {
         validate(range)
         return repository.facts(userId, range.from, range.to, zone)
-            .filter { it.nature != TransactionNature.INCOME }
+            .filter { it.nature != TransactionNature.INCOME && (category == null || it.category == category) }
             .groupBy { it.merchant?.takeIf(String::isNotBlank) ?: UNKNOWN_MERCHANT }
             .map { (merchant, f) ->
                 val spends = f.filter { it.nature == TransactionNature.SPEND }
