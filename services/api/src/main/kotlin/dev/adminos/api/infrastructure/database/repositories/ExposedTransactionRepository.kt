@@ -24,6 +24,7 @@ class ExposedTransactionRepository : TransactionRepository {
             it[sourceType] = txn.sourceType
             it[sourceRef] = txn.sourceRef
             it[type] = txn.type.name.lowercase()
+            it[nature] = txn.nature.name.lowercase()
             it[amount] = txn.amount
             it[currency] = txn.currency
             it[merchantName] = txn.merchantName
@@ -147,6 +148,7 @@ class ExposedTransactionRepository : TransactionRepository {
         val now = Instant.now()
         TransactionsTable.update({ TransactionsTable.id eq txn.id }) {
             it[type] = txn.type.name.lowercase()
+            it[nature] = txn.nature.name.lowercase()
             it[amount] = txn.amount
             it[merchantName] = txn.merchantName
             it[merchantRaw] = txn.merchantRaw
@@ -174,7 +176,7 @@ class ExposedTransactionRepository : TransactionRepository {
         dbQuery {
             TransactionsTable.selectAll().where {
                 (TransactionsTable.userId eq userId) and
-                    (TransactionsTable.type eq TransactionType.DEBIT.name.lowercase()) and
+                    (TransactionsTable.nature eq TransactionNature.SPEND.name.lowercase()) and
                     (TransactionsTable.transactedAt greaterEq since)
             }.orderBy(TransactionsTable.transactedAt, SortOrder.ASC)
                 .map { it.toTransaction() }
@@ -187,7 +189,7 @@ class ExposedTransactionRepository : TransactionRepository {
         TransactionsTable.select(TransactionsTable.category, total)
             .where {
                 (TransactionsTable.userId eq userId) and
-                    (TransactionsTable.type eq TransactionType.DEBIT.name.lowercase()) and
+                    (TransactionsTable.nature eq TransactionNature.SPEND.name.lowercase()) and
                     (TransactionsTable.transactedAt greaterEq from) and
                     (TransactionsTable.transactedAt lessEq to)
             }
@@ -205,7 +207,7 @@ class ExposedTransactionRepository : TransactionRepository {
         val cat = try { TransactionCategory.valueOf(category.uppercase()).name.lowercase() } catch (_: Exception) { null }
         val query = TransactionsTable.selectAll().where {
             (TransactionsTable.userId eq userId) and
-                (TransactionsTable.type eq TransactionType.DEBIT.name.lowercase()) and
+                (TransactionsTable.nature eq TransactionNature.SPEND.name.lowercase()) and
                 (TransactionsTable.transactedAt greaterEq since)
         }
         cat?.let { c -> query.andWhere { TransactionsTable.category eq c } }
@@ -234,6 +236,7 @@ class ExposedTransactionRepository : TransactionRepository {
         sourceType = this[TransactionsTable.sourceType],
         sourceRef = this[TransactionsTable.sourceRef],
         type = TransactionType.valueOf(this[TransactionsTable.type].uppercase()),
+        nature = TransactionNature.valueOf(this[TransactionsTable.nature].uppercase()),
         amount = this[TransactionsTable.amount],
         currency = this[TransactionsTable.currency],
         merchantName = this[TransactionsTable.merchantName],

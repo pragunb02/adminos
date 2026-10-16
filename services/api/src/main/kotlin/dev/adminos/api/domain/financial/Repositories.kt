@@ -39,8 +39,10 @@ interface TransactionRepository {
 
     suspend fun update(transaction: Transaction): Transaction
 
+    /** Spending (nature = SPEND) since [since]: excludes transfers, refunds and reversals (D-39). */
     suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction>
 
+    /** Spending (nature = SPEND) per category; transfers and reversals don't count (D-39). */
     suspend fun spendingByCategory(
         userId: UUID,
         from: Instant,

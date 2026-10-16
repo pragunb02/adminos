@@ -16,6 +16,7 @@ object TransactionsTable : Table("transactions") {
     val sourceType = varchar("source_type", 30)
     val sourceRef = varchar("source_ref", 255).nullable()
     val type = varchar("type", 20)
+    val nature = varchar("nature", 20)
     val amount = decimal("amount", 12, 2)
     val currency = varchar("currency", 3).default("INR")
     val merchantName = varchar("merchant_name", 255).nullable()

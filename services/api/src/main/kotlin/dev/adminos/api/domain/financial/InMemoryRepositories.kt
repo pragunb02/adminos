@@ -78,14 +78,14 @@ class InMemoryTransactionRepository : TransactionRepository {
 
     override suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction> =
         store.values.filter {
-            it.userId == userId && it.type == TransactionType.DEBIT && it.transactedAt >= since
+            it.userId == userId && it.nature == TransactionNature.SPEND && it.transactedAt >= since
         }.sortedBy { it.transactedAt }
 
     override suspend fun spendingByCategory(
         userId: UUID, from: Instant, to: Instant
     ): Map<TransactionCategory, BigDecimal> =
         store.values
-            .filter { it.userId == userId && it.type == TransactionType.DEBIT && it.transactedAt in from..to }
+            .filter { it.userId == userId && it.nature == TransactionNature.SPEND && it.transactedAt in from..to }
             .groupBy { it.category }
             .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount } }
 
@@ -96,7 +96,7 @@ class InMemoryTransactionRepository : TransactionRepository {
         val cat = try { TransactionCategory.valueOf(category.uppercase()) } catch (_: Exception) { null }
         val txns = store.values.filter {
             it.userId == userId &&
-                it.type == TransactionType.DEBIT &&
+                it.nature == TransactionNature.SPEND &&
                 it.transactedAt >= since &&
                 (cat == null || it.category == cat)
         }

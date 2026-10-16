@@ -43,6 +43,7 @@
 | D-36 | Architecture | Device tokens: scoped JWT (typ=device) + revocable row; token types never interchangeable | Accepted | AOS-203 |
 | D-37 | Architecture | Statements parsed by the Python service; files and passwords discarded after parsing | Accepted | AOS-202 |
 | D-38 | Product | Cross-source dedup: reference first, then score with auto/suggest/separate bands; links, never overwrite | Accepted | AOS-207, AOS-307 |
+| D-39 | Product | Transaction nature (spend/income/transfer/refund/reversal) drives all totals; card bill payments auto = transfer | Accepted | AOS-208, AOS-209, AOS-301 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -392,3 +393,15 @@ Proposed
 - **Merges are links** (`transaction_links`): source rows stay immutable, blanks are filled but values never overwritten, and user rejections are remembered.
 - **Why:** this combines GnuCash's scoring bands, Actual Budget's id-first, 1:1 and fill-blanks approach, YNAB's windows and occurrence ids, and beangulp/Plaid's cautions on amount drift.
 - Thresholds are versioned (`dedup-v1`) and will be tuned on real data.
+
+### D-39 — Transaction nature drives the totals
+2026-10-16 · Accepted by Pragun · Type: Product · Tasks: AOS-208, AOS-209, AOS-301
+- Every transaction has a `nature`:
+  - **spend** and **income** count normally;
+  - **transfer** (between your own accounts, incl. paying your own card bill) counts as neither;
+  - **refund** reduces the original's spending rather than counting as income;
+  - **reversal** pairs net to zero.
+- Direction (debit/credit) stays as-is; nature is separate.
+- **Card bill payments are auto-marked as transfers** by high-precision narration patterns. Otherwise card spending counts twice.
+- Relations are links with `relation` + state (merged / suggested / rejected), using the same auto/suggest bands as D-38, one review API.
+- A category the user set is never overwritten.

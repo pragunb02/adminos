@@ -22,7 +22,7 @@ import dev.adminos.api.domain.ingestion.pipeline.*
 import dev.adminos.api.domain.financial.links.InMemoryTransactionLinkRepository
 import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.links.TransactionMatcher
-import dev.adminos.api.domain.financial.links.DuplicateService
+import dev.adminos.api.domain.financial.links.SuggestionService
 import dev.adminos.api.infrastructure.database.repositories.ExposedTransactionLinkRepository
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.domain.ingestion.statements.StatementImportService
@@ -119,13 +119,15 @@ val appModule = module {
     // Ingest pipeline (D-34): pending intake events → transactions
     single { MerchantNormalizer() }
     single { TransactionMatcher() }
+    single { dev.adminos.api.domain.financial.links.TransferDetector() }
     single {
-        if (useDatabase) DuplicateService(get(), get()) { work -> dbQuery { work() } } else DuplicateService(get(), get())
+        if (useDatabase) SuggestionService(get(), get()) { work -> dbQuery { work() } } else SuggestionService(get(), get())
     }
     single<MatchCandidateSource> { RepositoryMatchCandidates(get(), get()) }
     single {
         IngestPipeline(listOf(
-            ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get())
+            ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
+            TransferStep(get(), get())
         ))
     }
     single<IngestOutcomeWriter> {

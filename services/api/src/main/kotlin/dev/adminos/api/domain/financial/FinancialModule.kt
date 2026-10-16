@@ -4,7 +4,7 @@ import dev.adminos.api.domain.agent.AnomalyRepository
 import dev.adminos.api.domain.agent.BriefingRepository
 import dev.adminos.api.domain.agent.InsightRepository
 import dev.adminos.api.domain.audit.AuditService
-import dev.adminos.api.domain.financial.links.duplicateRoutes
+import dev.adminos.api.domain.financial.links.suggestionRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
@@ -23,12 +23,12 @@ fun Application.financialModule() {
     val anomalyRepository: AnomalyRepository by inject()
     val briefingRepository: BriefingRepository by inject()
     val insightRepository: InsightRepository by inject()
-    val duplicateService: dev.adminos.api.domain.financial.links.DuplicateService by inject()
+    val suggestionService: dev.adminos.api.domain.financial.links.SuggestionService by inject()
 
     routing {
         route("/api/v1") {
             transactionRoutes(transactionRepository, categorizationService, auditService)
-            duplicateRoutes(duplicateService)
+            suggestionRoutes(suggestionService)
             accountRoutes(accountDiscoveryService)
             subscriptionRoutes(subscriptionRepository)
             billRoutes(billTrackingService)

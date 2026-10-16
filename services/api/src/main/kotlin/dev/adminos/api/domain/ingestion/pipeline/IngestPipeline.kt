@@ -6,8 +6,26 @@ import dev.adminos.api.domain.ingestion.events.IngestEvent
 /** A possible duplicate to show the user: [target] may be the same payment as the new transaction. */
 data class MatchSuggestion(val target: Transaction, val score: Int, val reason: String)
 
-/** State flowing through the steps: the event, the transaction being built, and any duplicate suggestion. */
-data class PipelineContext(val event: IngestEvent, val transaction: Transaction? = null, val suggestion: MatchSuggestion? = null) {
+/**
+ * A relation the new transaction has with an existing one (transfer, refund, reversal), applied by the
+ * writer in the same unit of work: [updatedExisting] is saved, and a link is recorded.
+ */
+data class Relation(
+    val relation: dev.adminos.api.domain.financial.links.LinkRelation,
+    val existing: Transaction,
+    val updatedExisting: Transaction?,
+    val applied: Boolean,
+    val score: Int,
+    val reason: String
+)
+
+/** State flowing through the steps: the event, the transaction being built, a duplicate suggestion, and relations. */
+data class PipelineContext(
+    val event: IngestEvent,
+    val transaction: Transaction? = null,
+    val suggestion: MatchSuggestion? = null,
+    val relations: List<Relation> = emptyList()
+) {
     /** The transaction under construction; steps after [ToTransactionStep] can rely on it. */
     val txn: Transaction get() = checkNotNull(transaction) { "ToTransactionStep must run first" }
 }
@@ -29,7 +47,7 @@ fun interface IngestStep {
 }
 
 sealed interface PipelineOutcome {
-    data class Created(val transaction: Transaction, val suggestion: MatchSuggestion? = null) : PipelineOutcome
+    data class Created(val transaction: Transaction, val suggestion: MatchSuggestion? = null, val relations: List<Relation> = emptyList()) : PipelineOutcome
     data class Merged(val target: Transaction, val score: Int, val reason: String) : PipelineOutcome
     data class Ignored(val reason: String) : PipelineOutcome
 }
@@ -49,7 +67,7 @@ class IngestPipeline(private val steps: List<IngestStep>) {
                 is StepResult.Merge -> return PipelineOutcome.Merged(enrich(result.target, context.txn), result.score, result.reason)
             }
         }
-        return PipelineOutcome.Created(context.txn, context.suggestion)
+        return PipelineOutcome.Created(context.txn, context.suggestion, context.relations)
     }
 }
 

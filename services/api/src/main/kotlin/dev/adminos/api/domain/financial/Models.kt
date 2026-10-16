@@ -14,6 +14,19 @@ enum class TransactionCategory {
     FOOD, TRANSPORT, SHOPPING, UTILITIES, EMI, SUBSCRIPTION,
     ENTERTAINMENT, HEALTH, EDUCATION, TRANSFER, OTHER
 }
+/** What a transaction is for the totals (D-39), independent of debit/credit. */
+enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL;
+    companion object {
+        fun defaultFor(type: TransactionType) = when (type) {
+            TransactionType.CREDIT -> INCOME
+            TransactionType.TRANSFER -> TRANSFER
+            TransactionType.REFUND -> REFUND
+            TransactionType.REVERSAL -> REVERSAL
+            TransactionType.DEBIT -> SPEND
+        }
+    }
+}
+
 enum class TransactionStatus { COMPLETED, PENDING, FAILED, REVERSED }
 enum class AccountType { SAVINGS, CURRENT, CREDIT_CARD, WALLET, UPI }
 enum class BillingCycle { DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY }
@@ -37,6 +50,7 @@ data class Transaction(
     val type: TransactionType,
     val amount: BigDecimal,
     val currency: String = "INR",
+    val nature: TransactionNature = TransactionNature.defaultFor(type),
     val merchantName: String? = null,
     val merchantRaw: String? = null,
     val merchantCategory: String? = null,
