@@ -84,6 +84,23 @@ class FinancialRoutesContractTest {
     }
 
     @Test
+    fun `date-only bounds follow the user's own timezone (AOS-120)`() = contractTest {
+        val ny = ZoneId.of("America/New_York")
+        val nyJwt = jwtService.generateAccessToken(user.copy(timezone = "America/New_York"))
+        val d = LocalDate.of(2026, 10, 1)
+        fun at(day: LocalDate, h: Int) = Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("10.00"),
+            merchantName = "Deli", transactedAt = day.atTime(h, 0).atZone(ny).toInstant())
+        // India's Oct 1 is Sep 30 14:30 → Oct 1 14:30 in New York, so the two windows pick different rows.
+        val (sep30Afternoon, oct1Morning, oct1Evening) = runBlocking {
+            listOf(at(d.minusDays(1), 15), at(d, 10), at(d, 20)).map { transactions.save(it) }
+        }
+        val res = client.get("/api/v1/transactions?from=2026-10-01&to=2026-10-01&merchant=deli&limit=50") { cookie(ACCESS_TOKEN_COOKIE, nyJwt) }
+        val ids = Json.parseToJsonElement(res.bodyAsText()).jsonObject.ids().toSet()
+        assertEquals(setOf(oct1Morning.id.toString(), oct1Evening.id.toString()), ids)
+        assertTrue(sep30Afternoon.id.toString() !in ids)
+    }
+
+    @Test
     fun `merchant and isRecurring filters are honoured`() = contractTest {
         runBlocking {
             transactions.save(txn(LocalDate.now(), 10, merchant = "Netflix", recurring = true))

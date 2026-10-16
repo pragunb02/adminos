@@ -49,6 +49,7 @@
 | D-42 | Business logic | ATM/cash withdrawals are transfers to cash; only cash logged by hand counts as spending | Accepted | AOS-204 |
 | D-43 | Business logic | Email direction: account-anchored phrase wins, else one word family; unclear → needs-review, never guessed. Gmail writes ingest events, not transactions | Accepted | AOS-205, AOS-401 |
 | D-44 | Architecture | One merchant catalogue as data (JSON), validated on load, shared by normalizer and categorizer; narration cleaning before title-case | Accepted | AOS-206 |
+| D-45 | Architecture | Console plan: one analytics API (spent = spend − refunds, received = income, transfers excluded) in the user's timezone; Recharts; TanStack Query; review screen AOS-309 | Accepted | AOS-120, AOS-301…309 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -467,3 +468,18 @@ Proposed
   - the narration is checked first, then the UPI handle.
 - **Unknown payees:** the name is pulled out of the narration structure (UPI/POS/gateway formats; references, IFSC codes, bank codes and channel words trimmed from the ends), then title-cased. If nothing is left, the UPI handle becomes the name.
 - **Why:** consistent names are what the console groups by, and what remembered rules match on (D-41).
+
+### D-45 — How the console is built
+2026-10-16 · Accepted by Pragun ("yes yes"; chose Recharts, TanStack Query, add AOS-309) · Type: Architecture · Tasks: AOS-120, AOS-301…309
+- **One analytics API** (AOS-301) defines the console's numbers, aggregated in SQL:
+  - spent = spend − refunds;
+  - received = income;
+  - transfers and reversals count as neither (D-39).
+  - Endpoints: summary with the previous period; a day/week/month series, zero-filled; categories; top merchants.
+  - Amounts are exact decimal strings (D-30).
+- **Days, weeks and months follow the user's timezone** (AOS-120). It travels in the access token (`tz` claim), so there is no lookup per request; a change applies at the next refresh (≤1h).
+- **Web:**
+  - Recharts for charts: SVG, React-first, covers bar/line/area/pie;
+  - TanStack Query for data loading: cache, refetch, pagination, mutations with invalidation. It replaces per-page setState-in-effect (AOS-308).
+- **AOS-309 added:** a review screen for suggested duplicates/transfers/refunds. Otherwise suggestions sit unseen and totals stay slightly off.
+- **Order (one PR each):** AOS-120 → 301 → 302/308 → 303/304 → 305/306 → 307 → 309.

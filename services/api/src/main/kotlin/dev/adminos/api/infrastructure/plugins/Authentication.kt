@@ -19,7 +19,9 @@ import java.util.UUID
 data class UserPrincipal(
     val userId: UUID,
     val email: String,
-    val role: String
+    val role: String,
+    /** Day boundaries for this user (AOS-120): their stored timezone, or [DEFAULT_ZONE] for older tokens. */
+    val zone: java.time.ZoneId = DEFAULT_ZONE
 ) : Principal
 
 /** HttpOnly cookie the web app receives at login (see AuthRoutes). */
@@ -48,7 +50,8 @@ fun Application.configureAuthentication(jwtService: JwtService) {
                     UserPrincipal(
                         userId = claims.userId,
                         email = claims.email,
-                        role = claims.role
+                        role = claims.role,
+                        zone = claims.timezone?.let { java.time.ZoneId.of(it) } ?: DEFAULT_ZONE
                     )
                 } else {
                     null

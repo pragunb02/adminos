@@ -3,6 +3,7 @@ package dev.adminos.api.infrastructure.plugins
 import dev.adminos.api.domain.common.ApiError
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -15,8 +16,12 @@ import java.util.UUID
  * Names are camelCase like the JSON contract (D-31).
  */
 
-/** Date-only values are whole days in this zone until per-user timezones land (AOS-120). */
+/** The zone for users without a stored timezone, and for access tokens issued before AOS-120. */
 val DEFAULT_ZONE: ZoneId = ZoneId.of("Asia/Kolkata")
+
+/** The signed-in user's timezone (AOS-120): date-only params are whole days here. */
+val ApplicationCall.userZone: ZoneId
+    get() = principal<UserPrincipal>()?.zone ?: DEFAULT_ZONE
 
 fun invalidParam(name: String, value: String, expected: String): Nothing =
     throw ApiException(HttpStatusCode.BadRequest, ApiError("VALIDATION_003", "Invalid '$name': '$value'. Expected $expected."))
@@ -39,22 +44,22 @@ fun ApplicationCall.limitParam(default: Int = 20, max: Int = 100): Int =
 
 /**
  * Start of a time range: an ISO instant (`2026-10-01T00:00:00Z`) or a date (`2026-10-01`, the start
- * of that day in [DEFAULT_ZONE]).
+ * of that day in the user's timezone, [userZone]).
  */
-fun ApplicationCall.rangeStartParam(name: String): Instant? = parameters[name]?.let { parseInstantOrDate(name, it, endOfDay = false) }
+fun ApplicationCall.rangeStartParam(name: String): Instant? = parameters[name]?.let { parseInstantOrDate(name, it, endOfDay = false, userZone) }
 
-/** End of a time range (inclusive): an ISO instant or a date (the end of that day in [DEFAULT_ZONE]). */
-fun ApplicationCall.rangeEndParam(name: String): Instant? = parameters[name]?.let { parseInstantOrDate(name, it, endOfDay = true) }
+/** End of a time range (inclusive): an ISO instant or a date (the end of that day in [userZone]). */
+fun ApplicationCall.rangeEndParam(name: String): Instant? = parameters[name]?.let { parseInstantOrDate(name, it, endOfDay = true, userZone) }
 
 fun ApplicationCall.dateParam(name: String): LocalDate? =
     parameters[name]?.let { raw ->
         try { LocalDate.parse(raw) } catch (_: DateTimeParseException) { invalidParam(name, raw, "a date like 2026-10-01") }
     }
 
-private fun parseInstantOrDate(name: String, raw: String, endOfDay: Boolean): Instant =
+private fun parseInstantOrDate(name: String, raw: String, endOfDay: Boolean, zone: ZoneId): Instant =
     runCatching { Instant.parse(raw) }.getOrNull()
         ?: runCatching { LocalDate.parse(raw) }.getOrNull()?.let { day ->
-            if (endOfDay) day.plusDays(1).atStartOfDay(DEFAULT_ZONE).toInstant().minusNanos(1)
-            else day.atStartOfDay(DEFAULT_ZONE).toInstant()
+            if (endOfDay) day.plusDays(1).atStartOfDay(zone).toInstant().minusNanos(1)
+            else day.atStartOfDay(zone).toInstant()
         }
         ?: invalidParam(name, raw, "a date (2026-10-01) or an ISO instant (2026-10-01T00:00:00Z)")
