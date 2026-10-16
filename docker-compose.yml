@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: adminos
       POSTGRES_USER: adminos
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
     volumes:
       - postgres_data:/var/lib/postgresql  # Postgres 18+ layout (PGDATA=/var/lib/postgresql/18/docker)
     healthcheck:
@@ -41,7 +41,7 @@ services:
     environment:
       DATABASE_URL: jdbc:postgresql://postgres:5432/adminos
       DB_USER: adminos
-      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -base64 48)}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -68,7 +68,9 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://adminos:${DB_PASSWORD:?set DB_PASSWORD in .env}@postgres:5432/adminos
+      # Password via the standard libpq/pgx variable, so no URL carries a credential.
+      DATABASE_URL: postgresql://adminos@postgres:5432/adminos
+      PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
@@ -87,7 +89,9 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://adminos:${DB_PASSWORD:?set DB_PASSWORD in .env}@postgres:5432/adminos
+      # Password via the standard libpq/pgx variable, so no URL carries a credential.
+      DATABASE_URL: postgresql://adminos@postgres:5432/adminos
+      PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
