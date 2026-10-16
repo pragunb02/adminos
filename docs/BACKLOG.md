@@ -50,19 +50,19 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S1.3](tickets/AOS-S1.3.md)** | **Whole stack runs with docker compose** | | ✅ | 1.25h | |
 | └ [AOS-110](tickets/AOS-110.md) | API Dockerfile (JDK 25, non-root, healthcheck); compose waits for API | Claude | ✅ | 1h | 0.75h |
 | └ [AOS-114](tickets/AOS-114.md) | Install Go locally (optional since AOS-118: Docker command in CLAUDE.md) | Pragun | ⬜ | 0.25h |  |
-| **[AOS-S1.4](tickets/AOS-S1.4.md)** | **Common intake endpoint** | | ⬜ | 3h | |
-| └ [AOS-113](tickets/AOS-113.md) | Common intake endpoint (normalized ingest event) | Claude | ⬜ | 3h |  |
+| **[AOS-S1.4](tickets/AOS-S1.4.md)** | **Common intake endpoint** | | ✅ | 3h | |
+| └ [AOS-113](tickets/AOS-113.md) | Common intake endpoint POST /ingest/events (V9 outbox, D-21/D-33) | Claude | ✅ | 3h | 1.5h |
 
 ## ⬜ [AOS-E2](tickets/AOS-E2.md) — Data in (no typing) · P0 · ETA 31h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S2.1](tickets/AOS-S2.1.md)** | **Reliable ingestion pipeline** | | ⬜ | 3h | |
-| └ AOS-201 | Fix the API → worker payload contract and add contract tests | Claude | ⬜ | 3h |  |
+| └ AOS-201 | Decide the ingest_events processor (Kotlin vs Go); /ingest/sms → adapter; fix the API → worker payload contract and add contract tests | Claude | ⬜ | 3h |  |
 | **[AOS-S2.2](tickets/AOS-S2.2.md)** | **Import bank statements** | | ⬜ | 6h | |
 | └ AOS-202 | Statement upload end to end (pdf-parser, CSV/Excel, dates, debit/credit) | Claude | ⬜ | 6h |  |
 | **[AOS-S2.3](tickets/AOS-S2.3.md)** | **iPhone SMS auto-capture** | | ⬜ | 5h | |
-| └ AOS-203 | iPhone Shortcuts SMS adapter + SMS parser + setup guide | Claude | ⬜ | 5h |  |
+| └ AOS-203 | iPhone Shortcuts SMS adapter (raw text parsed in memory, never stored, D-33) + SMS parser + setup guide | Claude | ⬜ | 5h |  |
 | **[AOS-S2.4](tickets/AOS-S2.4.md)** | **Cash quick-add** | | ⬜ | 2h | |
 | └ AOS-204 | Cash quick-add (API + two-tap UI) | Claude | ⬜ | 2h |  |
 | **[AOS-S2.5](tickets/AOS-S2.5.md)** | **Numbers I can trust** | | ⬜ | 15h | |

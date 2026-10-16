@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E1](AOS-E1.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ✅ Done |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 3h |
@@ -16,8 +16,8 @@
 **As** Pragun (owner, India, iPhone), **I want** every source to post one normalized event shape, **so that** new sources never touch the core (D-21).
 
 ## Acceptance criteria
-- [ ] Given a valid ingest event, when posted, then it is stored and queued for processing
-- [ ] The schema is documented and versioned
+- [x] Given a valid ingest event, when posted, then it is stored as pending (outbox) for processing (AOS-113)
+- [x] The schema is documented (AOS-113) and versioned (V9)
 
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
@@ -30,4 +30,5 @@ _Task tickets are created as files when this story is picked up._
 `curl` an event and see it queued
 
 ## Activity log
+- 2026-10-16 — Claude: story done (AOS-113).
 - 2026-10-16 — Claude: story created (AOS-004).

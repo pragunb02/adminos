@@ -54,6 +54,8 @@ Layers 4 and 5 sit side by side under layer 3.
 - Parse query params only with `QueryParams` helpers (`enumParam`, `booleanParam`, `rangeStartParam`…). Bad input → 400 with allowed values.
 - Pagination cursors are opaque (`CursorCodec`). Never return or accept raw sort keys.
 - Money in new DTOs is exact (string or BigDecimal-backed), never `Double` (existing DTOs: AOS-301).
+- Undecodable request bodies are 400 `VALIDATION_004`. Domain models validate themselves in `init` (`require`), so invalid objects can't exist.
+- Raw message text (SMS/WhatsApp/email bodies) is never stored or logged (D-33).
 
 ## 2. Coding rules
 

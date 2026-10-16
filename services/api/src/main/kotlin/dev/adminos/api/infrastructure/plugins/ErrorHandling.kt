@@ -52,6 +52,14 @@ fun Application.configureErrorHandling() {
                 )
             )
         }
+        // Undecodable request bodies (bad JSON, wrong types such as a number where a string is
+        // required) are client errors, not 500s.
+        exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ApiResponse.error(ApiError("VALIDATION_004", "Malformed request body: ${rootMessage(cause)}"), call.requestId)
+            )
+        }
         // Auth challenges (missing/invalid JWT) carry no body by default; clients always get the envelope.
         status(HttpStatusCode.Unauthorized) { call, status ->
             call.respond(status, ApiResponse.error(ApiError.TOKEN_INVALID, call.requestId))
@@ -64,4 +72,11 @@ fun Application.configureErrorHandling() {
             )
         }
     }
+}
+
+/** Innermost message of an exception chain (the decoder's message names the bad field). */
+private fun rootMessage(t: Throwable): String {
+    var c: Throwable = t
+    while (c.cause != null && c.cause !== c) c = c.cause!!
+    return (c.message ?: "invalid").lineSequence().first().take(200)
 }

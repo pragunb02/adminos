@@ -60,3 +60,25 @@ object IngestionFingerprintsTable : Table("ingestion_fingerprints") {
     val createdAt = timestamp("created_at")
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Maps to db/migration/V9__create_ingest_events.sql (AOS-113). */
+object IngestEventsTable : Table("ingest_events") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val sourceType = varchar("source", 20) // "source" clashes with ColumnSet.source
+    val sourceRef = varchar("source_ref", 255)
+    val occurredAt = timestamp("occurred_at")
+    val direction = varchar("direction", 10)
+    val amount = decimal("amount", 14, 2)
+    val currency = varchar("currency", 3)
+    val merchantRaw = varchar("merchant_raw", 255).nullable()
+    val accountHint = varchar("account_hint", 4).nullable()
+    val paymentMethod = varchar("payment_method", 20).nullable()
+    val upiVpa = varchar("upi_vpa", 255).nullable()
+    val metadata = text("metadata").nullable() // JSONB via JsonColumns
+    val status = varchar("status", 20)
+    val error = text("error").nullable()
+    val receivedAt = timestamp("received_at")
+    val processedAt = timestamp("processed_at").nullable()
+    override val primaryKey = PrimaryKey(id)
+}
