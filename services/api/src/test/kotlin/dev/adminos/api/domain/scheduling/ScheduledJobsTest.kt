@@ -18,7 +18,7 @@ import dev.adminos.api.domain.notifications.InMemoryNotificationPreferencesRepos
 import dev.adminos.api.domain.notifications.InMemoryNotificationRepository
 import dev.adminos.api.domain.notifications.NotificationService
 import dev.adminos.api.domain.notifications.OnboardingNudgesJob
-import dev.adminos.api.domain.notifications.PushService
+import dev.adminos.api.domain.notifications.notificationService
 import dev.adminos.api.domain.notifications.ReminderEngine
 import kotlinx.coroutines.runBlocking
 import java.io.IOException
@@ -36,7 +36,7 @@ class ScheduledJobsTest {
     private val ist = ZoneId.of("Asia/Kolkata")
     private val prefs = InMemoryNotificationPreferencesRepository()
     private val notifications = InMemoryNotificationRepository()
-    private val sender = NotificationService(prefs, notifications, PushService(InMemoryDeviceRepository()))
+    private val sender = notificationService(prefs, notifications)
     private val users = InMemoryUserRepository()
 
     private suspend fun user(active: Boolean = true, deleted: Boolean = false, createdDaysAgo: Long = 0) = users.save(

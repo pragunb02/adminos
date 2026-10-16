@@ -8,7 +8,9 @@ data class AppConfig(
     val security: SecurityConfig,
     val statementParser: StatementParserConfig,
     val google: GoogleConfig,
-    val scheduler: SchedulerConfig = SchedulerConfig()
+    val scheduler: SchedulerConfig = SchedulerConfig(),
+    /** Email notifications (AOS-504); null = email is off. */
+    val smtp: SmtpConfig? = null
 ) {
     companion object {
         fun load(): AppConfig = AppConfig(
@@ -50,7 +52,8 @@ data class AppConfig(
                 gmailPubsubTopic = env("GOOGLE_GMAIL_PUBSUB_TOPIC", ""),
                 gmailPubsubSubscription = env("GOOGLE_GMAIL_PUBSUB_SUBSCRIPTION", "")
             ),
-            scheduler = SchedulerConfig.from(System::getenv)
+            scheduler = SchedulerConfig.from(System::getenv),
+            smtp = SmtpConfig.from(System::getenv)
         )
 
         private fun env(key: String, default: String): String =
@@ -161,6 +164,55 @@ data class SchedulerConfig(
                 }
             } ?: java.time.ZoneId.of("Asia/Kolkata")
             return SchedulerConfig(enabled, tick, zone)
+        }
+    }
+}
+
+enum class SmtpSecurity { STARTTLS, TLS, NONE }
+
+/**
+ * SMTP server for email notifications (AOS-504). Email is off unless `SMTP_HOST` is set; once it
+ * is, the rest must be valid or start-up stops — never a half-working mailer.
+ */
+data class SmtpConfig(
+    val host: String,
+    val port: Int,
+    val security: SmtpSecurity,
+    val username: String?,
+    val password: String?,
+    val from: jakarta.mail.internet.InternetAddress,
+    val timeout: java.time.Duration = java.time.Duration.ofSeconds(10)
+) {
+    init {
+        require(host.isNotBlank()) { "SMTP_HOST is blank" }
+        require(port in 1..65535) { "SMTP_PORT must be 1–65535, was $port" }
+        require((username == null) == (password == null)) { "Set both SMTP_USERNAME and SMTP_PASSWORD, or neither" }
+        require(!(security == SmtpSecurity.NONE && username != null)) {
+            "SMTP_SECURITY=none would send the SMTP password unencrypted; use starttls or tls"
+        }
+    }
+
+    /** Never print the password. */
+    override fun toString() = "SmtpConfig(host=$host, port=$port, security=$security, username=${username ?: "-"}, from=${from.address})"
+
+    companion object {
+        internal fun from(getenv: (String) -> String?): SmtpConfig? {
+            fun value(key: String) = getenv(key)?.trim()?.takeIf { it.isNotEmpty() }
+            val host = value("SMTP_HOST") ?: return null
+            val security = value("SMTP_SECURITY")?.let { raw ->
+                SmtpSecurity.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
+                    ?: throw IllegalArgumentException("SMTP_SECURITY must be starttls, tls or none, was '$raw'")
+            } ?: SmtpSecurity.STARTTLS
+            val port = value("SMTP_PORT")?.let { raw ->
+                raw.toIntOrNull() ?: throw IllegalArgumentException("SMTP_PORT must be a number, was '$raw'")
+            } ?: if (security == SmtpSecurity.TLS) 465 else 587
+            val from = value("SMTP_FROM") ?: throw IllegalArgumentException("SMTP_FROM is required when SMTP_HOST is set")
+            val address = try {
+                jakarta.mail.internet.InternetAddress(from, true)
+            } catch (e: jakarta.mail.internet.AddressException) {
+                throw IllegalArgumentException("SMTP_FROM is not a valid address: '$from'", e)
+            }
+            return SmtpConfig(host, port, security, value("SMTP_USERNAME"), value("SMTP_PASSWORD"), address)
         }
     }
 }

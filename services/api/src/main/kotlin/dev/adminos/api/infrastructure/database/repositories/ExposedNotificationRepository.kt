@@ -6,6 +6,9 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
 import dev.adminos.api.infrastructure.database.dbQuery
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
+import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 
 class ExposedNotificationRepository : NotificationRepository {
@@ -28,6 +31,9 @@ class ExposedNotificationRepository : NotificationRepository {
             it[deliveredAt] = notification.deliveredAt
             it[clickedAt] = notification.clickedAt
             it[createdAt] = notification.createdAt
+            it[deliverAfter] = notification.deliverAfter
+            it[attempts] = notification.attempts
+            it[lastError] = notification.lastError
         }
         notification
     }
@@ -59,6 +65,9 @@ class ExposedNotificationRepository : NotificationRepository {
             it[deliveredAt] = notification.deliveredAt
             it[clickedAt] = notification.clickedAt
             it[fcmMessageId] = notification.fcmMessageId
+            it[deliverAfter] = notification.deliverAfter
+            it[attempts] = notification.attempts
+            it[lastError] = notification.lastError
         }
         notification
     }
@@ -76,6 +85,20 @@ class ExposedNotificationRepository : NotificationRepository {
             .map { it.toNotification() }
     }
 
+    override suspend fun claimDue(now: Instant, lease: Duration, limit: Int): List<Notification> = dbQuery {
+        val t = NotificationsTable
+        // Rows locked by a concurrent claimer are skipped, so two callers never get the same notification.
+        val ids = t.select(t.id)
+            .where { (t.status eq NotificationStatus.PENDING.name.lowercase()) and (t.deliverAfter.isNull() or (t.deliverAfter lessEq now)) }
+            .orderBy(t.createdAt, SortOrder.ASC)
+            .limit(limit)
+            .forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
+            .map { it[t.id] }
+        if (ids.isEmpty()) return@dbQuery emptyList()
+        t.update({ t.id inList ids }) { it[deliverAfter] = now.plus(lease) }
+        t.selectAll().where { t.id inList ids }.orderBy(t.createdAt, SortOrder.ASC).map { it.toNotification() }
+    }
+
     private fun ResultRow.toNotification() = Notification(
         id = this[NotificationsTable.id],
         userId = this[NotificationsTable.userId],
@@ -90,6 +113,9 @@ class ExposedNotificationRepository : NotificationRepository {
         sentAt = this[NotificationsTable.sentAt],
         deliveredAt = this[NotificationsTable.deliveredAt],
         clickedAt = this[NotificationsTable.clickedAt],
-        createdAt = this[NotificationsTable.createdAt]
+        createdAt = this[NotificationsTable.createdAt],
+        deliverAfter = this[NotificationsTable.deliverAfter],
+        attempts = this[NotificationsTable.attempts],
+        lastError = this[NotificationsTable.lastError]
     )
 }

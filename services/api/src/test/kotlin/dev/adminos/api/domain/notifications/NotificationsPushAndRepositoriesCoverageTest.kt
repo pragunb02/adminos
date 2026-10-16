@@ -11,12 +11,11 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** PushService, the InMemory notification fakes and DTO mapping (AOS-312). */
+/** The InMemory notification fakes and DTO mapping (AOS-312). */
 class NotificationsPushAndRepositoriesCoverageTest {
 
     private val userId = UUID.randomUUID()
     private val devices = InMemoryDeviceRepository()
-    private val push = PushService(devices)
     private val notifs = InMemoryNotificationRepository()
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
 
@@ -24,51 +23,6 @@ class NotificationsPushAndRepositoriesCoverageTest {
                              status: NotificationStatus = NotificationStatus.PENDING) =
         Notification(userId = user, type = type, title = "Swiggy ₹349", body = "UPI debit", channel = NotificationChannel.IN_APP,
                      status = status, createdAt = createdAt)
-
-    // ── PushService ──
-
-    @Test
-    fun `blank FCM tokens are skipped`() = runBlocking<Unit> {
-        devices.save(Device(userId = userId, fcmToken = "   "))
-
-        val result = push.sendToUser(userId, "t", "b")
-
-        assertFalse(result.success)
-        assertEquals("no_tokens", result.error)
-    }
-
-    @Test
-    fun `all-invalid tokens fail and are removed`() = runBlocking<Unit> {
-        val d = devices.save(Device(userId = userId, fcmToken = "INVALID_expired"))
-
-        val result = push.sendToUser(userId, "t", "b", mapOf("action" to "view_bill"))
-
-        assertFalse(result.success)
-        assertNull(result.messageId)
-        assertNull(devices.findById(d.id)!!.fcmToken)
-    }
-
-    @Test
-    fun `a valid token stays registered after a send`() = runBlocking<Unit> {
-        val d = devices.save(Device(userId = userId, fcmToken = "fcm-ok"))
-
-        assertTrue(push.sendToUser(userId, "t", "b").success)
-        assertEquals("fcm-ok", devices.findById(d.id)!!.fcmToken)
-    }
-
-    @Test
-    fun `sendToDevice flags INVALID_ tokens`() {
-        assertEquals(PushResult(success = false, error = "invalid_token"), push.sendToDevice("INVALID_x", "t", "b"))
-    }
-
-    @Test
-    fun `sendToDevice returns an fcm message id for a good token`() {
-        val r = push.sendToDevice("fcm-good-token", "t", "b", mapOf("k" to "v"))
-
-        assertTrue(r.success)
-        assertTrue(r.messageId!!.startsWith("fcm_"))
-        assertNull(r.error)
-    }
 
     // ── InMemoryNotificationRepository ──
 

@@ -49,5 +49,11 @@ data class Notification(
     val sentAt: Instant? = null,
     val deliveredAt: Instant? = null,
     val clickedAt: Instant? = null,
-    val createdAt: Instant = Instant.now()
+    val createdAt: Instant = Instant.now(),
+    /** Delivery attempts made so far (AOS-504). */
+    val attempts: Int = 0,
+    /** While PENDING: not delivered before this time (end of quiet hours, a retry backoff, or a claim lease). */
+    val deliverAfter: Instant? = null,
+    /** Why the last attempt failed (no personal data). */
+    val lastError: String? = null
 )

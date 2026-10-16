@@ -35,10 +35,14 @@ internal object NotificationsFixtures {
     )
 }
 
-/** Device repository whose lookups fail, to exercise PushService error handling. */
-internal class FailingDeviceRepository : DeviceRepository by InMemoryDeviceRepository() {
-    override suspend fun findByUserId(userId: UUID): List<Device> = error("FCM device store unavailable")
-}
+/** A notification service on in-memory parts; in-app only unless [channels] says otherwise (AOS-504). */
+internal fun notificationService(
+    prefs: NotificationPreferencesRepository,
+    notifications: NotificationRepository,
+    channels: List<dev.adminos.api.domain.notifications.delivery.DeliveryChannel> = listOf(dev.adminos.api.domain.notifications.delivery.InAppChannel()),
+    users: dev.adminos.api.domain.identity.UserRepository = dev.adminos.api.domain.identity.InMemoryUserRepository(),
+    clock: java.time.Clock = java.time.Clock.systemUTC(),
+) = NotificationService(prefs, notifications, dev.adminos.api.domain.notifications.delivery.NotificationDispatcher(channels, users, notifications, clock), clock)
 
 /** Notification repository that fails lookups for one user only. */
 internal class FailingForUserNotificationRepository(
@@ -59,5 +63,21 @@ internal class FailingForUserPreferencesRepository(
     override suspend fun findByUserId(userId: UUID): NotificationPreferences? {
         if (userId == failingUser) error("db timeout")
         return delegate.findByUserId(userId)
+    }
+}
+
+/** A channel that records who it was asked to reach and answers with [next] (AOS-504 tests). */
+internal class RecordingChannel(
+    override val channel: NotificationChannel,
+    private val wanted: (NotificationPreferences) -> Boolean = { true },
+    var next: dev.adminos.api.domain.notifications.delivery.DeliveryResult =
+        dev.adminos.api.domain.notifications.delivery.DeliveryResult.Delivered("ref-1"),
+) : dev.adminos.api.domain.notifications.delivery.DeliveryChannel {
+    val recipients = mutableListOf<String?>()
+    override fun isWantedBy(prefs: NotificationPreferences) = wanted(prefs)
+    override suspend fun deliver(notification: Notification, recipient: dev.adminos.api.domain.notifications.delivery.Recipient):
+        dev.adminos.api.domain.notifications.delivery.DeliveryResult {
+        recipients += recipient.email
+        return next
     }
 }

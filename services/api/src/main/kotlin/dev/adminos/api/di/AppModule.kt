@@ -42,6 +42,9 @@ import dev.adminos.api.infrastructure.queue.AsynqPublisher
 import io.lettuce.core.RedisClient
 import org.koin.core.module.Module
 import org.koin.dsl.bind
+import dev.adminos.api.config.SmtpConfig
+import dev.adminos.api.domain.notifications.delivery.*
+import dev.adminos.api.infrastructure.email.SmtpEmailSender
 import org.koin.dsl.module
 import dev.adminos.api.domain.scheduling.*
 
@@ -181,7 +184,14 @@ internal fun buildAppModule(
     single { AnomalyDetectorService(get(), get()) }
 
     // Notification Services
-    single { PushService(get()) }
+    // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.
+    single { InAppChannel() } bind DeliveryChannel::class
+    // Email only when an SMTP server is configured (otherwise it is off, and the dispatcher logs that).
+    SmtpConfig.from(env)?.let { smtp ->
+        single<EmailSender> { SmtpEmailSender(smtp) }
+        single { EmailChannel(get(), get<AppConfig>().app.appUrl) } bind DeliveryChannel::class
+    }
+    single { NotificationDispatcher(getAll<DeliveryChannel>(), get(), get()) }
     single { NotificationService(get(), get(), get()) }
     single { ReminderEngine(get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
@@ -190,5 +200,6 @@ internal fun buildAppModule(
     single { BillRemindersJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

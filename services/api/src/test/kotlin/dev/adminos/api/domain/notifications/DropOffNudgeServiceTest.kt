@@ -20,7 +20,6 @@ class DropOffNudgeServiceTest {
     private lateinit var prefsRepo: InMemoryNotificationPreferencesRepository
     private lateinit var notifRepo: InMemoryNotificationRepository
     private lateinit var deviceRepo: InMemoryDeviceRepository
-    private lateinit var pushService: PushService
     private lateinit var notificationService: NotificationService
     private lateinit var nudgeService: DropOffNudgeService
 
@@ -30,8 +29,7 @@ class DropOffNudgeServiceTest {
         prefsRepo = InMemoryNotificationPreferencesRepository()
         notifRepo = InMemoryNotificationRepository()
         deviceRepo = InMemoryDeviceRepository()
-        pushService = PushService(deviceRepo)
-        notificationService = NotificationService(prefsRepo, notifRepo, pushService)
+        notificationService = notificationService(prefsRepo, notifRepo)
         nudgeService = DropOffNudgeService(userRepo, notifRepo, notificationService)
     }
 

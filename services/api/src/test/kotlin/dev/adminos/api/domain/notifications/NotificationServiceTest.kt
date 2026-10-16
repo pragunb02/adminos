@@ -13,8 +13,6 @@ class NotificationServiceTest {
 
     private lateinit var prefsRepo: InMemoryNotificationPreferencesRepository
     private lateinit var notifRepo: InMemoryNotificationRepository
-    private lateinit var deviceRepo: InMemoryDeviceRepository
-    private lateinit var pushService: PushService
     private lateinit var notificationService: NotificationService
 
     private val testUserId = UUID.randomUUID()
@@ -23,9 +21,7 @@ class NotificationServiceTest {
     fun setup() {
         prefsRepo = InMemoryNotificationPreferencesRepository()
         notifRepo = InMemoryNotificationRepository()
-        deviceRepo = InMemoryDeviceRepository()
-        pushService = PushService(deviceRepo)
-        notificationService = NotificationService(prefsRepo, notifRepo, pushService)
+        notificationService = notificationService(prefsRepo, notifRepo)
     }
 
     // ── Quiet Hours Tests ──
@@ -122,126 +118,7 @@ class NotificationServiceTest {
         assertFalse(NotificationService.isCriticalNotification(NotificationType.BRIEFING))
     }
 
-    @Test
-    fun `critical notification bypasses quiet hours and is sent`() = runBlocking<Unit> {
-        // Set up preferences with quiet hours active now (all day)
-        val prefs = NotificationPreferences(
-            userId = testUserId,
-            quietHoursStart = LocalTime.of(0, 0),
-            quietHoursEnd = LocalTime.of(23, 59),
-            anomalyAlerts = true,
-            pushNotifications = false,
-            emailNotifications = false
-        )
-        prefsRepo.save(prefs)
-
-        val results = notificationService.send(
-            userId = testUserId,
-            type = NotificationType.ANOMALY,
-            title = "Suspicious transaction",
-            body = "₹50,000 charge at 3am"
-        )
-
-        // Should be sent (not held) because anomaly is critical
-        assertTrue(results.isNotEmpty())
-        assertTrue(results.any { it.status == NotificationStatus.SENT })
-    }
-
-    @Test
-    fun `non-critical notification is held during quiet hours`() = runBlocking<Unit> {
-        // Set up preferences with quiet hours covering all day
-        val prefs = NotificationPreferences(
-            userId = testUserId,
-            quietHoursStart = LocalTime.of(0, 0),
-            quietHoursEnd = LocalTime.of(23, 59),
-            billReminders = true,
-            pushNotifications = false,
-            emailNotifications = false
-        )
-        prefsRepo.save(prefs)
-
-        val results = notificationService.send(
-            userId = testUserId,
-            type = NotificationType.BILL_REMINDER,
-            title = "Bill due tomorrow",
-            body = "HDFC credit card bill"
-        )
-
-        // Should be held (pending) because it's non-critical during quiet hours
-        assertTrue(results.isNotEmpty())
-        assertTrue(results.all { it.status == NotificationStatus.PENDING })
-    }
-
-    // ── Channel Routing Tests ──
-
-    @Test
-    fun `notification type disabled returns empty`() = runBlocking<Unit> {
-        val prefs = NotificationPreferences(
-            userId = testUserId,
-            billReminders = false,
-            quietHoursStart = LocalTime.of(23, 0),
-            quietHoursEnd = LocalTime.of(5, 0)
-        )
-        prefsRepo.save(prefs)
-
-        val results = notificationService.send(
-            userId = testUserId,
-            type = NotificationType.BILL_REMINDER,
-            title = "Bill due",
-            body = "Test"
-        )
-
-        assertTrue(results.isEmpty())
-    }
-
-    @Test
-    fun `channel routing respects push disabled`() = runBlocking<Unit> {
-        val prefs = NotificationPreferences(
-            userId = testUserId,
-            pushNotifications = false,
-            emailNotifications = true,
-            // Use quiet hours that won't match current time (noon to 12:01)
-            quietHoursStart = LocalTime.of(12, 0),
-            quietHoursEnd = LocalTime.of(12, 1)
-        )
-        prefsRepo.save(prefs)
-
-        val results = notificationService.send(
-            userId = testUserId,
-            type = NotificationType.GENERAL,
-            title = "Test",
-            body = "Test body"
-        )
-
-        // Should have in-app + email, but no push
-        val channels = results.map { it.channel }
-        assertTrue(NotificationChannel.IN_APP in channels)
-        assertTrue(NotificationChannel.EMAIL in channels)
-        assertFalse(NotificationChannel.PUSH in channels)
-    }
-
-    @Test
-    fun `channel routing respects email disabled`() = runBlocking<Unit> {
-        val prefs = NotificationPreferences(
-            userId = testUserId,
-            pushNotifications = false,
-            emailNotifications = false,
-            quietHoursStart = LocalTime.of(2, 0),
-            quietHoursEnd = LocalTime.of(3, 0)
-        )
-        prefsRepo.save(prefs)
-
-        val results = notificationService.send(
-            userId = testUserId,
-            type = NotificationType.GENERAL,
-            title = "Test",
-            body = "Test body"
-        )
-
-        // Should only have in-app
-        assertEquals(1, results.size)
-        assertEquals(NotificationChannel.IN_APP, results[0].channel)
-    }
+    // Sending, holding and delivery: NotificationsServiceCoverageTest and NotificationDeliveryTest (AOS-504, fixed clock).
 
     @Test
     fun `isTypeEnabled returns false for disabled bill reminders`() {

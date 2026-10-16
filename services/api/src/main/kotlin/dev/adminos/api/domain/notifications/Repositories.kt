@@ -20,6 +20,13 @@ interface NotificationRepository {
     suspend fun update(notification: Notification): Notification
     suspend fun countByUserAndType(userId: UUID, type: NotificationType): Int
     suspend fun findPending(): List<Notification>
+
+    /**
+     * Claims up to [limit] PENDING notifications that are due at [now] (no `deliverAfter`, or it has
+     * passed), oldest first, and pushes their `deliverAfter` to `now + lease` so no other caller
+     * takes them meanwhile (AOS-504). Safe across instances.
+     */
+    suspend fun claimDue(now: java.time.Instant, lease: java.time.Duration, limit: Int): List<Notification>
 }
 
 // ── Device Repository (for FCM token lookup) ──

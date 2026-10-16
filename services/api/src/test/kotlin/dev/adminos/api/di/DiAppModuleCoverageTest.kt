@@ -52,6 +52,22 @@ class DiAppModuleCoverageTest {
     private val noEnv: (String) -> String? = { null }
 
     @Test
+    fun `email is a delivery channel only when an SMTP server is configured (AOS-504)`() {
+        val channels = { env: (String) -> String? ->
+            koinOf(buildAppModule(useDatabase = false, env = env))
+                .getAll<dev.adminos.api.domain.notifications.delivery.DeliveryChannel>().map { it.channel }.toSet()
+        }
+        assertEquals(setOf(dev.adminos.api.domain.notifications.NotificationChannel.IN_APP), channels(noEnv))
+        val smtp = mapOf("SMTP_HOST" to "smtp.example.com", "SMTP_FROM" to "bot@example.com")
+        assertEquals(
+            setOf(dev.adminos.api.domain.notifications.NotificationChannel.IN_APP, dev.adminos.api.domain.notifications.NotificationChannel.EMAIL),
+            channels(smtp::get)
+        )
+        assertEquals(4, koinOf(buildAppModule(useDatabase = false, env = smtp::get))
+            .getAll<dev.adminos.api.domain.scheduling.ScheduledJob>().size, "reminders, nudges, detection, pending notifications")
+    }
+
+    @Test
     fun `in-memory configuration resolves every definition`() {
         val koin = koinOf(buildAppModule(useDatabase = false, env = noEnv))
         assertTrue(koin.resolveAll() > 50)
