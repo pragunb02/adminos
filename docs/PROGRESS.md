@@ -6,7 +6,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 
 | Milestone (see BRD §6) | Status |
 |---|---|
-| 1. Foundation runs | 🟦 Mostly done. Stack runs with `docker compose --profile full up`; DB migrates; login path verified up to Google. Left: OAuth client (AOS-111), real login (AOS-112), intake endpoint (AOS-113) |
+| 1. Foundation runs | 🟦 All code done. Left: Pragun's OAuth client (AOS-111) → real login test (AOS-112) |
 | 2. Data in | 🟠 Code exists, but the flow from API to workers is broken |
 | 3. Dashboards | 🟠 Pages exist; no daily/monthly series or charts yet |
 | 4. Automatic sources (SMS app, WhatsApp) | ⚪ Not started |
@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; meanwhile AOS-113 intake endpoint; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~ done. Then Milestone 2 starts with AOS-201 (processor decision); AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-113: common intake POST /ingest/events (V9 ingest_events outbox, idempotent, decimal-string money). D-33 raw SMS privacy. Fixed: malformed bodies were 500 → 400. Unit 179, integration 36. Story S1.4 done.
   - AOS-110: API image (JDK 25, non-root, healthcheck); compose waits for a healthy API; fixed worker commands; **full stack runs**. Story S1.3 done.
   - AOS-109: refresh via HttpOnly cookie, tokens out of response bodies, logout = this device only and works after JWT expiry, web refresh-once retry + Log out button. Unit 165. Rotation → AOS-121.
   - AOS-108: same-origin /api proxy (D-32). Found live: the web guard blocked the login API call (login could never have worked); empty-body 401s crashed the web client; client IP behind proxy (XForwardedHeaders + clientIp; edge proxy required for public, AOS-605). Unit 158.

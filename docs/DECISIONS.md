@@ -37,6 +37,7 @@
 | D-30 | Architecture | One JSON-column mapper (`JsonColumns`); tests must return Unit (guarded) | Accepted | AOS-105 |
 | D-31 | Architecture | API contract: camelCase JSON and query params, opaque cursors, validated params | Accepted | AOS-107, AOS-120 |
 | D-32 | Architecture | Same-origin proxy: web forwards /api/* to the API; edge proxy owns X-Forwarded-For | Accepted | AOS-108, AOS-605 |
+| D-33 | Product | iPhone SMS raw text may reach the server for parsing, but is never stored or logged | Accepted | AOS-113, AOS-203 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -308,3 +309,16 @@ Proposed
     sets XFF from the real connection (AOS-605).
   - Locally everything is 127.0.0.1 behind localhost-bound ports.
 - The web login guard never applies to `/api/*`; the API authenticates itself.
+
+### D-33 — Raw SMS text from iPhone Shortcuts: parse on the server, never store
+2026-10-16 · Accepted by Pragun (option 1) · Type: Product · Tasks: AOS-113, AOS-203 · Partly supersedes D-2
+- **Why:** iOS Shortcuts can only forward the message text. It can't parse on-device, so strict D-2
+  ("raw SMS never leaves the device") would rule out iPhone SMS capture entirely.
+- **Rule:**
+  - Raw text is accepted **only** by the SMS-parsing adapter (AOS-203). It is parsed in memory into
+    a structured `IngestEvent`.
+  - Only the structured fields and a hash (`sourceRef`) are kept. The raw text is **never written
+    to the database, logs, queues, or error messages**.
+  - Non-financial messages (OTPs, promos) are dropped unparsed.
+- The common intake `/api/v1/ingest/events` accepts structured events only.
+- D-2 still holds for the Android app (AOS-604): it parses on the device.

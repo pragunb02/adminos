@@ -1,6 +1,7 @@
 package dev.adminos.api.di
 
 import dev.adminos.api.config.AppConfig
+import dev.adminos.api.infrastructure.database.repositories.ExposedIngestEventRepository
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.audit.AuditRepository
@@ -14,6 +15,9 @@ import dev.adminos.api.domain.ingestion.connection.InMemoryConnectionRepository
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.domain.ingestion.sync.SyncSessionRepository
+import dev.adminos.api.domain.ingestion.events.IngestEventRepository
+import dev.adminos.api.domain.ingestion.events.IngestEventService
+import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.webhook.GmailCronService
 import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.crypto.TokenEncryptor
@@ -42,6 +46,7 @@ val appModule = module {
         // Ingestion
         single<ConnectionRepository> { ExposedConnectionRepository() }
         single<SyncSessionRepository> { ExposedSyncSessionRepository() }
+        single<IngestEventRepository> { ExposedIngestEventRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
@@ -63,6 +68,7 @@ val appModule = module {
         single<DeviceRepository> { InMemoryDeviceRepository() }
         single<ConnectionRepository> { InMemoryConnectionRepository() }
         single<SyncSessionRepository> { InMemorySyncSessionRepository() }
+        single<IngestEventRepository> { InMemoryIngestEventRepository() }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
@@ -97,6 +103,7 @@ val appModule = module {
     }
 
     single { IngestionService(get(), getOrNull()) }
+    single { IngestEventService(get()) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
 
