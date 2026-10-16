@@ -48,11 +48,11 @@ test.describe("cash quick-add (AOS-204)", () => {
 test.describe("anomaly review", () => {
   test("home → review → resolve → next → resolve → home; back from review returns home", async ({ signedIn: page, api }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Review", exact: true }).click();
+    await page.getByRole("region", { name: "Needs attention" }).getByRole("link", { name: /Unusual charge/ }).click();
     await expect(page).toHaveURL(/\/anomalies\/an-1$/);
     await expect(page.getByRole("heading", { name: "Unusually large amount" })).toBeVisible();
     await page.goBack();
-    await expect(page.getByRole("heading", { name: "Good morning, Pragun" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Needs attention" })).toBeVisible();
     await page.goForward();
     await expect(page.getByText("1 more to review")).toBeVisible();
     await page.getByRole("button", { name: "✓ Confirmed Safe" }).click();

@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import ActionCard from "./ActionCard";
 import ErrorMessage from "./ErrorMessage";
 import LoadingSpinner from "./LoadingSpinner";
 import StatusBadge from "./StatusBadge";
@@ -40,26 +39,6 @@ describe("StatusBadge", () => {
     const badge = screen.getByText("mystery");
     expect(badge.className).toContain("bg-gray-100");
     expect(badge.className).toContain("text-sm");
-  });
-});
-
-describe("ActionCard", () => {
-  it.each(["info", "warning", "critical"] as const)("%s severity is styled", (severity) => {
-    const { container } = render(<ActionCard title="T" description="D" severity={severity} />);
-    expect(container.firstElementChild!.className).toMatch(/border-l-(blue|amber|red)-400/);
-  });
-  it("shows the action only with both a label and a handler", async () => {
-    const onAction = vi.fn();
-    const { rerender } = render(<ActionCard title="Bill due" description="HDFC" actionLabel="View" />);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    rerender(<ActionCard title="Bill due" description="HDFC" actionLabel="View" onAction={onAction} icon="📄" />);
-    expect(screen.getByText("📄")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "View" }));
-    expect(onAction).toHaveBeenCalledOnce();
-  });
-  it("defaults to info", () => {
-    const { container } = render(<ActionCard title="T" description="D" />);
-    expect(container.firstElementChild!.className).toContain("border-l-blue-400");
   });
 });
 

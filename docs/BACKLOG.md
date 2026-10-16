@@ -90,7 +90,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-311](tickets/AOS-311.md) | Playwright end-to-end: 131 tests on desktop Chrome, iPhone Safari, Android Chrome + full stack (D-47) | Claude | ✅ | 5h | 2.5h |
 | └ [AOS-312](tickets/AOS-312.md) | API coverage: 99.6% lines / 95.4% branches, gate 90/85; found 18 bugs (D-48) | Claude | ✅ | 10h | 4h |
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ⬜ | 6h | |
-| └ AOS-303 | Today / this week view | Claude | ⬜ | 3h |  |
+| └ [AOS-303](tickets/AOS-303.md) | Console Home: headline vs same days, week bars, categories, merchants, latest, bills, attention | Claude | ✅ | 3h | 2h |
 | └ AOS-304 | Monthly view | Claude | ⬜ | 3h |  |
 | **[AOS-S3.3](tickets/AOS-S3.3.md)** | **Where my money goes** | | ⬜ | 5h | |
 | └ AOS-305 | Categories and top merchants views | Claude | ⬜ | 3h |  |

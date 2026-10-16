@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describe as label, isCurrent, parsePeriod, periodQuery, rangeOf, shift, todayIn, type Period } from "./period";
+import { comparisonRange, describe as label, isCurrent, parsePeriod, periodQuery, rangeOf, shift, todayIn, type Period } from "./period";
 
 const today = "2026-10-16"; // a Friday
 const P = (kind: Period["kind"], anchor: string): Period => ({ kind, anchor });
@@ -85,3 +85,19 @@ describe("labels", () => {
     expect(todayIn("America/New_York", now)).toBe("2026-10-15");
   });
 });
+
+describe("like-for-like comparison (D-49)", () => {
+  it("month so far vs the same days of last month", () => {
+    expect(comparisonRangeOf(P("month", today))).toEqual({ from: "2026-09-01", to: "2026-09-16", label: "by 16 Sept" });
+  });
+  it("a whole past month vs the whole month before, capped at its last day", () => {
+    expect(comparisonRangeOf(P("month", "2026-03-31"))).toEqual({ from: "2026-02-01", to: "2026-02-28", label: "by 28 Feb" });
+  });
+  it("week so far vs last week up to the same weekday", () => {
+    expect(comparisonRangeOf(P("week", today))).toEqual({ from: "2026-10-05", to: "2026-10-09", label: "by 9 Oct" });
+  });
+  it("a day vs the same weekday a week earlier", () => {
+    expect(comparisonRangeOf(P("today", today))).toEqual({ from: "2026-10-09", to: "2026-10-09", label: "last Friday" });
+  });
+});
+const comparisonRangeOf = (p: Period) => comparisonRange(p, today);

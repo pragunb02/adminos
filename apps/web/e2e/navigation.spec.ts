@@ -2,13 +2,13 @@ import { expect, isMobile, mainNav, test } from "./support/fixtures";
 import type { Page } from "@playwright/test";
 
 /** The 5 destinations (D-49) and what proves we're on each. */
-const MAIN = [
-  { tab: "Home", path: "/", heading: "Good morning, Pragun" },
+const MAIN: { tab: "Home" | "Spending" | "Activity" | "Review" | "More"; path: string; heading: string | RegExp }[] = [
+  { tab: "Home", path: "/", heading: /^[A-Z][a-z]+ \d{4}$/ }, // the period label, e.g. "October 2026"
   { tab: "Spending", path: "/spending", heading: "Spending" },
   { tab: "Activity", path: "/transactions", heading: "Transactions" },
   { tab: "Review", path: "/review", heading: "Review" },
   { tab: "More", path: "/more", heading: "More" },
-] as const;
+];
 /** Under More (a list on phones, expanded in the desktop rail). */
 const SECONDARY = [
   { label: "Import statement", path: "/import", heading: "Import a bank statement" },
@@ -152,7 +152,7 @@ test.describe("route guard and session", () => {
   });
 
   test("an expired session that can't be refreshed ends at login", async ({ signedIn: page, api }) => {
-    api.on("GET /api/v1/dashboard/home", () => ({ status: 401, error: { code: "AUTH_001", message: "Token expired" } }))
+    api.on("GET /api/v1/analytics/summary", () => ({ status: 401, error: { code: "AUTH_001", message: "Token expired" } }))
        .on("POST /api/v1/auth/refresh", () => ({ status: 401, error: { code: "AUTH_004", message: "Session has been revoked" } }));
     await page.goto("/");
     await expect(page).toHaveURL(/\/login$/);
