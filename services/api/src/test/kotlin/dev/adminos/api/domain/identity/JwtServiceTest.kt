@@ -156,4 +156,12 @@ class JwtServiceTest {
         googleId = "google_${UUID.randomUUID()}",
         role = role
     )
+
+    @Test
+    fun `access token carries the user's timezone, and drops an unknown one (AOS-120)`() {
+        val svc = JwtService(dev.adminos.api.config.AppConfig.load().auth)
+        val base = User(email = "tz@example.com", googleId = "g-tz", name = "Tz")
+        assertEquals("Europe/London", svc.verifyAccessToken(svc.generateAccessToken(base.copy(timezone = "Europe/London")))!!.timezone)
+        assertEquals(null, svc.verifyAccessToken(svc.generateAccessToken(base.copy(timezone = "Mars/Olympus")))!!.timezone)
+    }
 }

@@ -75,23 +75,24 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-209](tickets/AOS-209.md) | Refund/reversal linking; refunds net category spend (D-40) | Claude | ✅ | 2h | 2h |
 | └ [AOS-210](tickets/AOS-210.md) | Single categorizer with remembered corrections (D-41) | Claude | ✅ | 4h | 2h |
 
-## ⬜ [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 22h
+## 🟦 [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 24h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | ⬜ | 8h | |
+| **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | 🟦 | 8h | |
 | └ AOS-301 | Analytics API (series, breakdowns, comparisons) | Claude | ⬜ | 4h |  |
-| └ AOS-302 | Choose chart library + design system | Claude + Pragun | ⬜ | 1h |  |
-| └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer (replace setState-in-effect) | Claude | ⬜ | 3h |  |
-| └ [AOS-120](tickets/AOS-120.md) | Per-user timezone for date-range params | Claude | ⬜ | 1h |  |
+| └ AOS-302 | Chart library + design system: Recharts (D-45) | Claude + Pragun | ⬜ | 1h |  |
+| └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer: TanStack Query (D-45) | Claude | ⬜ | 3h |  |
+| └ [AOS-120](tickets/AOS-120.md) | Per-user timezone for date-range params (tz in the access token) | Claude | ✅ | 1h | 1h |
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ⬜ | 6h | |
 | └ AOS-303 | Today / this week view | Claude | ⬜ | 3h |  |
 | └ AOS-304 | Monthly view | Claude | ⬜ | 3h |  |
 | **[AOS-S3.3](tickets/AOS-S3.3.md)** | **Where my money goes** | | ⬜ | 5h | |
 | └ AOS-305 | Categories and top merchants views | Claude | ⬜ | 3h |  |
 | └ AOS-306 | Trend charts | Claude | ⬜ | 2h |  |
-| **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ⬜ | 3h | |
+| **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ⬜ | 5h | |
 | └ AOS-307 | Transaction feed: search, filter, edit, re-categorize | Claude | ⬜ | 3h |  |
+| └ AOS-309 | Review suggested duplicates / transfers / refunds (D-45) | Claude | ⬜ | 2h |  |
 
 ## ⬜ [AOS-E4](tickets/AOS-E4.md) — More sources · P1 · ETA 18h
 

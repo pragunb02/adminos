@@ -9,6 +9,7 @@ import dev.adminos.api.config.AuthConfig
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.Instant
+import java.time.ZoneId
 import java.util.*
 
 data class TokenPair(
@@ -20,7 +21,9 @@ data class TokenPair(
 data class JwtClaims(
     val userId: UUID,
     val email: String,
-    val role: String
+    val role: String,
+    /** The user's timezone for day boundaries (AOS-120); tokens issued before it existed have none. */
+    val timezone: String? = null
 )
 
 /** Claims of a scoped device token (AOS-203). [tokenId] is the revocable `device_tokens` row. */
@@ -63,6 +66,7 @@ class JwtService(private val config: AuthConfig) {
             .claim("typ", TYPE_ACCESS)
             .claim("email", user.email)
             .claim("role", user.role.name.lowercase())
+            .claim("tz", validZoneOrNull(user.timezone))
             .issuer(config.jwtIssuer)
             .issueTime(Date.from(now))
             .expirationTime(Date.from(now.plusSeconds(config.accessTokenTtlSeconds)))
@@ -89,7 +93,8 @@ class JwtService(private val config: AuthConfig) {
             JwtClaims(
                 userId = UUID.fromString(claims.subject),
                 email = claims.getStringClaim("email"),
-                role = claims.getStringClaim("role")
+                role = claims.getStringClaim("role"),
+                timezone = claims.getStringClaim("tz")
             )
         } catch (e: Exception) {
             null
@@ -144,3 +149,8 @@ class JwtService(private val config: AuthConfig) {
         }
     }
 }
+
+/** A stored timezone that the JDK knows, else null (the caller then uses the default zone, logged). */
+internal fun validZoneOrNull(id: String?): String? =
+    id?.takeIf { runCatching { ZoneId.of(it) }.isSuccess }
+        ?: id?.let { org.slf4j.LoggerFactory.getLogger("JwtService").warn("Unknown timezone '{}' on a user; using the default zone", it); null }
