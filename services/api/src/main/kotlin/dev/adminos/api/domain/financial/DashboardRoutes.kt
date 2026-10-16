@@ -6,6 +6,7 @@ import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
+import dev.adminos.api.infrastructure.plugins.userZone
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -34,6 +35,9 @@ fun Route.dashboardRoutes(
                 val principal = call.userPrincipal
                 val userId = principal.userId
                 val now = Instant.now(clock)
+                // The user's own day and hour (AOS-120, AOS-612), not the server's or India's.
+                val zone = call.userZone
+                val today = LocalDate.now(clock.withZone(zone))
                 val weekAgo = now.minus(7, ChronoUnit.DAYS)
 
                 // Aggregate data
@@ -47,7 +51,7 @@ fun Route.dashboardRoutes(
 
                 val upcomingBills = billTrackingService.getUpcomingBills(userId)
                 val billsDueWithin7 = upcomingBills.filter {
-                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(clock), it.dueDate)
+                    val daysUntil = ChronoUnit.DAYS.between(today, it.dueDate)
                     daysUntil in 0..7
                 }
 
@@ -89,7 +93,7 @@ fun Route.dashboardRoutes(
 
                 // Bills due within 7 days
                 billsDueWithin7.forEach { b ->
-                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(clock), b.dueDate)
+                    val daysUntil = ChronoUnit.DAYS.between(today, b.dueDate)
                     val desc = when {
                         daysUntil <= 0 -> "Due today — ₹${b.amount}"
                         daysUntil == 1L -> "Due tomorrow — ₹${b.amount}"
@@ -135,7 +139,7 @@ fun Route.dashboardRoutes(
                 }
 
                 // Greeting
-                val hour = now.atZone(ZoneId.of("Asia/Kolkata")).hour
+                val hour = now.atZone(zone).hour
                 val greeting = when {
                     hour < 12 -> "Good morning"
                     hour < 17 -> "Good afternoon"

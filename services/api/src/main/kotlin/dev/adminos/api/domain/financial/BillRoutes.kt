@@ -37,7 +37,7 @@ fun Route.billRoutes(billTrackingService: BillTrackingService) {
 
                 val hasMore = bills.size > limit
                 val page = if (hasMore) bills.take(limit) else bills
-                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.dueDate.toString()) } else null
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(billCursorKey(it)) } else null
                 val total = billTrackingService.countUserBills(principal.userId, status)
 
                 call.respond(
@@ -84,4 +84,17 @@ fun Route.billRoutes(billTrackingService: BillTrackingService) {
             }
         }
     }
+}
+
+/**
+ * Bills page by (due date, id) (AOS-612): several bills can share a due date, so the date alone would
+ * skip the rest of that day on the next page.
+ */
+internal fun billCursorKey(b: Bill) = "${b.dueDate}|${b.id}"
+
+/** (due date, id after which to continue); a date-only cursor from before AOS-612 continues after that day. */
+internal fun parseBillCursor(key: String): Pair<java.time.LocalDate, java.util.UUID?> {
+    val date = key.substringBefore('|')
+    val id = key.substringAfter('|', "").takeIf { it.isNotEmpty() }
+    return java.time.LocalDate.parse(date) to id?.let(java.util.UUID::fromString)
 }

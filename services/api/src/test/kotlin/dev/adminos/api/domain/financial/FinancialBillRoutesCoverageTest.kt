@@ -83,8 +83,6 @@ class FinancialBillRoutesCoverageTest {
         assertEquals(listOf("Biller 3"), page2.billers())
         assertEquals(false, page2.pagination()["hasMore"]!!.jsonPrimitive.boolean)
     }
-
-    @Disabled("BUG AOS-312: BillRoutes.kt:40 cursor is the due date alone and the repository filters dueDate > cursor, so bills sharing the last due date of a page are skipped")
     @Test
     fun `bills sharing a due date across a page boundary are all listed`() = billTest {
         runBlocking { listOf("HDFC Credit Card", "SBI Card", "Tata Power").forEach { bills.save(bill(it, today.plusDays(5))) } }

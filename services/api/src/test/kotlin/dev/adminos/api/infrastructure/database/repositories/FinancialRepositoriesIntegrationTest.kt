@@ -191,4 +191,30 @@ class FinancialRepositoriesIntegrationTest {
         val late = bills.save(bill().copy(dueDate = LocalDate.now().minusDays(2), status = BillStatus.UPCOMING))
         assertTrue(bills.findOverdue().any { it.id == late.id })
     }
+
+    @Test
+    fun `bills sharing a due date page through without gaps or repeats (AOS-612)`() = runBlocking<Unit> {
+        val user = PostgresTestDatabase.newUser()
+        val day = LocalDate.of(2026, 11, 5)
+        val saved = (1..5).map { i -> bills.save(Bill(userId = user, billerName = "Biller $i", amount = BigDecimal("100.00"), dueDate = if (i == 5) day.plusDays(1) else day)) }
+        val seen = mutableListOf<UUID>()
+        var cursor: String? = null
+        do {
+            val page = bills.findByUserId(user, null, null, null, cursor, 2)
+            seen += page.map { it.id }
+            cursor = page.lastOrNull()?.takeIf { page.size == 2 }?.let { CursorCodec.encode(billCursorKey(it)) }
+        } while (cursor != null)
+        assertEquals(saved.map { it.id }.toSet(), seen.toSet())
+        assertEquals(seen.size, seen.toSet().size)
+        assertEquals(day.plusDays(1), bills.findById(seen.last())!!.dueDate)
+    }
+
+    @Test
+    fun `a date-only bill cursor from before AOS-612 continues after that day`() = runBlocking<Unit> {
+        val user = PostgresTestDatabase.newUser()
+        val day = LocalDate.of(2026, 11, 7)
+        bills.save(Bill(userId = user, billerName = "Same day", amount = BigDecimal.TEN, dueDate = day))
+        val next = bills.save(Bill(userId = user, billerName = "Next day", amount = BigDecimal.TEN, dueDate = day.plusDays(1)))
+        assertEquals(listOf(next.id), bills.findByUserId(user, null, null, null, CursorCodec.encode(day.toString()), 10).map { it.id })
+    }
 }
