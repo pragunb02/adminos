@@ -19,7 +19,7 @@ describe("Bills", () => {
       fx.bill({ id: "4", billerName: "Late", dueDate: "2026-10-13T06:00:00Z" }),
       fx.bill({ id: "5", billerName: "Past due", status: "overdue" }),
       fx.bill({ id: "6", billerName: "Settled", status: "paid", dueDate: "2026-10-17T06:00:00Z" }),
-      fx.bill({ id: "7", billerName: "Same min", minimumDue: 24500, dueDate: "2026-10-30T06:00:00Z" }),
+      fx.bill({ id: "7", billerName: "Same min", minimumDue: "24500", dueDate: "2026-10-30T06:00:00Z" }),
     ])));
     renderWithQuery(<BillsPage />);
     expect(screen.getByText("Loading bills...")).toBeInTheDocument();

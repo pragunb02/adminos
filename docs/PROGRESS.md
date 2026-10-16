@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Milestone 3 console started (D-45): ~~AOS-120~~, ~~AOS-301~~, ~~AOS-308~~, ~~AOS-310~~, ~~AOS-311~~ done; ~~AOS-607~~, ~~AOS-312~~ done; Plan 2: ~~AOS-608~~, ~~AOS-609~~, ~~AOS-610~~ done (all 7 security bugs fixed); next AOS-611 money, AOS-612 bills, AOS-613 notifications, then AOS-302 spec PR, AOS-302 design spec, then AOS-303/304, 303/304, 305/306, 307, 309; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Milestone 3 console started (D-45): ~~AOS-120~~, ~~AOS-301~~, ~~AOS-308~~, ~~AOS-310~~, ~~AOS-311~~ done; ~~AOS-607~~, ~~AOS-312~~ done; Plan 2: ~~AOS-608~~, ~~AOS-609~~, ~~AOS-610~~ (all 7 security bugs), ~~AOS-611~~ done; next AOS-611 money, AOS-612 bills, AOS-613 notifications, then AOS-302 spec PR, AOS-302 design spec, then AOS-303/304, 303/304, 305/306, 307, 309; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -81,7 +81,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 5. ~~AOS-205~~ fixed: Gmail now writes ingest events with a detected direction (D-43); no Go path writes `transactions` any more.
 7. AOS-401 — the Gmail worker stores a made-up `history_id` (`history_<unix time>`) after each sync, so incremental sync can't work yet.
 6. AOS-601 — Gmail tokens stored in plain text (`gmail_handler.go:185`).
-8. AOS-307 — `GET /transactions` sends `amount` as a float and has no `nature` field (breaks D-30; the feed can't tell refunds/transfers apart).
+8. ~~AOS-307 float amounts / missing nature~~ fixed in AOS-611.
 9. Onboarding copy still describes an Android SMS app (D-19: iPhone); the subscriptions "cancellation draft" modal can never open (dead code). Fold into the console redesign (AOS-302…).
 11. ~~AOS-607~~ fixed: the whole `JWT_SECRET` is the HMAC key. Existing sessions and device tokens must be re-issued once (sign in again; new Mac SMS reader token).
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
@@ -102,6 +102,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
+  - AOS-611: every API money field is an exact decimal string (D-30) + transactions carry `nature`; web uses `lib/money.ts` (BigInt paise, Indian grouping); feed labels refunds/reversals/transfers.
   - AOS-610: deactivated/deleted users can't log in or refresh (403, session revoked); OAuth token form URL-encoded; `Secure` cookies unless the host is exactly loopback; revoking another user's session → 404, not audited.
   - AOS-609: Gmail push webhook fails closed (503 until `GOOGLE_PUBSUB_AUDIENCE` + `GOOGLE_PUBSUB_SERVICE_ACCOUNT` are set); tokens must be from Google issuers and our push service account with a verified email. Closes the AOS-601 webhook hole.
   - AOS-608: token encryption uses the whole 256-bit key with row-bound AAD (`v2:`); no public default secrets: DB mode requires real `JWT_SECRET`/`TOKEN_ENCRYPTION_KEY`/`DB_PASSWORD`, compose fails fast without `.env`. **`docker compose up` now needs a `.env`** (see `.env.example`).

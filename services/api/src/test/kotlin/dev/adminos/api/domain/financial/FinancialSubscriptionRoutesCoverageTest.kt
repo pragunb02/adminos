@@ -111,8 +111,6 @@ class FinancialSubscriptionRoutesCoverageTest {
         assertEquals(0, s["activeCount"]!!.jsonPrimitive.int)
         assertTrue(s["byCategory"]!!.jsonObject.isEmpty())
     }
-
-    @Disabled("BUG AOS-312: SubscriptionRoutes.kt:70 sums byCategory.monthly in Double: ₹299.67 + ₹649 gives 948.6700000000001 (D-30 wants exact decimals)")
     @Test
     fun `category monthly cost is an exact decimal`() = subTest {
         runBlocking {

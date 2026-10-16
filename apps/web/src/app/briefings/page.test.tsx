@@ -20,7 +20,7 @@ describe("Briefings", () => {
 
   it("shows the latest expanded, with stats, categories, and the rest as history", async () => {
     const latest = fx.briefing({ insights: [insight("1", "cancel_sub")] });
-    routes(latest, [latest, fx.briefing({ id: "br-0", periodStart: "2026-09-28", periodEnd: "2026-10-04", content: "Older", totalSpent: 9000 }),
+    routes(latest, [latest, fx.briefing({ id: "br-0", periodStart: "2026-09-28", periodEnd: "2026-10-04", content: "Older", totalSpent: "9000" }),
       fx.briefing({ id: "br-x", totalSpent: null, content: "No total" })]);
     renderWithQuery(<BriefingsPage />);
     expect(screen.getByText("Loading briefings...")).toBeInTheDocument();

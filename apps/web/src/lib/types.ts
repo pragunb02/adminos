@@ -18,7 +18,7 @@ export interface DashboardHome {
 }
 
 export interface DashboardSummary {
-  totalSpentThisWeek: number;
+  totalSpentThisWeek: string; // exact decimal (D-30)
   activeSubscriptions: number;
   flaggedSubscriptions: number;
   upcomingBills: number;
@@ -40,7 +40,7 @@ export interface BriefingSummary {
   periodStart: string;
   periodEnd: string;
   content: string;
-  totalSpent: number | null;
+  totalSpent: string | null;
 }
 
 // ── Transactions ──
@@ -48,7 +48,9 @@ export interface BriefingSummary {
 export interface Transaction {
   id: string;
   type: string;
-  amount: number;
+  /** spend / income / transfer / refund / reversal: what it counts as (D-39). */
+  nature: string;
+  amount: string; // exact decimal (D-30)
   currency: string;
   merchantName: string | null;
   category: string;
@@ -69,7 +71,7 @@ export interface Subscription {
   name: string;
   merchantName: string | null;
   category: string;
-  amount: number;
+  amount: string;
   currency: string;
   billingCycle: string;
   nextBillingDate: string | null;
@@ -85,12 +87,12 @@ export interface Subscription {
 }
 
 export interface SubscriptionSummary {
-  totalMonthlyCost: number;
+  totalMonthlyCost: string;
   currency: string;
   activeCount: number;
   flaggedCount: number;
   cancelledCount: number;
-  byCategory: Record<string, { count: number; monthly: number }>;
+  byCategory: Record<string, { count: number; monthly: string }>;
 }
 
 // ── Bills ──
@@ -99,13 +101,13 @@ export interface Bill {
   id: string;
   billType: string;
   billerName: string;
-  amount: number;
-  minimumDue: number | null;
+  amount: string;
+  minimumDue: string | null;
   currency: string;
   dueDate: string;
   status: string;
   paidAt: string | null;
-  paidAmount: number | null;
+  paidAmount: string | null;
   paymentTxnId: string | null;
   createdAt: string;
 }
@@ -118,9 +120,9 @@ export interface Briefing {
   periodEnd: string;
   type: string;
   content: string;
-  totalSpent: number | null;
-  totalIncome: number | null;
-  topCategories: { category: string; amount: number }[] | null;
+  totalSpent: string | null;
+  totalIncome: string | null;
+  topCategories: { category: string; amount: string }[] | null;
   subscriptionsFlagged: number;
   anomaliesDetected: number;
   billsUpcoming: number;

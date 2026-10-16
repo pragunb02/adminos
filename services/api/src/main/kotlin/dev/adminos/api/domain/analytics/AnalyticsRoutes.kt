@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.analytics
 
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.common.toMoney
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -26,7 +27,7 @@ import java.math.RoundingMode
 @Serializable data class MerchantDto(val merchant: String, val spent: String, val count: Int, val category: String)
 @Serializable data class MerchantsResponse(val period: PeriodDto, val merchants: List<MerchantDto>)
 
-private fun BigDecimal.money() = setScale(2, RoundingMode.HALF_UP).toPlainString()
+private fun BigDecimal.money() = toMoney()
 private fun Money.dto() = MoneyDto(spent.money(), received.money(), net.money())
 private fun DateRange.dto() = PeriodDto(from.toString(), to.toString())
 

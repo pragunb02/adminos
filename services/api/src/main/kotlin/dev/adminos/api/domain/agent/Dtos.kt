@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.agent
 
+import dev.adminos.api.domain.common.toMoney
+
 import kotlinx.serialization.Serializable
 
 // ── Request DTOs ──
@@ -52,8 +54,8 @@ data class BriefingResponse(
     val periodEnd: String,
     val type: String,
     val content: String,
-    val totalSpent: Double?,
-    val totalIncome: Double?,
+    val totalSpent: String?,
+    val totalIncome: String?,
     val topCategories: List<CategoryAmountResponse>?,
     val subscriptionsFlagged: Int,
     val anomaliesDetected: Int,
@@ -69,9 +71,9 @@ data class BriefingResponse(
             periodEnd = b.periodEnd.toString(),
             type = b.type.name.lowercase(),
             content = b.content,
-            totalSpent = b.totalSpent?.toDouble(),
-            totalIncome = b.totalIncome?.toDouble(),
-            topCategories = b.topCategories?.map { CategoryAmountResponse(it.category, it.amount.toDouble()) },
+            totalSpent = b.totalSpent?.toMoney(),
+            totalIncome = b.totalIncome?.toMoney(),
+            topCategories = b.topCategories?.map { CategoryAmountResponse(it.category, it.amount.toMoney()) },
             subscriptionsFlagged = b.subscriptionsFlagged,
             anomaliesDetected = b.anomaliesDetected,
             billsUpcoming = b.billsUpcoming,
@@ -85,7 +87,7 @@ data class BriefingResponse(
 @Serializable
 data class CategoryAmountResponse(
     val category: String,
-    val amount: Double
+    val amount: String
 )
 
 @Serializable

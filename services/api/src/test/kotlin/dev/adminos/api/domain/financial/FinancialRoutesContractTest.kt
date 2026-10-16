@@ -171,4 +171,20 @@ class FinancialRoutesContractTest {
         }
         assertEquals(null, runBlocking { rules.findFor(user.id, null, "bakery") })
     }
+
+    @Test
+    fun `money is an exact decimal string and every transaction says what it counts as (AOS-611, D-30, D-39)`() = contractTest {
+        runBlocking {
+            transactions.save(txn(LocalDate.of(2026, 10, 3), 10).copy(amount = BigDecimal("100.10")))
+            transactions.save(txn(LocalDate.of(2026, 10, 3), 11, merchant = "Amazon").copy(amount = BigDecimal("300.00"),
+                type = TransactionType.CREDIT, nature = TransactionNature.REFUND))
+        }
+        val row = getJson("/api/v1/transactions?from=2026-10-03&to=2026-10-03").second["data"]!!.jsonArray
+            .map { it.jsonObject }.first { it["merchantName"]!!.jsonPrimitive.content == "Amazon" }
+        assertTrue(row["amount"]!!.jsonPrimitive.isString)
+        assertEquals("300.00", row["amount"]!!.jsonPrimitive.content)
+        assertEquals("refund", row["nature"]!!.jsonPrimitive.content)
+        val summary = getJson("/api/v1/transactions/summary?from=2026-10-01&to=2026-10-31").second["data"]!!.jsonObject
+        assertTrue(summary["totalSpending"]!!.jsonPrimitive.isString)
+    }
 }

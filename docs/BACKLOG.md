@@ -96,7 +96,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-305 | Categories and top merchants views | Claude | ⬜ | 3h |  |
 | └ AOS-306 | Trend charts | Claude | ⬜ | 2h |  |
 | **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ⬜ | 5h | |
-| └ [AOS-611](tickets/AOS-611.md) | Exact money everywhere (D-30): summaries, subscription totals, transaction list + nature | Claude | ⬜ | 1.5h |  |
+| └ [AOS-611](tickets/AOS-611.md) | Exact money everywhere (D-30): every API money field is a string; web `lib/money.ts` | Claude | ✅ | 1.5h | 1.5h |
 | └ AOS-307 | Transaction feed: search, filter, edit, re-categorize | Claude | ⬜ | 3h |  |
 | └ AOS-309 | Review suggested duplicates / transfers / refunds (D-45) | Claude | ⬜ | 2h |  |
 

@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial
 
+import dev.adminos.api.domain.common.toMoney
 import kotlinx.serialization.Serializable
 
 // ── Request DTOs ──
@@ -18,7 +19,10 @@ data class CategoryOverrideRequest(
 data class TransactionResponse(
     val id: String,
     val type: String,
-    val amount: Double,
+    /** spend / income / transfer / refund / reversal (D-39): what it counts as in totals. */
+    val nature: String,
+    /** Exact decimal string, e.g. "349.00" (D-30). */
+    val amount: String,
     val currency: String,
     val merchantName: String?,
     val category: String,
@@ -35,7 +39,8 @@ data class TransactionResponse(
         fun from(t: Transaction) = TransactionResponse(
             id = t.id.toString(),
             type = t.type.name.lowercase(),
-            amount = t.amount.toDouble(),
+            nature = t.nature.name.lowercase(),
+            amount = t.amount.toMoney(),
             currency = t.currency,
             merchantName = t.merchantName,
             category = t.category.name.lowercase(),
@@ -54,8 +59,8 @@ data class TransactionResponse(
 @Serializable
 data class TransactionSummaryResponse(
     val period: PeriodInfo,
-    val totalSpending: Double,
-    val byCategory: Map<String, Double>
+    val totalSpending: String,
+    val byCategory: Map<String, String>
 )
 
 @Serializable
@@ -97,7 +102,7 @@ data class SubscriptionResponse(
     val name: String,
     val merchantName: String?,
     val category: String,
-    val amount: Double,
+    val amount: String,
     val currency: String,
     val billingCycle: String,
     val nextBillingDate: String?,
@@ -117,7 +122,7 @@ data class SubscriptionResponse(
             name = s.name,
             merchantName = s.merchantName,
             category = s.category.name.lowercase(),
-            amount = s.amount.toDouble(),
+            amount = s.amount.toMoney(),
             currency = s.currency,
             billingCycle = s.billingCycle.name.lowercase(),
             nextBillingDate = s.nextBillingDate?.toString(),
@@ -136,7 +141,7 @@ data class SubscriptionResponse(
 
 @Serializable
 data class SubscriptionSummaryResponse(
-    val totalMonthlyCost: Double,
+    val totalMonthlyCost: String,
     val currency: String = "INR",
     val activeCount: Long,
     val flaggedCount: Long,
@@ -147,7 +152,7 @@ data class SubscriptionSummaryResponse(
 @Serializable
 data class CategoryBreakdown(
     val count: Int,
-    val monthly: Double
+    val monthly: String
 )
 
 @Serializable
@@ -155,13 +160,13 @@ data class BillResponse(
     val id: String,
     val billType: String,
     val billerName: String,
-    val amount: Double,
-    val minimumDue: Double?,
+    val amount: String,
+    val minimumDue: String?,
     val currency: String,
     val dueDate: String,
     val status: String,
     val paidAt: String?,
-    val paidAmount: Double?,
+    val paidAmount: String?,
     val paymentTxnId: String?,
     val createdAt: String
 ) {
@@ -170,13 +175,13 @@ data class BillResponse(
             id = b.id.toString(),
             billType = b.billType.name.lowercase(),
             billerName = b.billerName,
-            amount = b.amount.toDouble(),
-            minimumDue = b.minimumDue?.toDouble(),
+            amount = b.amount.toMoney(),
+            minimumDue = b.minimumDue?.toMoney(),
             currency = b.currency,
             dueDate = b.dueDate.toString(),
             status = b.status.name.lowercase(),
             paidAt = b.paidAt?.toString(),
-            paidAmount = b.paidAmount?.toDouble(),
+            paidAmount = b.paidAmount?.toMoney(),
             paymentTxnId = b.paymentTxnId?.toString(),
             createdAt = b.createdAt.toString()
         )
