@@ -1,18 +1,20 @@
-"""AdminOS PDF Parser — extracts transactions from bank statement PDFs."""
+"""AdminOS statement parser (D-37). Stateless: files and passwords are used in memory only, never stored or logged."""
 
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.responses import JSONResponse
 
-from app.parser import parse_bank_statement, detect_bank
-from app.models import ParseResult, ExtractedTransaction
+from app.models import ParseError
+from app.parser import parse_statement
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("statement-parser")
 
-app = FastAPI(title="AdminOS PDF Parser", version="0.1.0")
+MAX_BYTES = 20 * 1024 * 1024
+
+app = FastAPI(title="AdminOS statement parser", version="1.0.0")
 
 
 @app.get("/health")
@@ -20,40 +22,22 @@ async def health():
     return {"status": "ok"}
 
 
-class ParseRequest(BaseModel):
-    storage_key: str
-    sync_session_id: str
-    user_id: str
+def _error(status: int, code: str, message: str) -> JSONResponse:
+    return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
 
 
-@app.post("/parse", response_model=ParseResult)
-async def parse_pdf(file: UploadFile = File(...)):
-    """Parse a bank statement PDF and extract transactions."""
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
-
-    content = await file.read()
-    if len(content) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File exceeds 20MB limit")
-
+@app.post("/v1/statements:parse")
+async def parse(file: UploadFile = File(...), password: Optional[str] = Form(default=None)):
+    data = await file.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:
+        return _error(413, "FILE_TOO_LARGE", "Statement exceeds 20 MB")
     try:
-        result = parse_bank_statement(content, file.filename)
-        logger.info(
-            "Parsed %s: bank=%s, transactions=%d, avg_confidence=%.2f",
-            file.filename,
-            result.bank_code,
-            len(result.transactions),
-            result.avg_confidence,
-        )
-        return result
-    except Exception as e:
-        logger.error("Failed to parse PDF %s: %s", file.filename, str(e))
-        raise HTTPException(status_code=422, detail=f"Failed to parse PDF: {str(e)}")
-
-
-@app.post("/detect-bank")
-async def detect_bank_endpoint(file: UploadFile = File(...)):
-    """Detect which bank issued the statement."""
-    content = await file.read()
-    bank = detect_bank(content)
-    return {"bank_code": bank or "unknown"}
+        result = parse_statement(data, file.filename or "", password)
+    except ParseError as e:
+        logger.info("statement rejected: %s", e.code)  # code only: no file name, content or password
+        return _error(422, e.code, e.message)
+    except Exception as e:  # never echo details: they can contain statement content
+        logger.warning("statement parse failed: %s", type(e).__name__)
+        return _error(422, "UNREADABLE", "The statement couldn't be read")
+    logger.info("statement parsed: bank=%s rows=%d skipped=%d", result.bank_code, len(result.rows), result.skipped_rows)
+    return result.model_dump(by_alias=True, mode="json")
