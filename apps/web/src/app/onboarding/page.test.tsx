@@ -53,7 +53,7 @@ describe("Onboarding", () => {
     let polls = 0;
     server.use(
       http.get("/api/v1/sync/sy-1", () => (++polls < 3 ? ok(sync(polls === 1 ? { netNewItems: 0, duplicateItems: 0 } : {})) : ok(sync({ status: "completed" })))),
-      http.get("/api/v1/subscriptions", () => ok([fx.subscription(), fx.subscription({ id: "s-2", name: "Gym", amount: 1500, isFlagged: true })])),
+      http.get("/api/v1/subscriptions", () => ok([fx.subscription(), fx.subscription({ id: "s-2", name: "Gym", amount: "1500", isFlagged: true })])),
     );
     const user = await start();
     await user.click(screen.getByRole("button", { name: "Connect Gmail" }));

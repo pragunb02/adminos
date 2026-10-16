@@ -7,6 +7,8 @@ import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.domain.common.Pagination
+import dev.adminos.api.domain.common.sumMoney
+import dev.adminos.api.domain.common.toMoney
 import dev.adminos.api.infrastructure.plugins.*
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
@@ -76,16 +78,16 @@ fun Route.transactionRoutes(
                 val to = call.rangeEndParam("to") ?: Instant.now()
 
                 val byCategory = transactionRepository.spendingByCategory(principal.userId, from, to)
-                val totalSpending = byCategory.values.fold(0.0) { acc, v -> acc + v.toDouble() }
+                val totalSpending = byCategory.values.sumMoney()
 
                 call.respond(
                     HttpStatusCode.OK,
                     ApiResponse.success(
                         TransactionSummaryResponse(
                             period = PeriodInfo(from = from.toString(), to = to.toString()),
-                            totalSpending = totalSpending,
+                            totalSpending = totalSpending.toMoney(),
                             byCategory = byCategory.mapKeys { it.key.name.lowercase() }
-                                .mapValues { it.value.toDouble() }
+                                .mapValues { it.value.toMoney() }
                         ),
                         call.requestId
                     )

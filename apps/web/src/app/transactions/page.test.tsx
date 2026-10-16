@@ -16,7 +16,7 @@ describe("Transactions feed", () => {
       if (url.searchParams.get("cursor") === "p2") return ok([fx.transaction({ id: "t-3", merchantName: "Page Two" })], { cursor: null, hasMore: false, total: 3 });
       return ok([
         fx.transaction({ isRecurring: true, isAnomaly: true }),
-        fx.transaction({ id: "t-2", type: "credit", amount: 100000, merchantName: null, accountLast4: null, paymentMethod: null, category: "other" }),
+        fx.transaction({ id: "t-2", type: "credit", amount: "100000", merchantName: null, accountLast4: null, paymentMethod: null, category: "other" }),
       ], { cursor: "p2", hasMore: true, total: 3 });
     }));
     return urls;
@@ -30,10 +30,23 @@ describe("Transactions feed", () => {
     const swiggy = screen.getByText("Swiggy").parentElement!;
     expect(swiggy).toHaveTextContent("⚠️");
     expect(swiggy).toHaveTextContent("🔄");
-    expect(screen.getByText("-₹349")).toBeInTheDocument();
+    expect(screen.getByText("−₹349")).toBeInTheDocument(); // a real minus sign
     expect(screen.getByText("+₹1,00,000")).toHaveClass("text-green-700");
     expect(screen.getByText("Unknown")).toBeInTheDocument();
     expect(screen.getByText("••1234")).toBeInTheDocument();
+  });
+
+  it("refunds, reversals and transfers are labelled in words, not only by colour (AOS-611)", async () => {
+    server.use(http.get("/api/v1/transactions", () => ok([
+      fx.transaction({ id: "r", type: "credit", nature: "refund", amount: "300.00", merchantName: "Amazon" }),
+      fx.transaction({ id: "v", type: "credit", nature: "reversal", amount: "249.50", merchantName: "Zomato" }),
+      fx.transaction({ id: "x", type: "debit", nature: "transfer", amount: "5000.00", merchantName: "HDFC Card" }),
+    ], { cursor: null, hasMore: false, total: 3 })));
+    renderWithQuery(<TransactionsPage />);
+    expect(await screen.findByText("Refund")).toBeInTheDocument();
+    expect(screen.getByText("Reversal")).toBeInTheDocument();
+    expect(screen.getByText("Transfer")).toBeInTheDocument();
+    expect(screen.getByText("+₹249.50")).toBeInTheDocument(); // paise kept when present
   });
 
   it("load more appends the next page and then disappears", async () => {

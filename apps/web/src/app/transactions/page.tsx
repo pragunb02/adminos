@@ -4,10 +4,14 @@ import { useEffect, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { errorMessage, getPage } from "@/lib/query";
 import type { Transaction } from "@/lib/types";
+import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorMessage from "@/components/ErrorMessage";
+
+/** Not ordinary spending or income: say so in words, not only by colour (D-39, design spec §6). */
+const NATURE_LABEL: Record<string, string> = { refund: "Refund", reversal: "Reversal", transfer: "Transfer" };
 
 const CATEGORIES = [
   "all", "food", "transport", "shopping", "utilities", "emi", "subscription",
@@ -149,9 +153,12 @@ export default function TransactionsPage() {
                     {txn.paymentMethod && <span className="text-xs text-gray-500">{txn.paymentMethod}</span>}
                   </div>
                 </div>
-                <p className={`font-semibold text-sm whitespace-nowrap ${txn.type === "credit" ? "text-green-700" : "text-gray-900"}`}>
-                  {txn.type === "credit" ? "+" : "-"}₹{txn.amount.toLocaleString("en-IN")}
-                </p>
+                <div className="text-right">
+                  <p className={`font-semibold text-sm whitespace-nowrap ${txn.type === "credit" ? "text-green-700" : "text-gray-900"}`}>
+                    {txn.type === "credit" ? "+" : "−"}{formatInr(txn.amount)}
+                  </p>
+                  {NATURE_LABEL[txn.nature] && <p className="text-xs text-gray-600">{NATURE_LABEL[txn.nature]}</p>}
+                </div>
               </div>
             ))}
 

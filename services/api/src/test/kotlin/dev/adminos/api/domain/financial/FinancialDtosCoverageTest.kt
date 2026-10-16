@@ -50,7 +50,7 @@ class FinancialDtosCoverageTest {
 
     @Test
     fun `transaction summaries round-trip`() {
-        val summary = TransactionSummaryResponse(PeriodInfo("2026-10-01T00:00:00Z", "2026-10-31T23:59:59Z"), 1149.0, mapOf("food" to 450.0, "shopping" to 699.0))
+        val summary = TransactionSummaryResponse(PeriodInfo("2026-10-01T00:00:00Z", "2026-10-31T23:59:59Z"), "1149.00", mapOf("food" to "450.00", "shopping" to "699.00"))
         roundTrip(TransactionSummaryResponse.serializer(), summary)
         roundTrip(PeriodInfo.serializer(), summary.period)
         assertFailsWith<SerializationException> { json.decodeFromString(TransactionSummaryResponse.serializer(), """{"totalSpending":1}""") }
@@ -69,8 +69,8 @@ class FinancialDtosCoverageTest {
         val s = Subscription(userId = userId, name = "Netflix", amount = BigDecimal("649"), billingCycle = BillingCycle.MONTHLY,
             nextBillingDate = LocalDate.of(2026, 11, 5), priceChangePct = BigDecimal("30.06"), transactionIds = listOf(UUID.randomUUID()), createdAt = at)
         roundTrip(SubscriptionResponse.serializer(), SubscriptionResponse.from(s))
-        val summary = SubscriptionSummaryResponse(948.67, activeCount = 2, flaggedCount = 1, cancelledCount = 0,
-            byCategory = mapOf("entertainment" to CategoryBreakdown(2, 948.67)))
+        val summary = SubscriptionSummaryResponse("948.67", activeCount = 2, flaggedCount = 1, cancelledCount = 0,
+            byCategory = mapOf("entertainment" to CategoryBreakdown(2, "948.67")))
         roundTrip(SubscriptionSummaryResponse.serializer(), summary)
         roundTrip(SubscriptionSummaryResponse.serializer(), summary.copy(currency = "USD"))
         roundTrip(SubscriptionSummaryResponse.serializer(), summary, withDefaults)
@@ -90,8 +90,8 @@ class FinancialDtosCoverageTest {
     @Test
     fun `dashboard responses round-trip`() {
         val item = DashboardActionItem("1", "bill", "Tata Power bill", "Due tomorrow — ₹2350.75", "warning", "1", "View")
-        val briefing = DashboardBriefingSummary("b", "2026-10-09", "2026-10-15", "You spent ₹12,345.50", 12345.5)
-        val home = DashboardHomeResponse("Good morning", DashboardSummaryResponse(300.0, 3, 2, 4, 1), listOf(item), briefing)
+        val briefing = DashboardBriefingSummary("b", "2026-10-09", "2026-10-15", "You spent ₹12,345.50", "12345.50")
+        val home = DashboardHomeResponse("Good morning", DashboardSummaryResponse("300.00", 3, 2, 4, 1), listOf(item), briefing)
         roundTrip(DashboardHomeResponse.serializer(), home)
         roundTrip(DashboardHomeResponse.serializer(), home.copy(latestBriefing = null))
         assertFailsWith<SerializationException> { json.decodeFromString(DashboardHomeResponse.serializer(), """{"greeting":"hi"}""") }

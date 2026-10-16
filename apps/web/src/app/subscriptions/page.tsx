@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { Subscription, SubscriptionSummary } from "@/lib/types";
+import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -60,7 +61,7 @@ export default function SubscriptionsPage() {
         {summary && (
           <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between">
             <div>
-              <p className="text-2xl font-bold text-gray-900">₹{summary.totalMonthlyCost.toLocaleString("en-IN")}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatInr(summary.totalMonthlyCost)}</p>
               <p className="text-sm text-gray-500">total monthly cost</p>
             </div>
             <div className="text-right text-sm text-gray-500 space-y-0.5">
@@ -113,7 +114,7 @@ export default function SubscriptionsPage() {
                       )}
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
-                      ₹{sub.amount.toLocaleString("en-IN")} / {sub.billingCycle}
+                      {formatInr(sub.amount)} / {sub.billingCycle}
                       {sub.nextBillingDate && ` · Next: ${sub.nextBillingDate}`}
                     </p>
                     {sub.isFlagged && sub.flaggedReason && (
@@ -121,7 +122,7 @@ export default function SubscriptionsPage() {
                     )}
                   </div>
                   <p className="font-semibold text-gray-900 whitespace-nowrap">
-                    ₹{sub.amount.toLocaleString("en-IN")}
+                    {formatInr(sub.amount)}
                   </p>
                 </div>
 
@@ -156,7 +157,7 @@ export default function SubscriptionsPage() {
             <h3 className="font-semibold text-gray-900 mb-2">Cancellation Draft</h3>
             <div className="space-y-2 text-sm text-gray-700">
               <p><span className="font-medium">Subscription:</span> {cancelDraft.name}</p>
-              <p><span className="font-medium">Amount:</span> ₹{cancelDraft.amount.toLocaleString("en-IN")} / {cancelDraft.billingCycle}</p>
+              <p><span className="font-medium">Amount:</span> {formatInr(cancelDraft.amount)} / {cancelDraft.billingCycle}</p>
               <p><span className="font-medium">Status:</span> {cancelDraft.status.replace(/_/g, " ")}</p>
               {cancelDraft.nextBillingDate && (
                 <p><span className="font-medium">Next billing:</span> {cancelDraft.nextBillingDate}</p>

@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { errorMessage, getData } from "@/lib/query";
 import type { Bill } from "@/lib/types";
+import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -71,9 +72,9 @@ export default function BillsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">₹{bill.amount.toLocaleString("en-IN")}</p>
+                      <p className="font-semibold text-gray-900">{formatInr(bill.amount)}</p>
                       {bill.minimumDue != null && bill.minimumDue !== bill.amount && (
-                        <p className="text-xs text-gray-500">Min: ₹{bill.minimumDue.toLocaleString("en-IN")}</p>
+                        <p className="text-xs text-gray-500">Min: {formatInr(bill.minimumDue)}</p>
                       )}
                     </div>
                   </div>

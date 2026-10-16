@@ -18,14 +18,14 @@ export class MockApi {
   constructor(private readonly page: Page) {
     const opens = [fx.anomaly(), fx.anomaly({ id: "an-2", type: "odd_hours", reason: "Paid at 3am", agentExplanation: null })];
     this.on("GET /api/v1/dashboard/home", () => ({ data: fx.home() }))
-      .on("GET /api/v1/bills/upcoming", () => ({ data: [fx.bill(), fx.bill({ id: "b-2", billerName: "BESCOM", amount: 1840, billType: "electricity", dueDate: "2026-10-28" })] }))
+      .on("GET /api/v1/bills/upcoming", () => ({ data: [fx.bill(), fx.bill({ id: "b-2", billerName: "BESCOM", amount: "1840", billType: "electricity", dueDate: "2026-10-28" })] }))
       .on("GET /api/v1/briefings/latest", () => ({ data: fx.briefing() }))
       .on("GET /api/v1/briefings", () => ({ data: [fx.briefing(), fx.briefing({ id: "br-0", periodStart: "2026-09-28", periodEnd: "2026-10-04", content: "Quiet week." })] }))
       .on("GET /api/v1/subscriptions/summary", () => ({ data: fx.subscriptionSummary() }))
       .on("GET /api/v1/subscriptions", (_r, u) => ({ data: u.searchParams.get("flagged") ? [fx.subscription({ id: "s-9", name: "Gym", isFlagged: true, flaggedReason: "No visits in 45 days" })] : [fx.subscription()] }))
       .on("GET /api/v1/transactions", (_r, u) => u.searchParams.get("cursor")
         ? { data: [fx.transaction({ id: "t-3", merchantName: "Zepto" })], pagination: { cursor: null, hasMore: false, total: 3 } }
-        : { data: [fx.transaction(), fx.transaction({ id: "t-2", merchantName: "Amazon", category: "shopping", amount: 999 })], pagination: { cursor: "p2", hasMore: true, total: 3 } })
+        : { data: [fx.transaction(), fx.transaction({ id: "t-2", merchantName: "Amazon", category: "shopping", amount: "999" })], pagination: { cursor: "p2", hasMore: true, total: 3 } })
       .on("GET /api/v1/anomalies", () => ({ data: opens }))
       .on("GET /api/v1/anomalies/:id", (_r, u) => { const a = opens.find((x) => u.pathname.endsWith(x.id)); return a ? { data: a } : { status: 404, error: { code: "NOT_FOUND", message: "Anomaly not found" } }; })
       .on("PATCH /api/v1/anomalies/:id", (_r, u) => { const i = opens.findIndex((x) => u.pathname.endsWith(x.id)); if (i >= 0) opens.splice(i, 1); return { data: {} }; })

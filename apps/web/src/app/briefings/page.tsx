@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { errorMessage, getData } from "@/lib/query";
 import type { Briefing } from "@/lib/types";
+import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorMessage from "@/components/ErrorMessage";
@@ -83,13 +84,13 @@ export default function BriefingsPage() {
               {latest.totalSpent != null && (
                 <div>
                   <span className="text-gray-500">Spent: </span>
-                  <span className="font-medium">₹{latest.totalSpent.toLocaleString("en-IN")}</span>
+                  <span className="font-medium">{formatInr(latest.totalSpent)}</span>
                 </div>
               )}
               {latest.totalIncome != null && (
                 <div>
                   <span className="text-gray-500">Income: </span>
-                  <span className="font-medium text-green-700">₹{latest.totalIncome.toLocaleString("en-IN")}</span>
+                  <span className="font-medium text-green-700">{formatInr(latest.totalIncome)}</span>
                 </div>
               )}
             </div>
@@ -106,7 +107,7 @@ export default function BriefingsPage() {
                 <div className="flex flex-wrap gap-2">
                   {latest.topCategories.map((cat) => (
                     <span key={cat.category} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
-                      {cat.category}: ₹{cat.amount.toLocaleString("en-IN")}
+                      {cat.category}: {formatInr(cat.amount)}
                     </span>
                   ))}
                 </div>
@@ -150,7 +151,7 @@ export default function BriefingsPage() {
                       {formatPeriod(b.periodStart, b.periodEnd)}
                     </span>
                     {b.totalSpent != null && (
-                      <span className="text-sm text-gray-500">₹{b.totalSpent.toLocaleString("en-IN")}</span>
+                      <span className="text-sm text-gray-500">{formatInr(b.totalSpent)}</span>
                     )}
                   </div>
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">{b.content}</p>

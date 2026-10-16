@@ -131,8 +131,6 @@ class FinancialTransactionRoutesCoverageTest {
         assertEquals(0, BigDecimal.ZERO.compareTo(data.money("totalSpending")))
         assertTrue(data["byCategory"]!!.jsonObject.isEmpty())
     }
-
-    @Disabled("BUG AOS-312: TransactionRoutes.kt:79 adds category totals as Double: ₹100.10 + ₹200.20 = 300.29999999999995 (D-30 wants exact decimals)")
     @Test
     fun `summary total is the exact decimal sum of the categories`() = txnTest {
         runBlocking {

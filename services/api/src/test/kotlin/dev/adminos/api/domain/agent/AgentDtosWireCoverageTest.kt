@@ -32,7 +32,7 @@ class AgentDtosWireCoverageTest {
     )
     private val briefing = BriefingResponse(
         id = "b1", periodStart = "2026-10-05", periodEnd = "2026-10-11", type = "weekly", content = "Weekly summary",
-        totalSpent = 12450.5, totalIncome = null, topCategories = listOf(CategoryAmountResponse("food", 4200.25)),
+        totalSpent = "12450.50", totalIncome = null, topCategories = listOf(CategoryAmountResponse("food", "4200.25")),
         subscriptionsFlagged = 1, anomaliesDetected = 0, billsUpcoming = 2, status = "generated",
         insights = listOf(insight), createdAt = "2026-10-12T03:30:00Z"
     )
@@ -63,7 +63,7 @@ class AgentDtosWireCoverageTest {
 
     @Test
     fun `category amount response round-trips and requires every field`() {
-        val c = CategoryAmountResponse("food", 4200.25)
+        val c = CategoryAmountResponse("food", "4200.25")
         assertRoundTrips(CategoryAmountResponse.serializer(), c)
         assertRequiresEveryField(CategoryAmountResponse.serializer(), c)
     }

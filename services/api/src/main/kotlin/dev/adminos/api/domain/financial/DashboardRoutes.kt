@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.financial
 
+import dev.adminos.api.domain.common.toMoney
+
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.infrastructure.plugins.requestId
@@ -128,7 +130,7 @@ fun Route.dashboardRoutes(
                         periodStart = it.periodStart.toString(),
                         periodEnd = it.periodEnd.toString(),
                         content = it.content.take(300),
-                        totalSpent = it.totalSpent?.toDouble()
+                        totalSpent = it.totalSpent?.toMoney()
                     )
                 }
 
@@ -143,7 +145,7 @@ fun Route.dashboardRoutes(
                 val response = DashboardHomeResponse(
                     greeting = greeting,
                     summary = DashboardSummaryResponse(
-                        totalSpentThisWeek = totalSpentThisWeek.toDouble(),
+                        totalSpentThisWeek = totalSpentThisWeek.toMoney(),
                         activeSubscriptions = activeSubCount,
                         flaggedSubscriptions = flaggedSubCount,
                         upcomingBills = upcomingBills.size.toLong(),
@@ -174,7 +176,7 @@ data class DashboardHomeResponse(
 
 @Serializable
 data class DashboardSummaryResponse(
-    val totalSpentThisWeek: Double,
+    val totalSpentThisWeek: String,
     val activeSubscriptions: Long,
     val flaggedSubscriptions: Long,
     val upcomingBills: Long,
@@ -198,5 +200,5 @@ data class DashboardBriefingSummary(
     val periodStart: String,
     val periodEnd: String,
     val content: String,
-    val totalSpent: Double?
+    val totalSpent: String?
 )

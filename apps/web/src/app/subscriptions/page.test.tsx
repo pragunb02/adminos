@@ -9,7 +9,7 @@ import SubscriptionsPage from "./page";
 
 describe("Subscriptions", () => {
   const lists: Record<string, unknown[]> = {
-    "status=active": [fx.subscription(), fx.subscription({ id: "s-2", name: "Spotify", amount: 119, priceChanged: true, priceChangePct: 12, nextBillingDate: null })],
+    "status=active": [fx.subscription(), fx.subscription({ id: "s-2", name: "Spotify", amount: "119", priceChanged: true, priceChangePct: 12, nextBillingDate: null })],
     "flagged=true": [fx.subscription({ id: "s-3", name: "Gym", isFlagged: true, flaggedReason: "No visits in 45 days", priceChanged: true, priceChangePct: -10 })],
     "status=cancelled": [],
   };

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { errorMessage, getData } from "@/lib/query";
 import type { DashboardHome, ActionItem } from "@/lib/types";
+import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
 import ActionCard from "@/components/ActionCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -65,7 +66,7 @@ export default function Home() {
 
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <SummaryCard label="Spent this week" value={`₹${data.summary.totalSpentThisWeek.toLocaleString("en-IN")}`} />
+            <SummaryCard label="Spent this week" value={formatInr(data.summary.totalSpentThisWeek)} />
             <SummaryCard label="Active subs" value={String(data.summary.activeSubscriptions)} />
             <SummaryCard label="Upcoming bills" value={String(data.summary.upcomingBills)} />
             <SummaryCard label="Open anomalies" value={String(data.summary.openAnomalies)} highlight={data.summary.openAnomalies > 0} />
@@ -110,7 +111,7 @@ export default function Home() {
               <p className="text-sm text-gray-700 line-clamp-3">{data.latestBriefing.content}</p>
               {data.latestBriefing.totalSpent != null && (
                 <p className="text-xs text-gray-500 mt-2">
-                  Total spent: ₹{data.latestBriefing.totalSpent.toLocaleString("en-IN")}
+                  Total spent: {formatInr(data.latestBriefing.totalSpent)}
                 </p>
               )}
             </div>

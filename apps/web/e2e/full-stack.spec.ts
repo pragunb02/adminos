@@ -20,7 +20,7 @@ test.describe("full stack", () => {
       await page.reload();
       await expect(page.getByText("Chai")).toBeVisible({ timeout: 1000 });
     }).toPass({ timeout: 20_000 });
-    await expect(page.getByText("-₹250")).toBeVisible();
+    await expect(page.getByText("−₹250")).toBeVisible();
 
     const summary = await page.request.get("/api/v1/analytics/summary");
     expect(summary.ok()).toBe(true);

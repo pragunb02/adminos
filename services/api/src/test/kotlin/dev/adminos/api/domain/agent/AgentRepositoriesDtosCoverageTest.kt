@@ -170,8 +170,8 @@ class AgentRepositoriesDtosCoverageTest {
         val r = BriefingResponse.from(b, listOf(i))
 
         assertEquals("monthly", r.type); assertEquals("delivered", r.status)
-        assertEquals(12450.5, r.totalSpent); assertEquals(85000.0, r.totalIncome)
-        assertEquals(listOf(CategoryAmountResponse("food", 4200.25)), r.topCategories)
+        assertEquals("12450.50", r.totalSpent); assertEquals("85000.00", r.totalIncome)
+        assertEquals(listOf(CategoryAmountResponse("food", "4200.25")), r.topCategories)
         assertEquals(2, r.subscriptionsFlagged); assertEquals(1, r.anomaliesDetected); assertEquals(3, r.billsUpcoming)
         val ir = r.insights!!.single()
         assertEquals("bill_due", ir.type); assertEquals("critical", ir.severity); assertEquals("pay_bill", ir.actionType)

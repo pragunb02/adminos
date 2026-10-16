@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { SyncSession, Subscription } from "@/lib/types";
+import { addMoney, formatInr } from "@/lib/money";
 
 type Step = "education" | "gmail" | "sms" | "processing" | "magic";
 
@@ -13,7 +14,7 @@ export default function OnboardingPage() {
   const [syncId, setSyncId] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncSession | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [totalMonthlyCost, setTotalMonthlyCost] = useState(0);
+  const [totalMonthlyCost, setTotalMonthlyCost] = useState("0.00");
   const [skippedGmail, setSkippedGmail] = useState(false);
   const [skippedSms, setSkippedSms] = useState(false);
 
@@ -32,7 +33,7 @@ export default function OnboardingPage() {
             const subRes = await api.get<Subscription[]>("/api/v1/subscriptions?limit=50");
             if (subRes.success && subRes.data) {
               setSubscriptions(subRes.data);
-              const cost = subRes.data.reduce((sum, s) => sum + s.amount, 0);
+              const cost = addMoney(...subRes.data.map((s) => s.amount));
               setTotalMonthlyCost(cost);
             }
             setStep("magic");
@@ -210,7 +211,7 @@ export default function OnboardingPage() {
             {subscriptions.length > 0 ? (
               <>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p className="text-3xl font-bold text-blue-700">₹{totalMonthlyCost.toLocaleString("en-IN")}</p>
+                  <p className="text-3xl font-bold text-blue-700">{formatInr(totalMonthlyCost)}</p>
                   <p className="text-sm text-blue-600">monthly in subscriptions</p>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">
@@ -225,7 +226,7 @@ export default function OnboardingPage() {
                       className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm"
                     >
                       <span className="text-gray-700">{sub.name}</span>
-                      <span className="font-medium">₹{sub.amount.toLocaleString("en-IN")}/{sub.billingCycle}</span>
+                      <span className="font-medium">{formatInr(sub.amount)}/{sub.billingCycle}</span>
                     </div>
                   ))}
                 </div>

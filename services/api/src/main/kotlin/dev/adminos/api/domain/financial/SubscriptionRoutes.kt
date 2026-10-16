@@ -1,5 +1,8 @@
 package dev.adminos.api.domain.financial
 
+import dev.adminos.api.domain.common.sumMoney
+import dev.adminos.api.domain.common.toMoney
+
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.common.CursorCodec
@@ -67,9 +70,7 @@ fun Route.subscriptionRoutes(subscriptionRepository: SubscriptionRepository) {
                     .mapValues { (_, subs) ->
                         CategoryBreakdown(
                             count = subs.size,
-                            monthly = subs.fold(0.0) { acc, s ->
-                                acc + toMonthlyCost(s.amount, s.billingCycle).toDouble()
-                            }
+                            monthly = subs.map { toMonthlyCost(it.amount, it.billingCycle) }.sumMoney().toMoney()
                         )
                     }
 
@@ -77,7 +78,7 @@ fun Route.subscriptionRoutes(subscriptionRepository: SubscriptionRepository) {
                     HttpStatusCode.OK,
                     ApiResponse.success(
                         SubscriptionSummaryResponse(
-                            totalMonthlyCost = totalMonthlyCost.toDouble(),
+                            totalMonthlyCost = totalMonthlyCost.toMoney(),
                             activeCount = activeCount,
                             flaggedCount = flaggedCount,
                             cancelledCount = cancelledCount,
