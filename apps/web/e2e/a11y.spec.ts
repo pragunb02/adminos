@@ -1,12 +1,12 @@
 import { expect, expectAccessible, mainNav, test } from "./support/fixtures";
 
-const SCREENS = ["/", "/transactions", "/import", "/subscriptions", "/bills", "/briefings", "/settings", "/anomalies/an-1", "/onboarding"];
+const SCREENS = ["/", "/spending", "/transactions", "/review", "/more", "/import", "/subscriptions", "/bills", "/briefings", "/settings", "/anomalies/an-1", "/onboarding"];
 
 test.describe("accessibility (axe, WCAG 2.2 AA: no serious or critical issues)", () => {
   for (const path of SCREENS) {
     test(`${path}`, async ({ signedIn: page }) => {
       await page.goto(path);
-      await expect(page.locator("h1, h2").first()).toBeVisible();
+      await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
       await page.waitForLoadState("networkidle");
       await expectAccessible(page);
     });
@@ -27,7 +27,7 @@ test.describe("keyboard only", () => {
     test.skip(isMobile, "phones have no keyboard");
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Good morning, Pragun" })).toBeVisible();
-    const target = mainNav(page).getByRole("link", { name: "Bills" });
+    const target = mainNav(page).getByRole("link", { name: "Bills" }); // desktop rail
     for (let i = 0; i < 30 && !(await target.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
     await expect(target).toBeFocused();
     await page.keyboard.press("Enter");

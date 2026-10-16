@@ -36,7 +36,8 @@ export class MockApi {
       .on("GET /api/v1/device-tokens", () => ({ data: [] }))
       .on("POST /api/v1/transactions/cash", () => ({ status: 202, data: { saved: true, duplicate: false } }))
       .on("POST /api/v1/auth/refresh", () => ({ data: {} }))
-      .on("POST /api/v1/auth/logout", () => ({ data: {} }));
+      .on("POST /api/v1/auth/logout", () => ({ data: {} }))
+      .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }));
   }
 
   on(key: string, handler: Handler): this {

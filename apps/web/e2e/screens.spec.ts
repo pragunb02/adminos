@@ -1,4 +1,4 @@
-import { expect, mainNav, test } from "./support/fixtures";
+import { expect, test } from "./support/fixtures";
 
 test.describe("cash quick-add (AOS-204)", () => {
   test("amount → category saves once, with a confirmation", async ({ signedIn: page, api }) => {
@@ -32,7 +32,7 @@ test.describe("cash quick-add (AOS-204)", () => {
 
   test("Escape and the backdrop close without saving; back still works after", async ({ signedIn: page, api }) => {
     await page.goto("/");
-    await mainNav(page).getByRole("link", { name: "Bills" }).click();
+    await page.goto("/bills");
     await page.getByRole("button", { name: "Add cash spending" }).click();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
