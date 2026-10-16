@@ -217,4 +217,25 @@ class FinancialRepositoriesIntegrationTest {
         val next = bills.save(Bill(userId = user, billerName = "Next day", amount = BigDecimal.TEN, dueDate = day.plusDays(1)))
         assertEquals(listOf(next.id), bills.findByUserId(user, null, null, null, CursorCodec.encode(day.toString()), 10).map { it.id })
     }
+
+    @Test
+    fun `transactions sharing a timestamp page through without gaps, newest first, and filter by nature (AOS-307)`() = runBlocking<Unit> {
+        val user = PostgresTestDatabase.newUser()
+        val at = Instant.parse("2026-10-06T18:30:00Z")
+        val saved = (1..5).map { transactions.save(Transaction(userId = user, type = TransactionType.DEBIT, amount = BigDecimal("10.00"), merchantName = "Row $it", transactedAt = at)) }
+        transactions.save(Transaction(userId = user, type = TransactionType.CREDIT, nature = TransactionNature.REFUND, amount = BigDecimal("5.00"), merchantName = "Back", transactedAt = at.plusSeconds(60)))
+        val seen = mutableListOf<UUID>()
+        var cursor: String? = null
+        do {
+            val page = transactions.findByUserId(user, cursor = cursor, limit = 2, nature = TransactionNature.SPEND)
+            seen += page.map { it.id }
+            cursor = page.lastOrNull()?.takeIf { page.size == 2 }?.let { CursorCodec.encode(transactionCursorKey(it)) }
+        } while (cursor != null)
+        assertEquals(saved.map { it.id }.toSet(), seen.toSet())
+        assertEquals(5, seen.size)
+        assertEquals(1L, transactions.countByUserId(user, nature = TransactionNature.REFUND))
+        assertEquals(6L, transactions.countByUserId(user))
+        // a time-only cursor from before AOS-307 still continues after that instant
+        assertEquals(emptyList(), transactions.findByUserId(user, cursor = CursorCodec.encode(at.toString()), limit = 10, nature = TransactionNature.SPEND))
+    }
 }

@@ -28,7 +28,9 @@ interface TransactionRepository {
         isRecurring: Boolean? = null,
         merchantSearch: String? = null,
         cursor: String? = null,
-        limit: Int = 20
+        limit: Int = 20,
+        /** spend / income / transfer / refund / reversal (D-39, AOS-307). */
+        nature: TransactionNature? = null
     ): List<Transaction>
 
     suspend fun countByUserId(
@@ -39,7 +41,8 @@ interface TransactionRepository {
         type: TransactionType? = null,
         accountId: UUID? = null,
         isRecurring: Boolean? = null,
-        merchantSearch: String? = null
+        merchantSearch: String? = null,
+        nature: TransactionNature? = null
     ): Long
 
     suspend fun update(transaction: Transaction): Transaction
@@ -122,3 +125,14 @@ interface BillRepository {
 /** Spending per category minus refunds credited to that category (D-39); categories that net to ≤ 0 are dropped. */
 fun netOfRefunds(spend: Map<TransactionCategory, java.math.BigDecimal>, refunds: Map<TransactionCategory, java.math.BigDecimal>): Map<TransactionCategory, java.math.BigDecimal> =
     spend.mapValues { (c, v) -> v - (refunds[c] ?: java.math.BigDecimal.ZERO) }.filterValues { it.signum() > 0 }
+
+/**
+ * The feed pages by (time, id), newest first (AOS-307): many statement rows share a timestamp, so time
+ * alone would skip the rest of that instant on the next page. A time-only cursor from before still works.
+ */
+fun transactionCursorKey(t: Transaction) = "${t.transactedAt}|${t.id}"
+
+fun parseTransactionCursor(key: String): Pair<java.time.Instant, UUID?> {
+    val id = key.substringAfter('|', "").takeIf { it.isNotEmpty() }
+    return java.time.Instant.parse(key.substringBefore('|')) to id?.let(UUID::fromString)
+}

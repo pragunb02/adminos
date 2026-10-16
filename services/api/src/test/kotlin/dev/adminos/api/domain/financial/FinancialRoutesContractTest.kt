@@ -187,4 +187,24 @@ class FinancialRoutesContractTest {
         val summary = getJson("/api/v1/transactions/summary?from=2026-10-01&to=2026-10-31").second["data"]!!.jsonObject
         assertTrue(summary["totalSpending"]!!.jsonPrimitive.isString)
     }
+
+    @Test
+    fun `the feed filters by nature and pages through same-time rows without gaps (AOS-307)`() = contractTest {
+        val at = LocalDate.of(2026, 10, 7).atTime(0, 0).atZone(ist).toInstant() // statement rows share midnight
+        val saved = runBlocking { (1..5).map { transactions.save(txn(LocalDate.of(2026, 10, 7), 0).copy(transactedAt = at, merchantName = "Row $it")) } }
+        runBlocking { transactions.save(txn(LocalDate.of(2026, 10, 7), 9).copy(nature = TransactionNature.REFUND, type = TransactionType.CREDIT, merchantName = "Back")) }
+        val seen = mutableListOf<String>()
+        var cursor: String? = null
+        do {
+            val body = getJson("/api/v1/transactions?from=2026-10-07&to=2026-10-07&nature=spend&limit=2" + (cursor?.let { "&cursor=$it" } ?: "")).second
+            seen += body.ids()
+            cursor = body["pagination"]!!.jsonObject["cursor"]?.jsonPrimitive?.contentOrNull
+        } while (cursor != null)
+        assertEquals(saved.map { it.id.toString() }.toSet(), seen.toSet())
+        assertEquals(5, seen.size)
+        val refunds = getJson("/api/v1/transactions?nature=refund").second
+        assertEquals(1, refunds.ids().size)
+        assertEquals(1, refunds["pagination"]!!.jsonObject["total"]!!.jsonPrimitive.int)
+        assertEquals(HttpStatusCode.BadRequest, getJson("/api/v1/transactions?nature=salary").first)
+    }
 }

@@ -101,9 +101,10 @@ class ExposedTransactionRepository : TransactionRepository {
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
         accountId: UUID?, isRecurring: Boolean?,
-        merchantSearch: String?, cursor: String?, limit: Int
+        merchantSearch: String?, cursor: String?, limit: Int, nature: TransactionNature?
     ): List<DomainTransaction> = dbQuery {
         val query = TransactionsTable.selectAll().where { TransactionsTable.userId eq userId }
+        nature?.let { n -> query.andWhere { TransactionsTable.nature eq n.name.lowercase() } }
         from?.let { f -> query.andWhere { TransactionsTable.transactedAt greaterEq f } }
         to?.let { t -> query.andWhere { TransactionsTable.transactedAt lessEq t } }
         category?.let { c -> query.andWhere { TransactionsTable.category eq c.name.lowercase() } }
@@ -126,10 +127,13 @@ class ExposedTransactionRepository : TransactionRepository {
         }
         cursor?.let { c ->
             val (key, _) = CursorCodec.decode(c)
-            val cursorInstant = Instant.parse(key)
-            query.andWhere { TransactionsTable.transactedAt less cursorInstant }
+            val (at, id) = parseTransactionCursor(key)
+            query.andWhere {
+                if (id == null) TransactionsTable.transactedAt less at
+                else (TransactionsTable.transactedAt less at) or ((TransactionsTable.transactedAt eq at) and (TransactionsTable.id less id))
+            }
         }
-        query.orderBy(TransactionsTable.transactedAt, SortOrder.DESC)
+        query.orderBy(TransactionsTable.transactedAt to SortOrder.DESC, TransactionsTable.id to SortOrder.DESC)
             .limit(limit)
             .map { it.toTransaction() }
     }
@@ -137,9 +141,10 @@ class ExposedTransactionRepository : TransactionRepository {
     override suspend fun countByUserId(
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
-        accountId: UUID?, isRecurring: Boolean?, merchantSearch: String?
+        accountId: UUID?, isRecurring: Boolean?, merchantSearch: String?, nature: TransactionNature?
     ): Long = dbQuery {
         val query = TransactionsTable.selectAll().where { TransactionsTable.userId eq userId }
+        nature?.let { n -> query.andWhere { TransactionsTable.nature eq n.name.lowercase() } }
         from?.let { f -> query.andWhere { TransactionsTable.transactedAt greaterEq f } }
         to?.let { t -> query.andWhere { TransactionsTable.transactedAt lessEq t } }
         category?.let { c -> query.andWhere { TransactionsTable.category eq c.name.lowercase() } }

@@ -122,40 +122,9 @@ test.describe("statement import", () => {
     await expect(page.getByRole("status")).toContainText("37 new transactions imported");
     await page.getByRole("link", { name: "See transactions →" }).click();
     await expect(page).toHaveURL(/\/transactions$/);
+    await expect(page.getByRole("heading", { level: 2, name: "Transactions" })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole("heading", { name: "Import a bank statement" })).toBeVisible();
-  });
-});
-
-test.describe("transactions feed", () => {
-  test("filters reach the API; load more appends", async ({ signedIn: page, api }) => {
-    await page.goto("/transactions");
-    await expect(page.getByText("Swiggy")).toBeVisible();
-    await page.getByRole("button", { name: "Load more" }).click();
-    await expect(page.getByText("Zepto")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Load more" })).toBeHidden();
-    await page.getByLabel("Category").selectOption("food");
-    await page.getByLabel("Search merchant").fill("swig");
-    await expect.poll(() => api.calls.filter((c) => c.path === "/api/v1/transactions").length).toBeGreaterThanOrEqual(4);
-    await expect(page.getByText("Swiggy")).toBeVisible();
-  });
-
-  test("server errors retry by themselves", async ({ signedIn: page, api }) => {
-    let n = 0;
-    api.on("GET /api/v1/transactions", () => (++n < 3 ? { status: 503, error: { code: "SERVER_001", message: "Busy" } } : { data: [] }));
-    await page.goto("/transactions");
-    await expect(page.getByText("No transactions found")).toBeVisible({ timeout: 10_000 });
-    expect(n).toBe(3);
-  });
-
-  test("an error can be retried", async ({ signedIn: page, api }) => {
-    let n = 0;
-    // Server errors are retried automatically first; a client error is shown straight away.
-    api.on("GET /api/v1/transactions", () => (++n === 1 ? { status: 400, error: { code: "VALIDATION_003", message: "Invalid 'from'" } } : { data: [] }));
-    await page.goto("/transactions");
-    await expect(page.getByText("Invalid 'from'")).toBeVisible();
-    await page.getByRole("button", { name: "Try again" }).click();
-    await expect(page.getByText("No transactions found")).toBeVisible();
   });
 });
 

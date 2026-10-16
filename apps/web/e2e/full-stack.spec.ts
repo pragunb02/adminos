@@ -7,11 +7,11 @@ test.describe("full stack", () => {
     const { token } = signAccessToken();
     await signIn(context, baseURL!, token);
     await page.goto("/transactions");
-    await expect(page.getByText("No transactions found")).toBeVisible();
+    await expect(page.getByText("No transactions yet.")).toBeVisible();
 
     await page.getByRole("button", { name: "Add cash spending" }).click();
     await page.getByLabel("Amount in rupees").fill("250");
-    await page.getByLabel("Note").fill("chai");
+    await page.getByLabel("Note", { exact: true }).fill("chai");
     await page.getByRole("button", { name: /Food/ }).click();
     await expect(page.getByRole("status")).toHaveText("₹250 cash saved");
 
@@ -37,7 +37,7 @@ test.describe("full stack", () => {
     await context.clearCookies();
     await signIn(context, baseURL!, b.token);
     await page.goto("/transactions");
-    await expect(page.getByText("No transactions found")).toBeVisible();
+    await expect(page.getByText("No transactions yet.")).toBeVisible();
   });
 
   test("a token signed with the wrong secret is rejected — even one sharing its first 32 bytes (AOS-607) — and the user lands on login", async ({ page, context, baseURL }) => {
