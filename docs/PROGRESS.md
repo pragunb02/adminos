@@ -6,7 +6,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 
 | Milestone (see BRD §6) | Status |
 |---|---|
-| 1. Foundation runs | 🔴 Broken. DB setup fails, login broken, `docker compose up` fails |
+| 1. Foundation runs | 🟦 Mostly done. Stack runs with `docker compose --profile full up`; DB migrates; login path verified up to Google. Left: OAuth client (AOS-111), real login (AOS-112), intake endpoint (AOS-113) |
 | 2. Data in | 🟠 Code exists, but the flow from API to workers is broken |
 | 3. Dashboards | 🟠 Pages exist; no daily/monthly series or charts yet |
 | 4. Automatic sources (SMS app, WhatsApp) | ⚪ Not started |
@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~ done; next AOS-110 API Dockerfile, AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; meanwhile AOS-113 intake endpoint; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -46,7 +46,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Web pages (8) | ✅ | ❌ | Call the real API; blocked by auth |
 | Notifications | 🟡 | ❌ | FCM stubbed; email marked sent without sending |
 | Scheduler | ❌ | ❌ | Nothing runs briefings, reminders or detectors |
-| `services/api/Dockerfile` | ❌ | ❌ | Missing; compose references it |
+| `services/api/Dockerfile` | ✅ | ✅ | JDK 25 JRE, non-root, healthcheck (AOS-110) |
 | Android SMS app | ❌ | ❌ | Not in repo |
 
 ## Business logic progress
@@ -77,7 +77,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 1. ~~AOS-102 Flyway~~ and ~~AOS-103 stringtype~~ fixed 2026-10-16.
 2. ~~AOS-106 cookie auth~~ and ~~AOS-107 contract~~ fixed.
 3. AOS-201 — queue payload contract between Kotlin and Go.
-4. AOS-110 — missing API Dockerfile.
+4. ~~AOS-110 missing API Dockerfile~~ fixed; the whole stack runs.
 5. AOS-205 — every transaction stored as `debit`; empty `payment_method` violates the enum.
 6. AOS-601 — Gmail tokens stored in plain text (`gmail_handler.go:185`).
 
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-110: API image (JDK 25, non-root, healthcheck); compose waits for a healthy API; fixed worker commands; **full stack runs**. Story S1.3 done.
   - AOS-109: refresh via HttpOnly cookie, tokens out of response bodies, logout = this device only and works after JWT expiry, web refresh-once retry + Log out button. Unit 165. Rotation → AOS-121.
   - AOS-108: same-origin /api proxy (D-32). Found live: the web guard blocked the login API call (login could never have worked); empty-body 401s crashed the web client; client IP behind proxy (XForwardedHeaders + clientIp; edge proxy required for public, AOS-605). Unit 158.
   - AOS-107: contract audit. **camelCase** (D-31, switched from snake_case after the audit). Fixed: transaction filters, the Flagged tab, **pagination broken against the DB** (cursor format), silent/opaque param errors. QueryParams helpers + route contract tests. Unit 154, integration 32.

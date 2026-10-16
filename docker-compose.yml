@@ -61,10 +61,10 @@ services:
     build:
       context: ./services/workers
       dockerfile: Dockerfile
-    command: ["./worker", "--type=gmail"]
+    command: ["--type=gmail"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      api-server:
+        condition: service_healthy   # the API runs the DB migrations (D-12)
       redis:
         condition: service_healthy
     environment:
@@ -80,10 +80,10 @@ services:
     build:
       context: ./services/workers
       dockerfile: Dockerfile
-    command: ["./worker", "--type=sms"]
+    command: ["--type=sms"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      api-server:
+        condition: service_healthy   # the API runs the DB migrations (D-12)
       redis:
         condition: service_healthy
     environment:
@@ -95,10 +95,10 @@ services:
     build:
       context: ./services/workers
       dockerfile: Dockerfile
-    command: ["./worker", "--type=agent"]
+    command: ["--type=agent"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      api-server:
+        condition: service_healthy   # the API runs the DB migrations (D-12)
       redis:
         condition: service_healthy
     environment:
@@ -133,7 +133,8 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
-      - api-server
+      api-server:
+        condition: service_healthy
 
 volumes:
   postgres_data:
