@@ -27,7 +27,11 @@ describe("console Home", () => {
         const from = new URL(request.url).searchParams.get("from")!;
         return over.summary?.() ?? ok(from.startsWith("2026-09") ? fx.summary("44050.00", "0.00") : fx.summary());
       }),
-      http.get("/api/v1/analytics/series", ({ request }) => { note("series", request.url); return over.series?.() ?? ok(fx.week()); }),
+      http.get("/api/v1/analytics/series", ({ request }) => {
+        note("series", request.url);
+        const from = new URL(request.url).searchParams.get("from")!;
+        return over.series?.() ?? ok(from === "2026-10-01" ? fx.monthSoFar() : from === "2026-09-01" ? fx.lastMonth() : fx.week());
+      }),
       http.get("/api/v1/analytics/categories", ({ request }) => { note("categories", request.url); return over.categories?.() ?? ok(fx.categories()); }),
       http.get("/api/v1/analytics/merchants", ({ request }) => { note("merchants", request.url); return over.merchants?.() ?? ok(fx.merchants()); }),
       http.get("/api/v1/transactions", ({ request }) => { note("latest", request.url); return over.latest?.() ?? ok([fx.transaction(), fx.transaction({ id: "t-2", type: "credit", nature: "refund", amount: "300.00", merchantName: "Amazon" })]); }),
@@ -48,11 +52,12 @@ describe("console Home", () => {
     expect(asked.summary).toEqual(expect.arrayContaining(["?from=2026-10-01&to=2026-10-16", "?from=2026-09-01&to=2026-09-16"]));
   });
 
-  it("asks the analytics API for this week by day, and the top categories and merchants of the period", async () => {
+  it("a month asks for every day of it and all of last month; categories, merchants and latest for the period", async () => {
     const asked = routes();
     renderWithQuery(<Home />);
     await screen.findByText("₹48,250");
-    expect(asked.series).toEqual(["?from=2026-10-12&to=2026-10-18&bucket=day"]);
+    await screen.findByRole("img", { name: /Spent ₹48,250 by 16 Oct/ });
+    expect(asked.series?.sort()).toEqual(["?from=2026-09-01&to=2026-09-30&bucket=day", "?from=2026-10-01&to=2026-10-16&bucket=day"]);
     expect(asked.categories).toEqual(["?from=2026-10-01&to=2026-10-16"]);
     expect(asked.merchants).toEqual(["?from=2026-10-01&to=2026-10-16&limit=5"]);
     expect(asked.latest).toEqual(["?from=2026-10-01&to=2026-10-16&limit=5"]);
@@ -80,6 +85,7 @@ describe("console Home", () => {
   });
 
   it("the week chart is an image with a sentence, and a table on request", async () => {
+    nav.search = new URLSearchParams("p=week");
     routes();
     const { user } = renderWithQuery(<Home />);
     const chart = await screen.findByRole("img", { name: /Spending this week: most on Thu \(₹2,999\), today ₹350\./ });
@@ -99,7 +105,46 @@ describe("console Home", () => {
     expect(await screen.findByRole("heading", { name: "September 2026" })).toBeInTheDocument();
     expect(await screen.findByText("Spent")).toBeInTheDocument();
     expect(asked.summary).toEqual(expect.arrayContaining(["?from=2026-09-01&to=2026-09-30", "?from=2026-08-01&to=2026-08-30"]));
-    expect(screen.getByRole("region", { name: "Week of 28 Sept" })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /Spent ₹44,050 this month;/ })).toBeInTheDocument(); // September's own summary
+    expect(screen.queryByRole("region", { name: "This week" })).not.toBeInTheDocument();
+  });
+
+  it("running total (AOS-304): this month vs last month, today marked, one sentence, and a table", async () => {
+    routes();
+    const { user } = renderWithQuery(<Home />);
+    const running = await screen.findByRole("region", { name: "Running total" });
+    expect(await within(running).findByRole("img", { name: "Spent ₹48,250 by 16 Oct; ₹4,200 more than by 16 Sept." })).toBeInTheDocument();
+    expect(within(running).getByText(/October 2026.*September 2026/)).toBeInTheDocument(); // the legend, in words
+    await user.click(within(running).getByRole("button", { name: "View as table" }));
+    const table = within(running).getByRole("table", { name: "Running total" });
+    expect(within(table).getAllByRole("row")).toHaveLength(31); // header + 30 days of September
+    expect(within(table).getAllByText("—").length).toBeGreaterThan(10); // October hasn't reached those days
+    expect(within(table).getByText("₹300.30")).toBeInTheDocument(); // exact running sum on day 2
+    await user.click(within(running).getByRole("button", { name: "View as chart" }));
+    expect(within(running).getByRole("img")).toBeInTheDocument();
+  });
+
+  it("day by day shows every day of the month", async () => {
+    routes();
+    const { user } = renderWithQuery(<Home />);
+    const days = await screen.findByRole("region", { name: "Day by day" });
+    await user.click(await within(days).findByRole("button", { name: "View as table" }));
+    expect(within(within(days).getByRole("table")).getAllByRole("row")).toHaveLength(17); // header + 16 days
+  });
+
+  it("the same spending as last month says so in the running-total sentence", async () => {
+    routes({ summary: () => ok(fx.summary("44050.00", "0.00")) });
+    renderWithQuery(<Home />);
+    expect(await screen.findByRole("img", { name: /the same as by 16 Sept\./ })).toBeInTheDocument();
+  });
+
+  it("a failing running total can be retried", async () => {
+    let n = 0;
+    routes({ series: () => (++n <= 2 ? fail(400, "VALIDATION_003", "Series broke") : ok(fx.monthSoFar())) });
+    const { user } = renderWithQuery(<Home />);
+    const running = await screen.findByRole("region", { name: "Running total" });
+    await user.click(await within(running).findByRole("button", { name: "Try again" }));
+    expect(await within(running).findByRole("img")).toBeInTheDocument();
   });
 
   it("a week or a day period uses the matching ranges", async () => {
@@ -169,6 +214,7 @@ describe("console Home", () => {
   });
 
   it.each(["series", "merchants", "latest"] as const)("%s failing is contained and retryable", async (what) => {
+    if (what === "series") nav.search = new URLSearchParams("p=week");
     let n = 0;
     routes({ [what]: () => (++n === 1 ? fail(400, "VALIDATION_003", `${what} broke`) : what === "series" ? ok(fx.week()) : what === "merchants" ? ok(fx.merchants()) : ok([fx.transaction()])) });
     const { user } = renderWithQuery(<Home />);

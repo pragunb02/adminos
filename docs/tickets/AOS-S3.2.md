@@ -23,7 +23,7 @@
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-303](AOS-303.md) | Console Home (today / week / month) | Claude | ✅ | 3h | 2h |
-| AOS-304 | Monthly view | Claude | ⬜ | 3h |  |
+| [AOS-304](AOS-304.md) | Month view: running total, day by day | Claude | ✅ | 3h | 1h |
 
 _Task tickets are created as files when this story is picked up._
 

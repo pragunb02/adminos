@@ -87,4 +87,14 @@ export const fx = {
       { merchant: "Uber", spent: "2100.00", count: 1, category: "transport" },
     ],
   }),
+  /** Every day of October so far (sums to ₹48,250, exact; day 9 is refund-only). */
+  monthSoFar: () => {
+    const days = ["100.10", "200.20", "4500.00", "1200.00", "2000.00", "3149.70", "800.00", "6000.00", "-300.00", "5000.00", "4200.00", "3500.00", "2800.00", "9000.00", "4000.00", "2100.00"];
+    return { period: { from: "2026-10-01", to: "2026-10-16" }, bucket: "day", points: days.map((spent, i) => ({ start: `2026-10-${String(i + 1).padStart(2, "0")}`, spent, received: "0.00" })) };
+  },
+  /** All 30 days of September. */
+  lastMonth: () => ({
+    period: { from: "2026-09-01", to: "2026-09-30" }, bucket: "day",
+    points: Array.from({ length: 30 }, (_, i) => ({ start: `2026-09-${String(i + 1).padStart(2, "0")}`, spent: "2000.00", received: "0.00" })),
+  }),
 };

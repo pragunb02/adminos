@@ -17,8 +17,27 @@ test.describe("console Home", () => {
     await expect(page.getByRole("link", { name: /2 to review — they change your totals/ })).toBeVisible();
     await expect(page.getByRole("region", { name: "Where it went" }).getByText("Shopping")).toBeVisible();
     await expect(page.getByRole("region", { name: "Top merchants" }).getByText("Amazon")).toBeVisible();
+    // Month view (AOS-304): a running-total line and day-by-day columns, both drawn by Recharts.
+    await expect(page.getByRole("region", { name: "Running total" }).getByRole("img", { name: /^Spent ₹48,250 by / })).toBeVisible();
+    await expect(page.locator(".recharts-line-curve").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Day by day" }).locator(".recharts-bar-rectangle").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "This week" })).toHaveCount(0);
+  });
+
+  test("a week shows the week's columns instead of the month charts", async ({ signedIn: page }) => {
+    await page.goto("/?p=week");
     await expect(page.getByRole("img", { name: /Spending this week: most on/ })).toBeVisible();
-    await expect(page.locator(".recharts-bar-rectangle").first()).toBeVisible(); // Recharts actually drew
+    await expect(page.locator(".recharts-bar-rectangle").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Running total" })).toHaveCount(0);
+  });
+
+  test("the running total can be read as a table", async ({ signedIn: page }) => {
+    await page.goto("/");
+    const running = page.getByRole("region", { name: "Running total" });
+    await running.getByRole("button", { name: "View as table" }).click();
+    await expect(running.getByRole("table", { name: "Running total" })).toBeVisible();
+    await running.getByRole("button", { name: "View as chart" }).click();
+    await expect(running.getByRole("img")).toBeVisible();
   });
 
   test("◀ ◀ ▶ then back, back, forward, refresh: every step is the right month in the URL", async ({ signedIn: page, api }) => {
