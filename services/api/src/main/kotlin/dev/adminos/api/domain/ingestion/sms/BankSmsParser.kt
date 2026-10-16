@@ -78,7 +78,7 @@ class BankSmsParser(
         private val VERB_AMOUNT = Regex("\\b(?:debited|credited) (?:by|with|for) ([0-9][0-9,]*(?:\\.[0-9]{1,2})?)", I)
         private val NOT_THE_AMOUNT = listOf("avl", "avail", "bal", "limit", "outstanding", "min due", "total due")
         private val ACCOUNT = Regex("(?:A/?c|Acct|Account|Card)(?: no\\.?)?(?: ending(?: with)?)?\\s*[X*x]*\\s*(\\d{3,4})\\b", I)
-        private val VPA = Regex("\\b[a-zA-Z0-9._-]{2,}@[a-zA-Z]{2,}\\b")
+        private val VPA = Regex("(?<![A-Za-z0-9._])[a-zA-Z0-9._]{2,}@[a-zA-Z]{2,}\\b")
 
         private val COMMON_MERCHANT_PATTERNS = listOf(
             Regex("UPI/P2[MA]/\\d+/([^/\\n]+?)(?:/|\\s+Not you|$)", I),     // Axis-style UPI narration

@@ -11,7 +11,6 @@ hikari = "7.1.0"
 lettuce = "7.9.0.RELEASE"
 nimbus = "10.10"
 googleAuth = "1.54.0"
-awsSdk = "2.56.0"
 logback = "1.6.5"
 jqwik = "1.10.2"
 jspecify = "1.0.1"
@@ -48,8 +47,6 @@ hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus" }
 google-auth = { module = "com.google.auth:google-auth-library-oauth2-http", version.ref = "googleAuth" }
-aws-bom = { module = "software.amazon.awssdk:bom", version.ref = "awsSdk" }
-aws-s3 = { module = "software.amazon.awssdk:s3" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

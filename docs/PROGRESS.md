@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). Next in M2: AOS-202 statement upload; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). Next in M2: AOS-204 cash quick-add, accuracy engine AOS-207…210; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -40,8 +40,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | API → worker queue | ✅ | ❌ | `AsynqPublisher` stringifies payload values; split workers drop task types; manual sync never enqueues |
 | SMS ingest (API + Go) | ✅ | ❌ | Payload bug; every transaction saved as `debit`; no phone app |
 | Gmail ingest (Go) | 🟡 | ❌ | Parses snippet only; no incremental sync; no Pub/Sub watch |
-| PDF upload (API → R2) | ✅ | 🟡 | Works if R2 is configured; otherwise the file is discarded |
-| PDF parser (Python) | ✅ | ❌ | Standalone HTTP; nothing calls it; dates unparsed; debit/credit dropped |
+| Statement import (API → parser) | ✅ | ✅ | PDF/CSV/Excel, passwords; files never stored (D-37) |
+| Statement parser (Python) | ✅ | ✅ | Called by the API; 31 tests |
 | Manual add | ❌ | ❌ | Not built |
 | Web pages (8) | ✅ | ❌ | Call the real API; blocked by auth |
 | Notifications | 🟡 | ❌ | FCM stubbed; email marked sent without sending |
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-202: statement import end to end (Python parser: CSV/XLSX/XLS/PDF+password, column roles, reconciliation; Kotlin import with occurrence-aware fingerprints; Import page). Retired R2/upload/Go PDF. Fixed: VPA regex, API Docker build on this network (official Gradle image). Unit 228, integration 42 (incl. real Python image via Testcontainers).
   - AOS-203: iPhone SMS end to end. Parsers (5 banks + generic, drop rules); device tokens (D-36, fixed latent token-type hole); POST /ingest/sms/raw; Mac Messages reader (Go, read-only chat.db, business senders only, localhost only, smoke-tested on this Mac); Settings → Connected devices; setup guide. D-35 transport. Unit 218, integration 41, reader 10.
   - AOS-201: Kotlin ingest pipeline (D-34): claim (SKIP LOCKED) → ToTransaction → NormalizeMerchant (deterministic) → Categorize → atomic exactly-once write. /ingest/sms → adapter; Go SMS worker retired. Integration tests caught a V10 enum migration that would have stopped startup (split V10/V11). Unit 192, integration 40.
   - AOS-113: common intake POST /ingest/events (V9 ingest_events outbox, idempotent, decimal-string money). D-33 raw SMS privacy. Fixed: malformed bodies were 500 → 400. Unit 179, integration 36. Story S1.4 done.

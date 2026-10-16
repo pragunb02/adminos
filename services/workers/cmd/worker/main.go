@@ -24,7 +24,7 @@ import (
 )
 
 func main() {
-	workerType := flag.String("type", "all", "Worker type: gmail, pdf, agent, all")
+	workerType := flag.String("type", "all", "Worker type: gmail, agent, all")
 	flag.Parse()
 
 	cfg := config.Load()
@@ -118,20 +118,17 @@ func main() {
 }
 
 // registerHandlers registers job handlers based on worker type.
-// SMS is no longer processed here: the API's ingest pipeline owns it (D-34, AOS-201).
+// SMS and statements are no longer processed here: the API's ingest pipeline owns them (D-34, D-37).
 func registerHandlers(router *workflow.Router, workerType string, db *pgxpool.Pool, claudeClient *claude.Client, gmailClient *gmail.Client, googleClientID, googleClientSecret string) {
 	switch workerType {
 	case "gmail":
 		router.Register(handlers.NewGmailHandler(db, gmailClient, googleClientID, googleClientSecret))
-	case "pdf":
-		router.Register(handlers.NewPdfHandler(db))
 	case "agent":
 		router.Register(handlers.NewBriefingHandler(db, claudeClient))
 		router.Register(handlers.NewAnomalyExplainHandler(db, claudeClient))
 		router.Register(handlers.NewWasteScoringHandler(db))
 	case "all":
 		router.Register(handlers.NewGmailHandler(db, gmailClient, googleClientID, googleClientSecret))
-		router.Register(handlers.NewPdfHandler(db))
 		router.Register(handlers.NewBriefingHandler(db, claudeClient))
 		router.Register(handlers.NewAnomalyExplainHandler(db, claudeClient))
 		router.Register(handlers.NewWasteScoringHandler(db))

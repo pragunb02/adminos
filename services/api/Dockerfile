@@ -1,14 +1,16 @@
 # ── Build: Kotlin API fat jar on JDK 25 (D-28) ──
-FROM eclipse-temurin:25-jdk AS build
+# Official Gradle image pinned to the wrapper's version (gradle/wrapper/gradle-wrapper.properties), so the
+# build doesn't download Gradle (that download is slow and fails on some networks).
+FROM gradle:9.8.1-jdk25 AS build
 WORKDIR /src
 
-# Gradle wrapper and build scripts first, so dependency downloads are cached between code changes.
-COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
-COPY gradle ./gradle
-RUN ./gradlew --no-daemon -q dependencies > /dev/null
+# Build scripts first, so dependency downloads are cached between code changes.
+COPY settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY gradle/libs.versions.toml ./gradle/
+RUN gradle --no-daemon -q dependencies > /dev/null
 
 COPY src ./src
-RUN ./gradlew --no-daemon -q buildFatJar -x test
+RUN gradle --no-daemon -q buildFatJar -x test
 
 # ── Run: slim JRE, non-root ──
 FROM eclipse-temurin:25-jre-alpine

@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 const links = [
   { href: "/", label: "Home", icon: "🏠" },
   { href: "/transactions", label: "Transactions", icon: "💳" },
+  { href: "/import", label: "Import", icon: "📥" },
   { href: "/subscriptions", label: "Subscriptions", icon: "🔄" },
   { href: "/bills", label: "Bills", icon: "📄" },
   { href: "/briefings", label: "Briefings", icon: "📊" },

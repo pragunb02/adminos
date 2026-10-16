@@ -49,10 +49,6 @@ dependencies {
     // Queue
     implementation(libs.lettuce)
 
-    // Object storage (R2, S3-compatible)
-    implementation(platform(libs.aws.bom))
-    implementation(libs.aws.s3)
-
     // DI
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)

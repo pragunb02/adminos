@@ -20,6 +20,9 @@ import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.pipeline.*
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
+import dev.adminos.api.domain.ingestion.statements.StatementImportService
+import dev.adminos.api.domain.ingestion.statements.StatementParser
+import dev.adminos.api.infrastructure.statements.HttpStatementParser
 import dev.adminos.api.domain.ingestion.sms.SmsParserRegistry
 import dev.adminos.api.domain.identity.DeviceTokenRepository
 import dev.adminos.api.domain.identity.DeviceTokenService
@@ -31,9 +34,6 @@ import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.crypto.TokenEncryptor
 import dev.adminos.api.infrastructure.database.repositories.*
 import dev.adminos.api.infrastructure.queue.AsynqPublisher
-import dev.adminos.api.infrastructure.storage.R2StorageClient
-import dev.adminos.api.infrastructure.storage.StorageClient
-import dev.adminos.api.infrastructure.storage.StubStorageClient
 import io.lettuce.core.RedisClient
 import org.koin.dsl.module
 
@@ -102,14 +102,10 @@ val appModule = module {
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }
-
-    // R2 storage client — real when credentials configured, stub otherwise
     val r2AccessKey = System.getenv("R2_ACCESS_KEY") ?: ""
     val r2Endpoint = System.getenv("R2_ENDPOINT") ?: ""
     if (r2AccessKey.isNotBlank() && r2Endpoint.isNotBlank()) {
-        single<StorageClient> { R2StorageClient(get<AppConfig>().r2) }
     } else {
-        single<StorageClient> { StubStorageClient() }
     }
 
     single { IngestionService(get(), get(), getOrNull()) }
@@ -127,6 +123,10 @@ val appModule = module {
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
     single { SmsIntake(get(), get()) }
+
+    // Statement import (AOS-202, D-37)
+    single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
+    single { StatementImportService(get(), get()) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
 
