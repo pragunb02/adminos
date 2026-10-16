@@ -7,7 +7,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 | Milestone (see BRD §6) | Status |
 |---|---|
 | 1. Foundation runs | 🟦 All code done. Left: Pragun's OAuth client (AOS-111) → real login test (AOS-112) |
-| 2. Data in | 🟠 Code exists, but the flow from API to workers is broken |
+| 2. Data in | 🟦 Started. Intake → Kotlin pipeline → transactions works end to end (AOS-201); sources next |
 | 3. Dashboards | 🟠 Pages exist; no daily/monthly series or charts yet |
 | 4. Automatic sources (SMS app, WhatsApp) | ⚪ Not started |
 | 5. Smart extras | 🟠 Rule code exists but nothing ever calls it |
@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~ done. Then Milestone 2 starts with AOS-201 (processor decision); AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. Next in M2: AOS-202 statement upload or AOS-203 iPhone SMS; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -76,7 +76,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 0. ~~AOS-101 compile break~~ fixed 2026-10-16 (130/130 tests green).
 1. ~~AOS-102 Flyway~~ and ~~AOS-103 stringtype~~ fixed 2026-10-16.
 2. ~~AOS-106 cookie auth~~ and ~~AOS-107 contract~~ fixed.
-3. AOS-201 — queue payload contract between Kotlin and Go.
+3. ~~AOS-201~~ SMS no longer crosses Kotlin→Go (D-34). Gmail/PDF Go paths → AOS-401/202.
 4. ~~AOS-110 missing API Dockerfile~~ fixed; the whole stack runs.
 5. AOS-205 — every transaction stored as `debit`; empty `payment_method` violates the enum.
 6. AOS-601 — Gmail tokens stored in plain text (`gmail_handler.go:185`).
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-201: Kotlin ingest pipeline (D-34): claim (SKIP LOCKED) → ToTransaction → NormalizeMerchant (deterministic) → Categorize → atomic exactly-once write. /ingest/sms → adapter; Go SMS worker retired. Integration tests caught a V10 enum migration that would have stopped startup (split V10/V11). Unit 192, integration 40.
   - AOS-113: common intake POST /ingest/events (V9 ingest_events outbox, idempotent, decimal-string money). D-33 raw SMS privacy. Fixed: malformed bodies were 500 → 400. Unit 179, integration 36. Story S1.4 done.
   - AOS-110: API image (JDK 25, non-root, healthcheck); compose waits for a healthy API; fixed worker commands; **full stack runs**. Story S1.3 done.
   - AOS-109: refresh via HttpOnly cookie, tokens out of response bodies, logout = this device only and works after JWT expiry, web refresh-once retry + Log out button. Unit 165. Rotation → AOS-121.

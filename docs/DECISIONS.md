@@ -38,6 +38,7 @@
 | D-31 | Architecture | API contract: camelCase JSON and query params, opaque cursors, validated params | Accepted | AOS-107, AOS-120 |
 | D-32 | Architecture | Same-origin proxy: web forwards /api/* to the API; edge proxy owns X-Forwarded-For | Accepted | AOS-108, AOS-605 |
 | D-33 | Product | iPhone SMS raw text may reach the server for parsing, but is never stored or logged | Accepted | AOS-113, AOS-203 |
+| D-34 | Architecture | Accuracy engine = Kotlin pipeline in the API; Go workers become fetchers | Accepted | AOS-201, AOS-205…210, AOS-401 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -322,3 +323,17 @@ Proposed
   - Non-financial messages (OTPs, promos) are dropped unparsed.
 - The common intake `/api/v1/ingest/events` accepts structured events only.
 - D-2 still holds for the Android app (AOS-604): it parses on the device.
+
+### D-34 — The accuracy engine is a Kotlin pipeline in the API; Go workers are fetchers
+2026-10-16 · Accepted by Pragun (option A) · Type: Architecture · Tasks: AOS-201, AOS-205…210, AOS-401
+- Intake events are processed by `IngestProcessor` → `IngestPipeline` (Chain of Responsibility) in
+  the API.
+  - New accuracy behaviour (dedup, self-transfer, refunds, user overrides) = a new `IngestStep`.
+- **Why:**
+  - The business rules already live in tested Kotlin.
+  - The Go normalizer/categorizer duplicated them with bugs, against our single-source-of-truth rule.
+  - Go suits concurrent I/O (fetching Gmail, PDFs).
+- **Consequences:**
+  - The Go SMS worker is retired (AOS-201).
+  - Gmail/PDF workers will post `IngestEvent`s instead of writing transactions (AOS-401/202). The Go
+    normalizer/categorizer are then deleted.

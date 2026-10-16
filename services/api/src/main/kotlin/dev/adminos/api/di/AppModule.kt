@@ -18,6 +18,8 @@ import dev.adminos.api.domain.ingestion.sync.SyncSessionRepository
 import dev.adminos.api.domain.ingestion.events.IngestEventRepository
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
+import dev.adminos.api.domain.ingestion.pipeline.*
+import dev.adminos.api.infrastructure.database.dbQuery
 import dev.adminos.api.domain.ingestion.webhook.GmailCronService
 import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.crypto.TokenEncryptor
@@ -102,8 +104,16 @@ val appModule = module {
         single<StorageClient> { StubStorageClient() }
     }
 
-    single { IngestionService(get(), getOrNull()) }
-    single { IngestEventService(get()) }
+    single { IngestionService(get(), get(), getOrNull()) }
+    // Ingest pipeline (D-34): pending intake events → transactions
+    single { MerchantNormalizer() }
+    single { IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(get()), CategorizeStep(get()))) }
+    single<IngestOutcomeWriter> {
+        if (useDatabase) RepositoryOutcomeWriter(get(), get()) { work -> dbQuery { work() } }
+        else RepositoryOutcomeWriter(get(), get())
+    }
+    single { IngestProcessor(get(), get(), get()) }
+    single { IngestEventService(get(), onAccepted = { get<IngestProcessor>().wake() }) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
 

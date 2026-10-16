@@ -7,6 +7,8 @@ import dev.adminos.api.infrastructure.database.dbQuery
 import dev.adminos.api.infrastructure.database.tables.IngestEventsTable
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
+import java.time.Instant
 import java.util.UUID
 
 class ExposedIngestEventRepository : IngestEventRepository {
@@ -31,6 +33,7 @@ class ExposedIngestEventRepository : IngestEventRepository {
                 it[status] = e.status.name.lowercase()
                 it[error] = e.error
                 it[receivedAt] = e.receivedAt
+                it[claimedAt] = e.claimedAt
                 it[processedAt] = e.processedAt
             }.insertedCount
         }
@@ -44,6 +47,32 @@ class ExposedIngestEventRepository : IngestEventRepository {
     override suspend fun findPending(limit: Int): List<IngestEvent> = dbQuery {
         IngestEventsTable.selectAll().where { IngestEventsTable.status eq IngestEventStatus.PENDING.name.lowercase() }
             .orderBy(IngestEventsTable.receivedAt, SortOrder.ASC).limit(limit).map { it.toIngestEvent() }
+    }
+
+    override suspend fun claim(limit: Int, staleBefore: Instant): List<IngestEvent> = dbQuery {
+        val t = IngestEventsTable
+        // Rows locked by a concurrent claimer are skipped, so two processors never get the same event.
+        val ids = t.select(t.id)
+            .where { (t.status eq IngestEventStatus.PENDING.name.lowercase()) or
+                ((t.status eq IngestEventStatus.PROCESSING.name.lowercase()) and (t.claimedAt less staleBefore)) }
+            .orderBy(t.receivedAt, SortOrder.ASC)
+            .limit(limit)
+            .forUpdate(ForUpdateOption.PostgreSQL.ForUpdate(ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED))
+            .map { it[t.id] }
+        if (ids.isEmpty()) return@dbQuery emptyList()
+        t.update({ t.id inList ids }) {
+            it[status] = IngestEventStatus.PROCESSING.name.lowercase()
+            it[claimedAt] = Instant.now()
+        }
+        t.selectAll().where { t.id inList ids }.orderBy(t.receivedAt, SortOrder.ASC).map { it.toIngestEvent() }
+    }
+
+    override suspend fun finish(id: UUID, status: IngestEventStatus, error: String?): Unit = dbQuery {
+        IngestEventsTable.update({ IngestEventsTable.id eq id }) {
+            it[IngestEventsTable.status] = status.name.lowercase()
+            it[IngestEventsTable.error] = error
+            it[processedAt] = Instant.now()
+        }
     }
 
     private fun ResultRow.toIngestEvent() = IngestEvent(
@@ -63,6 +92,7 @@ class ExposedIngestEventRepository : IngestEventRepository {
         status = IngestEventStatus.valueOf(this[IngestEventsTable.status].uppercase()),
         error = this[IngestEventsTable.error],
         receivedAt = this[IngestEventsTable.receivedAt],
+        claimedAt = this[IngestEventsTable.claimedAt],
         processedAt = this[IngestEventsTable.processedAt]
     )
 }

@@ -79,6 +79,7 @@ object IngestEventsTable : Table("ingest_events") {
     val status = varchar("status", 20)
     val error = text("error").nullable()
     val receivedAt = timestamp("received_at")
+    val claimedAt = timestamp("claimed_at").nullable()
     val processedAt = timestamp("processed_at").nullable()
     override val primaryKey = PrimaryKey(id)
 }

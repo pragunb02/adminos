@@ -55,6 +55,8 @@ data class Transaction(
     val isVerified: Boolean = true,
     val rawEmailId: String? = null,
     val metadata: Map<String, Any?>? = null,
+    /** The intake event this transaction was created from (exactly once, V10). */
+    val ingestEventId: UUID? = null,
     val transactedAt: Instant,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()

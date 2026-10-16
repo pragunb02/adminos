@@ -53,12 +53,12 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S1.4](tickets/AOS-S1.4.md)** | **Common intake endpoint** | | ✅ | 3h | |
 | └ [AOS-113](tickets/AOS-113.md) | Common intake endpoint POST /ingest/events (V9 outbox, D-21/D-33) | Claude | ✅ | 3h | 1.5h |
 
-## ⬜ [AOS-E2](tickets/AOS-E2.md) — Data in (no typing) · P0 · ETA 31h
+## 🟦 [AOS-E2](tickets/AOS-E2.md) — Data in (no typing) · P0 · ETA 31h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S2.1](tickets/AOS-S2.1.md)** | **Reliable ingestion pipeline** | | ⬜ | 3h | |
-| └ AOS-201 | Decide the ingest_events processor (Kotlin vs Go); /ingest/sms → adapter; fix the API → worker payload contract and add contract tests | Claude | ⬜ | 3h |  |
+| **[AOS-S2.1](tickets/AOS-S2.1.md)** | **Reliable ingestion pipeline** | | ✅ | 3h | |
+| └ [AOS-201](tickets/AOS-201.md) | Ingest pipeline: pending events → transactions (Kotlin, D-34); Go SMS worker retired | Claude | ✅ | 3h | 2.5h |
 | **[AOS-S2.2](tickets/AOS-S2.2.md)** | **Import bank statements** | | ⬜ | 6h | |
 | └ AOS-202 | Statement upload end to end (pdf-parser, CSV/Excel, dates, debit/credit) | Claude | ⬜ | 6h |  |
 | **[AOS-S2.3](tickets/AOS-S2.3.md)** | **iPhone SMS auto-capture** | | ⬜ | 5h | |
@@ -66,8 +66,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S2.4](tickets/AOS-S2.4.md)** | **Cash quick-add** | | ⬜ | 2h | |
 | └ AOS-204 | Cash quick-add (API + two-tap UI) | Claude | ⬜ | 2h |  |
 | **[AOS-S2.5](tickets/AOS-S2.5.md)** | **Numbers I can trust** | | ⬜ | 15h | |
-| └ AOS-205 | Correct debit/credit everywhere | Claude | ⬜ | 1h |  |
-| └ AOS-206 | Deterministic merchant normalization (VPA → brand) | Claude | ⬜ | 2h |  |
+| └ AOS-205 | Correct debit/credit everywhere (pipeline ✅ AOS-201; Gmail/PDF Go paths left → AOS-401/202) | Claude | ⬜ | 1h |  |
+| └ AOS-206 | Merchant normalization: grow alias catalogue (deterministic normalizer ✅ AOS-201) | Claude | ⬜ | 2h |  |
 | └ AOS-207 | Dedup across sources | Claude | ⬜ | 3h |  |
 | └ AOS-208 | Self-transfer detection | Claude | ⬜ | 3h |  |
 | └ AOS-209 | Refund/reversal linking | Claude | ⬜ | 2h |  |

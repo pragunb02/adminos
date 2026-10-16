@@ -36,6 +36,7 @@ object TransactionsTable : Table("transactions") {
     val isVerified = bool("is_verified").default(true)
     val rawEmailId = varchar("raw_email_id", 255).nullable()
     val metadata = text("metadata").nullable() // JSONB stored as text
+    val ingestEventId = javaUUID("ingest_event_id").nullable()
     val transactedAt = timestamp("transacted_at")
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")

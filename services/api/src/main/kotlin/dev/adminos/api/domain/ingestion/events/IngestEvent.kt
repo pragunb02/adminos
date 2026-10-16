@@ -10,7 +10,7 @@ enum class IngestSource { SMS, GMAIL, STATEMENT, WHATSAPP, MANUAL }
 
 enum class IngestDirection { DEBIT, CREDIT }
 
-enum class IngestEventStatus { PENDING, PROCESSED, FAILED, IGNORED }
+enum class IngestEventStatus { PENDING, PROCESSING, PROCESSED, FAILED, IGNORED }
 
 /**
  * One normalized money event from any source. Structured fields only: raw message text is
@@ -33,6 +33,7 @@ data class IngestEvent(
     val status: IngestEventStatus = IngestEventStatus.PENDING,
     val error: String? = null,
     val receivedAt: Instant = Instant.now(),
+    val claimedAt: Instant? = null,
     val processedAt: Instant? = null
 ) {
     init {
@@ -54,4 +55,14 @@ interface IngestEventRepository {
     suspend fun findByUser(userId: UUID, limit: Int = 50): List<IngestEvent>
     /** Oldest pending events first, for the processing pipeline (outbox). */
     suspend fun findPending(limit: Int = 100): List<IngestEvent>
+
+    /**
+     * Atomically moves up to [limit] events to PROCESSING and returns them (oldest first): pending
+     * ones, plus PROCESSING ones claimed before [staleBefore] (abandoned by a crashed processor).
+     * Concurrent callers never receive the same event.
+     */
+    suspend fun claim(limit: Int, staleBefore: java.time.Instant): List<IngestEvent>
+
+    /** Records the final state of a claimed event. */
+    suspend fun finish(id: UUID, status: IngestEventStatus, error: String? = null)
 }

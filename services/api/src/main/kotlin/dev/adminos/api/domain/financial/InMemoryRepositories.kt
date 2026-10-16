@@ -19,6 +19,9 @@ class InMemoryTransactionRepository : TransactionRepository {
 
     override suspend fun findById(id: UUID): Transaction? = store[id]
 
+    override suspend fun findByIngestEventId(ingestEventId: UUID): Transaction? =
+        store.values.firstOrNull { it.ingestEventId == ingestEventId }
+
     override suspend fun findByUserId(
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
