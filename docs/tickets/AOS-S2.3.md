@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E2](AOS-E2.md) |
-| **Status** | ⬜ Todo |
+| **Status** | 🟦 In progress (code done; AOS-211 real-device setup) |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 5h |
@@ -22,7 +22,7 @@
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-203 | iPhone Shortcuts SMS adapter + SMS parser + setup guide | Claude | ⬜ | 5h |  |
+| [AOS-203](AOS-203.md) | iPhone Shortcuts SMS adapter + SMS parser + setup guide | Claude | ⬜ | 5h |  |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -30,4 +30,5 @@ _Task tickets are created as files when this story is picked up._
 Make a UPI payment and see it appear
 
 ## Activity log
+- 2026-10-16 — Claude: AOS-203 done. The transport is the Mac Messages reader (D-35), not a Shortcut, for now.
 - 2026-10-16 — Claude: story created (AOS-004).

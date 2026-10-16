@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import DeviceTokens from "@/components/DeviceTokens";
 import { api } from "@/lib/api";
 import type { UserConnection, NotificationPreferences, Session } from "@/lib/types";
 import AppShell from "@/components/AppShell";
@@ -212,6 +213,9 @@ export default function SettingsPage() {
                 </div>
               </section>
             )}
+
+            {/* Connected devices (AOS-203) */}
+            <DeviceTokens />
 
             {/* Sessions */}
             <section className="bg-white border border-gray-200 rounded-lg p-4">

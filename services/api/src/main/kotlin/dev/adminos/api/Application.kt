@@ -23,7 +23,7 @@ import org.koin.logger.slf4jLogger
 fun main() {
     val config = AppConfig.load()
 
-    embeddedServer(Netty, port = config.app.port, host = "0.0.0.0") {
+    embeddedServer(Netty, port = config.app.port, host = config.app.bindHost) {
         module(config)
     }.start(wait = true)
 }

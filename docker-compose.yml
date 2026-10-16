@@ -55,6 +55,7 @@ services:
       R2_BUCKET: ${R2_BUCKET:-adminos-uploads}
       R2_ENDPOINT: ${R2_ENDPOINT:-}
       PORT: "8080"
+      BIND_HOST: "0.0.0.0"   # inside the container only; the host publish above is 127.0.0.1
 
   gmail-worker:
     profiles: ["full"]

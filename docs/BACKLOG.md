@@ -61,8 +61,9 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-201](tickets/AOS-201.md) | Ingest pipeline: pending events → transactions (Kotlin, D-34); Go SMS worker retired | Claude | ✅ | 3h | 2.5h |
 | **[AOS-S2.2](tickets/AOS-S2.2.md)** | **Import bank statements** | | ⬜ | 6h | |
 | └ AOS-202 | Statement upload end to end (pdf-parser, CSV/Excel, dates, debit/credit) | Claude | ⬜ | 6h |  |
-| **[AOS-S2.3](tickets/AOS-S2.3.md)** | **iPhone SMS auto-capture** | | ⬜ | 5h | |
-| └ AOS-203 | iPhone Shortcuts SMS adapter (raw text parsed in memory, never stored, D-33) + SMS parser + setup guide | Claude | ⬜ | 5h |  |
+| **[AOS-S2.3](tickets/AOS-S2.3.md)** | **iPhone SMS auto-capture** | | 🟦 | 5h | |
+| └ [AOS-203](tickets/AOS-203.md) | iPhone SMS: parsers, device tokens, Mac Messages reader, setup guide (D-35/36) | Claude | ✅ | 5h | 3.5h |
+| └ [AOS-211](tickets/AOS-211.md) | Set up SMS on Pragun's devices; validate parsers on real SMS (locally) | Pragun + Claude | ⬜ | 1h |  |
 | **[AOS-S2.4](tickets/AOS-S2.4.md)** | **Cash quick-add** | | ⬜ | 2h | |
 | └ AOS-204 | Cash quick-add (API + two-tap UI) | Claude | ⬜ | 2h |  |
 | **[AOS-S2.5](tickets/AOS-S2.5.md)** | **Numbers I can trust** | | ⬜ | 15h | |
@@ -101,7 +102,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-402 | WhatsApp forward-to-bot (Cloud API) | Claude + Pragun | ⬜ | 6h |  |
 | └ AOS-403 | WhatsApp export `.txt` import | Claude | ⬜ | 3h |  |
 | **[AOS-S4.3](tickets/AOS-S4.3.md)** | **SMS history backfill** | | ⬜ | 3h | |
-| └ AOS-404 | Mac chat.db SMS backfill | Claude | ⬜ | 3h |  |
+| └ AOS-404 | Mac chat.db SMS backfill (delivered in AOS-203: `--backfill-days`) | Claude | ✅ | 3h | 0h |
 
 ## ⬜ [AOS-E5](tickets/AOS-E5.md) — Money admin & smart extras · P1 · ETA 26h
 

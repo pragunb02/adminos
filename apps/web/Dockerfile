@@ -19,4 +19,5 @@ COPY --from=builder /app/next.config.mjs ./
 USER node
 
 EXPOSE 3000
-CMD ["npm", "start"]
+# Inside the container only; compose publishes the port on 127.0.0.1.
+CMD ["npx", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
