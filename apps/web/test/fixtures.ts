@@ -97,4 +97,11 @@ export const fx = {
     period: { from: "2026-09-01", to: "2026-09-30" }, bucket: "day",
     points: Array.from({ length: 30 }, (_, i) => ({ start: `2026-09-${String(i + 1).padStart(2, "0")}`, spent: "2000.00", received: "0.00" })),
   }),
+  /** A suggested pair for Review (AOS-309): the same payment seen by SMS and by the statement. */
+  suggestion: (over: Record<string, unknown> = {}) => ({
+    id: "sg-1", relation: "duplicate", score: 9, reason: "same amount and reference",
+    primary: fx.transaction({ id: "sg-1-p", sourceType: "sms" }),
+    related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
+    ...over,
+  }),
 };

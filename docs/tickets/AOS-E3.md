@@ -18,16 +18,16 @@
 I open the console and in 10 seconds know what I spent today, this month, and on what.
 
 ## Success criteria (exit criteria)
-- [ ] Today/week, monthly, category, merchant and trend views are working on real data
-- [ ] The feed supports search, filter, edit and re-categorize
+- [ ] Today/week, monthly, category, merchant and trend views are working on real data — built and tested on fixtures and the in-memory stack; the real-data check waits on AOS-111 (login) and AOS-211/212 (SMS, statements)
+- [x] The feed supports search, filter, edit and re-categorize
 
 ## Stories
 | ID | Story | Status | ETA |
 |---|---|---|---|
-| [AOS-S3.1](AOS-S3.1.md) | Analytics API & design | 🟦 | 8h |
-| [AOS-S3.2](AOS-S3.2.md) | Daily & monthly views | ⬜ | 6h |
-| [AOS-S3.3](AOS-S3.3.md) | Where my money goes | ⬜ | 5h |
-| [AOS-S3.4](AOS-S3.4.md) | Transaction feed (+ AOS-309 review) | ⬜ | 5h |
+| [AOS-S3.1](AOS-S3.1.md) | Analytics API & design | ✅ | 8h |
+| [AOS-S3.2](AOS-S3.2.md) | Daily & monthly views | ✅ | 6h |
+| [AOS-S3.3](AOS-S3.3.md) | Where my money goes | ✅ | 5h |
+| [AOS-S3.4](AOS-S3.4.md) | Transaction feed (+ AOS-309 review) | ✅ | 5h |
 
 ## Out of scope
 - Budgets, goals
@@ -39,3 +39,4 @@ I open the console and in 10 seconds know what I spent today, this month, and on
 ## Activity log
 - 2026-10-16 — Claude: epic created (AOS-004).
 - 2026-10-16 — Claude: started (Pragun: "yes yes"). Plan and choices in D-45; AOS-309 added; AOS-120 done.
+- 2026-10-16 — Claude: all four stories done (code complete). Left for the exit criteria: the real-data check (AOS-111, AOS-211/212).

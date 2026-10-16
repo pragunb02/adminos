@@ -81,7 +81,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | 🟦 | 8h | |
+| **[AOS-S3.1](tickets/AOS-S3.1.md)** | **Analytics API & design** | | ✅ | 8h | 12.5h |
 | └ [AOS-301](tickets/AOS-301.md) | Analytics API: summary, series, categories, merchants (D-46) | Claude | ✅ | 4h | 2h |
 | └ [AOS-302](tickets/AOS-302.md) | Design system: spec (`docs/design/console.md`), tokens, formatters, 5-tab nav, period in URL (D-49) | Claude + Pragun | ✅ | 4h | 2.5h |
 | └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer: TanStack Query (D-45) | Claude | ✅ | 3h | 1.5h |
@@ -95,10 +95,10 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S3.3](tickets/AOS-S3.3.md)** | **Where my money goes** | | ✅ | 5h | 2.25h |
 | └ [AOS-305](tickets/AOS-305.md) | Spending: categories, merchants, category detail (6-month trend) | Claude | ✅ | 3h | 1.5h |
 | └ [AOS-306](tickets/AOS-306.md) | Trends: 12 months (bars/lines) and 12 weeks | Claude | ✅ | 2h | 0.75h |
-| **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ⬜ | 5h | |
+| **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ✅ | 5h | 4.75h |
 | └ [AOS-611](tickets/AOS-611.md) | Exact money everywhere (D-30): every API money field is a string; web `lib/money.ts` | Claude | ✅ | 1.5h | 1.5h |
 | └ [AOS-307](tickets/AOS-307.md) | Activity: search, filters in URL, edit sheet, re-categorize + undo; feed paging fix | Claude | ✅ | 3h | 2h |
-| └ AOS-309 | Review suggested duplicates / transfers / refunds (D-45) | Claude | ⬜ | 2h |  |
+| └ [AOS-309](tickets/AOS-309.md) | Review: confirm or reject duplicates / transfers / refunds, Undo before sending (D-45, D-49) | Claude | ✅ | 2h | 1.25h |
 
 ## ⬜ [AOS-E4](tickets/AOS-E4.md) — More sources · P1 · ETA 18h
 

@@ -4,11 +4,11 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E3](AOS-E3.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ✅ Done |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 6h |
-| **Actual** | — |
+| **Actual** | 3h |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **Decisions** | D-4 |
 
@@ -16,8 +16,8 @@
 **As** Pragun (owner, India, iPhone), **I want** to see today/this week and this month, **so that** I know my pace.
 
 ## Acceptance criteria
-- [ ] Today/week view
-- [ ] Monthly spent vs received vs last month
+- [x] Today/week view
+- [x] Monthly spent vs received vs last month
 
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
@@ -32,3 +32,4 @@ Open the console
 
 ## Activity log
 - 2026-10-16 — Claude: story created (AOS-004).
+- 2026-10-16 — Claude: done (all tasks ✅).

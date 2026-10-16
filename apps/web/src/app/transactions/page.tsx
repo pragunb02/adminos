@@ -94,7 +94,7 @@ function ActivityContent() {
   const selected = openId ? rows.find((t) => t.id === openId) ?? null : null;
 
   // Re-categorize with undo (D-41: remembered for the payee unless turned off).
-  const [toast, setToast] = useState<{ message: string; undo: () => void } | null>(null);
+  const [toast, setToast] = useState<{ id: string; message: string; undo: () => void } | null>(null);
   const recategorize = useMutation({
     mutationFn: (v: { id: string; category: string; remember: boolean }) => patchData<Transaction>(`/api/v1/transactions/${v.id}`, { category: v.category, remember: v.remember }),
     onSuccess: () => {
@@ -107,6 +107,7 @@ function ActivityContent() {
       onSuccess: () => {
         close();
         setToast({
+          id: `${t.id}:${category}`,
           message: `${categoryLabel(t.category)} → ${categoryLabel(category)}${remember ? ", remembered" : ""}`,
           undo: () => recategorize.mutate({ id: t.id, category: t.category, remember }, { onSuccess: () => setToast(null) }),
         });
@@ -180,7 +181,7 @@ function ActivityContent() {
       )}
 
       {openId && !feed.isPending && <TransactionSheet key={selected?.id ?? "missing"} txn={selected} zone={zone} saving={recategorize.isPending} error={recategorize.error ? errorMessage(recategorize.error) : null} onSave={save} onClose={close} />}
-      {toast && <UndoToast message={toast.message} onUndo={toast.undo} onClose={() => setToast(null)} />}
+      {toast && <UndoToast key={toast.id} message={toast.message} onUndo={toast.undo} onClose={() => setToast(null)} />}
     </div>
   );
 }
