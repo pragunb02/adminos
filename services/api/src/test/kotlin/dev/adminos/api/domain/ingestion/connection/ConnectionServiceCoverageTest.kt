@@ -38,14 +38,17 @@ class ConnectionServiceCoverageTest {
     }
 
     @Test
-    fun `reconnecting a disconnected source creates a fresh connected connection`() = runBlocking<Unit> {
-        val old = service.createConnection(userId, SourceType.SMS)
+    fun `reconnecting a disconnected source reactivates the same connection (AOS-613)`() = runBlocking<Unit> {
+        val old = service.createConnection(userId, SourceType.GMAIL, "me@gmail.com", "ya29.old", "1//old")
         service.disconnect(userId, old.id)
 
-        val again = service.createConnection(userId, SourceType.SMS)
+        val again = service.createConnection(userId, SourceType.GMAIL, null, "ya29.new", "1//new")
 
         assertEquals(ConnectionStatus.CONNECTED, again.status)
-        assertNotEquals(old.id, again.id)
+        assertEquals(old.id, again.id)
+        assertEquals("me@gmail.com", again.gmailAddress) // kept when the new grant doesn't say
+        assertEquals("ya29.new", encryptor.decrypt(again.accessToken!!, "user_connections:${again.id}:access_token"))
+        assertEquals(null, again.historyId)
     }
 
     @Test

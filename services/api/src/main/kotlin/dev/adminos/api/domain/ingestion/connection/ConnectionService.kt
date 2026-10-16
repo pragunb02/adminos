@@ -34,6 +34,19 @@ class ConnectionService(
         if (existing != null && existing.status == ConnectionStatus.CONNECTED) {
             return existing
         }
+        if (existing != null) {
+            // Reconnecting after a disconnect reuses the row (AOS-613): a new row broke uq_conn_source.
+            val reactivated = existing.copy(
+                status = ConnectionStatus.CONNECTED,
+                gmailAddress = gmailAddress ?: existing.gmailAddress,
+                accessToken = accessToken?.let { encryptToken(it, tokenContext(existing.id, "access_token")) },
+                refreshToken = refreshToken?.let { encryptToken(it, tokenContext(existing.id, "refresh_token")) },
+                historyId = null,
+                lastError = null
+            )
+            logger.info("Connection reactivated: user={}, source={}", userId, sourceType)
+            return connectionRepository.update(reactivated)
+        }
 
         val id = UUID.randomUUID()
         val connection = UserConnection(

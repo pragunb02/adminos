@@ -47,7 +47,6 @@ class ConnectionServicePostgresIntegrationTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: ConnectionService.createConnection inserts a new row after a disconnect instead of reactivating it, so reconnecting the same Gmail address violates uq_conn_source")
     fun `reconnecting the same gmail address after a disconnect works`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
         val address = "again-${userId}@gmail.com"

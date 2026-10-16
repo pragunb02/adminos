@@ -155,7 +155,6 @@ class NotificationsDropOffNudgeCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: DropOffNudgeService.kt:57/64 count NUDGE records, but one send writes up to 3 (in-app+push+email), so with default prefs the day-1 nudge exhausts MAX_NUDGES_PER_SOURCE and days 3/7 are never sent")
     fun `with default channels the day-3 Gmail nudge is still sent after the day-1 nudge`() = runBlocking<Unit> {
         val u = user(1)
         prefsRepo.update(prefsRepo.findByUserId(u.id)!!.copy(pushNotifications = true, emailNotifications = true))
@@ -166,5 +165,18 @@ class NotificationsDropOffNudgeCoverageTest {
         val days = notifRepo.findByUserAndType(u.id, NotificationType.NUDGE)
             .filter { it.data!!["source"] == "gmail" }.map { it.data!!["nudge_day"] }.toSet()
         assertEquals(setOf("1", "3"), days)
+    }
+
+    @Test
+    fun `running twice on the same day sends that day's nudge once (AOS-613)`() = runBlocking<Unit> {
+        val u = user(1)
+
+        service.processUserNudges(u, now)
+        service.processUserNudges(u, now.plus(6, ChronoUnit.HOURS))
+
+        val days = notifRepo.findByUserAndType(u.id, NotificationType.NUDGE).map { it.data!!["nudge_day"] }.toSet()
+        assertEquals(setOf("1"), days)
+        val sends = notifRepo.findByUserAndType(u.id, NotificationType.NUDGE).groupBy { it.channel }.values.maxOf { it.size }
+        assertEquals(1, sends, "one send per channel")
     }
 }

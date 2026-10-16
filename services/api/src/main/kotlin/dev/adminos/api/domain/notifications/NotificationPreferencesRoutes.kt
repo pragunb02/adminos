@@ -51,9 +51,10 @@ fun Route.notificationPreferencesRoutes(
                     briefingTime = request.briefingTime?.let { LocalTime.parse(it) }
                         ?: existing.briefingTime,
                     billReminders = request.billReminders ?: existing.billReminders,
-                    billReminderDays = request.billReminderDays?.also { days ->
+                    billReminderDays = request.billReminderDays?.let { days ->
                         require(days.all { it in 1..30 }) { "billReminderDays must be between 1 and 30" }
                         require(days.size <= 5) { "Maximum 5 reminder days allowed" }
+                        days.distinct().sortedDescending() // [3,3] is one reminder (AOS-613)
                     } ?: existing.billReminderDays,
                     anomalyAlerts = request.anomalyAlerts ?: existing.anomalyAlerts,
                     subscriptionFlags = request.subscriptionFlags ?: existing.subscriptionFlags,

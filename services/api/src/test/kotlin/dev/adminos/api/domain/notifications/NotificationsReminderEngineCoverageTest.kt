@@ -243,7 +243,6 @@ class NotificationsReminderEngineCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: ReminderEngine.kt:49-50 checks isReminderSent on the stale `bill`, so duplicate billReminderDays (e.g. [3,3], allowed by PATCH) send the same reminder twice")
     fun `duplicate reminder days send a single reminder`() = runBlocking<Unit> {
         prefsRepo.save(prefs(userId, billReminderDays = listOf(3, 3)))
 

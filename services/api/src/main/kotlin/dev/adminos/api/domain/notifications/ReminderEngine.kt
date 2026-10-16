@@ -46,8 +46,10 @@ class ReminderEngine(
 
         if (!prefs.billReminders) return
 
-        for (reminderDay in prefs.billReminderDays) {
-            if (daysUntilDue == reminderDay && !isReminderSent(bill, reminderDay)) {
+        // Each day once, and check against the bill as updated by this run (AOS-613: [3,3] sent twice).
+        var current = bill
+        for (reminderDay in prefs.billReminderDays.distinct()) {
+            if (daysUntilDue == reminderDay && !isReminderSent(current, reminderDay)) {
                 notificationService.send(
                     userId = bill.userId,
                     type = NotificationType.BILL_REMINDER,
@@ -61,13 +63,13 @@ class ReminderEngine(
                 )
 
                 // Fix #2: Track ALL reminder days, not just 3 and 1
-                val updatedSentDays = (bill.sentReminderDays ?: emptySet()) + reminderDay
-                val updated = bill.copy(
-                    reminderSent3d = bill.reminderSent3d || reminderDay == 3,
-                    reminderSent1d = bill.reminderSent1d || reminderDay == 1,
+                val updatedSentDays = (current.sentReminderDays ?: emptySet()) + reminderDay
+                val updated = current.copy(
+                    reminderSent3d = current.reminderSent3d || reminderDay == 3,
+                    reminderSent1d = current.reminderSent1d || reminderDay == 1,
                     sentReminderDays = updatedSentDays
                 )
-                billRepository.update(updated)
+                current = billRepository.update(updated)
                 logger.info("Sent {}d reminder for bill {} ({})", reminderDay, bill.id, bill.billerName)
             }
         }
