@@ -36,7 +36,7 @@ day, week and month. It's built for Pragun first and must stay extensible to pub
 |---|---|---|---|
 | API | `services/api` | Kotlin 2.4 + Ktor 3, Exposed 1.x, Flyway 13, JDK 25 | `./gradlew test`; `./gradlew integrationTest` (needs Docker/OrbStack) |
 | Workers | `services/workers` | Go 1.27 + Asynq | Go isn't installed locally and `proxy.golang.org` is blocked, so run in Docker: `docker run --rm -e GOPROXY=direct -v "$PWD":/src -v aos-gomod:/go/pkg/mod -w /src golang:1.27 sh -c 'go build ./... && go vet ./... && go test ./...'` |
-| PDF parser | `services/pdf-parser` | Python 3.14 + FastAPI, pdfplumber | no tests yet (AOS-202); smoke-test via `docker build` + `/health` |
+| Statement parser | `services/pdf-parser` | Python 3.14 + FastAPI, pdfplumber, openpyxl, xlrd | `docker run --rm -v "$PWD":/src -w /src python:3.14-slim sh -c 'pip install -q -r requirements-dev.txt && python -m pytest -q'` |
 | SMS reader (Mac host) | `tools/sms-reader` | Go 1.27, pure-Go SQLite | same Docker Go command in `tools/sms-reader`; macOS binary: add `-e GOOS=darwin -e GOARCH=arm64 -e CGO_ENABLED=0` |
 | Web | `apps/web` | Next 16 + React 19 + TS 6 + Tailwind 4 | `npm ci && npm run typecheck && npm run lint && npx next build` |
 | DB schema | `services/api/src/main/resources/db/migration` (`V{N}__*.sql`, Flyway; never edit applied ones) | Postgres 18 | `./gradlew integrationTest` |

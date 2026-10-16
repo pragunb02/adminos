@@ -41,6 +41,7 @@
 | D-34 | Architecture | Accuracy engine = Kotlin pipeline in the API; Go workers become fetchers | Accepted | AOS-201, AOS-205…210, AOS-401 |
 | D-35 | Architecture | SMS transport: Mac Messages reader now; iOS Shortcut via Cloudflare Access once hosted | Accepted | AOS-203, AOS-404, AOS-605 |
 | D-36 | Architecture | Device tokens: scoped JWT (typ=device) + revocable row; token types never interchangeable | Accepted | AOS-203 |
+| D-37 | Architecture | Statements parsed by the Python service; files and passwords discarded after parsing | Accepted | AOS-202 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -366,3 +367,15 @@ Proposed
   - The device provider reads the Authorization header only (no cookies).
 - **Handling:** shown once at creation; list responses never include it; revocable from Settings.
 - The raw-SMS endpoint decodes bodies itself, so errors never echo message text (D-33).
+
+### D-37 — Statement parsing in the Python service; files discarded
+2026-10-16 · Accepted by Pragun · Type: Architecture · Tasks: AOS-202
+- **Where:** the `pdf-parser` service parses PDF/CSV/XLS/XLSX statements.
+  - pdfplumber is the strongest PDF table extractor; Python handles spreadsheets easily.
+  - It is stateless, has no published port, and is called by the API over the internal network.
+- **What happens to the data:**
+  - Statement files and PDF passwords are used **in memory only** and discarded after parsing.
+  - Only the resulting transactions are kept; to re-parse, re-upload (duplicates are skipped).
+  - **Why:** a statement is the full account history, and storing it creates risk for no current benefit.
+- **How columns are found:** by role, using header synonyms, not per-bank code. Bank quirks extend the synonyms.
+- **Accuracy check:** running-balance reconciliation flags mis-read columns.
