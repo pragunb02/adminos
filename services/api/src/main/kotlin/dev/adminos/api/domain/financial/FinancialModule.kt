@@ -3,6 +3,7 @@ package dev.adminos.api.domain.financial
 import dev.adminos.api.domain.agent.AnomalyRepository
 import dev.adminos.api.domain.agent.BriefingRepository
 import dev.adminos.api.domain.agent.InsightRepository
+import dev.adminos.api.domain.analytics.analyticsRoutes
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.financial.links.suggestionRoutes
 import io.ktor.server.application.*
@@ -24,11 +25,13 @@ fun Application.financialModule() {
     val briefingRepository: BriefingRepository by inject()
     val insightRepository: InsightRepository by inject()
     val suggestionService: dev.adminos.api.domain.financial.links.SuggestionService by inject()
+    val analyticsService: dev.adminos.api.domain.analytics.AnalyticsService by inject()
 
     routing {
         route("/api/v1") {
             transactionRoutes(transactionRepository, categoryCorrections, auditService)
             suggestionRoutes(suggestionService)
+            analyticsRoutes(analyticsService)
             accountRoutes(accountDiscoveryService)
             subscriptionRoutes(subscriptionRepository)
             billRoutes(billTrackingService)

@@ -50,6 +50,7 @@
 | D-43 | Business logic | Email direction: account-anchored phrase wins, else one word family; unclear → needs-review, never guessed. Gmail writes ingest events, not transactions | Accepted | AOS-205, AOS-401 |
 | D-44 | Architecture | One merchant catalogue as data (JSON), validated on load, shared by normalizer and categorizer; narration cleaning before title-case | Accepted | AOS-206 |
 | D-45 | Architecture | Console plan: one analytics API (spent = spend − refunds, received = income, transfers excluded) in the user's timezone; Recharts; TanStack Query; review screen AOS-309 | Accepted | AOS-120, AOS-301…309 |
+| D-46 | Business logic | Console totals are never clipped: total = Σ categories = Σ buckets; a refund-only day or category shows as negative | Accepted | AOS-301 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -483,3 +484,15 @@ Proposed
   - TanStack Query for data loading: cache, refetch, pagination, mutations with invalidation. It replaces per-page setState-in-effect (AOS-308).
 - **AOS-309 added:** a review screen for suggested duplicates/transfers/refunds. Otherwise suggestions sit unseen and totals stay slightly off.
 - **Order (one PR each):** AOS-120 → 301 → 302/308 → 303/304 → 305/306 → 307 → 309.
+
+### D-46 — Console totals add up, with no clipping
+2026-10-16 · Accepted (follows D-45, approved plan) · Type: Business logic · Tasks: AOS-301
+- For any period, **spent = spend − refunds** and **received = income**, computed the same way for the total, each category and each day/week/month bucket.
+- **Nothing is clipped,** so the total always equals the sum of the categories and the sum of the buckets.
+  - A day or category with only a refund (its purchase was in an earlier period) shows as negative instead of disappearing.
+  - The older `spendingByCategory` drops categories that net to ≤0; it is kept only for the old endpoint and the anomaly baseline.
+- **The previous period** is the same number of days immediately before; the change is a % of the previous spent (none if that was 0).
+- **Buckets:**
+  - days are in the user's timezone;
+  - weeks start on Monday;
+  - edge buckets can be partial and are labelled by their start.
