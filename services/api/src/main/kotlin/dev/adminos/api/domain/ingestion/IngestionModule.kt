@@ -3,6 +3,8 @@ package dev.adminos.api.domain.ingestion
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.identity.GoogleOAuthClient
+import dev.adminos.api.domain.ingestion.cash.CashIntake
+import dev.adminos.api.domain.ingestion.cash.cashRoutes
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.connectionRoutes
 import dev.adminos.api.domain.ingestion.events.IngestEventService
@@ -30,12 +32,14 @@ fun Application.ingestionModule(config: AppConfig) {
     val statementImportService: StatementImportService by inject()
     val ingestEventService: IngestEventService by inject()
     val smsIntake: SmsIntake by inject()
+    val cashIntake: CashIntake by inject()
 
     routing {
         route("/api/v1") {
             ingestionRoutes(ingestionService, connectionService)
             ingestEventRoutes(ingestEventService)
             rawSmsRoutes(smsIntake)
+            cashRoutes(cashIntake)
             connectionRoutes(connectionService, auditService, googleOAuthClient)
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience)
             statementRoutes(statementImportService)

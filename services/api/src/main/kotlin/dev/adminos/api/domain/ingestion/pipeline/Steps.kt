@@ -25,6 +25,8 @@ class ToTransactionStep : IngestStep {
             upiVpa = e.upiVpa,
             paymentRef = e.paymentRef,
             ingestEventId = e.id,
+            category = e.category ?: dev.adminos.api.domain.financial.TransactionCategory.OTHER,
+            categorySource = if (e.category != null) "user" else "rules",
             transactedAt = e.occurredAt
         )
         return StepResult.Continue(context.copy(transaction = txn))
@@ -44,6 +46,7 @@ class NormalizeMerchantStep(private val normalizer: MerchantNormalizer) : Ingest
 class CategorizeStep(private val categorizer: CategorizationService) : IngestStep {
     override suspend fun apply(context: PipelineContext): StepResult {
         val t = context.txn
+        if (t.categorySource == "user") return StepResult.Continue(context) // chosen at entry (AOS-204)
         val result = categorizer.categorize(t)
         return StepResult.Continue(
             context.copy(transaction = t.copy(category = result.category, subcategory = result.subcategory, categorySource = result.source))
@@ -87,6 +90,9 @@ class TransferStep(
         val t = context.txn
         if (detector.isCardBillPayment(t)) {
             return StepResult.Continue(context.copy(transaction = asTransfer(t, "credit_card_bill")))
+        }
+        if (detector.isCashWithdrawal(t)) { // money moved to your cash (D-42); logged cash spends are the spending
+            return StepResult.Continue(context.copy(transaction = asTransfer(t, "cash")))
         }
         val opposite = if (t.type == dev.adminos.api.domain.financial.TransactionType.DEBIT)
             dev.adminos.api.domain.financial.TransactionType.CREDIT else dev.adminos.api.domain.financial.TransactionType.DEBIT

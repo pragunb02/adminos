@@ -76,6 +76,7 @@ object IngestEventsTable : Table("ingest_events") {
     val paymentMethod = varchar("payment_method", 20).nullable()
     val upiVpa = varchar("upi_vpa", 255).nullable()
     val paymentRef = varchar("payment_ref", 32).nullable()
+    val category = varchar("category", 30).nullable()
     val metadata = text("metadata").nullable() // JSONB via JsonColumns
     val status = varchar("status", 20)
     val error = text("error").nullable()

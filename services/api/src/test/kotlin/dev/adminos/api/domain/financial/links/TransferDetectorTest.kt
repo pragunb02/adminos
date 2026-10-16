@@ -76,4 +76,16 @@ class TransferDetectorTest {
         val b = t(TransactionType.DEBIT, "4444", 1, 9, 0, text = "IMPS")
         assertFalse(assertIs<TransferDecision.Pair>(d.decide(t(TransactionType.CREDIT, "5678", 1, 9, 1), listOf(a, b))).auto)
     }
+
+    @Test
+    fun `ATM and cash withdrawals are recognised (D-42)`() {
+        for (text in listOf("ATM WDL HDFC MG ROAD", "ATW-512345XXXXXX1234-S1ANBG01", "NWD-512345XXXXXX1234-SBI ATM", "CASH WDL 12345", "Cash withdrawal at branch", "Rs 2000 withdrawn at ATM")) {
+            assertTrue(d.isCashWithdrawal(t(TransactionType.DEBIT, "1234", 1, 9, text = text, method = PaymentMethod.CARD_DEBIT)), text)
+        }
+        for (text in listOf("ATMOSPHERE CAFE", "BATMAN STORE", "CASHFREE*SWIGGY", "ZOMATO")) {
+            assertFalse(d.isCashWithdrawal(t(TransactionType.DEBIT, "1234", 1, 9, text = text)), text)
+        }
+        assertFalse(d.isCashWithdrawal(t(TransactionType.CREDIT, "1234", 1, 9, text = "ATM CASH DEPOSIT")), "credits are not withdrawals")
+        assertFalse(d.isCashWithdrawal(t(TransactionType.DEBIT, null, 1, 9, text = "ATM", source = "manual")), "typed cash is spending")
+    }
 }
