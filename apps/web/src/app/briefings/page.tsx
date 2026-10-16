@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { errorMessage, getData } from "@/lib/query";
 import type { Briefing } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -10,38 +10,23 @@ import ErrorMessage from "@/components/ErrorMessage";
 
 export default function BriefingsPage() {
   const router = useRouter();
-  const [latest, setLatest] = useState<Briefing | null>(null);
-  const [history, setHistory] = useState<Briefing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [latestRes, historyRes] = await Promise.all([
-        api.get<Briefing>("/api/v1/briefings/latest"),
-        api.get<Briefing[]>("/api/v1/briefings?limit=20"),
-      ]);
-      if (latestRes.success) setLatest(latestRes.data);
-      if (historyRes.success && historyRes.data) {
-        // Exclude latest from history list
-        const latestId = latestRes.data?.id;
-        setHistory(historyRes.data.filter((b) => b.id !== latestId));
-      }
-      if (!latestRes.success && !historyRes.success) {
-        setError("Failed to load briefings");
-      }
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // The latest briefing may not exist yet; that is not an error.
+  const latestQuery = useQuery({
+    queryKey: ["briefings", "latest"],
+    queryFn: () => getData<Briefing | null>("/api/v1/briefings/latest").catch(() => null),
+  });
+  const historyQuery = useQuery({
+    queryKey: ["briefings", "history"],
+    queryFn: () => getData<Briefing[]>("/api/v1/briefings?limit=20"),
+  });
+  const latest = latestQuery.data ?? null;
+  const history = (historyQuery.data ?? []).filter((b) => b.id !== latest?.id);
+  const loading = latestQuery.isPending || historyQuery.isPending;
+  const error = historyQuery.error && !latest ? errorMessage(historyQuery.error, "Failed to load briefings") : null;
+  const fetchData = () => {
+    latestQuery.refetch();
+    historyQuery.refetch();
+  };
 
   const handleInsightAction = (actionType: string, entityId: string | null) => {
     if (!entityId) return;

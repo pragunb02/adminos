@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { errorMessage, getData, patchData } from "@/lib/query";
 import type { Anomaly } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
@@ -14,64 +15,41 @@ export default function AnomalyDetailPage() {
   const router = useRouter();
   const id = params.id as string;
 
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [selected, setSelected] = useState<Anomaly | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState(id);
+  const queryClient = useQueryClient();
 
-  const fetchAnomalies = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // Try fetching the specific anomaly first
-      const singleRes = await api.get<Anomaly>(`/api/v1/anomalies/${id}`);
-      if (singleRes.success && singleRes.data) {
-        setSelected(singleRes.data);
-      }
+  const listQuery = useQuery({
+    queryKey: ["anomalies", "open"],
+    queryFn: () => getData<Anomaly[]>("/api/v1/anomalies?status=open&limit=50"),
+  });
+  const singleQuery = useQuery({
+    queryKey: ["anomalies", "one", selectedId],
+    queryFn: () => getData<Anomaly>(`/api/v1/anomalies/${selectedId}`),
+  });
+  const anomalies = listQuery.data ?? [];
+  // The one asked for, else the first open one from the list.
+  const selected = singleQuery.data ?? anomalies.find((a) => a.id === selectedId) ?? anomalies[0] ?? null;
+  const loading = listQuery.isPending && singleQuery.isPending;
+  const error = listQuery.error && !singleQuery.data ? errorMessage(listQuery.error, "Failed to load anomalies") : null;
+  const fetchAnomalies = () => {
+    listQuery.refetch();
+    singleQuery.refetch();
+  };
 
-      // Also fetch the list for the sidebar
-      const res = await api.get<Anomaly[]>("/api/v1/anomalies?status=open&limit=50");
-      if (res.success && res.data) {
-        setAnomalies(res.data);
-        // If single fetch failed, fall back to finding in list
-        if (!singleRes.success || !singleRes.data) {
-          const match = res.data.find((a) => a.id === id);
-          setSelected(match || res.data[0] || null);
-        }
-      } else if (!singleRes.success) {
-        setError(res.error?.message || "Failed to load anomalies");
-      }
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchAnomalies();
-  }, [fetchAnomalies]);
-
-  const handleResolve = async (status: "confirmed_safe" | "confirmed_fraud") => {
-    if (!selected) return;
-    setActionLoading(true);
-    try {
-      const res = await api.patch<Anomaly>(`/api/v1/anomalies/${selected.id}`, { status });
-      if (res.success) {
-        // Remove from list and select next
-        const remaining = anomalies.filter((a) => a.id !== selected.id);
-        setAnomalies(remaining);
-        setSelected(remaining[0] || null);
-        if (remaining.length === 0) {
-          router.push("/");
-        }
-      }
-    } catch {
-      // silent
-    } finally {
-      setActionLoading(false);
-    }
+  const resolve = useMutation({
+    mutationFn: ({ anomalyId, status }: { anomalyId: string; status: "confirmed_safe" | "confirmed_fraud" }) =>
+      patchData<Anomaly>(`/api/v1/anomalies/${anomalyId}`, { status }),
+    onSuccess: (_, { anomalyId }) => {
+      const remaining = anomalies.filter((a) => a.id !== anomalyId);
+      queryClient.invalidateQueries({ queryKey: ["anomalies"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      if (remaining.length === 0) router.push("/");
+      else setSelectedId(remaining[0].id);
+    },
+  });
+  const actionLoading = resolve.isPending;
+  const handleResolve = (status: "confirmed_safe" | "confirmed_fraud") => {
+    if (selected) resolve.mutate({ anomalyId: selected.id, status });
   };
 
   const typeLabel = (type: string) => {
@@ -97,6 +75,7 @@ export default function AnomalyDetailPage() {
 
         {loading && <LoadingSpinner message="Loading anomalies..." />}
         {error && <ErrorMessage message={error} onRetry={fetchAnomalies} />}
+        {resolve.error && <ErrorMessage message={errorMessage(resolve.error)} />}
 
         {!loading && !error && !selected && (
           <div className="text-center py-8 bg-green-50 rounded-lg border border-green-200">
@@ -175,7 +154,7 @@ export default function AnomalyDetailPage() {
                 .map((a) => (
                   <button
                     key={a.id}
-                    onClick={() => setSelected(a)}
+                    onClick={() => setSelectedId(a.id)}
                     className="w-full text-left bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
                   >
                     <div className="flex items-center justify-between">

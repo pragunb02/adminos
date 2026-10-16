@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { errorMessage, getData } from "@/lib/query";
 import type { DashboardHome, ActionItem } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import ActionCard from "@/components/ActionCard";
@@ -11,36 +11,10 @@ import ErrorMessage from "@/components/ErrorMessage";
 
 export default function Home() {
   const router = useRouter();
-  const [data, setData] = useState<DashboardHome | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get<DashboardHome>("/api/v1/dashboard/home");
-      if (res.success && res.data) {
-        setData(res.data);
-      } else {
-        // Redirect to login on auth errors (expired JWT)
-        const code = res.error?.code;
-        if (code === "AUTH_001" || code === "AUTH_002" || code === "AUTH_004") {
-          router.push("/login");
-          return;
-        }
-        setError(res.error?.message || "Failed to load dashboard");
-      }
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  const { data, isPending: loading, error, refetch } = useQuery({
+    queryKey: ["dashboard", "home"],
+    queryFn: () => getData<DashboardHome>("/api/v1/dashboard/home"),
+  });
 
   const handleAction = (item: ActionItem) => {
     switch (item.type) {
@@ -81,7 +55,7 @@ export default function Home() {
   return (
     <AppShell>
       {loading && <LoadingSpinner message="Loading dashboard..." />}
-      {error && <ErrorMessage message={error} onRetry={fetchDashboard} />}
+      {error && <ErrorMessage message={errorMessage(error)} onRetry={() => refetch()} />}
       {data && !loading && (
         <div className="space-y-6">
           {/* Greeting */}

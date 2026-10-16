@@ -34,6 +34,7 @@ class ApiClient {
       if (retry.status !== 401) return retry.body;
     }
     if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full reload drops all cached data when the session ends
       window.location.assign("/login");
     }
     return first.body;
@@ -51,6 +52,7 @@ class ApiClient {
 
   async logout(): Promise<void> {
     await fetch(`${this.baseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "same-origin" }).catch(() => undefined);
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full reload drops all cached data on logout
     window.location.assign("/login");
   }
 
