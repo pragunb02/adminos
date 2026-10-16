@@ -5,8 +5,10 @@ import java.util.UUID
 // ── Anomaly Repository ──
 
 interface AnomalyRepository {
+    /** @throws dev.adminos.api.domain.common.DuplicateEntityException if the transaction already has an anomaly */
     suspend fun save(anomaly: Anomaly): Anomaly
     suspend fun findById(id: UUID): Anomaly?
+    suspend fun findByTransactionId(transactionId: UUID): Anomaly?
     suspend fun findByUserId(
         userId: UUID,
         status: AnomalyStatus? = null,

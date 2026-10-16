@@ -34,9 +34,9 @@ class AgentRepositoriesIntegrationTest {
     @Test
     fun `anomaly round-trips every type, status and resolver`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
-        val txn = txnId(userId)
         for (type in AnomalyType.entries) {
-            val a = anomalies.save(Anomaly(userId = userId, transactionId = txn, type = type, confidenceScore = 0.8, reason = "test $type"))
+            // One anomaly per transaction (V20, AOS-505)
+            val a = anomalies.save(Anomaly(userId = userId, transactionId = txnId(userId), type = type, confidenceScore = 0.8, reason = "test $type"))
             assertEquals(type, anomalies.findById(a.id)?.type)
         }
         val a = anomalies.findByUserId(userId, limit = 50).first()

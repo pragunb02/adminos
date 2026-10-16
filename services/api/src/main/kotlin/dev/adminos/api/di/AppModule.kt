@@ -162,7 +162,7 @@ internal fun buildAppModule(
         if (useDatabase) RepositoryOutcomeWriter(get(), get(), get()) { work -> dbQuery { work() } }
         else RepositoryOutcomeWriter(get(), get(), get())
     }
-    single { IngestProcessor(get(), get(), get()) }
+    single { IngestProcessor(get(), get(), get(), listeners = getAll<TransactionCreatedListener>()) }
     single { IngestEventService(get(), onAccepted = { get<IngestProcessor>().wake() }) }
 
     // SMS intake (AOS-203): device tokens + parser registry
@@ -188,7 +188,9 @@ internal fun buildAppModule(
     single { BillTrackingService(get(), get()) }
 
     // Agent Services
-    single { AnomalyDetectorService(get(), get()) }
+    single { AnomalyDetectorService(get(), get(), get()) }
+    // Reactions to each new transaction (AOS-505); a new one is one `bind TransactionCreatedListener::class` line.
+    single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
 
     // Notification Services
     // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.

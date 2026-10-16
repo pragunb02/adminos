@@ -2,6 +2,7 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.common.CursorCodec
+import dev.adminos.api.domain.common.DuplicateEntityException
 import dev.adminos.api.infrastructure.database.tables.AnomaliesTable
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.jdbc.*
@@ -12,7 +13,8 @@ import java.util.UUID
 class ExposedAnomalyRepository : AnomalyRepository {
 
     override suspend fun save(anomaly: Anomaly): Anomaly = dbQuery {
-        AnomaliesTable.insert {
+        // ON CONFLICT DO NOTHING on uq_anomalies_transaction (V20): a second anomaly for one transaction is refused cleanly.
+        val inserted = AnomaliesTable.insertIgnore {
             it[id] = anomaly.id
             it[userId] = anomaly.userId
             it[transactionId] = anomaly.transactionId
@@ -25,8 +27,13 @@ class ExposedAnomalyRepository : AnomalyRepository {
             it[resolvedBy] = anomaly.resolvedBy?.name?.lowercase()
             it[createdAt] = anomaly.createdAt
             it[updatedAt] = anomaly.updatedAt
-        }
+        }.insertedCount
+        if (inserted == 0) throw DuplicateEntityException("Transaction ${anomaly.transactionId} already has an anomaly")
         anomaly
+    }
+
+    override suspend fun findByTransactionId(transactionId: UUID): Anomaly? = dbQuery {
+        AnomaliesTable.selectAll().where { AnomaliesTable.transactionId eq transactionId }.singleOrNull()?.toAnomaly()
     }
 
     override suspend fun findById(id: UUID): Anomaly? = dbQuery {

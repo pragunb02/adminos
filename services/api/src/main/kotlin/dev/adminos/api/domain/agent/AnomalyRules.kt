@@ -14,14 +14,16 @@ import java.time.ZoneId
  * For standalone evaluation, we use a default threshold of ₹10,000.
  */
 class LargeAmountRule(
-    private val categoryAverages: Map<String, BigDecimal> = emptyMap()
+    private val categoryAverages: Map<String, BigDecimal> = emptyMap(),
+    /** Below this a "3x the average" chai or auto ride isn't worth an alert (AOS-505). */
+    private val minimumAmount: BigDecimal = BigDecimal.ZERO
 ) : AnomalyRule {
     override val name = "large_amount"
     override val baseConfidence = 0.7
 
     override fun evaluate(transaction: TransactionData): RuleResult? {
         val avg = categoryAverages[transaction.category]
-        if (avg != null && avg > BigDecimal.ZERO) {
+        if (avg != null && avg > BigDecimal.ZERO && transaction.amount >= minimumAmount) {
             val threshold = avg.multiply(BigDecimal(3))
             if (transaction.amount > threshold) {
                 return RuleResult(
@@ -115,10 +117,14 @@ class DuplicateChargeRule(
     override fun evaluate(transaction: TransactionData): RuleResult? {
         val twentyFourHoursAgo = transaction.transactedAt.minusSeconds(24 * 60 * 60)
         val duplicates = recentTransactions.filter { recent ->
-            recent.merchantName.equals(transaction.merchantName, ignoreCase = true) &&
+            // Itself never counts; another charge at the same minute does (SMS times are to the minute).
+            val other = if (recent.transactionId != null && transaction.transactionId != null) recent.transactionId != transaction.transactionId
+                else recent.transactedAt.isBefore(transaction.transactedAt)
+            other &&
+                recent.merchantName.equals(transaction.merchantName, ignoreCase = true) &&
                 recent.amount.compareTo(transaction.amount) == 0 &&
                 recent.transactedAt.isAfter(twentyFourHoursAgo) &&
-                recent.transactedAt.isBefore(transaction.transactedAt)
+                !recent.transactedAt.isAfter(transaction.transactedAt)
         }
         if (duplicates.isNotEmpty()) {
             return RuleResult(
