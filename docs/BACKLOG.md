@@ -92,9 +92,9 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ✅ | 6h | 3h |
 | └ [AOS-303](tickets/AOS-303.md) | Console Home: headline vs same days, week bars, categories, merchants, latest, bills, attention | Claude | ✅ | 3h | 2h |
 | └ [AOS-304](tickets/AOS-304.md) | Month view: running total vs last month, day by day | Claude | ✅ | 3h | 1h |
-| **[AOS-S3.3](tickets/AOS-S3.3.md)** | **Where my money goes** | | ⬜ | 5h | |
+| **[AOS-S3.3](tickets/AOS-S3.3.md)** | **Where my money goes** | | ✅ | 5h | 2.25h |
 | └ [AOS-305](tickets/AOS-305.md) | Spending: categories, merchants, category detail (6-month trend) | Claude | ✅ | 3h | 1.5h |
-| └ AOS-306 | Trend charts | Claude | ⬜ | 2h |  |
+| └ [AOS-306](tickets/AOS-306.md) | Trends: 12 months (bars/lines) and 12 weeks | Claude | ✅ | 2h | 0.75h |
 | **[AOS-S3.4](tickets/AOS-S3.4.md)** | **Transaction feed** | | ⬜ | 5h | |
 | └ [AOS-611](tickets/AOS-611.md) | Exact money everywhere (D-30): every API money field is a string; web `lib/money.ts` | Claude | ✅ | 1.5h | 1.5h |
 | └ AOS-307 | Transaction feed: search, filter, edit, re-categorize | Claude | ⬜ | 3h |  |
