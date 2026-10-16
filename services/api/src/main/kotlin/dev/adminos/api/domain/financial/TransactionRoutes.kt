@@ -38,6 +38,7 @@ fun Route.transactionRoutes(
                 val to = call.rangeEndParam("to")
                 val category = call.enumParam<TransactionCategory>("category")
                 val type = call.enumParam<TransactionType>("type")
+                val nature = call.enumParam<TransactionNature>("nature")
                 val accountId = call.uuidParam("account")
                 val isRecurring = call.booleanParam("isRecurring")
                 val merchantSearch = call.parameters["merchant"]?.takeIf { it.isNotBlank() }
@@ -48,17 +49,17 @@ fun Route.transactionRoutes(
                     userId = principal.userId,
                     from = from, to = to, category = category, type = type,
                     accountId = accountId, isRecurring = isRecurring,
-                    merchantSearch = merchantSearch, cursor = cursor, limit = limit + 1
+                    merchantSearch = merchantSearch, cursor = cursor, limit = limit + 1, nature = nature
                 )
 
                 val hasMore = transactions.size > limit
                 val page = if (hasMore) transactions.take(limit) else transactions
-                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.transactedAt.toString()) } else null
+                val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(transactionCursorKey(it)) } else null
                 val total = transactionRepository.countByUserId(
                     userId = principal.userId,
                     from = from, to = to, category = category, type = type,
                     accountId = accountId, isRecurring = isRecurring,
-                    merchantSearch = merchantSearch
+                    merchantSearch = merchantSearch, nature = nature
                 )
 
                 call.respond(

@@ -21,7 +21,7 @@
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-307 | Transaction feed: search, filter, edit, re-categorize | Claude | ⬜ | 3h |  |
+| [AOS-307](AOS-307.md) | Activity: search, filters, edit, re-categorize | Claude | ✅ | 3h | 2h |
 | AOS-309 | Review suggested duplicates / transfers / refunds (confirm or reject) | Claude | ⬜ | 2h |  |
 
 _Task tickets are created as files when this story is picked up._

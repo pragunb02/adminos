@@ -44,9 +44,10 @@ class InMemoryTransactionRepository : TransactionRepository {
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
         accountId: UUID?, isRecurring: Boolean?,
-        merchantSearch: String?, cursor: String?, limit: Int
+        merchantSearch: String?, cursor: String?, limit: Int, nature: TransactionNature?
     ): List<Transaction> {
         var results = store.values.filter { it.userId == userId }
+        nature?.let { n -> results = results.filter { it.nature == n } }
         from?.let { f -> results = results.filter { it.transactedAt >= f } }
         to?.let { t -> results = results.filter { it.transactedAt <= t } }
         category?.let { c -> results = results.filter { it.category == c } }
@@ -57,10 +58,10 @@ class InMemoryTransactionRepository : TransactionRepository {
             val lower = q.lowercase()
             results = results.filter { it.merchantName?.lowercase()?.contains(lower) == true }
         }
-        results = results.sortedByDescending { it.transactedAt }
+        results = results.sortedWith(compareByDescending<Transaction> { it.transactedAt }.thenByDescending { it.id })
         cursor?.let { c ->
-            val cursorInstant = Instant.parse(CursorCodec.key(c))
-            results = results.filter { it.transactedAt < cursorInstant }
+            val (at, id) = parseTransactionCursor(CursorCodec.key(c))
+            results = results.filter { it.transactedAt < at || (id != null && it.transactedAt == at && it.id < id) }
         }
         return results.take(limit)
     }
@@ -68,8 +69,9 @@ class InMemoryTransactionRepository : TransactionRepository {
     override suspend fun countByUserId(
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
-        accountId: UUID?, isRecurring: Boolean?, merchantSearch: String?
+        accountId: UUID?, isRecurring: Boolean?, merchantSearch: String?, nature: TransactionNature?
     ): Long {
+        if (nature != null) return findByUserId(userId, from, to, category, type, accountId, isRecurring, merchantSearch, null, Int.MAX_VALUE, nature).size.toLong()
         var results = store.values.filter { it.userId == userId }
         from?.let { f -> results = results.filter { it.transactedAt >= f } }
         to?.let { t -> results = results.filter { it.transactedAt <= t } }
