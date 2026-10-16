@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.analytics
 
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.domain.common.toMoney
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.http.*
@@ -48,7 +49,7 @@ fun Route.analyticsRoutes(service: AnalyticsService) {
             get("/series") {
                 val (userId, zone, range) = call.analyticsRequest(service)
                 val bucket = call.enumParam<Bucket>("bucket") ?: Bucket.DAY
-                val points = service.series(userId, range, bucket, zone)
+                val points = service.series(userId, range, bucket, zone, call.enumParam<TransactionCategory>("category"))
                 call.respond(HttpStatusCode.OK, ApiResponse.success(SeriesResponse(
                     range.dto(), bucket.name.lowercase(), points.map { SeriesPointDto(it.start.toString(), it.money.spent.money(), it.money.received.money()) }
                 ), call.requestId))
@@ -62,7 +63,7 @@ fun Route.analyticsRoutes(service: AnalyticsService) {
             }
             get("/merchants") {
                 val (userId, zone, range) = call.analyticsRequest(service)
-                val rows = service.merchants(userId, range, zone, call.limitParam(default = 10, max = 50))
+                val rows = service.merchants(userId, range, zone, call.limitParam(default = 10, max = 50), call.enumParam<TransactionCategory>("category"))
                 call.respond(HttpStatusCode.OK, ApiResponse.success(MerchantsResponse(
                     range.dto(), rows.map { MerchantDto(it.merchant, it.spent.money(), it.count, it.category.name.lowercase()) }
                 ), call.requestId))

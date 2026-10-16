@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test";
 /** The 5 destinations (D-49) and what proves we're on each. */
 const MAIN: { tab: "Home" | "Spending" | "Activity" | "Review" | "More"; path: string; heading: string | RegExp }[] = [
   { tab: "Home", path: "/", heading: /^[A-Z][a-z]+ \d{4}$/ }, // the period label, e.g. "October 2026"
-  { tab: "Spending", path: "/spending", heading: "Spending" },
+  { tab: "Spending", path: "/spending", heading: /^[A-Z][a-z]+ \d{4}$/ }, // the period label
   { tab: "Activity", path: "/transactions", heading: "Transactions" },
   { tab: "Review", path: "/review", heading: "Review" },
   { tab: "More", path: "/more", heading: "More" },

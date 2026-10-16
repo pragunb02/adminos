@@ -1,6 +1,6 @@
 import { expect, expectAccessible, mainNav, test } from "./support/fixtures";
 
-const SCREENS = ["/", "/spending", "/transactions", "/review", "/more", "/import", "/subscriptions", "/bills", "/briefings", "/settings", "/anomalies/an-1", "/onboarding"];
+const SCREENS = ["/", "/spending", "/spending?view=merchants", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/subscriptions", "/bills", "/briefings", "/settings", "/anomalies/an-1", "/onboarding"];
 
 test.describe("accessibility (axe, WCAG 2.2 AA: no serious or critical issues)", () => {
   for (const path of SCREENS) {

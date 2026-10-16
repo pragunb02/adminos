@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { describe, isCurrent, periodQuery, shift, type Period, type PeriodKind } from "@/lib/period";
 
 const KINDS: { kind: PeriodKind; label: string }[] = [
@@ -16,7 +16,8 @@ const KINDS: { kind: PeriodKind; label: string }[] = [
 export default function PeriodSwitcher({ period, today }: { period: Period; today: string }) {
   const router = useRouter();
   const pathname = usePathname();
-  const go = (p: Period) => router.push(`${pathname}${periodQuery(p, today)}`, { scroll: false });
+  const search = useSearchParams();
+  const go = (p: Period) => router.push(`${pathname}${withPeriod(search, p, today)}`, { scroll: false });
   const atCurrent = isCurrent(period, today);
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -50,4 +51,14 @@ export default function PeriodSwitcher({ period, today }: { period: Period; toda
       </div>
     </div>
   );
+}
+
+/** The current query with the period replaced; other parameters (e.g. `view`) are kept. */
+export function withPeriod(search: URLSearchParams, period: Period, today: string): string {
+  const q = new URLSearchParams(search);
+  q.delete("p");
+  q.delete("d");
+  new URLSearchParams(periodQuery(period, today)).forEach((v, k) => q.set(k, v));
+  const s = q.toString();
+  return s ? `?${s}` : "";
 }

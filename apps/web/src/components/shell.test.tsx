@@ -9,7 +9,6 @@ import { DESTINATIONS, MORE_LINKS, Rail, TabBar, destinationOf } from "./Nav";
 import AppShell from "./AppShell";
 import Providers from "./Providers";
 import MorePage from "@/app/more/page";
-import SpendingPage from "@/app/spending/page";
 import ReviewPage from "@/app/review/page";
 import { api } from "@/lib/api";
 import { render } from "@testing-library/react";
@@ -95,9 +94,9 @@ describe("More and placeholder pages", () => {
     expect(logout).toHaveBeenCalledOnce();
   });
 
-  it.each([[SpendingPage, "Spending"], [ReviewPage, "Review"]] as const)("%s placeholder says what is coming", (Page, title) => {
-    renderWithQuery(<Page />);
-    expect(screen.getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
+  it("the Review placeholder says what is coming", () => {
+    renderWithQuery(<ReviewPage />);
+    expect(screen.getByRole("heading", { level: 2, name: "Review" })).toBeInTheDocument();
   });
 });
 

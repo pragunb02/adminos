@@ -37,6 +37,11 @@ class AnalyticsIntegrationTest {
                 sql.categories(user, oct, zone).map { it.copy(spent = it.spent.stripTrailingZeros(), previousSpent = it.previousSpent.stripTrailingZeros()) }, "categories $zone")
             assertEquals(ref.merchants(user, oct, zone, 10).map { it.copy(spent = it.spent.stripTrailingZeros()) },
                 sql.merchants(user, oct, zone, 10).map { it.copy(spent = it.spent.stripTrailingZeros()) }, "merchants $zone")
+            for (c in listOf(dev.adminos.api.domain.financial.TransactionCategory.FOOD, dev.adminos.api.domain.financial.TransactionCategory.SHOPPING)) {
+                assertEquals(ref.series(user, oct, Bucket.WEEK, zone, c).map { it.normalized() }, sql.series(user, oct, Bucket.WEEK, zone, c).map { it.normalized() }, "series $c $zone")
+                assertEquals(ref.merchants(user, oct, zone, 10, c).map { it.copy(spent = it.spent.stripTrailingZeros()) },
+                    sql.merchants(user, oct, zone, 10, c).map { it.copy(spent = it.spent.stripTrailingZeros()) }, "merchants $c $zone")
+            }
         }
     }
 

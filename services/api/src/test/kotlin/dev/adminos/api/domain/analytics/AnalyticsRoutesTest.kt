@@ -82,4 +82,15 @@ class AnalyticsRoutesTest {
     fun `requires a signed-in user`() = routeTest {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/v1/analytics/summary").status)
     }
+
+    @Test
+    fun `series and merchants take an optional category, and reject unknown ones (AOS-305)`() = routeTest {
+        val shopping = get("/api/v1/analytics/series?from=2026-10-01&to=2026-10-16&bucket=month&category=shopping").second.data()
+        assertEquals("699.00", shopping["points"]!!.jsonArray.single().str("spent"))
+        val food = get("/api/v1/analytics/merchants?from=2026-10-01&to=2026-10-16&category=food").second.data()["merchants"]!!.jsonArray
+        assertEquals(listOf("Swiggy", "Unknown"), food.map { it.str("merchant") })
+        val (status, body) = get("/api/v1/analytics/merchants?category=groceries")
+        assertEquals(HttpStatusCode.BadRequest, status)
+        assertTrue(body["error"]!!.jsonObject["message"]!!.jsonPrimitive.content.contains("category"))
+    }
 }
