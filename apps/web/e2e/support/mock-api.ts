@@ -38,6 +38,7 @@ export class MockApi {
       .on("POST /api/v1/auth/refresh", () => ({ data: {} }))
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
+      .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
       .on("GET /api/v1/analytics/summary", (_r, u) => ({ data: { ...fx.summary(), period: { from: u.searchParams.get("from"), to: u.searchParams.get("to") } } }))
       .on("GET /api/v1/analytics/series", () => ({ data: fx.week() }))
       .on("GET /api/v1/analytics/categories", () => ({ data: fx.categories() }))

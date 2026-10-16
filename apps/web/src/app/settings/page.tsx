@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DeviceTokens from "@/components/DeviceTokens";
+import PushDevice from "@/components/PushDevice";
 import { deleteData, errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { UserConnection, NotificationPreferences, Session } from "@/lib/types";
 import AppShell from "@/components/AppShell";
@@ -185,6 +186,9 @@ export default function SettingsPage() {
                 </div>
               </section>
             )}
+
+            {/* Push on this device (AOS-510) */}
+            <PushDevice />
 
             {/* Connected devices (AOS-203) */}
             <DeviceTokens />

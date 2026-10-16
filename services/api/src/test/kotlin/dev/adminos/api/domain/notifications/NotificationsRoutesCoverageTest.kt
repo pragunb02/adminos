@@ -214,13 +214,15 @@ class NotificationsRoutesCoverageTest {
     }
 
     @Test
-    fun `notificationModule wires both routes from Koin`() = testApplication {
+    fun `notificationModule wires its routes from Koin`() = testApplication {
         environment { config = MapApplicationConfig() }
         application {
             install(KoinIsolated) {
                 modules(module {
                     single<NotificationPreferencesRepository> { prefsRepo }
                     single<NotificationRepository> { notifRepo }
+                    single { dev.adminos.api.domain.notifications.push.PushSubscriptionService(
+                        dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository(), null, null) }
                 })
             }
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
@@ -229,6 +231,7 @@ class NotificationsRoutesCoverageTest {
 
         val prefs = call(HttpMethod.Get, prefsPath)
         val list = call(HttpMethod.Get, "/api/v1/notifications")
+        assertEquals(HttpStatusCode.OK, call(HttpMethod.Get, "/api/v1/push").first)
 
         assertEquals(HttpStatusCode.OK, prefs.first)
         assertEquals(HttpStatusCode.OK, list.first)

@@ -10,6 +10,15 @@ describe("route guard (proxy.ts)", () => {
     expect(proxy(req(path)).headers.get("location")).toBeNull();
   });
 
+  it.each(["/manifest.webmanifest", "/sw.js", "/icon-192.png", "/icon-512.png", "/apple-icon.png"])(
+    "%s is public: browsers fetch it without the session cookie (AOS-510)",
+    (path) => expect(proxy(req(path)).headers.get("location")).toBeNull(),
+  );
+
+  it("only those exact files: a look-alike path is still guarded", () => {
+    expect(proxy(req("/sw.js.map")).headers.get("location")).toBe("http://localhost:3000/login");
+  });
+
   it("app pages without a session go to /login", () => {
     const res = proxy(req("/transactions"));
     expect(res.status).toBe(307);

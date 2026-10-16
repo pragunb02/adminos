@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
@@ -549,4 +550,12 @@ Proposed
 - **Providers:** email goes over plain SMTP, so any provider works (Gmail app password, SES SMTP, Mailgun). Push will be standard Web Push, which works on iPhone from the Home Screen app (D-19). Firebase (FCM) is dropped: it was a stub and the wrong channel for an iPhone and web user.
 - **Quiet hours:** in-app is silent, so it is delivered at once. Push and email for non-critical types wait until quiet hours end in the user's zone. Anomaly alerts never wait.
 - **Reliability:** delivery state is stored (`deliver_after`, `attempts`, `last_error`). Retries back off 5 min → 30 min → 3 h, then the notice is marked failed. A pending job claims due rows with a lease every 5 minutes. Delivery is at least once: a duplicate email beats a lost bill reminder.
+
+### D-52 — Web Push from the standards, with JDK crypto
+2026-10-16 · Accepted (Pragun: "yes buddy" to AOS-510; plan approved with D-51) · Type: Architecture · Tasks: AOS-510
+- **No library:** the only Java Web Push library pulls BouncyCastle 1.70, jose4j 0.7.9 and async-http-client 2.12 (old, with known vulnerabilities). RFC 8291 (encryption) and RFC 8292 (VAPID) are implemented with JDK primitives (ECDH P-256, HKDF-SHA256, AES-128-GCM) and Nimbus (ES256 JWT, already a dependency), and verified against the RFC 8291 Appendix A test vector.
+- **No SSRF:** the server posts only to Apple, Google, Mozilla and Microsoft push services (https, default port, no credentials in the URL).
+- **Privacy:** endpoints identify a device, so they are never logged or returned; keys are never printed.
+- **iPhone:** Web Push works for Home Screen apps (iOS 16.4+). The app has a manifest and icons, and Settings explains Add to Home Screen. The manifest, service worker and icons are served without a session, because browsers fetch the manifest without cookies.
+- **Keys:** one VAPID pair per deployment (`./gradlew -q vapidKeys`). Rotating it means re-subscribing every device.
 

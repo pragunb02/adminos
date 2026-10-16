@@ -68,6 +68,22 @@ class DiAppModuleCoverageTest {
     }
 
     @Test
+    fun `push is a delivery channel only when VAPID keys are configured (AOS-510)`() {
+        val pair = dev.adminos.api.infrastructure.push.P256.generate()
+        val vapid = mapOf(
+            "VAPID_PUBLIC_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.public as java.security.interfaces.ECPublicKey)),
+            "VAPID_PRIVATE_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.private as java.security.interfaces.ECPrivateKey)),
+            "VAPID_SUBJECT" to "mailto:pragun@example.com"
+        )
+        val koin = koinOf(buildAppModule(useDatabase = false, env = vapid::get))
+        assertTrue(dev.adminos.api.domain.notifications.NotificationChannel.PUSH in
+            koin.getAll<dev.adminos.api.domain.notifications.delivery.DeliveryChannel>().map { it.channel })
+        assertTrue(runBlocking { koin.get<dev.adminos.api.domain.notifications.push.PushSubscriptionService>().status(UUID.randomUUID()).enabled })
+        assertTrue(!runBlocking { koinOf(buildAppModule(useDatabase = false, env = noEnv))
+            .get<dev.adminos.api.domain.notifications.push.PushSubscriptionService>().status(UUID.randomUUID()).enabled })
+    }
+
+    @Test
     fun `in-memory configuration resolves every definition`() {
         val koin = koinOf(buildAppModule(useDatabase = false, env = noEnv))
         assertTrue(koin.resolveAll() > 50)

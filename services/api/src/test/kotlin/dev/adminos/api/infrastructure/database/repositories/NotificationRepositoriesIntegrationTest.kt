@@ -42,6 +42,32 @@ class NotificationRepositoriesIntegrationTest {
     }
 
     @Test
+    fun `push subscriptions keep one row per device, owned by the last user to register it (AOS-510)`() = runBlocking<Unit> {
+        val pushRepo = ExposedPushSubscriptionRepository()
+        val (alice, bob) = PostgresTestDatabase.newUser() to PostgresTestDatabase.newUser()
+        val device = "https://web.push.apple.com/QG" + java.util.UUID.randomUUID()
+        val keys = dev.adminos.api.domain.notifications.push.PushFixtures.keys
+        fun sub(owner: java.util.UUID, label: String?) = dev.adminos.api.domain.notifications.push.PushSubscription(
+            userId = owner, endpoint = dev.adminos.api.domain.notifications.push.PushEndpoint(device), keys = keys, label = label)
+
+        val first = pushRepo.upsert(sub(alice, "iPhone"))
+        assertEquals(listOf("iPhone"), pushRepo.findByUserId(alice).map { it.label })
+        val moved = pushRepo.upsert(sub(bob, null))
+        assertEquals(first.id, moved.id, "same device keeps its row")
+        assertEquals(emptyList(), pushRepo.findByUserId(alice))
+        assertEquals(bob, pushRepo.findByUserId(bob).single().userId)
+
+        val at = java.time.Instant.parse("2026-10-16T09:30:00Z")
+        pushRepo.markSucceeded(moved.id, at)
+        assertEquals(at, pushRepo.findByUserId(bob).single().lastSuccessAt)
+        assertEquals(false, pushRepo.delete(alice, moved.endpoint))
+        assertEquals(true, pushRepo.delete(bob, moved.endpoint))
+        pushRepo.upsert(sub(bob, "again"))
+        pushRepo.deleteById(pushRepo.findByUserId(bob).single().id)
+        assertEquals(emptyList(), pushRepo.findByUserId(bob))
+    }
+
+    @Test
     fun `delivery state round-trips and due notifications are claimed once per lease (AOS-504)`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
         val now = java.time.Instant.parse("2030-01-01T00:00:00Z")

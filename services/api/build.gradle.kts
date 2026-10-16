@@ -106,3 +106,11 @@ kover {
         }
     }
 }
+
+// Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
+tasks.register<JavaExec>("vapidKeys") {
+    group = "application"
+    description = "Generate a VAPID key pair for Web Push"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.adminos.api.infrastructure.push.VapidKeysKt")
+}

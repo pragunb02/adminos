@@ -64,6 +64,8 @@ val testAppModule = module {
     single { AnomalyDetectorService(get(), get()) }
     single { dev.adminos.api.domain.notifications.delivery.NotificationDispatcher(listOf(dev.adminos.api.domain.notifications.delivery.InAppChannel()), get(), get()) }
     single { NotificationService(get(), get(), get()) }
+    single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
+    single { dev.adminos.api.domain.notifications.push.PushSubscriptionService(get(), null, null) }
     single { ReminderEngine(get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
 }

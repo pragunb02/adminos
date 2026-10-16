@@ -50,3 +50,16 @@ object NotificationPreferencesTable : Table("notification_preferences") {
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Maps to db/migration/V19__push_subscriptions.sql (AOS-510). */
+object PushSubscriptionsTable : Table("push_subscriptions") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val endpoint = varchar("endpoint", 2048)
+    val p256dh = varchar("p256dh", 128)
+    val auth = varchar("auth", 64)
+    val label = varchar("label", 100).nullable()
+    val createdAt = timestamp("created_at")
+    val lastSuccessAt = timestamp("last_success_at").nullable()
+    override val primaryKey = PrimaryKey(id)
+}

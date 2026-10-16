@@ -43,6 +43,11 @@ import io.lettuce.core.RedisClient
 import org.koin.core.module.Module
 import org.koin.dsl.bind
 import dev.adminos.api.config.SmtpConfig
+import dev.adminos.api.config.VapidConfig
+import dev.adminos.api.domain.notifications.push.PushSender
+import dev.adminos.api.domain.notifications.push.PushSubscriptionService
+import dev.adminos.api.domain.notifications.push.WebPushChannel
+import dev.adminos.api.infrastructure.push.WebPushSender
 import dev.adminos.api.domain.notifications.delivery.*
 import dev.adminos.api.infrastructure.email.SmtpEmailSender
 import org.koin.dsl.module
@@ -93,6 +98,7 @@ internal fun buildAppModule(
         single<AuditRepository> { ExposedAuditRepository() }
         // Scheduling
         single<JobRunRepository> { ExposedJobRunRepository() }
+        single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -116,6 +122,7 @@ internal fun buildAppModule(
         single<NotificationRepository> { InMemoryNotificationRepository() }
         single<AuditRepository> { InMemoryAuditRepository() }
         single<JobRunRepository> { InMemoryJobRunRepository() }
+        single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -191,6 +198,13 @@ internal fun buildAppModule(
         single<EmailSender> { SmtpEmailSender(smtp) }
         single { EmailChannel(get(), get<AppConfig>().app.appUrl) } bind DeliveryChannel::class
     }
+    // Web Push only when VAPID keys are configured (AOS-510); Settings explains when it's off.
+    val vapid = VapidConfig.from(env)
+    if (vapid != null) {
+        single<PushSender> { WebPushSender(vapid) }
+        single { WebPushChannel(get(), get()) } bind DeliveryChannel::class
+    }
+    single { PushSubscriptionService(get(), getOrNull<WebPushChannel>(), vapid?.publicKey) }
     single { NotificationDispatcher(getAll<DeliveryChannel>(), get(), get()) }
     single { NotificationService(get(), get(), get()) }
     single { ReminderEngine(get(), get(), get()) }
