@@ -118,7 +118,6 @@ class IdentityAuthServiceCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: AuthService.refreshToken never checks User.isActive/deletedAt, so a deactivated user keeps minting access tokens")
     fun `refresh is refused for a deactivated user`() = runBlocking<Unit> {
         val user = users.save(User(email = "gone@example.com", googleId = "g-gone", isActive = false, deletedAt = Instant.now()))
         val (_, refresh) = storedSession(user.id)
@@ -127,7 +126,6 @@ class IdentityAuthServiceCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: AuthService.loginWithGoogle never checks User.isActive/deletedAt, so a deactivated user can log back in")
     fun `google login is refused for a deactivated user`() = runBlocking<Unit> {
         users.save(User(email = "pragun.b@gmail.com", googleId = "109876543210987654321", isActive = false, deletedAt = Instant.now()))
 

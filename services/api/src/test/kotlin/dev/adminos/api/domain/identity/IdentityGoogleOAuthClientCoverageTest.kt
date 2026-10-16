@@ -77,7 +77,6 @@ class IdentityGoogleOAuthClientCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: GoogleOAuthClient builds the token form without URL-encoding code/redirect_uri, so '+', '&' or '%' in them are corrupted or inject fields")
     fun `code and redirect uri are form-url-encoded in the token request`() = runBlocking<Unit> {
         client.exchangeCodeForTokens("4/0Ab+c%2F&grant_type=evil", "http://localhost:3000/auth/callback?x=1&y=2")
 
