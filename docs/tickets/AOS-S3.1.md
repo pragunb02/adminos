@@ -21,7 +21,7 @@
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-301 | Analytics API (series, breakdowns, comparisons) | Claude | ⬜ | 4h |  |
+| [AOS-301](AOS-301.md) | Analytics API (series, breakdowns, comparisons) | Claude | ✅ | 4h | 2h |
 | AOS-302 | Chart library + design system: Recharts chosen (D-45) | Claude + Pragun | ⬜ | 1h |  |
 | [AOS-308](AOS-308.md) | Web: shared data-fetching layer: TanStack Query (D-45) | Claude | ⬜ | 3h | |
 | [AOS-120](AOS-120.md) | Per-user timezone for date-range params | Claude | ✅ | 1h | 1h |

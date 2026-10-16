@@ -63,6 +63,7 @@ val appModule = module {
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { ExposedAnalyticsRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
@@ -88,6 +89,7 @@ val appModule = module {
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()) }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
@@ -154,6 +156,7 @@ val appModule = module {
 
     // Financial Services
     single { CategorizationService(get()) }
+    single { dev.adminos.api.domain.analytics.AnalyticsService(get()) }
     single {
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }

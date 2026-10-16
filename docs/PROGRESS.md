@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Milestone 3 console started (D-45): ~~AOS-120~~ done; next AOS-301 analytics API, then AOS-302/308, 303/304, 305/306, 307, 309; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Milestone 3 console started (D-45): ~~AOS-120~~, ~~AOS-301~~ done; next AOS-302/308 (Recharts + TanStack Query), 303/304, 305/306, 307, 309; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -97,6 +97,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-301: analytics API `/api/v1/analytics/{summary,series,categories,merchants}`: one SQL fact query (local day × nature × category × merchant) → `AnalyticsService`; spent = spend − refunds, received = income, total = Σ categories = Σ buckets (D-46). Unit 318, integration 51 (Postgres = in-memory in two zones).
   - AOS-120: per-user timezone: `tz` claim in the access token → `call.userZone` → date-only params are whole days in the user's zone. Unit 304, integration 50.
   - AOS-206: one merchant catalogue (`resources/merchants/catalogue.json`, 104 brands, validated on load) shared by normalizer + categorizer; `NarrationCleaner` pulls payee names out of UPI/POS/gateway narrations. Unit 302, integration 50.
   - AOS-205: Go Gmail worker writes `ingest_events` (message ID ref, direction by D-43, unclear → needs-review, NULL payment method) instead of `transactions`; no silent "success" when Gmail is unreachable; Go categorizer removed. Go unit + integration (real Postgres, migrated to V16) green; API unit 294, integration 50.
