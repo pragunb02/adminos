@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-54 | Product | Bill paid = a spend or card-bill transfer of the full amount (±5%) or minimum due (±1%), in the bill's window (period end or 40 days before due → 15 days after), with evidence (card/account number, biller name, or the only card bill); ties match nothing; daily sweep for payments seen first | Accepted | AOS-508 |
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
@@ -569,4 +570,14 @@ Proposed
   - odd hours are 01:00–04:59 in the user's zone.
 - **Once:** at most one anomaly per transaction, enforced by the V20 unique index.
 - **Tell:** every anomaly is recorded and visible. Only those with confidence ≥ 0.7 on spends from the last 3 days send a critical alert, which ignores quiet hours (D-51). This avoids alert fatigue from late-night orders and from importing old statements.
+
+### D-54 — When a payment pays a bill
+2026-10-16 · Accepted (Pragun: "continue" on the E5 plan) · Type: Product · Tasks: AOS-508
+- **Money that can pay a bill:** spends, and credit-card bill transfers (card bills are paid by transfer, AOS-208). Self-transfers, cash, refunds and income can't.
+- **All three must hold:**
+  - the amount is the full bill (±5%) or the minimum due (±1%);
+  - the payment falls in the bill's window, from its period end (or 40 days before the due date) to 15 days after the due date, in Indian dates;
+  - there is evidence it's this biller: the bill's last 4 digits in the payment (whole digits), a similar payee name, or — for a card-bill transfer — the only credit-card bill that fits.
+- **Ranking:** stronger evidence, then the closer amount, then the nearer due date. An exact tie marks nothing paid, so nothing is guessed.
+- **Both directions:** each new transaction is matched by a post-commit listener (D-53's hook), and the daily reminders job first sweeps open bills against payments already recorded, so a paid bill is never reminded.
 

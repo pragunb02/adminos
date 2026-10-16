@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E5](AOS-E5.md) |
-| **Status** | ⬜ Todo |
+| **Status** | 🟦 In progress |
 | **Priority** | P1 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 8h |
@@ -24,6 +24,7 @@
 |---|---|---|---|---|---|
 | AOS-502 | Recurring / UPI AutoPay mandate tracker | Claude | ⬜ | 4h |  |
 | AOS-503 | Dues & renewals calendar + reminders | Claude | ⬜ | 4h |  |
+| [AOS-508](AOS-508.md) | Bill-payment matching: listener + daily sweep, card bills by transfer | Claude | ✅ | — | 1.5h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -32,3 +33,4 @@ See upcoming dues
 
 ## Activity log
 - 2026-10-16 — Claude: story created (AOS-004).
+- 2026-10-16 — Claude: started; AOS-508 done.

@@ -47,12 +47,14 @@ class ScheduledJobsTest {
 
     @Test
     fun `bill reminders run daily at 09-00 in the configured zone and report counts`() = runBlocking<Unit> {
-        val job = BillRemindersJob(ReminderEngine(InMemoryBillRepository(), prefs, sender), ist)
+        val bills = InMemoryBillRepository()
+        val job = BillRemindersJob(ReminderEngine(bills, prefs, sender), ist, bills,
+            dev.adminos.api.domain.financial.BillTrackingService(bills, InMemoryTransactionRepository()))
         assertEquals(JobName("bill-reminders"), job.name)
         assertEquals(Schedule.Daily(LocalTime.of(9, 0), ist), job.schedule)
         assertEquals(java.time.Duration.ofMinutes(10), job.timeout, "default timeout")
         assertEquals(RetryPolicy.DEFAULT, job.retry, "default retry")
-        assertEquals(mapOf("overdueMarked" to 0, "remindersSent" to 0, "failed" to 0), job.run().counts)
+        assertEquals(mapOf("paidBySweep" to 0, "overdueMarked" to 0, "remindersSent" to 0, "failed" to 0), job.run().counts)
     }
 
     @Test

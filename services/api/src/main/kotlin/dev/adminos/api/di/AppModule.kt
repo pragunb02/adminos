@@ -191,6 +191,7 @@ internal fun buildAppModule(
     single { AnomalyDetectorService(get(), get(), get()) }
     // Reactions to each new transaction (AOS-505); a new one is one `bind TransactionCreatedListener::class` line.
     single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
+    single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
 
     // Notification Services
     // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.
@@ -213,7 +214,7 @@ internal fun buildAppModule(
     single { DropOffNudgeService(get(), get(), get()) }
 
     // Scheduled jobs (AOS-501, D-50): a new job is one `single { … } bind ScheduledJob::class` line.
-    single { BillRemindersJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { BillRemindersJob(get(), get<AppConfig>().scheduler.zone, get(), get()) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
