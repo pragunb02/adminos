@@ -17,9 +17,9 @@ day, week and month. It's built for Pragun first and must stay extensible to pub
 - Work in small steps on a feature branch; never commit to `main` directly.
 - Commit, push, open PRs and merge to `main` are allowed for this repo (Pragun, 2026-10-16), one PR per task.
   - Use `gh auth switch --hostname github.com --user pragunb02` first.
-  - **Merge only after the security check has reported success.** `gh pr checks --watch` returns early when no check is registered yet, so poll until it exists and passes:
-    `until gh api repos/pragunb02/adminos/commits/$(gh pr view N --json headRefOid -q .headRefOid)/check-runs -q '.check_runs[].conclusion' | grep -q success; do sleep 5; done`
-  - Merge with `gh pr merge N --merge`.
+  - **Merge only after the security check has reported success**, using `scripts/merge-pr.sh N`.
+    - It waits for every check to complete, merges only if all are `success`, and otherwise exits without merging (including on a timeout).
+    - Never hand-roll a wait loop: one that waited for "success" and then merged after a timeout let a failed check through (2026-10-16, PR #43).
 - **Tickets (D-25):** Epic `AOS-E<n>` → Story `AOS-S<n>.<m>` → Task `AOS-<n><nn>`. New tickets copy `docs/tickets/_templates/`.
   - Before starting a task: create its file if missing, set it to 🟦 and add an Activity log entry.
   - When done: fill in Resolution, Actual and Done, tick the acceptance criteria, and update the story, the epic and the BACKLOG.md row.

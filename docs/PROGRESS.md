@@ -101,6 +101,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
   - AOS-608: token encryption uses the whole 256-bit key with row-bound AAD (`v2:`); no public default secrets: DB mode requires real `JWT_SECRET`/`TOKEN_ENCRYPTION_KEY`/`DB_PASSWORD`, compose fails fast without `.env`. **`docker compose up` now needs a `.env`** (see `.env.example`).
   - AOS-312: API coverage via Kover: 70.7%→**99.63% lines**, 47.1%→**95.41% branches**; 1,137 tests; gate `koverVerify` 90/85; 5 parallel agents. Found 18 real bugs (7 security) → AOS-608…613; 19 `@Disabled` regression tests wait for the fixes.
   - AOS-607: JWT HMAC key = the whole secret (was its first 32 bytes); regression test fails on the old code; end-to-end forged-token check. API unit 320, integration 51.
