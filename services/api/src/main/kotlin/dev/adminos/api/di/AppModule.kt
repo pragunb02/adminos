@@ -144,6 +144,7 @@ val appModule = module {
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
     single { SmsIntake(get(), get()) }
+    single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }

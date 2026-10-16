@@ -33,6 +33,8 @@ class TransferDetector(private val zone: ZoneId = ZoneId.of("Asia/Kolkata")) {
             Regex("\\bCARD\\s*BILL\\b"), Regex("\\bBILLDESK\\b.*\\bCARD\\b"), Regex("\\bCARD\\b.*\\bBILLDESK\\b"),
             Regex("\\bCRED\\b"), Regex("CRED\\.CLUB"), Regex("\\bAUTOPAY\\b.*\\bCARD\\b")
         )
+        // ATM / cash withdrawal narrations: "ATM WDL", HDFC "ATW-" (own ATM) and "NWD-" (other bank's ATM), "CASH WDL".
+        private val CASH_WITHDRAWAL = Regex("\\bATM\\b|\\bAT[WM]-|\\bNWD-|\\bCASH\\s*(WDL|WITHDRAWAL|WITHDRAWN)\\b|\\bWITHDRAWN\\b.*\\bATM\\b")
         private val TRANSFER_HINT = Regex("\\b(TRANSFER|TRF|SELF|OWN A/?C|IMPS|NEFT|RTGS|FT|TO A/?C|FROM A/?C|SWEEP)\\b")
         private val REALTIME_SOURCES = setOf("sms", "gmail", "whatsapp", "manual")
     }
@@ -44,6 +46,10 @@ class TransferDetector(private val zone: ZoneId = ZoneId.of("Asia/Kolkata")) {
         val text = text(t)
         return CARD_BILL.any { it.containsMatchIn(text) }
     }
+
+    /** A debit taking cash out of your account (D-42). Cash entered by hand is the spending, so this is a transfer. */
+    fun isCashWithdrawal(t: Transaction): Boolean =
+        t.type == TransactionType.DEBIT && t.sourceType != "manual" && CASH_WITHDRAWAL.containsMatchIn(text(t))
 
     fun decide(incoming: Transaction, candidates: List<Transaction>): TransferDecision {
         val scored = candidates.filter { eligible(incoming, it) }

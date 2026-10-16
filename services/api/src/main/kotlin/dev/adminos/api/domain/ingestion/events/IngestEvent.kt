@@ -31,6 +31,8 @@ data class IngestEvent(
     val upiVpa: String? = null,
     /** UPI/IMPS reference (RRN) when the source shows it; strongest cross-source match key (AOS-207). */
     val paymentRef: String? = null,
+    /** A category the user chose when entering it (cash quick-add, AOS-204); kept as user-set. */
+    val category: dev.adminos.api.domain.financial.TransactionCategory? = null,
     val metadata: Map<String, Any?>? = null,
     val status: IngestEventStatus = IngestEventStatus.PENDING,
     val error: String? = null,

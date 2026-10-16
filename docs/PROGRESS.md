@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~ done. Next in M2: AOS-204 cash quick-add; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~ done. Left in M2: AOS-205/206 (small), then Milestone 3 console; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -42,7 +42,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Gmail ingest (Go) | 🟡 | ❌ | Parses snippet only; no incremental sync; no Pub/Sub watch |
 | Statement import (API → parser) | ✅ | ✅ | PDF/CSV/Excel, passwords; files never stored (D-37) |
 | Statement parser (Python) | ✅ | ✅ | Called by the API; 31 tests |
-| Manual add | ❌ | ❌ | Not built |
+| Cash quick-add (AOS-204) | ✅ | 🟡 | `POST /transactions/cash` + "+ Cash" button; through the pipeline; tested (unit, route, Postgres). Not yet used live: needs login (AOS-112) |
 | Web pages (8) | ✅ | ❌ | Call the real API; blocked by auth |
 | Notifications | 🟡 | ❌ | FCM stubbed; email marked sent without sending |
 | Scheduler | ❌ | ❌ | Nothing runs briefings, reminders or detectors |
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-204: cash quick-add (D-42): API through the common intake (V16 `ingest_events.category`, chosen category kept, idempotent clientRef, cash never deduped), ATM/cash withdrawals → transfer to cash, web "+ Cash" (amount → tap category). Unit 293, integration 50; web typecheck/lint/build green.
   - AOS-210: single categorizer with remembered corrections (D-41, V15 `category_rules`): one rule per payee, future and past re-labelled (not hand-set), `remember:false` opt-out. Removed wrong guesses (unknown UPI/NEFT/IMPS/Paytm/PhonePe/GPay → Transfer), substring false matches (Motorola → Ola), dead strategy and AI-queue code. Unit 283, integration 49.
   - AOS-209: refunds/reversals (D-40): reversals net to zero; refunds capped at the original, same merchant, ≤90 days, net their category's spend; works in either order. Unit 275, integration 47.
   - AOS-208: transaction nature (D-39) drives totals; own-account transfer pairs + card bill payments; generic relation side effects; suggestions API generalised. Unit 262, integration 45.

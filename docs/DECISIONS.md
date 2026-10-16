@@ -46,6 +46,7 @@
 | D-39 | Product | Transaction nature (spend/income/transfer/refund/reversal) drives all totals; card bill payments auto = transfer | Accepted | AOS-208, AOS-209, AOS-301 |
 | D-40 | Business logic | Refund/reversal rules: reversal = exact amount ≤5 days with ref/narration; refund ≤ original (capped), same merchant, ≤90 days; refunds net category spend | Accepted | AOS-209 |
 | D-41 | Business logic | One categorizer; corrections remembered per payee (UPI ID, else merchant), applied to future and past (not hand-set); no guessed transfers | Accepted | AOS-210 |
+| D-42 | Business logic | ATM/cash withdrawals are transfers to cash; only cash logged by hand counts as spending | Accepted | AOS-204 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -433,3 +434,10 @@ Proposed
   - Hand-set categories, transfers and reversals are not touched.
 - **The categorizer never guesses "Transfer".** Unknown UPI payees, NEFT/IMPS narrations and wallet names (Paytm/PhonePe/GPay) are Other.
   - Real own-account transfers come from TransferStep (D-39). Guessing hid real spending.
+
+### D-42 — ATM withdrawals are transfers to cash
+2026-10-16 · Accepted by Pragun ("agree") · Type: Business logic · Tasks: AOS-204
+- An ATM or cash withdrawal (narration `ATM`, `ATW-`, `NWD-`, `CASH WDL`, "withdrawn at ATM") is a **transfer**: money moved from the bank to your pocket.
+- The **spending is the cash you log** (cash quick-add), with its own category. Otherwise every logged cash payment would count twice.
+- **Trade-off:** cash withdrawn but never logged doesn't show as spending. A later "unlogged cash" view can show withdrawals minus logged cash (AOS-3xx).
+- Cash entries keep the category you chose, are idempotent per entry, and are never matched as duplicates of bank transactions.

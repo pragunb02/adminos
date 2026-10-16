@@ -69,7 +69,9 @@ class TransactionMatcher(private val zone: ZoneId = ZoneId.of("Asia/Kolkata")) {
         return t.id != incoming.id && t.userId == incoming.userId && t.type == incoming.type &&
             t.amount.compareTo(incoming.amount) == 0 && t.currency == incoming.currency &&
             t.sourceType != incoming.sourceType && incoming.sourceType !in c.mergedSources &&
-            t.id !in rejectedWith
+            t.id !in rejectedWith &&
+            // Cash has no bank record to duplicate (AOS-204); its ATM withdrawal is a transfer (D-42).
+            t.paymentMethod != PaymentMethod.CASH && incoming.paymentMethod != PaymentMethod.CASH
     }
 
     /** @return (score, reason), or null when a hard rule says "different payments". */

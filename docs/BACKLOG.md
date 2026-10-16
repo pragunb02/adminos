@@ -65,8 +65,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S2.3](tickets/AOS-S2.3.md)** | **iPhone SMS auto-capture** | | 🟦 | 5h | |
 | └ [AOS-203](tickets/AOS-203.md) | iPhone SMS: parsers, device tokens, Mac Messages reader, setup guide (D-35/36) | Claude | ✅ | 5h | 3.5h |
 | └ [AOS-211](tickets/AOS-211.md) | Set up SMS on Pragun's devices; validate parsers on real SMS (locally) | Pragun + Claude | ⬜ | 1h |  |
-| **[AOS-S2.4](tickets/AOS-S2.4.md)** | **Cash quick-add** | | ⬜ | 2h | |
-| └ AOS-204 | Cash quick-add (API + two-tap UI) | Claude | ⬜ | 2h |  |
+| **[AOS-S2.4](tickets/AOS-S2.4.md)** | **Cash quick-add** | | ✅ | 2h | 2h |
+| └ [AOS-204](tickets/AOS-204.md) | Cash quick-add (API + two-tap UI); ATM = transfer to cash (D-42) | Claude | ✅ | 2h | 2h |
 | **[AOS-S2.5](tickets/AOS-S2.5.md)** | **Numbers I can trust** | | 🟦 | 15h | |
 | └ AOS-205 | Correct debit/credit everywhere (pipeline ✅ AOS-201; Gmail/PDF Go paths left → AOS-401/202) | Claude | ⬜ | 1h |  |
 | └ AOS-206 | Merchant normalization: grow alias catalogue (deterministic normalizer ✅ AOS-201) | Claude | ⬜ | 2h |  |

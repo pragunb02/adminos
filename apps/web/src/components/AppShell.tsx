@@ -1,5 +1,6 @@
 "use client";
 
+import CashQuickAdd from "./CashQuickAdd";
 import NavBar from "./NavBar";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="sm:hidden">
         <NavBar />
       </div>
+      <CashQuickAdd />
     </div>
   );
 }
