@@ -106,7 +106,7 @@ export default function TransactionsPage() {
               onChange={(e) => setDateFrom(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <span className="text-gray-400 text-sm">to</span>
+            <span className="text-gray-500 text-sm">to</span>
             <input
               type="date"
               aria-label="To date"
@@ -144,12 +144,12 @@ export default function TransactionsPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <StatusBadge status={txn.category} />
-                    <span className="text-xs text-gray-400">{formatDate(txn.transactedAt)}</span>
-                    {txn.accountLast4 && <span className="text-xs text-gray-400">••{txn.accountLast4}</span>}
-                    {txn.paymentMethod && <span className="text-xs text-gray-400">{txn.paymentMethod}</span>}
+                    <span className="text-xs text-gray-500">{formatDate(txn.transactedAt)}</span>
+                    {txn.accountLast4 && <span className="text-xs text-gray-500">••{txn.accountLast4}</span>}
+                    {txn.paymentMethod && <span className="text-xs text-gray-500">{txn.paymentMethod}</span>}
                   </div>
                 </div>
-                <p className={`font-semibold text-sm whitespace-nowrap ${txn.type === "credit" ? "text-green-600" : "text-gray-900"}`}>
+                <p className={`font-semibold text-sm whitespace-nowrap ${txn.type === "credit" ? "text-green-700" : "text-gray-900"}`}>
                   {txn.type === "credit" ? "+" : "-"}₹{txn.amount.toLocaleString("en-IN")}
                 </p>
               </div>

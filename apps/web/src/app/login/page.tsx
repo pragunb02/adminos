@@ -70,7 +70,7 @@ function LoginContent() {
           Continue with Google
         </button>
 
-        <p className="mt-6 text-xs text-gray-400">
+        <p className="mt-6 text-xs text-gray-500">
           By continuing, you agree to our Terms of Service and Privacy Policy.
         </p>
       </div>

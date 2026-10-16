@@ -73,7 +73,7 @@ export default function BillsPage() {
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">₹{bill.amount.toLocaleString("en-IN")}</p>
                       {bill.minimumDue != null && bill.minimumDue !== bill.amount && (
-                        <p className="text-xs text-gray-400">Min: ₹{bill.minimumDue.toLocaleString("en-IN")}</p>
+                        <p className="text-xs text-gray-500">Min: ₹{bill.minimumDue.toLocaleString("en-IN")}</p>
                       )}
                     </div>
                   </div>

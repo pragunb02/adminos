@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Milestone 3 console started (D-45): ~~AOS-120~~, ~~AOS-301~~, ~~AOS-308~~, ~~AOS-310~~ done; next AOS-311 Playwright, AOS-312 API coverage, AOS-302 design spec, then AOS-303/304, 303/304, 305/306, 307, 309; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Milestone 3 console started (D-45): ~~AOS-120~~, ~~AOS-301~~, ~~AOS-308~~, ~~AOS-310~~, ~~AOS-311~~ done; next AOS-607 (JWT key, needs Pragun's OK), AOS-312 API coverage, AOS-302 design spec, then AOS-303/304, 303/304, 305/306, 307, 309; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -83,6 +83,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 6. AOS-601 — Gmail tokens stored in plain text (`gmail_handler.go:185`).
 8. AOS-307 — `GET /transactions` sends `amount` as a float and has no `nature` field (breaks D-30; the feed can't tell refunds/transfers apart).
 9. Onboarding copy still describes an Android SMS app (D-19: iPhone); the subscriptions "cancellation draft" modal can never open (dead code). Fold into the console redesign (AOS-302…).
+11. **AOS-607 — `JwtService` keys HS256 with only the first 32 bytes of `JWT_SECRET`** (`copyOf(32)`); fix pending Pragun's OK.
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
@@ -100,6 +101,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-311: Playwright end-to-end: 131 tests (129 pass, 2 skipped by design) on desktop Chrome, iPhone Safari, Android Chrome + full stack (real API, signed test session). Fixed WCAG contrast everywhere and an unreachable Log out on phones. Found AOS-607.
   - AOS-310: web unit tests: Vitest + Testing Library + MSW; 156 tests, 99.1% lines / 97.3% branches; gate 90/85 (D-47). Found and fixed 4 UI bugs (cash Escape, "↓changed", 2 onboarding dead ends) and unlabeled inputs.
   - AOS-308: web data layer = TanStack Query (`lib/query.ts`, `Providers`); all pages migrated; action errors no longer swallowed; lint `set-state-in-effect` back to error, 0 warnings; npm audit 0. Not browser-tested (needs login).
   - AOS-301: analytics API `/api/v1/analytics/{summary,series,categories,merchants}`: one SQL fact query (local day × nature × category × merchant) → `AnalyticsService`; spent = spend − refunds, received = income, total = Σ categories = Σ buckets (D-46). Unit 318, integration 51 (Postgres = in-memory in two zones).

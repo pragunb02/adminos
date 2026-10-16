@@ -91,7 +91,7 @@ export default function Home() {
             <div className="text-center py-8 bg-green-50 rounded-lg border border-green-200">
               <p className="text-2xl mb-2">✅</p>
               <p className="font-medium text-green-800">All clear!</p>
-              <p className="text-sm text-green-600 mt-1">Your finances are in order. Nothing needs attention right now.</p>
+              <p className="text-sm text-green-700 mt-1">Your finances are in order. Nothing needs attention right now.</p>
             </div>
           )}
 
@@ -125,7 +125,7 @@ function SummaryCard({ label, value, highlight = false }: { label: string; value
   return (
     <div className={`rounded-lg border p-3 ${highlight ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"}`}>
       <p className={`text-lg font-bold ${highlight ? "text-red-700" : "text-gray-900"}`}>{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+      <p className="text-xs text-gray-600 mt-0.5">{label}</p>
     </div>
   );
 }

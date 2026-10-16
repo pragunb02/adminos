@@ -10,6 +10,11 @@ const config = [
       "react-hooks/set-state-in-effect": "error",
     },
   },
+  {
+    // Playwright fixtures call `use()`, which is not React's hook.
+    files: ["e2e/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off" },
+  },
   { ignores: [".next/**", "node_modules/**", "next-env.d.ts", "coverage/**", "playwright-report/**", "test-results/**"] },
 ];
 

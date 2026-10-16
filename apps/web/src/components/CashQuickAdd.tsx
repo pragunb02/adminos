@@ -79,7 +79,7 @@ export default function CashQuickAdd() {
       <button
         type="button"
         onClick={start}
-        className="fixed right-4 bottom-20 sm:bottom-6 z-40 rounded-full bg-emerald-600 px-5 py-3 text-white font-semibold shadow-lg hover:bg-emerald-700"
+        className="fixed right-4 bottom-20 sm:bottom-6 z-40 rounded-full bg-emerald-700 px-5 py-3 text-white font-semibold shadow-lg hover:bg-emerald-800"
         aria-label="Add cash spending"
       >
         + Cash
@@ -101,7 +101,7 @@ export default function CashQuickAdd() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 text-3xl font-bold">
-              <span className="text-gray-400">₹</span>
+              <span className="text-gray-500">₹</span>
               <input
                 ref={amountRef}
                 inputMode="decimal"

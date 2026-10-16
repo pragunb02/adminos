@@ -67,7 +67,7 @@ export default function AnomalyDetailPage() {
     <AppShell>
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/")} className="text-gray-400 hover:text-gray-600">
+          <button onClick={() => router.push("/")} className="text-gray-500 hover:text-gray-600">
             ← Back
           </button>
           <h2 className="text-xl font-bold">Anomaly Review</h2>
@@ -81,7 +81,7 @@ export default function AnomalyDetailPage() {
           <div className="text-center py-8 bg-green-50 rounded-lg border border-green-200">
             <p className="text-2xl mb-2">✅</p>
             <p className="font-medium text-green-800">No open anomalies</p>
-            <p className="text-sm text-green-600 mt-1">All anomalies have been reviewed.</p>
+            <p className="text-sm text-green-700 mt-1">All anomalies have been reviewed.</p>
           </div>
         )}
 
@@ -115,7 +115,7 @@ export default function AnomalyDetailPage() {
                 </div>
               )}
 
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-500">
                 Detected: {new Date(selected.createdAt).toLocaleString("en-IN")}
               </div>
 
@@ -159,7 +159,7 @@ export default function AnomalyDetailPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-900">{typeLabel(a.type)}</span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-500">
                         {(a.confidenceScore * 100).toFixed(0)}%
                       </span>
                     </div>

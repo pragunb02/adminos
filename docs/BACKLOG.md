@@ -85,7 +85,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-308](tickets/AOS-308.md) | Web: shared data-fetching layer: TanStack Query (D-45) | Claude | ✅ | 3h | 1.5h |
 | └ [AOS-120](tickets/AOS-120.md) | Per-user timezone for date-range params (tz in the access token) | Claude | ✅ | 1h | 1h |
 | └ [AOS-310](tickets/AOS-310.md) | Web unit tests + coverage gate (156 tests; 99.1% lines, 97.3% branches) (D-47) | Claude | ✅ | 4h | 2.5h |
-| └ AOS-311 | Playwright end-to-end: every screen, back/forward, deep links, a11y, mobile/desktop (D-47) | Claude | ⬜ | 5h |  |
+| └ [AOS-311](tickets/AOS-311.md) | Playwright end-to-end: 131 tests on desktop Chrome, iPhone Safari, Android Chrome + full stack (D-47) | Claude | ✅ | 5h | 2.5h |
 | └ AOS-312 | API coverage: Kover report + gate, fill gaps (D-47) | Claude | ⬜ | 2h |  |
 | **[AOS-S3.2](tickets/AOS-S3.2.md)** | **Daily & monthly views** | | ⬜ | 6h | |
 | └ AOS-303 | Today / this week view | Claude | ⬜ | 3h |  |
@@ -138,4 +138,5 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-604 | Android app (SMS + notification listener) | Claude | ⬜ | 20h |  |
 | **[AOS-S6.3](tickets/AOS-S6.3.md)** | **Launch** | | ⬜ | 8h | |
 | └ [AOS-605](tickets/AOS-605.md) | Onboarding + hosting (edge proxy owns XFF, D-32) | Claude + Pragun | ⬜ | 8h |  |
+| └ [AOS-607](tickets/AOS-607.md) | JWT key uses only the first 32 bytes of `JWT_SECRET` (found by AOS-311) | Claude | ⬜ | 0.5h |  |
 | └ AOS-606 | Dev-dependency advisories: ESLint chain (`eslint-config-next` → `braces`, high, dev-only); upgrade when a non-breaking fix exists | Claude | ⬜ | 0.5h |  |

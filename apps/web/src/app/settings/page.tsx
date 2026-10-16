@@ -89,7 +89,7 @@ export default function SettingsPage() {
                           <p className="text-sm font-medium text-gray-900 capitalize">{conn.sourceType}</p>
                           <StatusBadge status={conn.status} />
                         </div>
-                        <div className="flex gap-3 mt-1 text-xs text-gray-400">
+                        <div className="flex gap-3 mt-1 text-xs text-gray-500">
                           {conn.lastSyncedAt && <span>Last sync: {new Date(conn.lastSyncedAt).toLocaleDateString("en-IN")}</span>}
                           <span>{conn.totalSynced} items synced</span>
                         </div>
@@ -127,7 +127,7 @@ export default function SettingsPage() {
               <section className="bg-white border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3">
                   Notification Preferences
-                  {saving && <span className="text-xs text-gray-400 ml-2">Saving...</span>}
+                  {saving && <span className="text-xs text-gray-500 ml-2">Saving...</span>}
                 </h3>
                 <div className="space-y-4">
                   <Toggle label="Weekly briefing" checked={prefs.weeklyBriefing} onChange={(v) => updatePref("weeklyBriefing", v)} />
@@ -172,7 +172,7 @@ export default function SettingsPage() {
                         onChange={(e) => updatePref("quietHoursStart", e.target.value)}
                         className="border border-gray-300 rounded-md px-2 py-1"
                       />
-                      <span className="text-gray-400">to</span>
+                      <span className="text-gray-500">to</span>
                       <input
                         type="time"
                         aria-label="Quiet hours end"
@@ -200,7 +200,7 @@ export default function SettingsPage() {
                     <div key={s.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                       <div>
                         <p className="text-sm text-gray-700">{s.userAgent || "Unknown device"}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-500">
                           {s.ipAddress || "Unknown IP"}
                           {s.lastActiveAt && ` · Last active: ${new Date(s.lastActiveAt).toLocaleDateString("en-IN")}`}
                         </p>

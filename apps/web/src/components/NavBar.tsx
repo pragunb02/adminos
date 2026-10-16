@@ -19,7 +19,8 @@ export default function NavBar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 sm:static sm:border-t-0 sm:border-b" aria-label="Main navigation">
-      <div className="max-w-4xl mx-auto flex justify-around sm:justify-start sm:gap-1 px-2 py-1">
+      {/* 8 items don't fit a phone: the bar scrolls sideways so every one stays reachable (AOS-311; the redesign cuts it to 5, AOS-302). */}
+      <div className="max-w-4xl mx-auto flex justify-between sm:justify-start gap-1 px-2 py-1 overflow-x-auto whitespace-nowrap">
         {links.map((link) => {
           const isActive = pathname === link.href;
           return (
@@ -28,7 +29,7 @@ export default function NavBar() {
               href={link.href}
               aria-label={link.label}
               aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors ${
+              className={`shrink-0 flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm transition-colors ${
                 isActive
                   ? "text-blue-600 bg-blue-50 font-medium"
                   : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
@@ -43,7 +44,7 @@ export default function NavBar() {
           type="button"
           onClick={() => api.logout()}
           aria-label="Log out"
-          className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors sm:ml-auto"
+          className="shrink-0 flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors sm:ml-auto"
         >
           <span className="text-base sm:text-sm">🚪</span>
           <span className="text-[10px] sm:text-sm">Log out</span>
