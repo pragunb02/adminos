@@ -123,6 +123,8 @@ class ExposedBillRepository : BillRepository {
             it[paymentTxnId] = bill.paymentTxnId
             it[reminderSent3d] = bill.reminderSent3d
             it[reminderSent1d] = bill.reminderSent1d
+            // AOS-508: metadata used to be dropped on update (the in-memory repository kept it).
+            it[metadata] = bill.metadata?.let { m -> JsonColumns.encode(m) }
             it[updatedAt] = now
         }
         bill.copy(updatedAt = now)

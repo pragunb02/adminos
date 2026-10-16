@@ -18,31 +18,51 @@ class BillTrackingService(
     private val logger = LoggerFactory.getLogger(BillTrackingService::class.java)
 
     /**
-     * Try to match a transaction to a pending bill.
-     * Uses fuzzy name matching (>0.8 similarity) and amount within 5% tolerance.
+     * Marks the bill [transaction] pays as paid (AOS-508; rules in [BillPaymentMatcher]).
+     * Idempotent: a paid bill, or one already linked to a payment, is never matched again.
+     * @return the updated bill, or null if the payment pays no bill (or it's ambiguous)
      */
     suspend fun matchPayment(transaction: Transaction): Bill? {
-        // Only money going out pays a bill: a refund or income from the same biller must not (AOS-612).
-        if (transaction.nature != TransactionNature.SPEND) return null
-        val merchantName = transaction.merchantName ?: return null
-        val pendingBills = billRepository.findPendingBills(transaction.userId)
+        if (!BillPaymentMatcher.canPayBills(transaction)) return null
+        val match = BillPaymentMatcher.billFor(transaction, billRepository.findPendingBills(transaction.userId)) ?: return null
+        return markPaid(match.bill, transaction, match.coverage, match.evidence)
+    }
 
-        for (bill in pendingBills) {
-            val nameSimilarity = fuzzyMatch(bill.billerName, merchantName)
-            val amountMatch = isAmountWithinTolerance(bill.amount, transaction.amount, 0.05)
-
-            if (nameSimilarity > 0.8 && amountMatch) {
-                val updated = billRepository.update(bill.copy(
-                    status = BillStatus.PAID,
-                    paidAt = transaction.transactedAt,
-                    paidAmount = transaction.amount,
-                    paymentTxnId = transaction.id
-                ))
-                logger.info("Matched bill {} to transaction {}", bill.id, transaction.id)
-                return updated
-            }
+    /**
+     * Daily sweep (AOS-508): bills detected after their payment was already recorded (an email that
+     * arrives late) are matched against the payments in their window, so no reminder goes out for a
+     * bill that's paid. @return how many bills were marked paid
+     */
+    suspend fun matchEarlierPayments(bills: List<Bill>): Int {
+        var paid = 0
+        for (bill in bills) {
+            val window = BillPaymentMatcher.window(bill)
+            val payments = transactionRepository.findByUserId(
+                userId = bill.userId,
+                from = window.start.atStartOfDay(BillPaymentMatcher.ZONE).toInstant(),
+                to = window.endInclusive.plusDays(1).atStartOfDay(BillPaymentMatcher.ZONE).toInstant(),
+                type = TransactionType.DEBIT,
+                limit = 1000
+            )
+            val payment = BillPaymentMatcher.paymentFor(bill, payments) ?: continue
+            val coverage = BillPaymentMatcher.coverage(bill, payment.amount) ?: continue
+            markPaid(bill, payment, coverage, evidence = null)
+            paid++
         }
-        return null
+        return paid
+    }
+
+    private suspend fun markPaid(bill: Bill, payment: Transaction, coverage: PaymentCoverage, evidence: BillEvidence?): Bill {
+        val updated = billRepository.update(bill.copy(
+            status = BillStatus.PAID,
+            paidAt = payment.transactedAt,
+            paidAmount = payment.amount,
+            paymentTxnId = payment.id,
+            metadata = (bill.metadata ?: emptyMap()) + mapOf("paidCoverage" to coverage.name.lowercase()) +
+                (evidence?.let { mapOf("matchedBy" to it.name.lowercase()) } ?: mapOf("matchedBy" to "sweep"))
+        ))
+        logger.info("Bill {} marked paid by transaction {} ({})", bill.id, payment.id, coverage)
+        return updated
     }
 
     /**

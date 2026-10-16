@@ -12,14 +12,24 @@ import java.time.Duration
 import java.time.LocalTime
 import java.time.ZoneId
 
-/** Daily: marks overdue bills and sends bill reminders on the user's chosen days (AOS-501). */
-class BillRemindersJob(private val engine: ReminderEngine, zone: ZoneId) : ScheduledJob {
+/**
+ * Daily: first marks bills paid whose payment was recorded before the bill arrived (AOS-508), so
+ * nobody is reminded of a paid bill; then marks overdue bills and sends reminders (AOS-501).
+ */
+class BillRemindersJob(
+    private val engine: ReminderEngine,
+    zone: ZoneId,
+    private val bills: dev.adminos.api.domain.financial.BillRepository,
+    private val billing: dev.adminos.api.domain.financial.BillTrackingService
+) : ScheduledJob {
     override val name = JobName("bill-reminders")
     override val schedule = Schedule.Daily(LocalTime.of(9, 0), zone)
 
     override suspend fun run(): JobResult {
+        val paidBySweep = billing.matchEarlierPayments((bills.findUpcoming(7) + bills.findOverdue()).distinctBy { it.id })
         val summary = engine.runReminders()
         return JobResult.of(
+            "paidBySweep" to paidBySweep,
             "overdueMarked" to summary.overdueMarked,
             "remindersSent" to summary.remindersSent,
             "failed" to summary.failed

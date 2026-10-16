@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~, ~~AOS-504~~, ~~AOS-510~~, ~~AOS-505~~ done; next AOS-508 bill-payment matching (same post-commit hook), then AOS-502/503, AOS-506, AOS-509, AOS-507. Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys and SMTP settings in `.env`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
+**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~, ~~AOS-504~~, ~~AOS-510~~, ~~AOS-505~~, ~~AOS-508~~ done; next AOS-503 dues & renewals calendar (+ fix custom reminder days and user-zone dates), then AOS-502, AOS-506, AOS-509, AOS-507. Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys and SMTP settings in `.env`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -63,7 +63,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Waste score (Go) | +0.4 no logins & no usage emails; +0.3 paid 3+ months with no logins; +0.1 if 6+; +0.2 no usage emails. >0.7 = unused | Never triggered |
 | Anomalies (`AnomalyRules.kt`) | >3× the 30 days before (≥3 spends, from ₹2,000); non-INR; 01:00–04:59 user time; ₹1–2 (card testing); same merchant+amount within 24h | Live on every new spend (AOS-505); alert if confidence ≥ 0.7 and recent (D-53) |
 | Bill detection, Gmail | 12 keywords in the email, saved as upcoming bill | Live (due_date bug) |
-| Bill payment matching | Name similarity >0.8 (Jaro-Winkler) and amount within 5% | Dead |
+| Bill payment matching | Full (±5%) or minimum due (±1%), in the bill window, with evidence (card number / name / only card bill); ties match nothing (D-54) | Live on every new transaction + daily sweep (AOS-508) |
 | Reminders | Bills due within 7 days; remind on user days (default 3,1); past-due → overdue | Scheduled daily 09:00 IST (AOS-501); delivery in-app only until AOS-504 |
 | Onboarding nudges | Gmail days 1/3/7, SMS 3/5/7, max 3 | Scheduled daily 11:00 IST (AOS-501) |
 | Quiet hours | 22:00–08:00 default; only anomalies bypass | Dead |
@@ -85,7 +85,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 9. Onboarding copy still describes an Android SMS app (D-19: iPhone); the subscriptions "cancellation draft" modal can never open (dead code). Fold into the console redesign (AOS-302…).
 11. ~~AOS-607~~ fixed: the whole `JWT_SECRET` is the HMAC key. Existing sessions and device tokens must be re-issued once (sign in again; new Mac SMS reader token).
 12. AOS-503 — custom reminder days aren't persisted in Postgres (only the 3d/1d flags), and reminder/overdue dates use the server's date; Gmail bills without a due date fail the NOT NULL column. Now that reminders run (AOS-501) this matters; delivery is in-app only until AOS-504.
-13. ~~AOS-505 anomaly windows used "now"~~ fixed. AOS-508 — card bill payments are transfers, so they never match card bills. AOS-506/509 — `AsynqPublisher` turns every payload value into a string.
+13. ~~AOS-505 anomaly windows used "now"~~ fixed. ~~AOS-508 card bills never matched~~ fixed (also: Postgres bill update dropped metadata, fixed). AOS-506/509 — `AsynqPublisher` turns every payload value into a string.
 14. `GET /notifications` lists every channel's record, so one reminder appears up to 3 times; an inbox should list in-app only (with the inbox screen task).
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
@@ -105,6 +105,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
+  - AOS-508: bill-payment matching (D-54): pure `BillPaymentMatcher` (amount full/minimum, window, evidence, ranking, ties → nothing), listener on each new transaction, daily sweep before reminders; card bills paid by transfer now match. **Found:** Postgres bill update dropped `metadata` (fixed). Unit 1,177, integration 104.
   - AOS-505: unusual-charge alerts (D-53): `TransactionCreatedListener` hook after the commit; detector judges each spend against its own past (30-day average with ≥3 spends and ₹2,000 minimum, 24 h duplicates incl. same minute, user-zone odd hours); one anomaly per transaction (V20); alert only if confidence ≥ 0.7 and from the last 3 days. Unit 1,162, integration 102.
   - AOS-510: Web Push (D-52): RFC 8291 encryption + RFC 8292 VAPID with JDK crypto (RFC test vector passes), push-service allowlist (no SSRF), `/api/v1/push` routes, V19, `./gradlew -q vapidKeys`; web service worker, manifest + icons, Settings → Notifications on this device. **Found by tests:** the route guard would have blocked the manifest and service worker without a session. API unit 1,146 / integration 101; web 310 unit, Playwright 226 + 7 skips.
   - AOS-504: notification delivery (D-51): `DeliveryChannel` plug-ins (in-app, SMTP email), dispatcher with backoff 5m/30m/3h then failed, quiet-hours hold until the user's local end, pending job every 5 min with lease claims, V18. FCM stub removed. **Found by tests:** static `Transport.send` ignored TLS settings. Unit 1,110, integration 100.
