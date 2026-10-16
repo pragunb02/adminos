@@ -40,8 +40,8 @@ test.describe("full stack", () => {
     await expect(page.getByText("No transactions found")).toBeVisible();
   });
 
-  test("a token signed with the wrong secret is rejected and the user lands on login", async ({ page, context, baseURL }) => {
-    const { token } = signAccessToken(undefined, { secret: "attacker-guess-0123456789abcdefg" });
+  test("a token signed with the wrong secret is rejected — even one sharing its first 32 bytes (AOS-607) — and the user lands on login", async ({ page, context, baseURL }) => {
+    const { token } = signAccessToken(undefined, { secret: "e2e-only-secret-not-for-production-attacker" });
     await signIn(context, baseURL!, token);
     const res = await page.request.get("/api/v1/analytics/summary");
     expect(res.status()).toBe(401);

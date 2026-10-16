@@ -44,7 +44,8 @@ class JwtService(private val config: AuthConfig) {
         }
     }
 
-    private val secretBytes = config.jwtSecret.toByteArray().copyOf(32)
+    // The whole secret is the HMAC key (AOS-607): it used to be cut to its first 32 bytes.
+    private val secretBytes = config.jwtSecret.toByteArray()
     private val signer = MACSigner(secretBytes)
     private val verifier = MACVerifier(secretBytes)
     private val random = SecureRandom()

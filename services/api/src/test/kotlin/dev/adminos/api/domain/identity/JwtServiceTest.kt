@@ -164,4 +164,30 @@ class JwtServiceTest {
         assertEquals("Europe/London", svc.verifyAccessToken(svc.generateAccessToken(base.copy(timezone = "Europe/London")))!!.timezone)
         assertEquals(null, svc.verifyAccessToken(svc.generateAccessToken(base.copy(timezone = "Mars/Olympus")))!!.timezone)
     }
+
+    // --- AOS-607: the whole secret is the key ---
+
+    @Test
+    fun `secrets that share their first 32 bytes do not verify each other's tokens`() {
+        val prefix = "0123456789abcdef0123456789abcdef" // 32 bytes
+        val a = JwtService(config.copy(jwtSecret = prefix + "-production-A"))
+        val b = JwtService(config.copy(jwtSecret = prefix + "-attacker-B"))
+        val user = User(email = "k@example.com", googleId = "g-k", name = "K")
+        assertNotNull(a.verifyAccessToken(a.generateAccessToken(user)))
+        assertNull(b.verifyAccessToken(a.generateAccessToken(user)), "access token")
+        val deviceToken = a.generateDeviceToken(UUID.randomUUID(), UUID.randomUUID(), setOf("sms:write"), java.time.Duration.ofDays(1))
+        assertNotNull(a.verifyDeviceToken(deviceToken))
+        assertNull(b.verifyDeviceToken(deviceToken), "device token")
+    }
+
+    @Test
+    fun `a token is signed with the full secret (HMAC-SHA256 over the whole key)`() {
+        val secret = "a-secret-that-is-longer-than-thirty-two-bytes-for-sure"
+        val svc = JwtService(config.copy(jwtSecret = secret))
+        val token = svc.generateAccessToken(User(email = "s@example.com", googleId = "g-s", name = "S"))
+        val (h, c, sig) = token.split(".")
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256").apply { init(javax.crypto.spec.SecretKeySpec(secret.toByteArray(), "HmacSHA256")) }
+        val expected = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal("$h.$c".toByteArray()))
+        assertEquals(expected, sig)
+    }
 }
