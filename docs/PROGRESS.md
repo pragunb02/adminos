@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. Next in M2: AOS-202 statement upload or AOS-203 iPhone SMS; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). Next in M2: AOS-202 statement upload; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-203: iPhone SMS end to end. Parsers (5 banks + generic, drop rules); device tokens (D-36, fixed latent token-type hole); POST /ingest/sms/raw; Mac Messages reader (Go, read-only chat.db, business senders only, localhost only, smoke-tested on this Mac); Settings → Connected devices; setup guide. D-35 transport. Unit 218, integration 41, reader 10.
   - AOS-201: Kotlin ingest pipeline (D-34): claim (SKIP LOCKED) → ToTransaction → NormalizeMerchant (deterministic) → Categorize → atomic exactly-once write. /ingest/sms → adapter; Go SMS worker retired. Integration tests caught a V10 enum migration that would have stopped startup (split V10/V11). Unit 192, integration 40.
   - AOS-113: common intake POST /ingest/events (V9 ingest_events outbox, idempotent, decimal-string money). D-33 raw SMS privacy. Fixed: malformed bodies were 500 → 400. Unit 179, integration 36. Story S1.4 done.
   - AOS-110: API image (JDK 25, non-root, healthcheck); compose waits for a healthy API; fixed worker commands; **full stack runs**. Story S1.3 done.

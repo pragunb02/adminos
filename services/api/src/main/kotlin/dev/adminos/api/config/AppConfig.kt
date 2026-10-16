@@ -31,6 +31,8 @@ data class AppConfig(
             ),
             app = AppSettings(
                 port = env("PORT", "8080").toInt(),
+                // Loopback by default; the Docker image sets 0.0.0.0, where the 127.0.0.1-only publish is the boundary.
+                bindHost = env("BIND_HOST", "127.0.0.1"),
                 appUrl = env("APP_URL", "http://localhost:3000"),
                 apiUrl = env("API_URL", "http://localhost:8080")
             ),
@@ -77,6 +79,7 @@ data class AuthConfig(
 
 data class AppSettings(
     val port: Int,
+    val bindHost: String,
     val appUrl: String,
     val apiUrl: String
 )
