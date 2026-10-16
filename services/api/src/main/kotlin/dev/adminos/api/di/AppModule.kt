@@ -120,6 +120,7 @@ val appModule = module {
     single { MerchantNormalizer() }
     single { TransactionMatcher() }
     single { dev.adminos.api.domain.financial.links.TransferDetector() }
+    single { dev.adminos.api.domain.financial.links.RefundReversalDetector() }
     single {
         if (useDatabase) SuggestionService(get(), get()) { work -> dbQuery { work() } } else SuggestionService(get(), get())
     }
@@ -127,7 +128,7 @@ val appModule = module {
     single {
         IngestPipeline(listOf(
             ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
-            TransferStep(get(), get())
+            TransferStep(get(), get()), RefundReversalStep(get(), get(), get())
         ))
     }
     single<IngestOutcomeWriter> {

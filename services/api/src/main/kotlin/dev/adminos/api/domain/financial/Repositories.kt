@@ -13,6 +13,9 @@ interface TransactionRepository {
     /** Same user, type and exact amount, transacted in [from, to]: possible same-payment matches (AOS-207). */
     suspend fun findMatchCandidates(userId: UUID, type: TransactionType, amount: java.math.BigDecimal, from: Instant, to: Instant): List<Transaction>
     suspend fun delete(id: UUID)
+    /** Transactions of [type] in [from, to] with amount in [minAmount, maxAmount] (bounds optional): refund/reversal candidates. */
+    suspend fun findInWindow(userId: UUID, type: TransactionType, from: Instant, to: Instant,
+                             minAmount: java.math.BigDecimal? = null, maxAmount: java.math.BigDecimal? = null): List<Transaction>
     suspend fun findByUserId(
         userId: UUID,
         from: Instant? = null,
@@ -42,7 +45,7 @@ interface TransactionRepository {
     /** Spending (nature = SPEND) since [since]: excludes transfers, refunds and reversals (D-39). */
     suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction>
 
-    /** Spending (nature = SPEND) per category; transfers and reversals don't count (D-39). */
+    /** Net spending per category: SPEND minus REFUNDs in the period (D-39); transfers and reversals don't count. */
     suspend fun spendingByCategory(
         userId: UUID,
         from: Instant,
@@ -113,3 +116,7 @@ interface BillRepository {
     suspend fun findOverdue(): List<Bill>
     suspend fun update(bill: Bill): Bill
 }
+
+/** Spending per category minus refunds credited to that category (D-39); categories that net to ≤ 0 are dropped. */
+fun netOfRefunds(spend: Map<TransactionCategory, java.math.BigDecimal>, refunds: Map<TransactionCategory, java.math.BigDecimal>): Map<TransactionCategory, java.math.BigDecimal> =
+    spend.mapValues { (c, v) -> v - (refunds[c] ?: java.math.BigDecimal.ZERO) }.filterValues { it.signum() > 0 }

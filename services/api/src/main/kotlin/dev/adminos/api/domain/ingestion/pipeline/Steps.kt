@@ -113,3 +113,74 @@ internal fun asTransfer(t: dev.adminos.api.domain.financial.Transaction, kind: S
     category = if (t.categorySource == "user") t.category else dev.adminos.api.domain.financial.TransactionCategory.TRANSFER,
     subcategory = if (t.categorySource == "user") t.subcategory else kind
 )
+
+/**
+ * Refunds and reversals (AOS-209). Runs last: only spending/income can become a refund or reversal.
+ * Looks both ways, because statement rows can be processed before the payment they reverse.
+ */
+class RefundReversalStep(
+    private val transactions: dev.adminos.api.domain.financial.TransactionRepository,
+    private val links: dev.adminos.api.domain.financial.links.TransactionLinkRepository,
+    private val detector: dev.adminos.api.domain.financial.links.RefundReversalDetector
+) : IngestStep {
+    override suspend fun apply(context: PipelineContext): StepResult {
+        val t = context.txn
+        val det = dev.adminos.api.domain.financial.links.RefundReversalDetector
+        val day = java.time.Duration.ofDays(1)
+        val pool = when (t.type) {
+            dev.adminos.api.domain.financial.TransactionType.CREDIT -> transactions.findInWindow(
+                t.userId, dev.adminos.api.domain.financial.TransactionType.DEBIT,
+                t.transactedAt.minus(det.REFUND_WINDOW), t.transactedAt.plus(day), minAmount = t.amount)
+            dev.adminos.api.domain.financial.TransactionType.DEBIT -> transactions.findInWindow(
+                t.userId, dev.adminos.api.domain.financial.TransactionType.CREDIT,
+                t.transactedAt.minus(day), t.transactedAt.plus(det.REFUND_WINDOW), maxAmount = t.amount)
+            else -> return StepResult.Continue(context)
+        }
+        if (pool.isEmpty()) return StepResult.Continue(context)
+        val debits = pool.filter { it.type == dev.adminos.api.domain.financial.TransactionType.DEBIT }
+        val refunded = debits.associate { it.id to refundedSoFar(it.id) }
+        return when (val d = detector.decide(t, pool, refunded)) {
+            dev.adminos.api.domain.financial.links.RefundDecision.None -> StepResult.Continue(context)
+            is dev.adminos.api.domain.financial.links.RefundDecision.Link -> {
+                val incomingIsCredit = d.credit.id == t.id
+                val existing = if (incomingIsCredit) d.original else d.credit
+                val (newOriginal, newCredit) = if (d.auto) applyRelation(d.relation, d.original, d.credit) else d.original to d.credit
+                val self = if (incomingIsCredit) newCredit else newOriginal
+                val updatedExisting = if (d.auto) (if (incomingIsCredit) newOriginal else newCredit) else null
+                StepResult.Continue(context.copy(
+                    transaction = self,
+                    relations = context.relations + Relation(d.relation, existing, updatedExisting, d.auto, d.score, d.reason)
+                ))
+            }
+        }
+    }
+
+    private suspend fun refundedSoFar(debitId: java.util.UUID): java.math.BigDecimal =
+        links.findByTransaction(debitId)
+            .filter { it.relation == dev.adminos.api.domain.financial.links.LinkRelation.REFUND && it.kind != dev.adminos.api.domain.financial.links.LinkKind.REJECTED }
+            .mapNotNull { l -> listOfNotNull(l.transactionId, l.relatedTransactionId).firstOrNull { it != debitId }?.let { transactions.findById(it) } }
+            .fold(java.math.BigDecimal.ZERO) { acc, c -> acc + c.amount }
+}
+
+/**
+ * Applies a refund/reversal to the pair (debit, credit):
+ * - reversal: both become `reversal`; the credit takes the debit's category
+ * - refund: the credit becomes `refund` with the debit's category, so it nets that category's spending
+ * A category the user chose is kept.
+ */
+internal fun applyRelation(
+    relation: dev.adminos.api.domain.financial.links.LinkRelation,
+    debit: dev.adminos.api.domain.financial.Transaction,
+    credit: dev.adminos.api.domain.financial.Transaction
+): Pair<dev.adminos.api.domain.financial.Transaction, dev.adminos.api.domain.financial.Transaction> {
+    fun inherit(c: dev.adminos.api.domain.financial.Transaction) =
+        if (c.categorySource == "user") c else c.copy(category = debit.category, subcategory = debit.subcategory, categorySource = "linked")
+    return when (relation) {
+        dev.adminos.api.domain.financial.links.LinkRelation.REVERSAL ->
+            debit.copy(nature = dev.adminos.api.domain.financial.TransactionNature.REVERSAL) to
+                inherit(credit).copy(nature = dev.adminos.api.domain.financial.TransactionNature.REVERSAL)
+        dev.adminos.api.domain.financial.links.LinkRelation.REFUND ->
+            debit to inherit(credit).copy(nature = dev.adminos.api.domain.financial.TransactionNature.REFUND)
+        else -> debit to credit
+    }
+}

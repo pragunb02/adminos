@@ -27,6 +27,11 @@ class InMemoryTransactionRepository : TransactionRepository {
 
     override suspend fun delete(id: UUID) { store.remove(id) }
 
+    override suspend fun findInWindow(userId: UUID, type: TransactionType, from: Instant, to: Instant,
+                                      minAmount: java.math.BigDecimal?, maxAmount: java.math.BigDecimal?): List<Transaction> =
+        store.values.filter { it.userId == userId && it.type == type && it.transactedAt in from..to &&
+            (minAmount == null || it.amount >= minAmount) && (maxAmount == null || it.amount <= maxAmount) }
+
     override suspend fun findByUserId(
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
@@ -83,11 +88,13 @@ class InMemoryTransactionRepository : TransactionRepository {
 
     override suspend fun spendingByCategory(
         userId: UUID, from: Instant, to: Instant
-    ): Map<TransactionCategory, BigDecimal> =
-        store.values
-            .filter { it.userId == userId && it.nature == TransactionNature.SPEND && it.transactedAt in from..to }
+    ): Map<TransactionCategory, BigDecimal> {
+        fun sumBy(nature: TransactionNature) = store.values
+            .filter { it.userId == userId && it.nature == nature && it.transactedAt in from..to }
             .groupBy { it.category }
             .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount } }
+        return netOfRefunds(sumBy(TransactionNature.SPEND), sumBy(TransactionNature.REFUND))
+    }
 
     override suspend fun getCategoryAverage(
         userId: UUID, category: String, days: Int

@@ -74,6 +74,19 @@ class ExposedTransactionRepository : TransactionRepository {
         }.map { it.toTransaction() }
     }
 
+    override suspend fun findInWindow(
+        userId: UUID, type: TransactionType, from: Instant, to: Instant,
+        minAmount: java.math.BigDecimal?, maxAmount: java.math.BigDecimal?
+    ): List<DomainTransaction> = dbQuery {
+        val q = TransactionsTable.selectAll().where {
+            (TransactionsTable.userId eq userId) and (TransactionsTable.type eq type.name.lowercase()) and
+                (TransactionsTable.transactedAt greaterEq from) and (TransactionsTable.transactedAt lessEq to)
+        }
+        minAmount?.let { m -> q.andWhere { TransactionsTable.amount greaterEq m } }
+        maxAmount?.let { m -> q.andWhere { TransactionsTable.amount lessEq m } }
+        q.map { it.toTransaction() }
+    }
+
     override suspend fun delete(id: UUID): Unit = dbQuery {
         TransactionsTable.deleteWhere { TransactionsTable.id eq id }
     }
@@ -185,19 +198,19 @@ class ExposedTransactionRepository : TransactionRepository {
     override suspend fun spendingByCategory(
         userId: UUID, from: Instant, to: Instant
     ): Map<TransactionCategory, BigDecimal> = dbQuery {
-        val total = TransactionsTable.amount.sum()
-        TransactionsTable.select(TransactionsTable.category, total)
-            .where {
-                (TransactionsTable.userId eq userId) and
-                    (TransactionsTable.nature eq TransactionNature.SPEND.name.lowercase()) and
-                    (TransactionsTable.transactedAt greaterEq from) and
-                    (TransactionsTable.transactedAt lessEq to)
-            }
-            .groupBy(TransactionsTable.category)
-            .associate {
-                TransactionCategory.valueOf(it[TransactionsTable.category].uppercase()) to
-                    (it[total] ?: BigDecimal.ZERO)
-            }
+        fun sumBy(nature: TransactionNature): Map<TransactionCategory, BigDecimal> {
+            val total = TransactionsTable.amount.sum()
+            return TransactionsTable.select(TransactionsTable.category, total)
+                .where {
+                    (TransactionsTable.userId eq userId) and
+                        (TransactionsTable.nature eq nature.name.lowercase()) and
+                        (TransactionsTable.transactedAt greaterEq from) and
+                        (TransactionsTable.transactedAt lessEq to)
+                }
+                .groupBy(TransactionsTable.category)
+                .associate { TransactionCategory.valueOf(it[TransactionsTable.category].uppercase()) to (it[total] ?: BigDecimal.ZERO) }
+        }
+        netOfRefunds(sumBy(TransactionNature.SPEND), sumBy(TransactionNature.REFUND))
     }
 
     override suspend fun getCategoryAverage(

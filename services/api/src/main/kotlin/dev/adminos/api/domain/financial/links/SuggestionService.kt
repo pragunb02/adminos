@@ -2,6 +2,7 @@ package dev.adminos.api.domain.financial.links
 
 import dev.adminos.api.domain.financial.Transaction
 import dev.adminos.api.domain.financial.TransactionRepository
+import dev.adminos.api.domain.ingestion.pipeline.applyRelation
 import dev.adminos.api.domain.ingestion.pipeline.asTransfer
 import dev.adminos.api.domain.ingestion.pipeline.enrich
 import java.util.UUID
@@ -13,6 +14,7 @@ data class Suggestion(val link: TransactionLink, val primary: Transaction, val r
  * The user's side of the accuracy engine (AOS-207/208/209): review suggested relations.
  * - duplicate → keep [Suggestion.primary] (blanks filled), remove the duplicate; its source stays linked
  * - transfer  → both sides become transfers (neither spending nor income)
+ * - refund    → the credit becomes a refund of the debit's category; reversal → both become reversals
  * Reject is remembered for every kind.
  */
 class SuggestionService(
@@ -61,8 +63,11 @@ class SuggestionService(
         return true
     }
 
-    /** Implemented with AOS-209. */
     private suspend fun applyRefundOrReversal(link: TransactionLink, primary: Transaction, related: Transaction) {
+        val (debit, credit) = if (primary.type == dev.adminos.api.domain.financial.TransactionType.DEBIT) primary to related else related to primary
+        val (d, c) = applyRelation(link.relation, debit, credit)
+        transactions.update(d)
+        transactions.update(c)
         links.update(link.copy(kind = LinkKind.MERGED, reason = "${link.reason}; confirmed by user"))
     }
 
