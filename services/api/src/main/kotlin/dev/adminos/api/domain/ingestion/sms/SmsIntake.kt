@@ -34,6 +34,7 @@ class SmsIntake(private val parsers: SmsParserRegistry, private val intake: Inge
                     accountHint = p.accountHint,
                     paymentMethod = p.paymentMethod,
                     upiVpa = p.upiVpa,
+                    paymentRef = p.reference,
                     metadata = p.bankCode?.let { mapOf("bank" to it) }
                 )
                 if (intake.ingest(listOf(event)).accepted == 1) SmsIntakeResult.Accepted else SmsIntakeResult.Duplicate

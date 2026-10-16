@@ -19,8 +19,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 /** Persistence of a pipeline outcome. Implementations write the transaction and the event status atomically. */
 interface IngestOutcomeWriter {
-    /** Inserts [transaction] (if none exists yet for the event) and marks the event processed. */
-    suspend fun processed(event: IngestEvent, transaction: Transaction)
+    /** Inserts [transaction] (if none exists yet for the event), records [suggestion] if any, marks the event processed. */
+    suspend fun processed(event: IngestEvent, transaction: Transaction, suggestion: MatchSuggestion? = null)
+    /** Links the event to [target] (already enriched), saves [target], marks the event processed. */
+    suspend fun merged(event: IngestEvent, target: Transaction, score: Int, reason: String)
     suspend fun ignored(event: IngestEvent, reason: String)
     suspend fun failed(event: IngestEvent, error: String)
 }
@@ -52,7 +54,8 @@ class IngestProcessor(
         for (event in claimed) {
             try {
                 when (val outcome = pipeline.run(event)) {
-                    is PipelineOutcome.Created -> writer.processed(event, outcome.transaction)
+                    is PipelineOutcome.Created -> writer.processed(event, outcome.transaction, outcome.suggestion)
+                    is PipelineOutcome.Merged -> writer.merged(event, outcome.target, outcome.score, outcome.reason)
                     is PipelineOutcome.Ignored -> writer.ignored(event, outcome.reason)
                 }
             } catch (e: Exception) {

@@ -63,7 +63,7 @@ class StatementImportIntegrationTest {
         assertEquals(3, first.accepted)
 
         val processor = IngestProcessor(events, IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService()))),
-            RepositoryOutcomeWriter(transactions, events) { work -> dbQuery { work() } })
+            RepositoryOutcomeWriter(transactions, events, ExposedTransactionLinkRepository()) { work -> dbQuery { work() } })
         while (processor.processBatch() > 0) { }
 
         val txns = transactions.findByUserId(userId, limit = 10).sortedBy { it.transactedAt }

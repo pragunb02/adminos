@@ -29,6 +29,8 @@ data class IngestEvent(
     val accountHint: String? = null,
     val paymentMethod: PaymentMethod? = null,
     val upiVpa: String? = null,
+    /** UPI/IMPS reference (RRN) when the source shows it; strongest cross-source match key (AOS-207). */
+    val paymentRef: String? = null,
     val metadata: Map<String, Any?>? = null,
     val status: IngestEventStatus = IngestEventStatus.PENDING,
     val error: String? = null,
@@ -43,6 +45,7 @@ data class IngestEvent(
         require(currency.matches(Regex("[A-Z]{3}"))) { "currency must be a 3-letter ISO code" }
         require(accountHint == null || accountHint.matches(Regex("\\d{4}"))) { "accountHint must be the last 4 digits" }
         require(merchantRaw == null || merchantRaw.length <= 255) { "merchantRaw must be at most 255 characters" }
+        require(paymentRef == null || paymentRef.matches(Regex("[A-Za-z0-9]{6,32}"))) { "paymentRef must be 6..32 letters/digits" }
     }
 }
 

@@ -33,6 +33,7 @@ class ExposedTransactionRepository : TransactionRepository {
             it[accountLast4] = txn.accountLast4
             it[paymentMethod] = txn.paymentMethod?.name?.lowercase()
             it[upiVpa] = txn.upiVpa
+            it[paymentRef] = txn.paymentRef
             it[category] = txn.category.name.lowercase()
             it[subcategory] = txn.subcategory
             it[categorySource] = txn.categorySource
@@ -60,6 +61,20 @@ class ExposedTransactionRepository : TransactionRepository {
     override suspend fun findByIngestEventId(ingestEventId: UUID): dev.adminos.api.domain.financial.Transaction? = dbQuery {
         TransactionsTable.selectAll().where { TransactionsTable.ingestEventId eq ingestEventId }
             .singleOrNull()?.toTransaction()
+    }
+
+    override suspend fun findMatchCandidates(
+        userId: UUID, type: TransactionType, amount: java.math.BigDecimal, from: Instant, to: Instant
+    ): List<DomainTransaction> = dbQuery {
+        TransactionsTable.selectAll().where {
+            (TransactionsTable.userId eq userId) and (TransactionsTable.type eq type.name.lowercase()) and
+                (TransactionsTable.amount eq amount) and (TransactionsTable.transactedAt greaterEq from) and
+                (TransactionsTable.transactedAt lessEq to)
+        }.map { it.toTransaction() }
+    }
+
+    override suspend fun delete(id: UUID): Unit = dbQuery {
+        TransactionsTable.deleteWhere { TransactionsTable.id eq id }
     }
 
     override suspend fun findByUserId(
@@ -134,6 +149,13 @@ class ExposedTransactionRepository : TransactionRepository {
             it[type] = txn.type.name.lowercase()
             it[amount] = txn.amount
             it[merchantName] = txn.merchantName
+            it[merchantRaw] = txn.merchantRaw
+            it[accountId] = txn.accountId
+            it[accountLast4] = txn.accountLast4
+            it[paymentMethod] = txn.paymentMethod?.name?.lowercase()
+            it[upiVpa] = txn.upiVpa
+            it[paymentRef] = txn.paymentRef
+            it[metadata] = txn.metadata?.let { m -> JsonColumns.encode(m) }
             it[category] = txn.category.name.lowercase()
             it[subcategory] = txn.subcategory
             it[categorySource] = txn.categorySource
@@ -221,6 +243,7 @@ class ExposedTransactionRepository : TransactionRepository {
         accountLast4 = this[TransactionsTable.accountLast4],
         paymentMethod = this[TransactionsTable.paymentMethod]?.let { PaymentMethod.valueOf(it.uppercase()) },
         upiVpa = this[TransactionsTable.upiVpa],
+        paymentRef = this[TransactionsTable.paymentRef],
         category = TransactionCategory.valueOf(this[TransactionsTable.category].uppercase()),
         subcategory = this[TransactionsTable.subcategory],
         categorySource = this[TransactionsTable.categorySource],

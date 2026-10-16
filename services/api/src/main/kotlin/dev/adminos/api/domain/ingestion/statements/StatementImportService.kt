@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.ingestion.statements
 
+import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.ingestion.events.IngestDirection
 import dev.adminos.api.domain.ingestion.events.IngestEvent
 import dev.adminos.api.domain.ingestion.events.IngestEventService
@@ -58,6 +59,8 @@ class StatementImportService(private val parser: StatementParser, private val in
                 merchantRaw = row.description.take(255),
                 accountHint = parsed.accountLast4,
                 upiVpa = VPA.find(row.description)?.value?.lowercase(),
+                paymentMethod = paymentMethodOf(row.description),
+                paymentRef = row.reference?.trim()?.takeIf { RRN_EXACT.matches(it) } ?: RRN_IN_TEXT.find(row.description)?.value,
                 metadata = buildMap {
                     parsed.bankCode?.let { put("bank", it) }
                     row.balance?.let { put("balance", it) }
@@ -78,6 +81,21 @@ class StatementImportService(private val parser: StatementParser, private val in
             skippedRows = parsed.skippedRows + (parsed.rows.size - events.size), warnings = parsed.warnings
         )
     }
+
+    /** Statement narrations name the rail: "UPI-…", "POS …", "NEFT CR-…", "ATM WDL". */
+    private fun paymentMethodOf(narration: String): PaymentMethod? {
+        val n = narration.uppercase()
+        return when {
+            Regex("\\bUPI\\b").containsMatchIn(n) -> PaymentMethod.UPI
+            Regex("\\b(POS|ECOM|CARD|VISA|MASTERCARD|RUPAY)\\b").containsMatchIn(n) -> PaymentMethod.CARD_DEBIT
+            Regex("\\b(ATM|CASH WDL)\\b").containsMatchIn(n) -> PaymentMethod.CASH
+            Regex("\\b(NEFT|IMPS|RTGS|NACH|ECS)\\b").containsMatchIn(n) -> PaymentMethod.NETBANKING
+            else -> null
+        }
+    }
+
+    private val RRN_EXACT = Regex("\\d{12}")
+    private val RRN_IN_TEXT = Regex("(?<!\\d)\\d{12}(?!\\d)")
 
     private val VPA = Regex("(?<![A-Za-z0-9._])[a-zA-Z0-9._]{2,}@[a-zA-Z]{2,}\\b") // no "-": narrations use it as a separator
 

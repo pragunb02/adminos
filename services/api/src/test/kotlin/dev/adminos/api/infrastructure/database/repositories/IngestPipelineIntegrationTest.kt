@@ -30,7 +30,7 @@ class IngestPipelineIntegrationTest {
 
     private val events = ExposedIngestEventRepository()
     private val transactions = ExposedTransactionRepository()
-    private val writer = RepositoryOutcomeWriter(transactions, events) { work -> dbQuery { work() } }
+    private val writer = RepositoryOutcomeWriter(transactions, events, ExposedTransactionLinkRepository()) { work -> dbQuery { work() } }
     private val pipeline = IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService())))
 
     @BeforeAll
