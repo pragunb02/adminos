@@ -7,7 +7,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CategoryOverrideRequest(
     val category: String,
-    val subcategory: String? = null
+    val subcategory: String? = null,
+    /** Remember for this payee: future transactions and past ones not set by hand (AOS-210). */
+    val remember: Boolean = true
 )
 
 // ── Response DTOs ──

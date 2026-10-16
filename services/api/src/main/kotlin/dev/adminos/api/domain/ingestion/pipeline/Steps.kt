@@ -40,11 +40,11 @@ class NormalizeMerchantStep(private val normalizer: MerchantNormalizer) : Ingest
     }
 }
 
-/** Assigns a category with the rules engine (single categorizer, AOS-210 extends it). */
+/** Assigns a category with the single categorizer (AOS-210): remembered rule → built-in merchants → patterns → Other. */
 class CategorizeStep(private val categorizer: CategorizationService) : IngestStep {
     override suspend fun apply(context: PipelineContext): StepResult {
         val t = context.txn
-        val result = categorizer.categorize(t.merchantName, t.paymentMethod)
+        val result = categorizer.categorize(t)
         return StepResult.Continue(
             context.copy(transaction = t.copy(category = result.category, subcategory = result.subcategory, categorySource = result.source))
         )

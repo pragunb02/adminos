@@ -1,13 +1,11 @@
 package dev.adminos.api.domain.financial
 
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Unit tests for CategorizationService.
- * Tests known merchant lookup, pattern rules, and AI fallback.
+ * Built-in steps: known merchant lookup and whole-word patterns. Remembered rules: CategoryCorrectionTest.
  *
  * _Requirements: 6.1, 6.2, 6.3_
  */
@@ -19,7 +17,7 @@ class CategorizationServiceTest {
 
     @Test
     fun `known merchant Zomato returns food category with subcategory`() {
-        val result = service.categorize("zomato")
+        val result = service.builtIn("zomato")
         assertEquals(TransactionCategory.FOOD, result.category)
         assertEquals("food_delivery", result.subcategory)
         assertEquals(0.95, result.confidence)
@@ -28,7 +26,7 @@ class CategorizationServiceTest {
 
     @Test
     fun `known merchant Netflix returns subscription category`() {
-        val result = service.categorize("netflix")
+        val result = service.builtIn("netflix")
         assertEquals(TransactionCategory.SUBSCRIPTION, result.category)
         assertEquals("streaming", result.subcategory)
         assertEquals(0.95, result.confidence)
@@ -36,7 +34,7 @@ class CategorizationServiceTest {
 
     @Test
     fun `known merchant Uber returns transport category`() {
-        val result = service.categorize("uber")
+        val result = service.builtIn("uber")
         assertEquals(TransactionCategory.TRANSPORT, result.category)
         assertEquals("ride_hailing", result.subcategory)
         assertEquals(0.95, result.confidence)
@@ -44,7 +42,7 @@ class CategorizationServiceTest {
 
     @Test
     fun `known merchant Amazon returns shopping category`() {
-        val result = service.categorize("amazon")
+        val result = service.builtIn("amazon")
         assertEquals(TransactionCategory.SHOPPING, result.category)
         assertEquals("ecommerce", result.subcategory)
         assertEquals(0.95, result.confidence)
@@ -52,7 +50,7 @@ class CategorizationServiceTest {
 
     @Test
     fun `known merchant lookup is case-insensitive`() {
-        val result = service.categorize("  ZOMATO  ")
+        val result = service.builtIn("  ZOMATO  ")
         assertEquals(TransactionCategory.FOOD, result.category)
         assertEquals(0.95, result.confidence)
     }
@@ -61,74 +59,72 @@ class CategorizationServiceTest {
 
     @Test
     fun `pattern rule matches Swiggy Instamart as food`() {
-        val result = service.categorize("Swiggy Instamart Order")
+        val result = service.builtIn("Swiggy Instamart Order")
         assertEquals(TransactionCategory.FOOD, result.category)
         assertEquals(0.9, result.confidence)
     }
 
     @Test
     fun `pattern rule matches Ola ride as transport`() {
-        val result = service.categorize("Ola Ride Payment")
+        val result = service.builtIn("Ola Ride Payment")
         assertEquals(TransactionCategory.TRANSPORT, result.category)
         assertEquals(0.9, result.confidence)
     }
 
     @Test
     fun `pattern rule matches Flipkart as shopping`() {
-        val result = service.categorize("Flipkart Marketplace")
+        val result = service.builtIn("Flipkart Marketplace")
         assertEquals(TransactionCategory.SHOPPING, result.category)
         assertEquals(0.85, result.confidence)
     }
 
     @Test
     fun `pattern rule matches EMI payment`() {
-        val result = service.categorize("HDFC EMI Payment")
+        val result = service.builtIn("HDFC EMI Payment")
         assertEquals(TransactionCategory.EMI, result.category)
         assertEquals(0.85, result.confidence)
     }
 
     @Test
     fun `pattern rule matches electricity bill as utilities`() {
-        val result = service.categorize("BESCOM Electricity Bill")
+        val result = service.builtIn("BESCOM Electricity Bill")
         assertEquals(TransactionCategory.UTILITIES, result.category)
         assertEquals(0.85, result.confidence)
     }
 
     @Test
     fun `pattern rule matches ATM withdrawal as transfer`() {
-        val result = service.categorize("ATM Cash Withdrawal")
+        val result = service.builtIn("ATM Cash Withdrawal")
         assertEquals(TransactionCategory.TRANSFER, result.category)
         assertEquals(0.8, result.confidence)
     }
 
-    // ── UPI transfer detection ──
+    // ── No guessed transfers (AOS-210): transfers come from TransferStep ──
 
     @Test
-    fun `UPI payment method triggers transfer category`() {
-        val result = service.categorize("Random Person", PaymentMethod.UPI)
-        assertEquals(TransactionCategory.TRANSFER, result.category)
-        assertEquals("upi", result.subcategory)
-        assertEquals(0.75, result.confidence)
-    }
-
-    // ── AI fallback ──
-
-    @Test
-    fun `unknown merchant triggers AI fallback with low confidence`() {
-        val txnId = UUID.randomUUID()
-        service.clearAiFallbackQueue()
-
-        val result = service.categorize("XYZ Unknown Store 12345", transactionId = txnId)
-
+    fun `unknown payee is Other, not Transfer`() {
+        val result = service.builtIn("Random Person")
         assertEquals(TransactionCategory.OTHER, result.category)
         assertEquals(0.3, result.confidence)
         assertEquals("rules", result.source)
-        assertTrue(service.getAiFallbackQueue().contains(txnId))
+    }
+
+    @Test
+    fun `NEFT or IMPS in the narration says nothing about the category`() {
+        assertEquals(TransactionCategory.OTHER, service.builtIn("NEFT-ACME CONSULTING").category)
+        assertEquals(TransactionCategory.OTHER, service.builtIn("IMPS RAVI KUMAR").category)
+    }
+
+    @Test
+    fun `patterns match whole words only`() {
+        assertEquals(TransactionCategory.OTHER, service.builtIn("Motorola Store").category, "ola")
+        assertEquals(TransactionCategory.OTHER, service.builtIn("Premium Tailors").category, "emi")
+        assertEquals(TransactionCategory.OTHER, service.builtIn("Vegas Lounge").category, "gas")
     }
 
     @Test
     fun `null merchant name returns other category`() {
-        val result = service.categorize(null)
+        val result = service.builtIn(null)
         assertEquals(TransactionCategory.OTHER, result.category)
         assertEquals(0.3, result.confidence)
     }

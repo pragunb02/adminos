@@ -38,6 +38,7 @@ class FinancialRoutesContractTest {
 
     private val transactions = InMemoryTransactionRepository()
     private val subscriptions = InMemorySubscriptionRepository()
+    private val rules = InMemoryCategoryRuleRepository()
 
     private fun contractTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
@@ -48,7 +49,7 @@ class FinancialRoutesContractTest {
             configureAuthentication(jwtService)
             routing {
                 route("/api/v1") {
-                    transactionRoutes(transactions, CategorizationService(), AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined)))
+                    transactionRoutes(transactions, CategoryCorrectionService(rules, transactions), AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined)))
                     subscriptionRoutes(subscriptions)
                 }
             }
@@ -134,5 +135,23 @@ class FinancialRoutesContractTest {
         assertEquals(1, body["pagination"]!!.jsonObject["total"]!!.jsonPrimitive.int)
 
         assertEquals(HttpStatusCode.BadRequest, getJson("/api/v1/subscriptions?status=flagged").first)
+    }
+
+    @Test
+    fun `PATCH category remembers the payee by default and can opt out`() = contractTest {
+        val d = LocalDate.of(2026, 10, 2)
+        val (past, now, other) = runBlocking { listOf(txn(d, 9, "Ramu Tea"), txn(d, 18, "Ramu Tea"), txn(d, 10, "Bakery")).map { transactions.save(it) } }
+        val res = client.patch("/api/v1/transactions/${now.id}") {
+            cookie(ACCESS_TOKEN_COOKIE, jwt); contentType(ContentType.Application.Json); setBody("""{"category":"food","subcategory":"tea"}""")
+        }
+        assertEquals(HttpStatusCode.OK, res.status)
+        val data = Json.parseToJsonElement(res.bodyAsText()).jsonObject["data"]!!.jsonObject
+        assertEquals("food", data["category"]!!.jsonPrimitive.content)
+        assertEquals(TransactionCategory.FOOD, runBlocking { transactions.findById(past.id)!!.category })
+
+        client.patch("/api/v1/transactions/${other.id}") {
+            cookie(ACCESS_TOKEN_COOKIE, jwt); contentType(ContentType.Application.Json); setBody("""{"category":"food","remember":false}""")
+        }
+        assertEquals(null, runBlocking { rules.findFor(user.id, null, "bakery") })
     }
 }

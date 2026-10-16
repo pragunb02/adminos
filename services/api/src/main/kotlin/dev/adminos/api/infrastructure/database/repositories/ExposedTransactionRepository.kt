@@ -87,6 +87,12 @@ class ExposedTransactionRepository : TransactionRepository {
         q.map { it.toTransaction() }
     }
 
+    override suspend fun findByPayee(userId: UUID, match: RuleMatch, value: String): List<DomainTransaction> = dbQuery {
+        val column = when (match) { RuleMatch.VPA -> TransactionsTable.upiVpa; RuleMatch.MERCHANT -> TransactionsTable.merchantName }
+        TransactionsTable.selectAll().where { (TransactionsTable.userId eq userId) and (column.trim().lowerCase() eq value) }
+            .map { it.toTransaction() }
+    }
+
     override suspend fun delete(id: UUID): Unit = dbQuery {
         TransactionsTable.deleteWhere { TransactionsTable.id eq id }
     }

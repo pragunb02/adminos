@@ -55,7 +55,9 @@ val testAppModule = module {
     single { IngestionService(IngestEventService(InMemoryIngestEventRepository()), get()) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
-    single { CategorizationService() }
+    single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
+    single { CategorizationService(get()) }
+    single { CategoryCorrectionService(get(), get()) }
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get()) }
     single { BillTrackingService(get(), get()) }

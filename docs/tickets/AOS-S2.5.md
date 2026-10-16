@@ -17,11 +17,11 @@
 
 ## Acceptance criteria
 - [ ] Correct debit/credit
-- [ ] No cross-source duplicates
-- [ ] Self-transfers excluded
-- [ ] Refunds net off
+- [x] No cross-source duplicates
+- [x] Self-transfers excluded
+- [x] Refunds net off
 - [ ] Merchant names consistent
-- [ ] My category corrections remembered
+- [x] My category corrections remembered
 
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
@@ -31,7 +31,7 @@
 | [AOS-207](AOS-207.md) | Dedup across sources | Claude | ✅ | 3h |  |
 | [AOS-208](AOS-208.md) | Self-transfer detection | Claude | ✅ | 3h | 2h |
 | [AOS-209](AOS-209.md) | Refund/reversal linking | Claude | ✅ | 2h | 2h |
-| AOS-210 | Single categorizer with remembered corrections | Claude | ⬜ | 4h |  |
+| [AOS-210](AOS-210.md) | Single categorizer with remembered corrections | Claude | ✅ | 4h | 2h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -39,5 +39,6 @@ _Task tickets are created as files when this story is picked up._
 Monthly total matches the bank statement
 
 ## Activity log
+- 2026-10-16 — Claude: AOS-208, AOS-209, AOS-210 done. Left: AOS-205, AOS-206.
 - 2026-10-16 — Claude: AOS-207 done (cross-source dedup).
 - 2026-10-16 — Claude: story created (AOS-004).

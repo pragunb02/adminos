@@ -16,19 +16,6 @@ data class RuleResult(
     val reason: String
 )
 
-/** Strategy: categorizes a transaction by merchant name (Task 7.1) */
-interface CategorizationStrategy {
-    val priority: Int
-    fun categorize(merchantName: String, amount: BigDecimal, paymentMethod: String?): CategoryResult?
-}
-
-data class CategoryResult(
-    val category: String,
-    val subcategory: String? = null,
-    val confidence: Double,
-    val source: String // "rules", "ai", "user"
-)
-
 /** Strategy: evaluates a subscription for waste signals (Task 9.6) */
 interface WasteSignal {
     val name: String

@@ -45,6 +45,7 @@
 | D-38 | Product | Cross-source dedup: reference first, then score with auto/suggest/separate bands; links, never overwrite | Accepted | AOS-207, AOS-307 |
 | D-39 | Product | Transaction nature (spend/income/transfer/refund/reversal) drives all totals; card bill payments auto = transfer | Accepted | AOS-208, AOS-209, AOS-301 |
 | D-40 | Business logic | Refund/reversal rules: reversal = exact amount ≤5 days with ref/narration; refund ≤ original (capped), same merchant, ≤90 days; refunds net category spend | Accepted | AOS-209 |
+| D-41 | Business logic | One categorizer; corrections remembered per payee (UPI ID, else merchant), applied to future and past (not hand-set); no guessed transfers | Accepted | AOS-210 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -415,3 +416,20 @@ Proposed
   - It's auto-linked with a refund narration; partial refunds without one are not linked.
 - A refund **reduces its category's spending** instead of counting as income.
 - Same bands, ambiguity margin and review API as D-38. A user-set category is never overwritten.
+
+### D-41 — One categorizer; corrections are remembered per payee
+2026-10-16 · Accepted by Pragun ("agree") · Type: Business logic · Tasks: AOS-210
+- **One categorizer** (Kotlin `CategorizationService`) for every source in the pipeline. The Go one goes with AOS-401.
+- **Order:**
+  1. your remembered rule;
+  2. the built-in merchant list;
+  3. whole-word patterns;
+  4. Other.
+- **A correction becomes the payee's rule:**
+  - keyed by UPI ID when known (precise), otherwise by the normalized merchant name; the UPI rule wins;
+  - a later correction replaces it;
+  - `remember: false` changes only that one transaction.
+- **It applies to the past too:** spending and refunds from that payee are re-labelled (`categorySource = remembered`).
+  - Hand-set categories, transfers and reversals are not touched.
+- **The categorizer never guesses "Transfer".** Unknown UPI payees, NEFT/IMPS narrations and wallet names (Paytm/PhonePe/GPay) are Other.
+  - Real own-account transfers come from TransferStep (D-39). Guessing hid real spending.
