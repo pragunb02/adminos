@@ -113,3 +113,28 @@ export function describe(period: Period, today: string): string {
 export function todayIn(zone: string, now: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
+
+/**
+ * The like-for-like range to compare with (D-49: "so far" vs the same days of the previous period):
+ * - month: the previous month from the 1st to the same day number (capped at its last day);
+ * - week: the previous week's Monday to the same weekday;
+ * - day: the same weekday one week earlier.
+ */
+export function comparisonRange(period: Period, today: string): Range & { label: string } {
+  const r = rangeOf(period, today);
+  if (period.kind === "today") {
+    const d = addDays(r.from, -7);
+    return { from: d, to: d, label: `last ${new Intl.DateTimeFormat("en-IN", { weekday: "long", timeZone: "UTC" }).format(toDate(d))}` };
+  }
+  if (period.kind === "week") {
+    const len = Math.round((toDate(r.to).getTime() - toDate(r.from).getTime()) / 86_400_000);
+    const from = addDays(r.from, -7);
+    const to = addDays(from, len);
+    return { from, to, label: `by ${DAY.format(toDate(to))}` };
+  }
+  const end = toDate(r.to);
+  const prevFirst = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - 1, 1));
+  const prevLast = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 0)).getUTCDate();
+  const to = new Date(Date.UTC(prevFirst.getUTCFullYear(), prevFirst.getUTCMonth(), Math.min(end.getUTCDate(), prevLast)));
+  return { from: fmt(prevFirst), to: fmt(to), label: `by ${DAY.format(to)}` };
+}

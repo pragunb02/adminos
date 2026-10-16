@@ -26,7 +26,7 @@ test.describe("keyboard only", () => {
   test("reach the nav, move between pages, add cash and close it", async ({ signedIn: page, isMobile }) => {
     test.skip(isMobile, "phones have no keyboard");
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Good morning, Pragun" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Where it went" })).toBeVisible();
     const target = mainNav(page).getByRole("link", { name: "Bills" }); // desktop rail
     for (let i = 0; i < 30 && !(await target.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
     await expect(target).toBeFocused();

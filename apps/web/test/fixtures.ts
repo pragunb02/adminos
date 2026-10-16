@@ -1,3 +1,4 @@
+import type { SeriesPoint } from "@/lib/analytics";
 import type { Anomaly, Bill, Briefing, DashboardHome, NotificationPreferences, Session, Subscription, SubscriptionSummary, Transaction, UserConnection } from "@/lib/types";
 
 /** Canned API data for unit tests and Playwright mocks (AOS-310/311). Dates are fixed, IST-friendly. */
@@ -50,5 +51,40 @@ export const fx = {
   }),
   session: (over: Partial<Session> = {}): Session => ({
     id: "se-1", ipAddress: "127.0.0.1", userAgent: "Safari on Mac", lastActiveAt: "2026-10-16T05:00:00Z", createdAt: "2026-10-16T04:00:00Z", ...over,
+  }),
+  /** Analytics (AOS-301 shapes): October 2026 so far vs the same days of September. */
+  summary: (spent = "48250.00", received = "100000.00", over: Record<string, unknown> = {}) => ({
+    period: { from: "2026-10-01", to: "2026-10-16" },
+    totals: { spent, received, net: (Number(received) - Number(spent)).toFixed(2) },
+    spendCount: 42, previousPeriod: { from: "2026-09-15", to: "2026-09-30" },
+    previous: { spent: "44050.00", received: "0.00", net: "-44050.00" }, spentChangePct: "9.5", ...over,
+  }),
+  week: (): { period: { from: string; to: string }; bucket: string; points: SeriesPoint[] } => ({
+    period: { from: "2026-10-12", to: "2026-10-18" }, bucket: "day",
+    points: [
+      { start: "2026-10-12", spent: "1200.00", received: "0.00" }, { start: "2026-10-13", spent: "350.50", received: "0.00" },
+      { start: "2026-10-14", spent: "0.00", received: "0.00" }, { start: "2026-10-15", spent: "2999.00", received: "0.00" },
+      { start: "2026-10-16", spent: "350.00", received: "0.00" }, { start: "2026-10-17", spent: "0.00", received: "0.00" },
+      { start: "2026-10-18", spent: "0.00", received: "0.00" },
+    ],
+  }),
+  categories: () => ({
+    period: { from: "2026-10-01", to: "2026-10-16" },
+    categories: [
+      { category: "shopping", spent: "18400.00", share: 0.3813, count: 6, previousSpent: "16300.00" },
+      { category: "food", spent: "11200.00", share: 0.2321, count: 18, previousSpent: "12000.00" },
+      { category: "transport", spent: "4300.00", share: 0.0891, count: 9, previousSpent: "4300.00" },
+      { category: "utilities", spent: "3100.00", share: 0.0642, count: 3, previousSpent: "2800.00" },
+      { category: "health", spent: "1250.00", share: 0.0259, count: 2, previousSpent: "0.00" },
+      { category: "education", spent: "999.00", share: 0.0207, count: 1, previousSpent: "0.00" },
+    ],
+  }),
+  merchants: () => ({
+    period: { from: "2026-10-01", to: "2026-10-16" },
+    merchants: [
+      { merchant: "Amazon", spent: "9999.00", count: 4, category: "shopping" },
+      { merchant: "Swiggy", spent: "6120.00", count: 18, category: "food" },
+      { merchant: "Uber", spent: "2100.00", count: 1, category: "transport" },
+    ],
   }),
 };
