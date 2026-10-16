@@ -14,7 +14,10 @@ import java.net.URI
  * Verifies Google OIDC tokens from Pub/Sub push subscriptions.
  * Uses Nimbus JOSE+JWT to validate JWTs against Google's JWKS endpoint.
  */
-class OidcVerifier(private val audience: String) {
+class OidcVerifier(
+    private val audience: String,
+    private val jwksUrl: String = "https://www.googleapis.com/oauth2/v3/certs"
+) {
     private val logger = LoggerFactory.getLogger(OidcVerifier::class.java)
 
     private val jwtProcessor: DefaultJWTProcessor<SecurityContext> by lazy {
@@ -45,7 +48,7 @@ class OidcVerifier(private val audience: String) {
         val processor = DefaultJWTProcessor<SecurityContext>()
 
         val jwkSource = JWKSourceBuilder
-            .create<SecurityContext>(URI("https://www.googleapis.com/oauth2/v3/certs").toURL())
+            .create<SecurityContext>(URI(jwksUrl).toURL())
             .retrying(true)
             .build()
 
