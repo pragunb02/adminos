@@ -138,5 +138,5 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-604 | Android app (SMS + notification listener) | Claude | ⬜ | 20h |  |
 | **[AOS-S6.3](tickets/AOS-S6.3.md)** | **Launch** | | ⬜ | 8h | |
 | └ [AOS-605](tickets/AOS-605.md) | Onboarding + hosting (edge proxy owns XFF, D-32) | Claude + Pragun | ⬜ | 8h |  |
-| └ [AOS-607](tickets/AOS-607.md) | JWT key uses only the first 32 bytes of `JWT_SECRET` (found by AOS-311) | Claude | ⬜ | 0.5h |  |
+| └ [AOS-607](tickets/AOS-607.md) | JWT key now uses the whole `JWT_SECRET` (found by AOS-311) | Claude | ✅ | 0.5h | 0.5h |
 | └ AOS-606 | Dev-dependency advisories: ESLint chain (`eslint-config-next` → `braces`, high, dev-only); upgrade when a non-breaking fix exists | Claude | ⬜ | 0.5h |  |

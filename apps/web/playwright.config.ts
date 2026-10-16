@@ -6,9 +6,8 @@ import { defineConfig, devices } from "@playwright/test";
  * - the production Next build, proxying /api/* to that API.
  * Mocked projects answer /api/* in the browser from shared fixtures, so every branch is reachable.
  */
-// Exactly 32 bytes: the API currently keys HS256 with only the first 32 bytes of JWT_SECRET (AOS-607),
-// so a 32-byte secret means the same key before and after that fix.
-export const E2E_JWT_SECRET = "e2e-only-not-for-prod-0123456789";
+// A throwaway secret for the test API only. The whole secret is the HMAC key (AOS-607).
+export const E2E_JWT_SECRET = "e2e-only-secret-not-for-production-0123456789";
 const WEB = "http://127.0.0.1:3100";
 const API = "http://127.0.0.1:18080";
 const CI = !!process.env.CI;
