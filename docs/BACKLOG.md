@@ -142,7 +142,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S6.3](tickets/AOS-S6.3.md)** | **Launch** | | ⬜ | 8h | |
 | └ [AOS-605](tickets/AOS-605.md) | Onboarding + hosting (edge proxy owns XFF, D-32) | Claude + Pragun | ⬜ | 8h |  |
 | └ [AOS-607](tickets/AOS-607.md) | JWT key now uses the whole `JWT_SECRET` (found by AOS-311) | Claude | ✅ | 0.5h | 0.5h |
-| └ [AOS-608](tickets/AOS-608.md) | Token encryption: whole 256-bit key, row-bound ciphertext; no public default secrets | Claude | ⬜ | 1.5h |  |
+| └ [AOS-608](tickets/AOS-608.md) | Token encryption: whole 256-bit key, row-bound ciphertext; no public default secrets | Claude | ✅ | 1.5h | 1h |
 | └ [AOS-609](tickets/AOS-609.md) | Gmail Pub/Sub webhook authentication (issuer, service account, fail closed) | Claude | ⬜ | 1h |  |
 | └ [AOS-610](tickets/AOS-610.md) | Login hardening: inactive users, OAuth form encoding, Secure cookies, session revoke | Claude | ⬜ | 1.5h |  |
 | └ AOS-606 | Dev-dependency advisories: ESLint chain (`eslint-config-next` → `braces`, high, dev-only); upgrade when a non-breaking fix exists | Claude | ⬜ | 0.5h |  |
