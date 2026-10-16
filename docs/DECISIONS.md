@@ -44,6 +44,7 @@
 | D-37 | Architecture | Statements parsed by the Python service; files and passwords discarded after parsing | Accepted | AOS-202 |
 | D-38 | Product | Cross-source dedup: reference first, then score with auto/suggest/separate bands; links, never overwrite | Accepted | AOS-207, AOS-307 |
 | D-39 | Product | Transaction nature (spend/income/transfer/refund/reversal) drives all totals; card bill payments auto = transfer | Accepted | AOS-208, AOS-209, AOS-301 |
+| D-40 | Business logic | Refund/reversal rules: reversal = exact amount ≤5 days with ref/narration; refund ≤ original (capped), same merchant, ≤90 days; refunds net category spend | Accepted | AOS-209 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -405,3 +406,12 @@ Proposed
 - **Card bill payments are auto-marked as transfers** by high-precision narration patterns. Otherwise card spending counts twice.
 - Relations are links with `relation` + state (merged / suggested / rejected), using the same auto/suggest bands as D-38, one review API.
 - A category the user set is never overwritten.
+
+### D-40 — Refund and reversal rules
+2026-10-16 · Accepted by Pragun (combined AOS-208/209 design) · Type: Business logic · Tasks: AOS-209
+- **Reversal** (a failed or bounced payment): exact amount, same or unknown account, credit within 5 days. Both sides net to zero.
+  - It's auto-linked when the payment reference matches or the narration says reversal/failed. Otherwise a same-amount credit is only suggested.
+- **Refund:** never more than the original, counting earlier refunds. It needs the same merchant (VPA or name tokens) and must come within 90 days.
+  - It's auto-linked with a refund narration; partial refunds without one are not linked.
+- A refund **reduces its category's spending** instead of counting as income.
+- Same bands, ambiguity margin and review API as D-38. A user-set category is never overwritten.

@@ -72,7 +72,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-206 | Merchant normalization: grow alias catalogue (deterministic normalizer ✅ AOS-201) | Claude | ⬜ | 2h |  |
 | └ [AOS-207](tickets/AOS-207.md) | Cross-source dedup: reference → score bands → merge/suggest, review API (D-38) | Claude | ✅ | 3h | 3.5h |
 | └ [AOS-208](tickets/AOS-208.md) | Own-account transfers + card bill payments; transaction nature (D-39) | Claude | ✅ | 3h | 2h |
-| └ AOS-209 | Refund/reversal linking | Claude | ⬜ | 2h |  |
+| └ [AOS-209](tickets/AOS-209.md) | Refund/reversal linking; refunds net category spend (D-40) | Claude | ✅ | 2h | 2h |
 | └ AOS-210 | Single categorizer with remembered corrections | Claude | ⬜ | 4h |  |
 
 ## ⬜ [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 22h

@@ -28,9 +28,9 @@
 |---|---|---|---|---|---|
 | AOS-205 | Correct debit/credit everywhere | Claude | ⬜ | 1h |  |
 | AOS-206 | Deterministic merchant normalization (VPA → brand) | Claude | ⬜ | 2h |  |
-| [AOS-207](AOS-207.md) | Dedup across sources | Claude | ⬜ | 3h |  |
-| AOS-208 | Self-transfer detection | Claude | ⬜ | 3h |  |
-| AOS-209 | Refund/reversal linking | Claude | ⬜ | 2h |  |
+| [AOS-207](AOS-207.md) | Dedup across sources | Claude | ✅ | 3h |  |
+| [AOS-208](AOS-208.md) | Self-transfer detection | Claude | ✅ | 3h | 2h |
+| [AOS-209](AOS-209.md) | Refund/reversal linking | Claude | ✅ | 2h | 2h |
 | AOS-210 | Single categorizer with remembered corrections | Claude | ⬜ | 4h |  |
 
 _Task tickets are created as files when this story is picked up._
