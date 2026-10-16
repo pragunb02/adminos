@@ -48,6 +48,7 @@
 | D-41 | Business logic | One categorizer; corrections remembered per payee (UPI ID, else merchant), applied to future and past (not hand-set); no guessed transfers | Accepted | AOS-210 |
 | D-42 | Business logic | ATM/cash withdrawals are transfers to cash; only cash logged by hand counts as spending | Accepted | AOS-204 |
 | D-43 | Business logic | Email direction: account-anchored phrase wins, else one word family; unclear → needs-review, never guessed. Gmail writes ingest events, not transactions | Accepted | AOS-205, AOS-401 |
+| D-44 | Architecture | One merchant catalogue as data (JSON), validated on load, shared by normalizer and categorizer; narration cleaning before title-case | Accepted | AOS-206 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -453,3 +454,16 @@ Proposed
 - **The Gmail worker only fetches and extracts.** It writes `ingest_events` (source gmail, keyed by message ID) and never writes `transactions`. The pipeline does the rest (D-34).
 - **The time** is the email's Date header; otherwise the date in the body at 00:00 India time.
 - **If Gmail can't be reached, the job fails** (and is retried) instead of reporting a successful empty sync.
+
+### D-44 — One merchant catalogue, as data; narrations are cleaned
+2026-10-16 · Accepted by Pragun ("ok") · Type: Architecture · Tasks: AOS-206
+- **Known merchants live in one data file,** `services/api/src/main/resources/merchants/catalogue.json`: brand, category, subcategory and aliases, including the legal names banks print.
+  - The normalizer and the categorizer both read it.
+  - Adding a brand is a data edit, not a code change.
+- **Validated on load; a bad file fails startup.** Duplicate or cross-brand aliases, unknown categories and aliases under 3 characters are rejected; short aliases misfire.
+- **Matching:**
+  - whole words, in a form where punctuation is a space;
+  - the longest alias wins;
+  - the narration is checked first, then the UPI handle.
+- **Unknown payees:** the name is pulled out of the narration structure (UPI/POS/gateway formats; references, IFSC codes, bank codes and channel words trimmed from the ends), then title-cased. If nothing is left, the UPI handle becomes the name.
+- **Why:** consistent names are what the console groups by, and what remembered rules match on (D-41).

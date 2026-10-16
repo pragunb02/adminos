@@ -4,12 +4,15 @@ package dev.adminos.api.domain.financial
  * The single categorizer (AOS-210, D-41), every source goes through it via the pipeline.
  * A chain, first match wins:
  * 1. the user's remembered rule for this payee (UPI ID, else merchant name)
- * 2. the built-in merchant list (exact normalized name)
+ * 2. the merchant catalogue (AOS-206): the brand the normalizer produced → its default category
  * 3. whole-word patterns
  * 4. Other
  * Transfers are not guessed here: own-account transfers come from TransferStep (D-39), which runs after.
  */
-class CategorizationService(private val rules: CategoryRuleRepository = InMemoryCategoryRuleRepository()) {
+class CategorizationService(
+    private val rules: CategoryRuleRepository = InMemoryCategoryRuleRepository(),
+    private val catalogue: MerchantCatalogue = MerchantCatalogue.DEFAULT
+) {
 
     suspend fun categorize(t: Transaction): CategorizationResult {
         val vpa = t.upiVpa?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
@@ -22,10 +25,10 @@ class CategorizationService(private val rules: CategoryRuleRepository = InMemory
 
     /** Steps 2–4: no user state, so usable anywhere. */
     fun builtIn(merchantName: String?): CategorizationResult {
-        val normalized = merchantName?.trim()?.lowercase().orEmpty()
-        KNOWN_MERCHANTS[normalized]?.let { (category, subcategory) ->
-            return CategorizationResult(category, subcategory, confidence = 0.95)
+        catalogue.byBrand(merchantName)?.let {
+            return CategorizationResult(it.category, it.subcategory, confidence = 0.95)
         }
+        val normalized = merchantName?.trim()?.lowercase().orEmpty()
         PATTERNS.firstOrNull { it.pattern.containsMatchIn(normalized) }?.let {
             return CategorizationResult(it.category, it.subcategory, confidence = it.confidence)
         }
@@ -36,31 +39,6 @@ class CategorizationService(private val rules: CategoryRuleRepository = InMemory
 
     companion object {
         const val SOURCE_REMEMBERED = "remembered"
-
-        private val KNOWN_MERCHANTS: Map<String, Pair<TransactionCategory, String?>> = mapOf(
-            "zomato" to (TransactionCategory.FOOD to "food_delivery"),
-            "swiggy" to (TransactionCategory.FOOD to "food_delivery"),
-            "uber eats" to (TransactionCategory.FOOD to "food_delivery"),
-            "dominos" to (TransactionCategory.FOOD to "restaurant"),
-            "mcdonalds" to (TransactionCategory.FOOD to "restaurant"),
-            "starbucks" to (TransactionCategory.FOOD to "cafe"),
-            "uber" to (TransactionCategory.TRANSPORT to "ride_hailing"),
-            "ola" to (TransactionCategory.TRANSPORT to "ride_hailing"),
-            "rapido" to (TransactionCategory.TRANSPORT to "ride_hailing"),
-            "netflix" to (TransactionCategory.SUBSCRIPTION to "streaming"),
-            "hotstar" to (TransactionCategory.SUBSCRIPTION to "streaming"),
-            "spotify" to (TransactionCategory.SUBSCRIPTION to "music"),
-            "amazon prime" to (TransactionCategory.SUBSCRIPTION to "streaming"),
-            "youtube premium" to (TransactionCategory.SUBSCRIPTION to "streaming"),
-            "amazon" to (TransactionCategory.SHOPPING to "ecommerce"),
-            "flipkart" to (TransactionCategory.SHOPPING to "ecommerce"),
-            "myntra" to (TransactionCategory.SHOPPING to "fashion"),
-            "bigbasket" to (TransactionCategory.SHOPPING to "groceries"),
-            "jio" to (TransactionCategory.UTILITIES to "mobile"),
-            "airtel" to (TransactionCategory.UTILITIES to "mobile"),
-            "vodafone" to (TransactionCategory.UTILITIES to "mobile"),
-            "bsnl" to (TransactionCategory.UTILITIES to "mobile"),
-        )
 
         private fun words(vararg w: String) = Regex("\\b(${w.joinToString("|")})\\b", RegexOption.IGNORE_CASE)
 

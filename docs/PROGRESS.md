@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~ done. Left in M2: AOS-206 merchant names, then Milestone 3 console; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~, ~~AOS-204~~, ~~AOS-205~~, ~~AOS-206~~ done (accuracy engine code complete; needs real-data check AOS-211/212). Next: Milestone 3 console; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -55,7 +55,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 
 | Feature | Rule (as implemented) | State |
 |---|---|---|
-| Merchant normalization (Go `normalizer.go:60`) | Uppercase, then first of 13 aliases contained (GPay, Swiggy, Uber…), else title-case. Map order is random, so overlapping names can misfire (`UBER EATS` → Uber) | Live, buggy |
+| Merchant normalization (Kotlin `MerchantNormalizer`, AOS-201/206, D-44) | Brand from the catalogue (104 brands, incl. legal names; whole words, longest wins), else the payee name cleaned from the narration (UPI/POS/gateway structure removed), else the UPI handle | Live |
 | Categorization, Go | Removed in AOS-205: Gmail goes through the Kotlin pipeline | Removed |
 | Categorization, Kotlin (`CategorizationService.kt`, AOS-210, D-41) | The only categorizer for pipeline sources. Order: your remembered rule (UPI ID, else merchant), then 22 known merchants, then 7 whole-word patterns, else Other. It never guesses Transfer (TransferStep does). Corrections re-label past spend/refunds except hand-set ones | Live |
 | Dedup (`normalizer.go:47`) | SHA256(user, amount, merchant, date-to-hour, last4) in `ingestion_fingerprints` | Live |
@@ -97,6 +97,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-206: one merchant catalogue (`resources/merchants/catalogue.json`, 104 brands, validated on load) shared by normalizer + categorizer; `NarrationCleaner` pulls payee names out of UPI/POS/gateway narrations. Unit 302, integration 50.
   - AOS-205: Go Gmail worker writes `ingest_events` (message ID ref, direction by D-43, unclear → needs-review, NULL payment method) instead of `transactions`; no silent "success" when Gmail is unreachable; Go categorizer removed. Go unit + integration (real Postgres, migrated to V16) green; API unit 294, integration 50.
   - AOS-204: cash quick-add (D-42): API through the common intake (V16 `ingest_events.category`, chosen category kept, idempotent clientRef, cash never deduped), ATM/cash withdrawals → transfer to cash, web "+ Cash" (amount → tap category). Unit 293, integration 50; web typecheck/lint/build green.
   - AOS-210: single categorizer with remembered corrections (D-41, V15 `category_rules`): one rule per payee, future and past re-labelled (not hand-set), `remember:false` opt-out. Removed wrong guesses (unknown UPI/NEFT/IMPS/Paytm/PhonePe/GPay → Transfer), substring false matches (Motorola → Ola), dead strategy and AI-queue code. Unit 283, integration 49.

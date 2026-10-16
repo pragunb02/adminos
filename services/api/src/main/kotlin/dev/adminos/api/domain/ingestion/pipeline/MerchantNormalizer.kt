@@ -1,39 +1,33 @@
 package dev.adminos.api.domain.ingestion.pipeline
 
-/**
- * Turns raw merchant strings and UPI VPAs into one consistent brand name.
- *
- * Deterministic, unlike the Go version it replaces (random map order):
- * - aliases match **whole words**, so "COCA COLA" is not Ola;
- * - **longest alias wins**, so "UBER EATS" is Uber Eats, not Uber.
- * Unknown merchants are title-cased. The alias catalogue grows in AOS-206.
- */
-class MerchantNormalizer(aliases: Map<String, String> = DEFAULT_ALIASES) {
+import dev.adminos.api.domain.financial.MerchantCatalogue
+import dev.adminos.api.domain.financial.MerchantCatalogue.Companion.matchForm
 
-    private val matchers: List<Pair<Regex, String>> = aliases.entries
+/**
+ * Turns raw merchant strings and UPI VPAs into one consistent name (AOS-201, AOS-206).
+ * 1. A known brand from the [MerchantCatalogue], found in the narration or the UPI handle:
+ *    aliases match **whole words** ("COCA COLA" is not Ola) and the **longest alias wins**
+ *    ("UBER EATS" is Uber Eats, not Uber). Punctuation is ignored ("CULT.FIT" = "CULT FIT").
+ * 2. Otherwise the payee name pulled out of the narration by [NarrationCleaner], title-cased.
+ * 3. Otherwise the UPI handle as a name ("ramu.chai@ybl" → "Ramu Chai").
+ * Deterministic, so the same narration always gives the same name — remembered rules depend on it.
+ */
+class MerchantNormalizer(catalogue: MerchantCatalogue = MerchantCatalogue.DEFAULT) {
+
+    private val matchers: List<Pair<Regex, String>> = catalogue.aliases.entries
         .sortedByDescending { it.key.length }
-        .map { (alias, brand) -> Regex("(?<![A-Z0-9])" + Regex.escape(alias.uppercase()) + "(?![A-Z0-9])") to brand }
+        .map { (alias, brand) -> Regex("(?<![A-Z0-9])" + Regex.escape(alias) + "(?![A-Z0-9])") to brand }
 
     fun normalize(raw: String?, upiVpa: String? = null): String? {
-        val candidates = listOfNotNull(raw, upiVpa?.substringBefore('@')?.replace('.', ' ')?.replace('-', ' '))
-        for (text in candidates) {
-            val upper = text.uppercase()
-            matchers.firstOrNull { (re, _) -> re.containsMatchIn(upper) }?.let { return it.second }
+        val handle = upiVpa?.substringBefore('@')?.takeIf { it.isNotBlank() }
+        for (text in listOfNotNull(raw, handle)) {
+            val form = matchForm(text)
+            matchers.firstOrNull { (re, _) -> re.containsMatchIn(form) }?.let { return it.second }
         }
-        return raw?.takeIf { it.isNotBlank() }?.let(::titleCase)
+        NarrationCleaner.clean(raw)?.let { return titleCase(it) }
+        return handle?.let { h -> matchForm(h).replace(Regex("\\d+"), " ").trim().takeIf { it.length >= 2 }?.let(::titleCase) }
     }
 
     private fun titleCase(s: String): String =
         s.trim().lowercase().split(Regex("\\s+")).joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } }
-
-    companion object {
-        val DEFAULT_ALIASES: Map<String, String> = mapOf(
-            "ZOMATO" to "Zomato", "SWIGGY" to "Swiggy", "UBER EATS" to "Uber Eats", "UBER" to "Uber",
-            "OLA" to "Ola", "RAPIDO" to "Rapido", "AMAZON PRIME" to "Amazon Prime", "AMAZON" to "Amazon",
-            "AMZN" to "Amazon", "FLIPKART" to "Flipkart", "MYNTRA" to "Myntra", "BIGBASKET" to "BigBasket",
-            "NETFLIX" to "Netflix", "SPOTIFY" to "Spotify", "HOTSTAR" to "Hotstar", "YOUTUBE PREMIUM" to "YouTube Premium",
-            "PAYTM" to "Paytm", "PHONEPE" to "PhonePe", "GPAY" to "Google Pay", "GOOGLE PAY" to "Google Pay",
-            "IRCTC" to "IRCTC", "JIO" to "Jio", "AIRTEL" to "Airtel", "STARBUCKS" to "Starbucks", "DOMINOS" to "Domino's"
-        )
-    }
 }
