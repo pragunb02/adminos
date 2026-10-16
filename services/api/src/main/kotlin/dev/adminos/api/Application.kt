@@ -16,28 +16,39 @@ import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import org.koin.core.module.Module
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 fun main() {
-    val config = AppConfig.load()
-
-    embeddedServer(Netty, port = config.app.port, host = config.app.bindHost) {
-        module(config)
-    }.start(wait = true)
+    startServer(AppConfig.load(), wait = true)
 }
 
-fun Application.module(config: AppConfig) {
+/** Starts Netty on the configured host and port (separate from [main] so a test can start and stop it, AOS-312). */
+internal fun startServer(config: AppConfig, wait: Boolean): EmbeddedServer<*, *> =
+    embeddedServer(Netty, port = config.app.port, host = config.app.bindHost) {
+        module(config)
+    }.start(wait = wait)
+
+/**
+ * [diModule] and [useDatabase] default to the real environment; tests pass them to start the app
+ * in the database configuration (testability seam, AOS-312).
+ */
+fun Application.module(
+    config: AppConfig,
+    diModule: Module = appModule,
+    useDatabase: Boolean = DatabaseFactory.isConfigured()
+) {
     // Install Koin DI
     install(Koin) {
         slf4jLogger()
-        modules(appModule)
+        modules(diModule)
     }
 
     // Database: with DATABASE_URL, migrate and connect (startup fails if that fails).
     // Without it, the app runs on in-memory repositories (local dev only; see AppModule).
-    if (DatabaseFactory.isConfigured()) {
+    if (useDatabase) {
         DatabaseFactory.init(config.database)
     } else {
         log.warn("DATABASE_URL not set: using IN-MEMORY repositories. Data is lost on restart (dev mode only).")

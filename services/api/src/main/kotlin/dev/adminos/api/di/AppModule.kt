@@ -40,17 +40,25 @@ import dev.adminos.api.infrastructure.crypto.TokenEncryptor
 import dev.adminos.api.infrastructure.database.repositories.*
 import dev.adminos.api.infrastructure.queue.AsynqPublisher
 import io.lettuce.core.RedisClient
+import org.koin.core.module.Module
 import org.koin.dsl.module
 
-val appModule = module {
+val appModule = buildAppModule()
+
+/**
+ * Builds the DI module. The defaults read the real environment; tests pass [useDatabase] and [env]
+ * to build each configuration (testability seam, AOS-312).
+ */
+internal fun buildAppModule(
+    useDatabase: Boolean = DatabaseFactory.isConfigured(),
+    env: (String) -> String? = System::getenv
+): Module = module {
     single { AppConfig.load() }
     single { TokenEncryptor(get<AppConfig>().security.tokenEncryptionKey) }
     single { JwtService(get<AppConfig>().auth) }
     single { GoogleOAuthClient(get<AppConfig>().auth) }
 
     // Repository bindings: Exposed when a database is configured, else in-memory (dev mode)
-    val useDatabase = DatabaseFactory.isConfigured()
-
     if (useDatabase) {
         // Identity
         single<UserRepository> { ExposedUserRepository() }
@@ -107,14 +115,14 @@ val appModule = module {
     single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth) }
 
     // Redis queue publisher — only if REDIS_URL is configured and not default
-    val redisUrl = System.getenv("REDIS_URL") ?: ""
+    val redisUrl = env("REDIS_URL") ?: ""
     if (redisUrl.isNotBlank()) {
         single { RedisClient.create(redisUrl) }
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }
-    val r2AccessKey = System.getenv("R2_ACCESS_KEY") ?: ""
-    val r2Endpoint = System.getenv("R2_ENDPOINT") ?: ""
+    val r2AccessKey = env("R2_ACCESS_KEY") ?: ""
+    val r2Endpoint = env("R2_ENDPOINT") ?: ""
     if (r2AccessKey.isNotBlank() && r2Endpoint.isNotBlank()) {
     } else {
     }
