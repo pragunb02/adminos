@@ -55,8 +55,10 @@ class ApiClient {
   }
 
   private async send<T>(path: string, options: RequestInit): Promise<{ status: number; body: ApiResponse<T> }> {
+    const isForm = typeof FormData !== "undefined" && options.body instanceof FormData;
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
+      // Multipart bodies set their own Content-Type (with the boundary).
+      ...(isForm ? {} : { "Content-Type": "application/json" }),
       ...(options.headers as Record<string, string>),
     };
 
@@ -90,6 +92,11 @@ class ApiClient {
 
   post<T>(path: string, body: unknown) {
     return this.request<T>(path, { method: "POST", body: JSON.stringify(body) });
+  }
+
+  /** Multipart upload (e.g. statements). Same refresh/retry behaviour as other requests. */
+  upload<T>(path: string, form: FormData) {
+    return this.request<T>(path, { method: "POST", body: form });
   }
 
   patch<T>(path: string, body: unknown) {

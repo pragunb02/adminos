@@ -90,34 +90,6 @@ class IngestionService(
         return session
     }
 
-    suspend fun enqueuePdfParse(
-        userId: UUID,
-        connectionId: UUID,
-        storageKey: String,
-        fileName: String
-    ): SyncSession {
-        val session = SyncSession(
-            userId = userId,
-            connectionId = connectionId,
-            syncType = SyncType.MANUAL,
-            status = SyncSessionStatus.QUEUED
-        )
-        syncSessionRepository.save(session)
-
-        publisher?.enqueue(
-            jobType = "pdf_parse",
-            payload = mapOf(
-                "user_id" to userId.toString(),
-                "sync_session_id" to session.id.toString(),
-                "connection_id" to connectionId.toString(),
-                "storage_key" to storageKey,
-                "file_name" to fileName
-            )
-        ) ?: logger.info("PDF parse logged (no queue): session={}, file={}", session.id, fileName)
-
-        return session
-    }
-
     suspend fun getUserSyncSessions(userId: UUID, limit: Int = 20): List<SyncSession> {
         return syncSessionRepository.findByUserId(userId, limit)
     }

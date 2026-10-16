@@ -60,7 +60,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S2.1](tickets/AOS-S2.1.md)** | **Reliable ingestion pipeline** | | ✅ | 3h | |
 | └ [AOS-201](tickets/AOS-201.md) | Ingest pipeline: pending events → transactions (Kotlin, D-34); Go SMS worker retired | Claude | ✅ | 3h | 2.5h |
 | **[AOS-S2.2](tickets/AOS-S2.2.md)** | **Import bank statements** | | 🟦 | 6h | |
-| └ [AOS-202](tickets/AOS-202.md) | Statement upload end to end (Python parser ✅ PR 1; API + UI next) | Claude | 🟦 | 6h | 1.5h |
+| └ [AOS-202](tickets/AOS-202.md) | Statement upload: Python parser + API + Import page (D-37) | Claude | ✅ | 6h | 4h |
+| └ [AOS-212](tickets/AOS-212.md) | Validate statement import on real statements (locally) | Pragun + Claude | ⬜ | 1h |  |
 | **[AOS-S2.3](tickets/AOS-S2.3.md)** | **iPhone SMS auto-capture** | | 🟦 | 5h | |
 | └ [AOS-203](tickets/AOS-203.md) | iPhone SMS: parsers, device tokens, Mac Messages reader, setup guide (D-35/36) | Claude | ✅ | 5h | 3.5h |
 | └ [AOS-211](tickets/AOS-211.md) | Set up SMS on Pragun's devices; validate parsers on real SMS (locally) | Pragun + Claude | ⬜ | 1h |  |

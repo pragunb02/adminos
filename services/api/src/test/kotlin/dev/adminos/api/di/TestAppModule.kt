@@ -18,8 +18,6 @@ import dev.adminos.api.domain.ingestion.sync.SyncSessionRepository
 import dev.adminos.api.domain.ingestion.webhook.GmailCronService
 import dev.adminos.api.domain.notifications.*
 import dev.adminos.api.infrastructure.crypto.TokenEncryptor
-import dev.adminos.api.infrastructure.storage.StorageClient
-import dev.adminos.api.infrastructure.storage.StubStorageClient
 import org.koin.dsl.module
 
 /**
@@ -50,7 +48,6 @@ val testAppModule = module {
     single<AuditRepository> { InMemoryAuditRepository() }
 
     // Storage — always stub in tests
-    single<StorageClient> { StubStorageClient() }
 
     // Services
     single { AuditService(get(), kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())) }

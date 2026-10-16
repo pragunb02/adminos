@@ -11,9 +11,9 @@ import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.domain.ingestion.sms.rawSmsRoutes
 import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.domain.ingestion.sync.ingestionRoutes
-import dev.adminos.api.domain.ingestion.upload.uploadRoutes
+import dev.adminos.api.domain.ingestion.statements.StatementImportService
+import dev.adminos.api.domain.ingestion.statements.statementRoutes
 import dev.adminos.api.domain.ingestion.webhook.webhookRoutes
-import dev.adminos.api.infrastructure.storage.StorageClient
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
@@ -27,7 +27,7 @@ fun Application.ingestionModule(config: AppConfig) {
     val connectionService: ConnectionService by inject()
     val auditService: AuditService by inject()
     val googleOAuthClient: GoogleOAuthClient by inject()
-    val storageClient: StorageClient by inject()
+    val statementImportService: StatementImportService by inject()
     val ingestEventService: IngestEventService by inject()
     val smsIntake: SmsIntake by inject()
 
@@ -38,7 +38,7 @@ fun Application.ingestionModule(config: AppConfig) {
             rawSmsRoutes(smsIntake)
             connectionRoutes(connectionService, auditService, googleOAuthClient)
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience)
-            uploadRoutes(ingestionService, connectionService, storageClient)
+            statementRoutes(statementImportService)
         }
     }
 }

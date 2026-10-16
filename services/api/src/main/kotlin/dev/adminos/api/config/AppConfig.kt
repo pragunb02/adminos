@@ -6,7 +6,7 @@ data class AppConfig(
     val auth: AuthConfig,
     val app: AppSettings,
     val security: SecurityConfig,
-    val r2: R2Config,
+    val statementParser: StatementParserConfig,
     val google: GoogleConfig
 ) {
     companion object {
@@ -39,11 +39,9 @@ data class AppConfig(
             security = SecurityConfig(
                 tokenEncryptionKey = env("TOKEN_ENCRYPTION_KEY", "CHANGE-ME-generate-with-openssl-rand-base64-32")
             ),
-            r2 = R2Config(
-                accessKey = env("R2_ACCESS_KEY", ""),
-                secretKey = env("R2_SECRET_KEY", ""),
-                bucket = env("R2_BUCKET", "adminos-uploads"),
-                endpoint = env("R2_ENDPOINT", "")
+            statementParser = StatementParserConfig(
+                // Internal service (D-37); compose sets http://pdf-parser:8000.
+                url = env("STATEMENT_PARSER_URL", "http://127.0.0.1:8000")
             ),
             google = GoogleConfig(
                 gmailPubsubTopic = env("GOOGLE_GMAIL_PUBSUB_TOPIC", ""),
@@ -88,11 +86,8 @@ data class SecurityConfig(
     val tokenEncryptionKey: String
 )
 
-data class R2Config(
-    val accessKey: String,
-    val secretKey: String,
-    val bucket: String,
-    val endpoint: String
+data class StatementParserConfig(
+    val url: String
 )
 
 data class GoogleConfig(

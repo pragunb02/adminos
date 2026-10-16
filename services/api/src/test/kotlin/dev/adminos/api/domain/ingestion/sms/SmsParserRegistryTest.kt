@@ -78,6 +78,12 @@ class SmsParserRegistryTest {
     }
 
     @Test
+    fun `vpa inside a hyphenated narration is extracted without the prefix`() {
+        val t = txn("AX-HDFCBK-S", "Rs.249.00 debited from A/c XX1234 for UPI-SWIGGY-swiggy@icici-REF123")
+        assertEquals("swiggy@icici", t.upiVpa)
+    }
+
+    @Test
     fun `unknown bank header falls back to the generic parser`() {
         val t = txn("AX-YESBNK-S", "Rs.500.00 debited from A/c XX9876 on 16-10-26 to ZOMATO. UPI Ref 123")
         assertNull(t.bankCode); assertEquals(money("500.00"), t.amount)
