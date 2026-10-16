@@ -19,3 +19,45 @@
     cursor: pointer;
   }
 }
+
+/*
+  Console design tokens (AOS-302, docs/design/console.md §8). Text colours meet WCAG AA (≥ 4.5:1 on white);
+  category colours are Okabe–Ito (colour-blind safe) and are always paired with a label.
+*/
+@theme {
+  --color-ink: #111827;
+  --color-ink-muted: #4b5563;
+  --color-line: #e5e7eb;
+  --color-surface: #ffffff;
+  --color-page: #f9fafb;
+  --color-accent: #1d4ed8;
+  --color-compare: #9ca3af;
+  --color-positive: #15803d;
+  --color-negative: #b91c1c;
+
+  --color-cat-food: #e69f00;
+  --color-cat-transport: #0072b2;
+  --color-cat-shopping: #cc79a7;
+  --color-cat-utilities: #56b4e9;
+  --color-cat-emi: #d55e00;
+  --color-cat-subscription: #009e73;
+  --color-cat-entertainment: #f0e442;
+  --color-cat-health: #009e73;
+  --color-cat-education: #0072b2;
+  --color-cat-transfer: #6b7280;
+  --color-cat-other: #374151;
+}
+
+@layer base {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  }
+}
