@@ -150,6 +150,7 @@ Layers 4 and 5 sit side by side under layer 3.
 - **Every bug fix ships with a regression test** that fails before the fix.
 - **Every acceptance criterion in a ticket maps to at least one test** (or a documented manual check).
 - Test data uses realistic Indian bank formats (HDFC/SBI/ICICI SMS, UPI VPAs, ₹ amounts).
+- **API coverage gate (D-48):** `./gradlew test integrationTest koverVerify` fails below 90% lines / 85% branches over the whole API (unit + integration). A new bug found by a test may be committed as `@Disabled("BUG <ticket>: …")` only together with its fix ticket; the fix enables it.
 - **Web coverage gate (D-47):** `npm run test:coverage` fails below 90% lines/statements and 85% branches/functions over `apps/web/src`.
 - Web tests find elements by role and accessible name (what a user or screen reader sees), not by CSS classes. An input without a label is a bug to fix.
 

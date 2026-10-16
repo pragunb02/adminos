@@ -52,6 +52,7 @@
 | D-45 | Architecture | Console plan: one analytics API (spent = spend − refunds, received = income, transfers excluded) in the user's timezone; Recharts; TanStack Query; review screen AOS-309 | Accepted | AOS-120, AOS-301…309 |
 | D-46 | Business logic | Console totals are never clipped: total = Σ categories = Σ buckets; a refund-only day or category shows as negative | Accepted | AOS-301 |
 | D-47 | Process | Web tests: Vitest + Testing Library + MSW (unit), Playwright (end-to-end); coverage gate 90% lines / 85% branches; console state (period, filters) lives in the URL | Accepted | AOS-310, AOS-311, AOS-312, AOS-303…309 |
+| D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -511,3 +512,10 @@ Proposed
 - **The period and filters live in the URL** (e.g. `/?month=2026-10`, `/transactions?category=food`), so back/forward, refresh and sharing work.
   - Moving to another period adds a history entry; typing in search replaces the current one.
 - **Design direction:** minimal and calm, easy to scroll and analyse (Pragun). The research is in the AOS-302 design spec.
+
+### D-48 — API coverage gate over everything; legacy modules are kept
+2026-10-16 · Accepted by Pragun ("Everything 90/85"; "whatever the legacy MVP module has that we do not have … let's bring that also") · Type: Process · Tasks: AOS-312, AOS-608…613
+- **Kover measures the whole API** (unit + integration tests). `koverVerify` fails below **90% lines / 85% branches**.
+- **The legacy MVP modules stay as live code** and are held to the same bar: agents/briefings, notifications/nudges, Gmail connect/webhook, crypto.
+  - Their features are wired in through Epic E5 (AOS-501…506). The two gaps get new tickets: bill-payment matching and the subscription waste score.
+- **A bug found by a test is never "fixed" by weakening the test.** It is committed `@Disabled("BUG …")` with a fix ticket; the fix enables it.

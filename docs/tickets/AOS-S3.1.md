@@ -27,7 +27,7 @@
 | [AOS-120](AOS-120.md) | Per-user timezone for date-range params | Claude | ✅ | 1h | 1h |
 | [AOS-310](AOS-310.md) | Web unit tests: Vitest + Testing Library + MSW, coverage gate 90/85 (D-47) | Claude | ✅ | 4h | 2.5h |
 | [AOS-311](AOS-311.md) | Playwright end-to-end: 131 tests, 3 browsers + full stack (D-47) | Claude | ✅ | 5h | 2.5h |
-| AOS-312 | API coverage: Kover report + gate, fill gaps (D-47) | Claude | ⬜ | 2h |  |
+| [AOS-312](AOS-312.md) | API coverage: 99.6% lines / 95.4% branches; gate 90/85; 18 bugs found (D-48) | Claude | ✅ | 10h | 4h |
 
 _Task tickets are created as files when this story is picked up._
 

@@ -30,7 +30,12 @@ data class GoogleUserInfo(
     @SerialName("email_verified") val emailVerified: Boolean? = null
 )
 
-class GoogleOAuthClient(private val config: AuthConfig) {
+/** [tokenUrl] and [userInfoUrl] default to Google's; tests point them at a local server (AOS-312). */
+class GoogleOAuthClient(
+    private val config: AuthConfig,
+    private val tokenUrl: String = "https://oauth2.googleapis.com/token",
+    private val userInfoUrl: String = "https://www.googleapis.com/oauth2/v3/userinfo"
+) {
 
     private val httpClient = HttpClient.newHttpClient()
     private val json = Json { ignoreUnknownKeys = true }
@@ -47,7 +52,7 @@ class GoogleOAuthClient(private val config: AuthConfig) {
             "&grant_type=authorization_code"
 
         val tokenRequest = HttpRequest.newBuilder()
-            .uri(URI.create("https://oauth2.googleapis.com/token"))
+            .uri(URI.create(tokenUrl))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .POST(HttpRequest.BodyPublishers.ofString(tokenBody))
             .build()
@@ -60,7 +65,7 @@ class GoogleOAuthClient(private val config: AuthConfig) {
         val tokens = json.decodeFromString<GoogleTokenResponse>(tokenResponse.body())
 
         val userInfoRequest = HttpRequest.newBuilder()
-            .uri(URI.create("https://www.googleapis.com/oauth2/v3/userinfo"))
+            .uri(URI.create(userInfoUrl))
             .header("Authorization", "Bearer ${tokens.accessToken}")
             .GET()
             .build()

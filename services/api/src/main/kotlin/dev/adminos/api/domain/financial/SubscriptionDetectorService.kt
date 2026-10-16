@@ -18,7 +18,8 @@ import kotlin.math.sqrt
  */
 class SubscriptionDetectorService(
     private val transactionRepository: TransactionRepository,
-    private val subscriptionRepository: SubscriptionRepository
+    private val subscriptionRepository: SubscriptionRepository,
+    private val clock: java.time.Clock = java.time.Clock.systemUTC()
 ) {
     private val logger = LoggerFactory.getLogger(SubscriptionDetectorService::class.java)
 
@@ -27,7 +28,7 @@ class SubscriptionDetectorService(
      * Analyzes last 90 days of debit transactions.
      */
     suspend fun detectSubscriptions(userId: UUID): List<Subscription> {
-        val since = Instant.now().minus(90, ChronoUnit.DAYS)
+        val since = Instant.now(clock).minus(90, ChronoUnit.DAYS)
         val debits = transactionRepository.findDebitsByUserIdSince(userId, since)
 
         // Group by normalized merchant name
