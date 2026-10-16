@@ -44,7 +44,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-106](tickets/AOS-106.md) | Auth reads the JWT from the `access_token` cookie too | Claude | ✅ | 1h | 0.5h |
 | └ [AOS-107](tickets/AOS-107.md) | JSON/query contract web ↔ API (camelCase, D-31) | Claude | ✅ | 2h | 1.5h |
 | └ [AOS-108](tickets/AOS-108.md) | Web config: same-origin API proxy (D-32), Google client id, fixes | Claude | ✅ | 1h | 1.5h |
-| └ [AOS-109](tickets/AOS-109.md) | Session refresh via cookie + logout button | Claude | ⬜ | 2h |  |
+| └ [AOS-109](tickets/AOS-109.md) | Session refresh via cookie + logout (this device) | Claude | ✅ | 2h | 1h |
 | └ [AOS-111](tickets/AOS-111.md) | Create Google OAuth client | Pragun | ⬜ | 0.25h |  |
 | └ [AOS-112](tickets/AOS-112.md) | End-to-end login on laptop | Claude + Pragun | ⬜ | 1h |  |
 | **[AOS-S1.3](tickets/AOS-S1.3.md)** | **Whole stack runs with docker compose** | | ⬜ | 1.25h | |
@@ -124,6 +124,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S6.1](tickets/AOS-S6.1.md)** | **Security & DPDP compliance** | | ⬜ | 11h | |
+| └ [AOS-121](tickets/AOS-121.md) | Refresh-token rotation with reuse detection | Claude | ⬜ | 2h |  |
 | └ AOS-601 | Encrypt tokens at rest; refuse default secrets; require Pub/Sub audience | Claude | ⬜ | 3h |  |
 | └ AOS-602 | DPDP: consent records, export/delete, access logs | Claude | ⬜ | 8h |  |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** | | ⬜ | 26h | |

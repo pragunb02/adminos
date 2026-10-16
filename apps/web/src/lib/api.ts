@@ -18,7 +18,43 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
+  /** One refresh at a time: concurrent 401s wait for the same refresh call. */
+  private refreshing: Promise<boolean> | null = null;
+
+  /**
+   * Sends a request. On 401 (access JWT expired), refreshes the session once using the HttpOnly
+   * refresh cookie and retries. If the refresh fails, the session is over: go to /login (AOS-109).
+   */
   async request<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    const first = await this.send<T>(path, options);
+    if (first.status !== 401 || path.startsWith("/api/v1/auth/")) return first.body;
+
+    if (await this.refreshSession()) {
+      const retry = await this.send<T>(path, options);
+      if (retry.status !== 401) return retry.body;
+    }
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.assign("/login");
+    }
+    return first.body;
+  }
+
+  private refreshSession(): Promise<boolean> {
+    this.refreshing ??= fetch(`${this.baseUrl}/api/v1/auth/refresh`, { method: "POST", credentials: "same-origin" })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => {
+        this.refreshing = null;
+      });
+    return this.refreshing;
+  }
+
+  async logout(): Promise<void> {
+    await fetch(`${this.baseUrl}/api/v1/auth/logout`, { method: "POST", credentials: "same-origin" }).catch(() => undefined);
+    window.location.assign("/login");
+  }
+
+  private async send<T>(path: string, options: RequestInit): Promise<{ status: number; body: ApiResponse<T> }> {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
@@ -33,9 +69,9 @@ class ApiClient {
     // Always resolve to the envelope, even for empty or non-JSON bodies (e.g. a proxy error page).
     const text = await response.text();
     try {
-      return JSON.parse(text) as ApiResponse<T>;
+      return { status: response.status, body: JSON.parse(text) as ApiResponse<T> };
     } catch {
-      return {
+      const body: ApiResponse<T> = {
         success: false,
         data: null,
         error: {
@@ -44,6 +80,7 @@ class ApiClient {
         },
         meta: { requestId: response.headers.get("x-request-id") ?? "", timestamp: new Date().toISOString() },
       };
+      return { status: response.status, body };
     }
   }
 
