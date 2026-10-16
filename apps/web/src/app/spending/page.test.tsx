@@ -117,6 +117,90 @@ describe("Spending (AOS-305)", () => {
   });
 });
 
+describe("Trends (AOS-306)", () => {
+  beforeEach(freezeIndiaFriday);
+  afterEach(() => vi.useRealTimers());
+
+  const months = () => ok({ period: {}, bucket: "month", points: Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(Date.UTC(2025, 10 + i, 1)).toISOString().slice(0, 10);
+    return { start: d, spent: i === 3 ? "61000.00" : "40000.00", received: "100000.00" };
+  }) });
+  const weeks = () => ok({ period: {}, bucket: "week", points: Array.from({ length: 12 }, (_, i) => ({ start: new Date(Date.UTC(2026, 6, 27) + i * 7 * 86_400_000).toISOString().slice(0, 10), spent: `${9000 + i * 100}.00`, received: "0.00" })) });
+
+  it("asks for 12 months and 12 Monday-weeks ending with the period", async () => {
+    nav.search = new URLSearchParams("view=trends");
+    const asked = routes({ "analytics/series": (u) => (u.searchParams.get("bucket") === "month" ? months() : weeks()) });
+    renderWithQuery(<SpendingPage />);
+    await screen.findByRole("region", { name: "Last 12 months" });
+    await vi.waitFor(() => expect(asked["analytics/series"]?.sort()).toEqual([
+      "?from=2025-11-01&to=2026-10-16&bucket=month",
+      "?from=2026-07-27&to=2026-10-16&bucket=week",
+    ]));
+  });
+
+  it("monthly spent vs received: one sentence, current month 'so far', exact table; bars or lines in the URL", async () => {
+    nav.pathname = "/spending";
+    nav.search = new URLSearchParams("view=trends");
+    routes({ "analytics/series": (u) => (u.searchParams.get("bucket") === "month" ? months() : weeks()) });
+    const { user } = renderWithQuery(<SpendingPage />);
+    const m = await screen.findByRole("region", { name: "Last 12 months" });
+    expect(await within(m).findByRole("img", { name: "Last 12 months: most spent in Feb 2026 (₹61,000); Oct (so far) spent ₹40,000, received ₹1,00,000." })).toBeInTheDocument();
+    expect(within(m).getByRole("button", { name: "Bars" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(m).getByRole("button", { name: "Lines" }));
+    expect(nav.router.push).toHaveBeenCalledWith("/spending?view=trends&chart=lines", { scroll: false });
+    await user.click(within(m).getByRole("button", { name: "View as table" }));
+    const table = within(m).getByRole("table", { name: "Spent and received by month" });
+    expect(within(table).getAllByRole("row")).toHaveLength(13);
+    expect(within(table).getByText("Oct (so far)")).toBeInTheDocument();
+    await user.click(within(m).getByRole("button", { name: "View as chart" }));
+    const w = screen.getByRole("region", { name: "Last 12 weeks" });
+    expect(await within(w).findByRole("img", { name: /Spending by week: highest in 12 Oct \(₹10,100\)/ })).toBeInTheDocument();
+  });
+
+  it("lines can be chosen, and Bars goes back to the default URL", async () => {
+    nav.pathname = "/spending";
+    nav.search = new URLSearchParams("view=trends&chart=lines");
+    routes({ "analytics/series": (u) => (u.searchParams.get("bucket") === "month" ? months() : weeks()) });
+    const { user } = renderWithQuery(<SpendingPage />);
+    const m = await screen.findByRole("region", { name: "Last 12 months" });
+    expect(within(m).getByRole("button", { name: "Lines" })).toHaveAttribute("aria-pressed", "true");
+    await within(m).findByRole("img");
+    await user.click(within(m).getByRole("button", { name: "Bars" }));
+    expect(nav.router.push).toHaveBeenCalledWith("/spending?view=trends", { scroll: false });
+  });
+
+  it("leaving Trends drops the chart choice from the URL", async () => {
+    nav.pathname = "/spending";
+    nav.search = new URLSearchParams("view=trends&chart=lines");
+    routes({ "analytics/series": (u) => (u.searchParams.get("bucket") === "month" ? months() : weeks()) });
+    const { user } = renderWithQuery(<SpendingPage />);
+    await user.click(await screen.findByRole("button", { name: "Categories" }));
+    expect(nav.router.push).toHaveBeenCalledWith("/spending", { scroll: false });
+  });
+
+  it("a past period has no 'so far'; empty series say nothing yet; failures retry", async () => {
+    nav.search = new URLSearchParams("view=trends&p=month&d=2026-06-01");
+    let n = 0;
+    routes({ "analytics/series": (u) => (u.searchParams.get("bucket") === "week" ? (++n === 1 ? fail(400, "VALIDATION_003", "Weeks broke") : weeks()) : ok({ period: {}, bucket: "month", points: [] })) });
+    const { user } = renderWithQuery(<SpendingPage />);
+    const m = await screen.findByRole("region", { name: "Last 12 months" });
+    expect(await within(m).findByRole("img", { name: "Last 12 months: nothing yet." })).toBeInTheDocument();
+    const w = screen.getByRole("region", { name: "Last 12 weeks" });
+    await user.click(await within(w).findByRole("button", { name: "Try again" }));
+    expect(await within(w).findByRole("img")).toBeInTheDocument();
+  });
+
+  it("a failing month chart can be retried", async () => {
+    nav.search = new URLSearchParams("view=trends");
+    let n = 0;
+    routes({ "analytics/series": (u) => (u.searchParams.get("bucket") === "month" ? (++n === 1 ? fail(400, "VALIDATION_003", "Months broke") : months()) : weeks()) });
+    const { user } = renderWithQuery(<SpendingPage />);
+    const m = await screen.findByRole("region", { name: "Last 12 months" });
+    await user.click(await within(m).findByRole("button", { name: "Try again" }));
+    expect(await within(m).findByRole("img")).toBeInTheDocument();
+  });
+});
+
 describe("Category detail (AOS-305)", () => {
   beforeEach(freezeIndiaFriday);
   afterEach(() => vi.useRealTimers());

@@ -33,4 +33,22 @@ test.describe("Spending", () => {
     await page.goto("/spending/category/groceries");
     await expect(page.getByRole("heading", { name: "No such category" })).toBeVisible();
   });
+
+  test("Trends: months as bars then lines, weeks as a line; the choice survives refresh and Back", async ({ signedIn: page }) => {
+    await page.goto("/spending");
+    await page.getByRole("button", { name: "Trends" }).click();
+    await expect(page).toHaveURL(/view=trends/);
+    const months = page.getByRole("region", { name: "Last 12 months" });
+    await expect(months.locator(".recharts-bar-rectangle").first()).toBeVisible();
+    await months.getByRole("button", { name: "Lines" }).click();
+    await expect(page).toHaveURL(/view=trends&chart=lines/);
+    await expect(months.locator(".recharts-line-curve").first()).toBeVisible();
+    await page.reload();
+    await expect(months.getByRole("button", { name: "Lines" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("region", { name: "Last 12 weeks" }).getByRole("img", { name: /Spending by week/ })).toBeVisible();
+    await page.goBack();
+    await expect(months.getByRole("button", { name: "Bars" })).toHaveAttribute("aria-pressed", "true");
+    await page.goBack();
+    await expect(page.getByRole("region", { name: "By category" })).toBeVisible();
+  });
 });

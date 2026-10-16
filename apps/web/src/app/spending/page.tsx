@@ -9,7 +9,10 @@ import PeriodSwitcher from "@/components/PeriodSwitcher";
 import Section, { Skeleton } from "@/components/console/Section";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantTable from "@/components/console/MerchantTable";
-import { analyticsPath, type CategoryRow, type MerchantRow, type SummaryData } from "@/lib/analytics";
+import MonthlyBars from "@/components/console/MonthlyBars";
+import TrendLine from "@/components/console/TrendLine";
+import { isCurrent, rangeOf } from "@/lib/period";
+import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
 import { periodOnly, useConsolePeriod } from "@/lib/consolePeriod";
 import { arrow, delta } from "@/lib/format";
 import { formatInr } from "@/lib/money";
@@ -18,6 +21,7 @@ import { errorMessage, getData } from "@/lib/query";
 const VIEWS = [
   { key: "categories", label: "Categories" },
   { key: "merchants", label: "Merchants" },
+  { key: "trends", label: "Trends" },
 ] as const;
 type View = (typeof VIEWS)[number]["key"];
 
@@ -26,17 +30,32 @@ function SpendingContent() {
   const router = useRouter();
   const pathname = usePathname();
   const { search, today, period, notice, range, compare } = useConsolePeriod();
-  const view: View = search.get("view") === "merchants" ? "merchants" : "categories";
+  const isCurrentPeriod = isCurrent(period, today);
+  const raw = search.get("view");
+  const view: View = raw === "merchants" || raw === "trends" ? raw : "categories";
+  const chart = search.get("chart") === "lines" ? "lines" : "bars";
+  // Trends (AOS-306): 12 months and 12 Monday-weeks ending with the period.
+  const monthsFrom = (() => { const d = new Date(`${range.to}T00:00:00Z`); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 11, 1)).toISOString().slice(0, 10); })();
+  const weeksFrom = (() => { const monday = rangeOf({ kind: "week", anchor: range.to }, "9999-12-31").from; return new Date(new Date(`${monday}T00:00:00Z`).getTime() - 77 * 86_400_000).toISOString().slice(0, 10); })();
+  const currentMonth = isCurrentPeriod ? `${today.slice(0, 7)}-01` : null;
   const key = [range.from, range.to];
 
   const summary = useQuery({ queryKey: ["analytics", "summary", ...key], queryFn: () => getData<SummaryData>(analyticsPath("summary", range.from, range.to)) });
   const compared = useQuery({ queryKey: ["analytics", "summary", "compare", compare.from, compare.to], queryFn: () => getData<SummaryData>(analyticsPath("summary", compare.from, compare.to)) });
   const categories = useQuery({ queryKey: ["analytics", "categories", ...key], enabled: view === "categories", queryFn: () => getData<{ categories: CategoryRow[] }>(analyticsPath("categories", range.from, range.to)) });
   const merchants = useQuery({ queryKey: ["analytics", "merchants", "all", ...key], enabled: view === "merchants", queryFn: () => getData<{ merchants: MerchantRow[] }>(analyticsPath("merchants", range.from, range.to, { limit: "50" })) });
+  const months = useQuery({ queryKey: ["analytics", "series", "month", monthsFrom, range.to], enabled: view === "trends", queryFn: () => getData<SeriesData>(analyticsPath("series", monthsFrom, range.to, { bucket: "month" })) });
+  const weeks = useQuery({ queryKey: ["analytics", "series", "week", weeksFrom, range.to], enabled: view === "trends", queryFn: () => getData<SeriesData>(analyticsPath("series", weeksFrom, range.to, { bucket: "week" })) });
+  const setChart = (c: "bars" | "lines") => {
+    const q = new URLSearchParams(search);
+    if (c === "bars") q.delete("chart"); else q.set("chart", c);
+    router.push(`${pathname}?${q}`, { scroll: false });
+  };
 
   const switchTo = (v: View) => {
     const q = new URLSearchParams(search);
     if (v === "categories") q.delete("view"); else q.set("view", v);
+    if (v !== "trends") q.delete("chart");
     const s = q.toString();
     router.push(`${pathname}${s ? `?${s}` : ""}`, { scroll: false });
   };
@@ -70,7 +89,29 @@ function SpendingContent() {
         </div>
       </div>
 
-      {view === "categories" ? (
+      {view === "trends" ? (
+        <div className="space-y-4">
+          <Section
+            title="Last 12 months"
+            action={
+              <div role="group" aria-label="Chart type" className="flex rounded-md bg-line p-0.5 text-xs">
+                {(["bars", "lines"] as const).map((c) => (
+                  <button key={c} type="button" aria-pressed={chart === c} onClick={() => setChart(c)} className={`min-h-6 rounded px-2 py-1 ${chart === c ? "bg-surface font-semibold" : "text-ink-muted"}`}>
+                    {c === "bars" ? "Bars" : "Lines"}
+                  </button>
+                ))}
+              </div>
+            }
+            error={months.error ? errorMessage(months.error) : null}
+            onRetry={() => months.refetch()}
+          >
+            {months.data ? <MonthlyBars points={months.data.points} kind={chart} currentMonth={currentMonth} /> : <Skeleton lines={5} />}
+          </Section>
+          <Section title="Last 12 weeks" error={weeks.error ? errorMessage(weeks.error) : null} onRetry={() => weeks.refetch()}>
+            {weeks.data ? <TrendLine points={weeks.data.points} bucket="week" title="Spending by week" /> : <Skeleton lines={4} />}
+          </Section>
+        </div>
+      ) : view === "categories" ? (
         <Section title="By category" error={categories.error ? errorMessage(categories.error) : null} onRetry={() => categories.refetch()}>
           {categories.data ? (
             categories.data.categories.length ? (
