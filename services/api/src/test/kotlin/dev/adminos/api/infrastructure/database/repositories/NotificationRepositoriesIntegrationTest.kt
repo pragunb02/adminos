@@ -42,6 +42,26 @@ class NotificationRepositoriesIntegrationTest {
     }
 
     @Test
+    fun `delivery state round-trips and due notifications are claimed once per lease (AOS-504)`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val now = java.time.Instant.parse("2030-01-01T00:00:00Z")
+        fun pending(deliverAfter: java.time.Instant?) = Notification(userId = userId, type = NotificationType.BILL_REMINDER, title = "Bill due",
+            body = "HDFC", channel = NotificationChannel.EMAIL, deliverAfter = deliverAfter, createdAt = now.minusSeconds(60))
+        val due = notifications.save(pending(now.minusSeconds(1)))
+        val notYet = notifications.save(pending(now.plusSeconds(3600)))
+        notifications.update(due.copy(attempts = 2, lastError = "SMTP send failed: timeout"))
+        assertEquals(2, notifications.findById(due.id)?.attempts)
+        assertEquals("SMTP send failed: timeout", notifications.findById(due.id)?.lastError)
+
+        val lease = java.time.Duration.ofMinutes(2)
+        val claimed = notifications.claimDue(now, lease, limit = 10_000).filter { it.userId == userId }
+        assertEquals(listOf(due.id), claimed.map { it.id })
+        assertEquals(now.plus(lease), claimed.single().deliverAfter)
+        assertEquals(emptyList(), notifications.claimDue(now.plusSeconds(60), lease, 10_000).filter { it.userId == userId })
+        assertEquals(notYet.deliverAfter, notifications.findById(notYet.id)?.deliverAfter)
+    }
+
+    @Test
     fun `notification round-trips every type, channel and status`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
         for (type in NotificationType.entries) for (channel in NotificationChannel.entries) {

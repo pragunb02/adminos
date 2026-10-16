@@ -21,7 +21,7 @@ class NotificationsReminderEngineCoverageTest {
     private val bills = InMemoryBillRepository()
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()
-    private val notifications = NotificationService(prefsRepo, notifRepo, PushService(InMemoryDeviceRepository()))
+    private val notifications = notificationService(prefsRepo, notifRepo)
     private val engine = ReminderEngine(bills, prefsRepo, notifications)
     private val today = LocalDate.of(2026, 10, 16)
 
@@ -177,7 +177,7 @@ class NotificationsReminderEngineCoverageTest {
     fun `runReminders keeps going when one bill fails`() = runBlocking<Unit> {
         val brokenUser = UUID.randomUUID()
         val failingPrefs = FailingForUserPreferencesRepository(brokenUser)
-        val svc = NotificationService(failingPrefs, notifRepo, PushService(InMemoryDeviceRepository()))
+        val svc = notificationService(failingPrefs, notifRepo)
         val eng = ReminderEngine(bills, failingPrefs, svc)
         failingPrefs.save(prefs(userId))
         bills.save(bill(LocalDate.now().plusDays(3), user = brokenUser))

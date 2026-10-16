@@ -118,7 +118,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 |---|---|---|---|---|---|
 | **[AOS-S5.1](tickets/AOS-S5.1.md)** | **Scheduler & notifications** | | 🟦 | 7h | |
 | └ [AOS-501](tickets/AOS-501.md) | Scheduler: once per slot across instances, retries, timeouts; reminders, nudges, subscription detection (D-50) | Claude | ✅ | 3h | 2h |
-| └ AOS-504 | Real notifications: channel plug-ins (in-app, Web Push for iPhone, email); send held quiet-hours notices | Claude | ⬜ | 4h |  |
+| └ [AOS-504](tickets/AOS-504.md) | Real notifications: channel plug-ins, SMTP email, quiet-hours hold, retries (D-51) | Claude | ✅ | 4h | 2.5h |
+| └ AOS-510 | Web Push for iPhone (Home Screen app): subscriptions, VAPID keys, service worker, Settings toggle | Claude | ⬜ | — |  |
 | **[AOS-S5.2](tickets/AOS-S5.2.md)** | **Recurring payments & dues** | | ⬜ | 8h | |
 | └ AOS-502 | Recurring / UPI AutoPay mandate tracker | Claude | ⬜ | 4h |  |
 | └ AOS-503 | Dues & renewals calendar + reminders (fix: custom reminder days persisted, user-zone dates, Gmail bills without a due date) | Claude | ⬜ | 4h |  |

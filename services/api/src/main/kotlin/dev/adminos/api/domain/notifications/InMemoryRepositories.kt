@@ -55,6 +55,14 @@ class InMemoryNotificationRepository : NotificationRepository {
     override suspend fun findPending(): List<Notification> =
         store.values.filter { it.status == NotificationStatus.PENDING }
             .sortedBy { it.createdAt }
+
+    override suspend fun claimDue(now: Instant, lease: java.time.Duration, limit: Int): List<Notification> = synchronized(this) {
+        store.values
+            .filter { it.status == NotificationStatus.PENDING && (it.deliverAfter == null || !it.deliverAfter.isAfter(now)) }
+            .sortedBy { it.createdAt }
+            .take(limit)
+            .map { it.copy(deliverAfter = now.plus(lease)).also { claimed -> store[claimed.id] = claimed } }
+    }
 }
 
 // ── In-Memory Device Repository ──

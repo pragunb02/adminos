@@ -19,7 +19,7 @@ class NotificationsDropOffNudgeCoverageTest {
     private val users = InMemoryUserRepository()
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()
-    private val service = DropOffNudgeService(users, notifRepo, NotificationService(prefsRepo, notifRepo, PushService(InMemoryDeviceRepository())))
+    private val service = DropOffNudgeService(users, notifRepo, notificationService(prefsRepo, notifRepo))
     private val now = Instant.parse("2026-10-16T06:30:00Z")
 
     private suspend fun user(daysAgo: Long, status: OnboardingStatus = OnboardingStatus.STARTED, createdAt: Instant = now.minus(daysAgo, ChronoUnit.DAYS)): User {
@@ -147,7 +147,7 @@ class NotificationsDropOffNudgeCoverageTest {
         val broken = user(0, createdAt = created)
         val ok = user(0, createdAt = created)
         val failingRepo = FailingForUserNotificationRepository(broken.id)
-        val svc = DropOffNudgeService(users, failingRepo, NotificationService(prefsRepo, failingRepo, PushService(InMemoryDeviceRepository())))
+        val svc = DropOffNudgeService(users, failingRepo, notificationService(prefsRepo, failingRepo))
 
         assertEquals(NudgeRunSummary(usersChecked = 2, nudgesSent = 1, failed = 1), svc.runNudges())
 

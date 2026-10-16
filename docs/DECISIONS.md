@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -541,4 +542,11 @@ Proposed
 - **Failures:** retried after a delay (default 15 min, 3 attempts); a run whose instance died is taken over when its lease expires; a run over its timeout (default 10 min) is cancelled and recorded failed; shutdown records a failure so the slot is retried.
 - **Extending:** a job is one class registered as `ScheduledJob`; a new schedule type is one `Schedule` implementation.
 - **Off switch:** `SCHEDULER_ENABLED=false` for request-only instances and for the shared integration-test database.
+
+### D-51 — Notification delivery through pluggable channels
+2026-10-16 · Accepted (Pragun: "yes" to Web Push + SMTP email) · Type: Architecture · Tasks: AOS-504, AOS-510
+- **Channels:** each is one `DeliveryChannel` class registered in Koin. An unconfigured channel isn't registered, so nothing is recorded as sent through it, and start-up logs what is off.
+- **Providers:** email goes over plain SMTP, so any provider works (Gmail app password, SES SMTP, Mailgun). Push will be standard Web Push, which works on iPhone from the Home Screen app (D-19). Firebase (FCM) is dropped: it was a stub and the wrong channel for an iPhone and web user.
+- **Quiet hours:** in-app is silent, so it is delivered at once. Push and email for non-critical types wait until quiet hours end in the user's zone. Anomaly alerts never wait.
+- **Reliability:** delivery state is stored (`deliver_after`, `attempts`, `last_error`). Retries back off 5 min → 30 min → 3 h, then the notice is marked failed. A pending job claims due rows with a lease every 5 minutes. Delivery is at least once: a duplicate email beats a lost bill reminder.
 

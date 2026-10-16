@@ -56,9 +56,11 @@ dependencies {
 
     // Logging
     implementation(libs.logback)
+    implementation(libs.angus.mail) // SMTP for email notifications (AOS-504)
 
     // Tests
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.greenmail.junit5) // in-process SMTP server for the email sender tests (AOS-504)
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlin.test.junit5)

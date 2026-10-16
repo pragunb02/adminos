@@ -15,6 +15,8 @@ logback = "1.6.5"
 jqwik = "1.10.2"
 jspecify = "1.0.1"
 testcontainers = "2.0.5"
+angusMail = "2.0.5"
+greenmail = "2.1.14"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -48,6 +50,8 @@ lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus" }
 google-auth = { module = "com.google.auth:google-auth-library-oauth2-http", version.ref = "googleAuth" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail" }
+greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }

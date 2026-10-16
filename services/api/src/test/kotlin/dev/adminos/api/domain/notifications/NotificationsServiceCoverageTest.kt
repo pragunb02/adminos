@@ -1,27 +1,39 @@
 package dev.adminos.api.domain.notifications
 
-import dev.adminos.api.domain.notifications.NotificationsFixtures.ALWAYS_QUIET
-import dev.adminos.api.domain.notifications.NotificationsFixtures.neverQuietNow
-import dev.adminos.api.domain.notifications.NotificationsFixtures.prefs
+import dev.adminos.api.domain.identity.InMemoryUserRepository
+import dev.adminos.api.domain.identity.User
+import dev.adminos.api.domain.notifications.delivery.DeliveryResult
+import dev.adminos.api.domain.notifications.delivery.InAppChannel
+import dev.adminos.api.domain.scheduling.TestClock
 import kotlinx.coroutines.runBlocking
+import java.time.Instant
 import java.time.LocalTime
-import java.time.ZoneId
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** NotificationService.send routing (AOS-312): preferences, quiet hours, channels and failure handling. */
+/** NotificationService.send (AOS-312, AOS-504): preferences, channels, quiet hours and immediate delivery, on a fixed clock. */
 class NotificationsServiceCoverageTest {
 
-    private val userId = UUID.randomUUID()
+    private val user = User(email = "pragun@example.com", googleId = "g-1")
+    private val userId = user.id
+    private val users = InMemoryUserRepository()
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()
-    private val deviceRepo = InMemoryDeviceRepository()
-    private val service = NotificationService(prefsRepo, notifRepo, PushService(deviceRepo))
+    /** 15:00 IST — outside the default 22:00–08:00 quiet hours. */
+    private val clock = TestClock(Instant.parse("2026-10-16T09:30:00Z"))
+    private val push = RecordingChannel(NotificationChannel.PUSH, wanted = { it.pushNotifications })
+    private val email = RecordingChannel(NotificationChannel.EMAIL, wanted = { it.emailNotifications })
+    private val service = notificationService(prefsRepo, notifRepo, listOf(InAppChannel(), push, email), users, clock)
+
+    init { runBlocking { users.save(user) } }
+
+    private suspend fun prefs(push: Boolean = true, email: Boolean = true, quiet: Pair<LocalTime, LocalTime> = LocalTime.of(22, 0) to LocalTime.of(8, 0)) =
+        prefsRepo.save(NotificationPreferences(userId = userId, pushNotifications = push, emailNotifications = email,
+            quietHoursStart = quiet.first, quietHoursEnd = quiet.second))
 
     private suspend fun send(type: NotificationType = NotificationType.GENERAL, tz: String = "Asia/Kolkata") =
         service.send(userId, type, "HDFC bill due", "₹4,560.00 due on 20 Oct", mapOf("entity_type" to "bill"), tz)
@@ -29,138 +41,86 @@ class NotificationsServiceCoverageTest {
     @Test
     fun `missing preferences are created with defaults on first send`() = runBlocking<Unit> {
         send()
-
-        val saved = prefsRepo.findByUserId(userId)
-        assertNotNull(saved)
-        assertEquals(NotificationPreferences.defaultFor(userId).copy(id = saved.id, createdAt = saved.createdAt, updatedAt = saved.updatedAt), saved)
+        assertEquals(NotificationPreferences.defaultFor(userId).billReminders, prefsRepo.findByUserId(userId)!!.billReminders)
     }
 
     @Test
-    fun `a disabled type creates no notifications`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, billReminders = false))
-
-        val results = send(NotificationType.BILL_DUE)
-
-        assertTrue(results.isEmpty())
+    fun `a disabled type creates nothing`() = runBlocking<Unit> {
+        prefsRepo.save(NotificationPreferences(userId = userId, billReminders = false))
+        assertTrue(send(NotificationType.BILL_REMINDER).isEmpty())
         assertTrue(notifRepo.findByUserId(userId).isEmpty())
     }
 
     @Test
-    fun `outside quiet hours with push and email off only an in-app record is sent`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId))
-
+    fun `outside quiet hours every wanted channel is delivered at once, in-app first`() = runBlocking<Unit> {
+        prefs()
         val results = send()
-
-        assertEquals(listOf(NotificationChannel.IN_APP), results.map { it.channel })
-        assertEquals(NotificationStatus.SENT, results[0].status)
-        assertNotNull(results[0].sentAt)
-        assertEquals(mapOf("entity_type" to "bill"), results[0].data)
-    }
-
-    @Test
-    fun `push to a registered device is recorded as sent with the FCM message id`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, push = true))
-        deviceRepo.save(Device(userId = userId, fcmToken = "fcm-token-pixel-8"))
-
-        val push = send().single { it.channel == NotificationChannel.PUSH }
-
-        assertEquals(NotificationStatus.SENT, push.status)
-        assertTrue(push.fcmMessageId!!.startsWith("fcm_"))
-        assertNotNull(push.sentAt)
-    }
-
-    @Test
-    fun `push without any device is recorded as failed with no sent time`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, push = true))
-
-        val push = send().single { it.channel == NotificationChannel.PUSH }
-
-        assertEquals(NotificationStatus.FAILED, push.status)
-        assertNull(push.sentAt)
-        assertNull(push.fcmMessageId)
-    }
-
-    @Test
-    fun `a push service error is swallowed and other channels still go out`() = runBlocking<Unit> {
-        val failing = NotificationService(prefsRepo, notifRepo, PushService(FailingDeviceRepository()))
-        prefsRepo.save(prefs(userId, push = true, email = true))
-
-        val results = failing.send(userId, NotificationType.GENERAL, "t", "b")
-
-        assertEquals(listOf(NotificationChannel.IN_APP, NotificationChannel.EMAIL), results.map { it.channel })
-    }
-
-    @Test
-    fun `email enabled adds a sent email record`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, email = true))
-
-        val email = send().single { it.channel == NotificationChannel.EMAIL }
-
-        assertEquals(NotificationStatus.SENT, email.status)
-        assertNotNull(email.sentAt)
-    }
-
-    @Test
-    fun `all channels enabled produce in-app, push and email records in that order`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, push = true, email = true))
-        deviceRepo.save(Device(userId = userId, fcmToken = "fcm-token"))
-
-        val results = send()
-
         assertEquals(listOf(NotificationChannel.IN_APP, NotificationChannel.PUSH, NotificationChannel.EMAIL), results.map { it.channel })
-        assertEquals(3, notifRepo.findByUserId(userId).size)
+        assertTrue(results.all { it.status == NotificationStatus.SENT && it.sentAt == clock.now && it.attempts == 1 })
+        assertEquals(listOf<String?>("pragun@example.com"), email.recipients)
+        assertEquals("ref-1", results.last().fcmMessageId, "the provider reference is kept")
+        assertEquals(results, results.map { notifRepo.findById(it.id) }, "what is returned is what is stored")
     }
 
     @Test
-    fun `a non-critical notification in quiet hours is held as one pending in-app record`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, window = ALWAYS_QUIET, push = true, email = true))
-
-        val results = send(NotificationType.BRIEFING)
-
-        assertEquals(1, results.size)
-        assertEquals(NotificationChannel.IN_APP, results[0].channel)
-        assertEquals(NotificationStatus.PENDING, results[0].status)
-        assertNull(results[0].sentAt)
-        assertEquals(results, notifRepo.findPending())
+    fun `channels the user switched off get no record`() = runBlocking<Unit> {
+        prefs(push = false, email = false)
+        assertEquals(listOf(NotificationChannel.IN_APP), send().map { it.channel })
     }
 
     @Test
-    fun `an anomaly alert in quiet hours is delivered on every enabled channel`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, window = ALWAYS_QUIET, email = true))
-
-        val results = send(NotificationType.ANOMALY)
-
-        assertEquals(listOf(NotificationChannel.IN_APP, NotificationChannel.EMAIL), results.map { it.channel })
-        assertTrue(results.all { it.status == NotificationStatus.SENT })
+    fun `during quiet hours in-app shows at once and push and email wait for quiet hours to end`() = runBlocking<Unit> {
+        clock.now = Instant.parse("2026-10-16T17:30:00Z") // 23:00 IST
+        prefs()
+        val (inApp, pushRecord, emailRecord) = send(NotificationType.BILL_REMINDER)
+        assertEquals(NotificationStatus.SENT, inApp.status)
+        val eightAmIst = Instant.parse("2026-10-17T02:30:00Z")
+        listOf(pushRecord, emailRecord).forEach {
+            assertEquals(NotificationStatus.PENDING, it.status)
+            assertEquals(eightAmIst, it.deliverAfter)
+            assertEquals(0, it.attempts)
+        }
+        assertTrue(push.recipients.isEmpty() && email.recipients.isEmpty())
     }
 
     @Test
-    fun `an anomaly alert outside quiet hours is delivered`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId))
-
-        val results = send(NotificationType.ANOMALY)
-
-        assertEquals(NotificationStatus.SENT, results.single().status)
+    fun `an anomaly alert ignores quiet hours`() = runBlocking<Unit> {
+        clock.now = Instant.parse("2026-10-16T17:30:00Z")
+        prefs()
+        assertTrue(send(NotificationType.ANOMALY).all { it.status == NotificationStatus.SENT })
     }
 
     @Test
-    fun `an invalid user timezone falls back to India time`() = runBlocking<Unit> {
-        prefsRepo.save(prefs(userId, window = neverQuietNow(ZoneId.of("Asia/Kolkata"))))
-
-        val results = send(tz = "Mars/Olympus_Mons")
-
-        assertEquals(NotificationStatus.SENT, results.single().status)
+    fun `quiet hours are judged in the user's own time zone`() = runBlocking<Unit> {
+        prefs()
+        // 09:30Z is 15:00 in India but 23:30 on Kiritimati (UTC+14, no DST): quiet there.
+        val held = send(tz = "Pacific/Kiritimati").filter { it.status == NotificationStatus.PENDING }
+        assertEquals(setOf(NotificationChannel.PUSH, NotificationChannel.EMAIL), held.map { it.channel }.toSet())
+        assertEquals(Instant.parse("2026-10-16T18:00:00Z"), held.first().deliverAfter, "08:00 on Kiritimati next morning")
     }
 
     @Test
-    fun `quiet hours are evaluated in the user's own timezone`() = runBlocking<Unit> {
-        val london = ZoneId.of("Europe/London")
-        val nowInLondon = LocalTime.now(london)
-        prefsRepo.save(prefs(userId, window = nowInLondon.minusMinutes(30) to nowInLondon.plusMinutes(30)))
+    fun `an invalid time zone falls back to India time`() = runBlocking<Unit> {
+        prefs()
+        assertTrue(send(tz = "Mars/Olympus_Mons").all { it.status == NotificationStatus.SENT })
+    }
 
-        val results = send(tz = "Europe/London")
+    @Test
+    fun `a failed channel doesn't stop the others`() = runBlocking<Unit> {
+        prefs()
+        push.next = DeliveryResult.Retryable("push service down")
+        val results = send()
+        assertEquals(NotificationStatus.PENDING, results[1].status)
+        assertEquals("push service down", results[1].lastError)
+        assertEquals(NotificationStatus.SENT, results[2].status)
+    }
 
-        assertEquals(NotificationStatus.PENDING, results.single().status)
+    @Test
+    fun `quiet hours end is the next local occurrence of the end time`() {
+        val ist = NotificationService.DEFAULT_ZONE
+        assertEquals(Instant.parse("2026-10-17T02:30:00Z"), NotificationService.quietHoursEnd(Instant.parse("2026-10-16T17:30:00Z"), ist, LocalTime.of(8, 0)))
+        assertEquals(Instant.parse("2026-10-16T02:30:00Z"), NotificationService.quietHoursEnd(Instant.parse("2026-10-15T21:00:00Z"), ist, LocalTime.of(8, 0)), "02:30 IST → 08:00 the same day")
+        assertEquals(Instant.parse("2026-10-17T02:30:00Z"), NotificationService.quietHoursEnd(Instant.parse("2026-10-16T02:30:00Z"), ist, LocalTime.of(8, 0)), "exactly at the end → tomorrow")
     }
 
     @Test

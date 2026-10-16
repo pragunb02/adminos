@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~ scheduler done; next AOS-504 notification channels (in-app, Web Push for iPhone, email), then AOS-505, AOS-508, AOS-502/503, AOS-506, AOS-509, AOS-507. Pragun: AOS-111 OAuth client (unblocks real login and the real-data check), AOS-211/212 real SMS and statements, GitGuardian incident 38276594 → false positive, `.env` before `docker compose up`.
+**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~ scheduler, ~~AOS-504~~ email delivery done; next AOS-510 Web Push, then AOS-505, AOS-508, AOS-502/503, AOS-506, AOS-509, AOS-507. Pragun: SMTP settings in `.env` to get email (Gmail app password works), AOS-111 OAuth client (unblocks real login and the real-data check), AOS-211/212 real SMS and statements, GitGuardian incident 38276594 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -44,7 +44,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Statement parser (Python) | ✅ | ✅ | Called by the API; 31 tests |
 | Cash quick-add (AOS-204) | ✅ | 🟡 | `POST /transactions/cash` + "+ Cash" button; through the pipeline; tested (unit, route, Postgres). Not yet used live: needs login (AOS-112) |
 | Web pages (8) | ✅ | ❌ | Call the real API; blocked by auth |
-| Notifications | 🟡 | ❌ | FCM stubbed; email marked sent without sending |
+| Notifications | ✅ | 🟡 | AOS-504: in-app + SMTP email delivered, quiet-hours hold, retries (D-51). Web Push → AOS-510. Needs SMTP settings in `.env` |
 | Scheduler | ✅ | 🟡 | AOS-501: runs bill reminders, nudges, subscription detection once per slot (D-50). Briefing job → AOS-506 |
 | `services/api/Dockerfile` | ✅ | ✅ | JDK 25 JRE, non-root, healthcheck (AOS-110) |
 | Android SMS app | ❌ | ❌ | Not in repo |
@@ -86,6 +86,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 11. ~~AOS-607~~ fixed: the whole `JWT_SECRET` is the HMAC key. Existing sessions and device tokens must be re-issued once (sign in again; new Mac SMS reader token).
 12. AOS-503 — custom reminder days aren't persisted in Postgres (only the 3d/1d flags), and reminder/overdue dates use the server's date; Gmail bills without a due date fail the NOT NULL column. Now that reminders run (AOS-501) this matters; delivery is in-app only until AOS-504.
 13. AOS-505 — anomaly rule windows use "now", not the transaction's time. AOS-508 — card bill payments are transfers, so they never match card bills. AOS-506/509 — `AsynqPublisher` turns every payload value into a string.
+14. `GET /notifications` lists every channel's record, so one reminder appears up to 3 times; an inbox should list in-app only (with the inbox screen task).
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
@@ -104,6 +105,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
+  - AOS-504: notification delivery (D-51): `DeliveryChannel` plug-ins (in-app, SMTP email), dispatcher with backoff 5m/30m/3h then failed, quiet-hours hold until the user's local end, pending job every 5 min with lease claims, V18. FCM stub removed. **Found by tests:** static `Transport.send` ignored TLS settings. Unit 1,110, integration 100.
   - AOS-501: scheduler (D-50): `domain/scheduling` (Schedule, ScheduledJob, JobScheduler, claim per (job, slot) in V17 `job_runs`, retries, timeouts, shutdown-safe); jobs: bill reminders 09:00, nudges 11:00, subscription detection 04:00 IST. Unit 1,101, integration 99; 99.6% lines / 95.3% branches.
   - AOS-309: Review page (tabs in the URL; both sides, reason, score; plain-language answers; Undo for 5 s before sending; send on leave; error → card returns). `UndoToast` timer runs once per message. Web 283 unit (98.49% / 95.85%), Playwright 217 + 4 skips. **Milestone 3 code complete.**
   - AOS-307: Activity feed (filters in URL, batch apply, chips, day groups, edit sheet `?txn=`, re-categorize + Undo); API `nature` filter; **fixed feed paging that skipped same-timestamp rows** (cursor = time + id).

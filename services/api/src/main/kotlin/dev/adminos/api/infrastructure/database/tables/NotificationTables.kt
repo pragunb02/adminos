@@ -25,6 +25,10 @@ object NotificationsTable : Table("notifications") {
     val deliveredAt = timestamp("delivered_at").nullable()
     val clickedAt = timestamp("clicked_at").nullable()
     val createdAt = timestamp("created_at")
+    // V18 (AOS-504)
+    val deliverAfter = timestamp("deliver_after").nullable()
+    val attempts = integer("attempts").default(0)
+    val lastError = text("last_error").nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
