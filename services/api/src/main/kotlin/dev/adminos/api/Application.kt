@@ -3,6 +3,8 @@ package dev.adminos.api
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.di.appModule
 import dev.adminos.api.domain.identity.JwtService
+import dev.adminos.api.domain.identity.DeviceTokenService
+import dev.adminos.api.domain.identity.configureDeviceAuthentication
 import dev.adminos.api.domain.agent.agentModule
 import dev.adminos.api.domain.financial.financialModule
 import dev.adminos.api.domain.identity.identityModule
@@ -44,6 +46,8 @@ fun Application.module(config: AppConfig) {
     // Configure all Ktor plugins — JwtService from Koin (single instance)
     val jwtService: JwtService by inject()
     configurePlugins(config, jwtService)
+    val deviceTokenService: DeviceTokenService by inject()
+    configureDeviceAuthentication(deviceTokenService)
 
     // Domain modules — each registers its own routes, using Koin for dependencies
     identityModule(config)

@@ -19,6 +19,12 @@ import dev.adminos.api.domain.ingestion.events.IngestEventRepository
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.pipeline.*
+import dev.adminos.api.domain.ingestion.sms.SmsIntake
+import dev.adminos.api.domain.ingestion.sms.SmsParserRegistry
+import dev.adminos.api.domain.identity.DeviceTokenRepository
+import dev.adminos.api.domain.identity.DeviceTokenService
+import dev.adminos.api.domain.identity.InMemoryDeviceTokenRepository
+import dev.adminos.api.infrastructure.database.repositories.ExposedDeviceTokenRepository
 import dev.adminos.api.infrastructure.database.dbQuery
 import dev.adminos.api.domain.ingestion.webhook.GmailCronService
 import dev.adminos.api.domain.notifications.*
@@ -49,6 +55,7 @@ val appModule = module {
         single<ConnectionRepository> { ExposedConnectionRepository() }
         single<SyncSessionRepository> { ExposedSyncSessionRepository() }
         single<IngestEventRepository> { ExposedIngestEventRepository() }
+        single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
@@ -71,6 +78,7 @@ val appModule = module {
         single<ConnectionRepository> { InMemoryConnectionRepository() }
         single<SyncSessionRepository> { InMemorySyncSessionRepository() }
         single<IngestEventRepository> { InMemoryIngestEventRepository() }
+        single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
@@ -114,6 +122,11 @@ val appModule = module {
     }
     single { IngestProcessor(get(), get(), get()) }
     single { IngestEventService(get(), onAccepted = { get<IngestProcessor>().wake() }) }
+
+    // SMS intake (AOS-203): device tokens + parser registry
+    single { DeviceTokenService(get(), get()) }
+    single { SmsParserRegistry() }
+    single { SmsIntake(get(), get()) }
     single { ConnectionService(get(), get(), get()) }
     single { GmailCronService(get(), get()) }
 

@@ -55,3 +55,16 @@ object DevicesTable : Table("devices") {
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Maps to db/migration/V12__create_device_tokens.sql (AOS-203). */
+object DeviceTokensTable : Table("device_tokens") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val name = varchar("name", 100)
+    val scopes = text("scopes")
+    val createdAt = timestamp("created_at")
+    val expiresAt = timestamp("expires_at")
+    val lastUsedAt = timestamp("last_used_at").nullable()
+    val revokedAt = timestamp("revoked_at").nullable()
+    override val primaryKey = PrimaryKey(id)
+}

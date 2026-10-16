@@ -13,10 +13,12 @@ import org.koin.ktor.ext.inject
 fun Application.identityModule(config: AppConfig) {
     val authService: AuthService by inject()
     val auditService: AuditService by inject()
+    val deviceTokenService: DeviceTokenService by inject()
 
     routing {
         route("/api/v1") {
             authRoutes(authService, config.auth.accessTokenTtlSeconds, config, auditService)
+            deviceTokenRoutes(deviceTokenService)
         }
     }
 }

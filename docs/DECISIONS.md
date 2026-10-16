@@ -39,6 +39,8 @@
 | D-32 | Architecture | Same-origin proxy: web forwards /api/* to the API; edge proxy owns X-Forwarded-For | Accepted | AOS-108, AOS-605 |
 | D-33 | Product | iPhone SMS raw text may reach the server for parsing, but is never stored or logged | Accepted | AOS-113, AOS-203 |
 | D-34 | Architecture | Accuracy engine = Kotlin pipeline in the API; Go workers become fetchers | Accepted | AOS-201, AOS-205…210, AOS-401 |
+| D-35 | Architecture | SMS transport: Mac Messages reader now; iOS Shortcut via Cloudflare Access once hosted | Accepted | AOS-203, AOS-404, AOS-605 |
+| D-36 | Architecture | Device tokens: scoped JWT (typ=device) + revocable row; token types never interchangeable | Accepted | AOS-203 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -337,3 +339,30 @@ Proposed
   - The Go SMS worker is retired (AOS-201).
   - Gmail/PDF workers will post `IngestEvent`s instead of writing transactions (AOS-401/202). The Go
     normalizer/categorizer are then deleted.
+
+### D-35 — SMS transport: Mac Messages reader now, iOS Shortcut via Cloudflare later
+2026-10-16 · Accepted by Pragun ("A now and C later") · Type: Architecture · Tasks: AOS-203, AOS-404, AOS-605
+- **Now:**
+  - The iPhone's Text Message Forwarding copies SMS to the Mac.
+  - A small host-side reader (Go binary, Full Disk Access for that binary only) reads
+    `~/Library/Messages/chat.db` read-only and keeps business senders only.
+  - It posts to `127.0.0.1/api/v1/ingest/sms/raw` with a device token.
+  - **Why:** zero network exposure, and nothing is lost while the Mac sleeps (Messages syncs on wake).
+- **Later (public):**
+  - An iOS Shortcut posts to the hosted API through Cloudflare Tunnel + Access (service token).
+  - Same endpoint, same token model.
+  - Trade-offs accepted: Cloudflare sees the plaintext; SMS sent while the server is unreachable are lost.
+- **Rejected for financial data:** ngrok-style tunnels, Tailscale Funnel, Wi-Fi binds, iCloud file relays.
+  Research is in the AOS-203 ticket.
+
+### D-36 — Device tokens
+2026-10-16 · Accepted by Pragun · Type: Architecture · Tasks: AOS-203
+- **Token format:** a JWT from the existing `JwtService` with `typ=device`, `jti` = `device_tokens` row id,
+  `scope` (only `ingest:sms` today), 365-day expiry.
+- **Verification:** the row is checked on every use (revocation, expiry, owner, scope). `last_used_at` is recorded.
+- **Separation:**
+  - Access tokens now carry `typ=access`, and **both verifiers check type and issuer**.
+  - A device token can never act as a login, and vice versa.
+  - The device provider reads the Authorization header only (no cookies).
+- **Handling:** shown once at creation; list responses never include it; revocable from Settings.
+- The raw-SMS endpoint decodes bodies itself, so errors never echo message text (D-33).
