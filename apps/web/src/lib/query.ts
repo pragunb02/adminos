@@ -49,7 +49,7 @@ export const getPage = <T>(path: string): Promise<Page<T>> =>
   }, network);
 export const postData = <T>(path: string, body: unknown) => api.post<T>(path, body).then(unwrap, network);
 export const patchData = <T>(path: string, body: unknown) => api.patch<T>(path, body).then(unwrap, network);
-export const deleteData = <T>(path: string) => api.delete<T>(path).then(unwrap, network);
+export const deleteData = <T>(path: string, body?: unknown) => api.delete<T>(path, body).then(unwrap, network);
 
 /** The message to show for any error a query or mutation produced. */
 export const errorMessage = (e: unknown, fallback = "Something went wrong") => (e instanceof Error ? e.message : fallback);

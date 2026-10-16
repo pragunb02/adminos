@@ -10,7 +10,9 @@ data class AppConfig(
     val google: GoogleConfig,
     val scheduler: SchedulerConfig = SchedulerConfig(),
     /** Email notifications (AOS-504); null = email is off. */
-    val smtp: SmtpConfig? = null
+    val smtp: SmtpConfig? = null,
+    /** Web Push (AOS-510); null = push is off. */
+    val vapid: VapidConfig? = null
 ) {
     companion object {
         fun load(): AppConfig = AppConfig(
@@ -53,7 +55,8 @@ data class AppConfig(
                 gmailPubsubSubscription = env("GOOGLE_GMAIL_PUBSUB_SUBSCRIPTION", "")
             ),
             scheduler = SchedulerConfig.from(System::getenv),
-            smtp = SmtpConfig.from(System::getenv)
+            smtp = SmtpConfig.from(System::getenv),
+            vapid = VapidConfig.from(System::getenv)
         )
 
         private fun env(key: String, default: String): String =
@@ -213,6 +216,46 @@ data class SmtpConfig(
                 throw IllegalArgumentException("SMTP_FROM is not a valid address: '$from'", e)
             }
             return SmtpConfig(host, port, security, value("SMTP_USERNAME"), value("SMTP_PASSWORD"), address)
+        }
+    }
+}
+
+/**
+ * Web Push signing keys (AOS-510, RFC 8292). Generate with `./gradlew -q vapidKeys`. Push is off
+ * unless both keys are set; a half or mismatched pair, or a missing contact, stops start-up.
+ */
+data class VapidConfig(
+    /** 65-byte uncompressed P-256 point, URL-safe base64 — given to browsers when they subscribe. */
+    val publicKey: String,
+    /** 32-byte P-256 scalar, URL-safe base64. Secret. */
+    val privateKey: String,
+    /** `mailto:` or `https:` contact the push services can reach if something goes wrong. */
+    val subject: String
+) {
+    init {
+        require(subject.startsWith("mailto:") || subject.startsWith("https://")) { "VAPID_SUBJECT must be a mailto: or https: contact" }
+        val private = try {
+            dev.adminos.api.infrastructure.push.P256.privateKey(dev.adminos.api.infrastructure.push.B64.decode(privateKey))
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("VAPID_PRIVATE_KEY is not a P-256 private key (URL-safe base64 of 32 bytes)", e)
+        }
+        val derived = dev.adminos.api.infrastructure.push.B64.encode(
+            dev.adminos.api.infrastructure.push.P256.encode(dev.adminos.api.infrastructure.push.P256.publicOf(private)))
+        require(derived == publicKey.trim().trimEnd('=')) { "VAPID_PUBLIC_KEY doesn't match VAPID_PRIVATE_KEY" }
+    }
+
+    /** Never print the private key. */
+    override fun toString() = "VapidConfig(publicKey=$publicKey, subject=$subject)"
+
+    companion object {
+        internal fun from(getenv: (String) -> String?): VapidConfig? {
+            fun value(key: String) = getenv(key)?.trim()?.takeIf { it.isNotEmpty() }
+            val public = value("VAPID_PUBLIC_KEY")
+            val private = value("VAPID_PRIVATE_KEY")
+            if (public == null && private == null) return null
+            require(public != null && private != null) { "Set both VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY (./gradlew -q vapidKeys), or neither" }
+            val subject = value("VAPID_SUBJECT") ?: throw IllegalArgumentException("VAPID_SUBJECT is required with VAPID keys, e.g. mailto:you@example.com")
+            return VapidConfig(public.trimEnd('='), private, subject)
         }
     }
 }

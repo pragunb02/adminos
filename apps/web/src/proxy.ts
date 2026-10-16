@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/health"];
 
+/**
+ * Static files a browser fetches without the session cookie (AOS-510): the manifest is requested
+ * without credentials, and the service worker re-checks itself even after a session expires.
+ * They contain no data.
+ */
+const PUBLIC_FILES = new Set(["/manifest.webmanifest", "/sw.js", "/icon-192.png", "/icon-512.png", "/apple-icon.png"]);
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -12,7 +19,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Allow public paths
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (PUBLIC_FILES.has(pathname) || PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 

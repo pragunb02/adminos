@@ -105,8 +105,8 @@ class ApiClient {
     return this.request<T>(path, { method: "PATCH", body: JSON.stringify(body) });
   }
 
-  delete<T>(path: string) {
-    return this.request<T>(path, { method: "DELETE" });
+  delete<T>(path: string, body?: unknown) {
+    return this.request<T>(path, { method: "DELETE", ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   }
 }
 

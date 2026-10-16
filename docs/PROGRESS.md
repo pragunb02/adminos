@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~ scheduler, ~~AOS-504~~ email delivery done; next AOS-510 Web Push, then AOS-505, AOS-508, AOS-502/503, AOS-506, AOS-509, AOS-507. Pragun: SMTP settings in `.env` to get email (Gmail app password works), AOS-111 OAuth client (unblocks real login and the real-data check), AOS-211/212 real SMS and statements, GitGuardian incident 38276594 → false positive.
+**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~, ~~AOS-504~~, ~~AOS-510~~ done (story S5.1 ✅); next AOS-505 unusual-charge alerts, then AOS-508, AOS-502/503, AOS-506, AOS-509, AOS-507. Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys (`./gradlew -q vapidKeys`) and SMTP settings in `.env`, then iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594 and 38288540 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -44,7 +44,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Statement parser (Python) | ✅ | ✅ | Called by the API; 31 tests |
 | Cash quick-add (AOS-204) | ✅ | 🟡 | `POST /transactions/cash` + "+ Cash" button; through the pipeline; tested (unit, route, Postgres). Not yet used live: needs login (AOS-112) |
 | Web pages (8) | ✅ | ❌ | Call the real API; blocked by auth |
-| Notifications | ✅ | 🟡 | AOS-504: in-app + SMTP email delivered, quiet-hours hold, retries (D-51). Web Push → AOS-510. Needs SMTP settings in `.env` |
+| Notifications | ✅ | 🟡 | In-app, SMTP email (AOS-504) and Web Push incl. iPhone Home Screen app (AOS-510); quiet-hours hold, retries (D-51, D-52). Needs SMTP/VAPID settings in `.env` |
 | Scheduler | ✅ | 🟡 | AOS-501: runs bill reminders, nudges, subscription detection once per slot (D-50). Briefing job → AOS-506 |
 | `services/api/Dockerfile` | ✅ | ✅ | JDK 25 JRE, non-root, healthcheck (AOS-110) |
 | Android SMS app | ❌ | ❌ | Not in repo |
@@ -105,6 +105,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
+  - AOS-510: Web Push (D-52): RFC 8291 encryption + RFC 8292 VAPID with JDK crypto (RFC test vector passes), push-service allowlist (no SSRF), `/api/v1/push` routes, V19, `./gradlew -q vapidKeys`; web service worker, manifest + icons, Settings → Notifications on this device. **Found by tests:** the route guard would have blocked the manifest and service worker without a session. API unit 1,146 / integration 101; web 310 unit, Playwright 226 + 7 skips.
   - AOS-504: notification delivery (D-51): `DeliveryChannel` plug-ins (in-app, SMTP email), dispatcher with backoff 5m/30m/3h then failed, quiet-hours hold until the user's local end, pending job every 5 min with lease claims, V18. FCM stub removed. **Found by tests:** static `Transport.send` ignored TLS settings. Unit 1,110, integration 100.
   - AOS-501: scheduler (D-50): `domain/scheduling` (Schedule, ScheduledJob, JobScheduler, claim per (job, slot) in V17 `job_runs`, retries, timeouts, shutdown-safe); jobs: bill reminders 09:00, nudges 11:00, subscription detection 04:00 IST. Unit 1,101, integration 99; 99.6% lines / 95.3% branches.
   - AOS-309: Review page (tabs in the URL; both sides, reason, score; plain-language answers; Undo for 5 s before sending; send on leave; error → card returns). `UndoToast` timer runs once per message. Web 283 unit (98.49% / 95.85%), Playwright 217 + 4 skips. **Milestone 3 code complete.**
