@@ -121,4 +121,14 @@ class CrossSourceDedupFlowTest {
         assertEquals(3, all().size)
         assertTrue(duplicates.suggestions(user).none { it.link.id == s2.link.id }, "a rejected pair is not listed again")
     }
+
+    @Test
+    fun `an SMS and the Gmail alert for the same payment are one transaction (AOS-205)`() = runBlocking<Unit> {
+        ingest(sms("s1", 3, 9))
+        // As the Go Gmail worker writes it: message ID as ref, no payment method, merchant from the email.
+        ingest(IngestEvent(userId = user, source = IngestSource.GMAIL, sourceRef = "18c2f0a1b2", occurredAt = at(3, 9, 2),
+            direction = IngestDirection.DEBIT, amount = BigDecimal("249.00"), merchantRaw = "SWIGGY", accountHint = "1234"))
+        val t = all().single()
+        assertEquals(setOf("gmail"), links.mergedSources(listOf(t.id))[t.id])
+    }
 }

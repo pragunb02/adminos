@@ -47,6 +47,7 @@
 | D-40 | Business logic | Refund/reversal rules: reversal = exact amount ≤5 days with ref/narration; refund ≤ original (capped), same merchant, ≤90 days; refunds net category spend | Accepted | AOS-209 |
 | D-41 | Business logic | One categorizer; corrections remembered per payee (UPI ID, else merchant), applied to future and past (not hand-set); no guessed transfers | Accepted | AOS-210 |
 | D-42 | Business logic | ATM/cash withdrawals are transfers to cash; only cash logged by hand counts as spending | Accepted | AOS-204 |
+| D-43 | Business logic | Email direction: account-anchored phrase wins, else one word family; unclear → needs-review, never guessed. Gmail writes ingest events, not transactions | Accepted | AOS-205, AOS-401 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -441,3 +442,14 @@ Proposed
 - The **spending is the cash you log** (cash quick-add), with its own category. Otherwise every logged cash payment would count twice.
 - **Trade-off:** cash withdrawn but never logged doesn't show as spending. A later "unlogged cash" view can show withdrawals minus logged cash (AOS-3xx).
 - Cash entries keep the category you chose, are idempotent per entry, and are never matched as duplicates of bank transactions.
+
+### D-43 — How an email's direction is decided; Gmail uses the common intake
+2026-10-16 · Accepted by Pragun ("ok") · Type: Business logic · Tasks: AOS-205, AOS-401
+- **Direction:**
+  1. What happened to *your* account wins: "debited from / credited to (your) a/c|account|card".
+     - Bank emails often say both: "debited from your a/c … credited to VPA x".
+  2. Otherwise, if only debit words (debited, spent, paid, charged, purchase, withdrawn, sent) or only credit words (credited, received, refund, deposited, cashback, reversed) appear, that's the direction.
+  3. **Otherwise it's unclear:** the email is skipped and counted as needs-review. Never guessed: a wrong "debit" on a salary email is worse than a gap.
+- **The Gmail worker only fetches and extracts.** It writes `ingest_events` (source gmail, keyed by message ID) and never writes `transactions`. The pipeline does the rest (D-34).
+- **The time** is the email's Date header; otherwise the date in the body at 00:00 India time.
+- **If Gmail can't be reached, the job fails** (and is retried) instead of reporting a successful empty sync.
