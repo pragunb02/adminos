@@ -54,6 +54,7 @@
 | D-47 | Process | Web tests: Vitest + Testing Library + MSW (unit), Playwright (end-to-end); coverage gate 90% lines / 85% branches; console state (period, filters) lives in the URL | Accepted | AOS-310, AOS-311, AOS-312, AOS-303…309 |
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
+| D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -531,3 +532,13 @@ Proposed
 - **Undo instead of confirmation** for re-categorize, confirm and reject.
 - **Colour is never the only signal:** refunds show "+" and a label; the palette is Okabe–Ito; contrast meets WCAG AA (enforced by axe, AOS-311).
 - **Money:** Indian grouping (₹12,34,567); ₹1.2L / ₹1.2Cr on axes; amounts stay exact strings (D-30).
+
+### D-50 — Scheduled jobs: in-process, claimed per slot
+2026-10-16 · Accepted (Pragun: "go go ahead" on the E5 plan; "best practices … extensible … handle all the edge cases") · Type: Architecture · Tasks: AOS-501
+- **Where:** jobs run inside the API, like the ingest processor (D-34). Rejected: Quartz (heavy), Asynq periodic tasks in Go (the jobs are Kotlin services), container cron hitting an admin endpoint (extra auth surface and container).
+- **Once per slot:** a schedule divides time into slots; a run is started only by claiming (job, slot) in `job_runs` (unique key + row lock). Several API instances and restarts are safe.
+- **Catch-up:** only the latest slot is considered, so after downtime a job runs once, not once per missed slot. Jobs must therefore be idempotent and read current state.
+- **Failures:** retried after a delay (default 15 min, 3 attempts); a run whose instance died is taken over when its lease expires; a run over its timeout (default 10 min) is cancelled and recorded failed; shutdown records a failure so the slot is retried.
+- **Extending:** a job is one class registered as `ScheduledJob`; a new schedule type is one `Schedule` implementation.
+- **Off switch:** `SCHEDULER_ENABLED=false` for request-only instances and for the shared integration-test database.
+

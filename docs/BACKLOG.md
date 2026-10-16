@@ -112,19 +112,21 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S4.3](tickets/AOS-S4.3.md)** | **SMS history backfill** | | ⬜ | 3h | |
 | └ AOS-404 | Mac chat.db SMS backfill (delivered in AOS-203: `--backfill-days`) | Claude | ✅ | 3h | 0h |
 
-## ⬜ [AOS-E5](tickets/AOS-E5.md) — Money admin & smart extras · P1 · ETA 26h
+## 🟦 [AOS-E5](tickets/AOS-E5.md) — Money admin & smart extras · P1 · ETA 26h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| **[AOS-S5.1](tickets/AOS-S5.1.md)** | **Scheduler & notifications** | | ⬜ | 7h | |
-| └ AOS-501 | Scheduler (detectors, reminders, briefing) | Claude | ⬜ | 3h |  |
-| └ AOS-504 | Real notifications (push/email) | Claude | ⬜ | 4h |  |
+| **[AOS-S5.1](tickets/AOS-S5.1.md)** | **Scheduler & notifications** | | 🟦 | 7h | |
+| └ [AOS-501](tickets/AOS-501.md) | Scheduler: once per slot across instances, retries, timeouts; reminders, nudges, subscription detection (D-50) | Claude | ✅ | 3h | 2h |
+| └ AOS-504 | Real notifications: channel plug-ins (in-app, Web Push for iPhone, email); send held quiet-hours notices | Claude | ⬜ | 4h |  |
 | **[AOS-S5.2](tickets/AOS-S5.2.md)** | **Recurring payments & dues** | | ⬜ | 8h | |
 | └ AOS-502 | Recurring / UPI AutoPay mandate tracker | Claude | ⬜ | 4h |  |
-| └ AOS-503 | Dues & renewals calendar + reminders | Claude | ⬜ | 4h |  |
+| └ AOS-503 | Dues & renewals calendar + reminders (fix: custom reminder days persisted, user-zone dates, Gmail bills without a due date) | Claude | ⬜ | 4h |  |
+| └ AOS-508 | Bill-payment matching after each transaction, incl. card bills paid by transfer | Claude | ⬜ | — |  |
 | **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | ⬜ | 5h | |
-| └ AOS-505 | Unusual-charge alerts (wire existing rules) | Claude | ⬜ | 2h |  |
-| └ AOS-506 | Weekly briefing with real data | Claude | ⬜ | 3h |  |
+| └ AOS-505 | Unusual-charge alerts: rules as a pipeline step, judged at the transaction's time | Claude | ⬜ | 2h |  |
+| └ AOS-506 | Weekly briefing with real data (fix: queue payload types) | Claude | ⬜ | 3h |  |
+| └ AOS-509 | Subscription waste score from SMS/statement signals | Claude | ⬜ | — |  |
 | **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ⬜ | 6h | |
 | └ AOS-507 | Documents vault | Claude | ⬜ | 6h |  |
 

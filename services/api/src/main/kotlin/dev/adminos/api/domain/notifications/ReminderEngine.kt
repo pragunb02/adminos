@@ -3,6 +3,8 @@ package dev.adminos.api.domain.notifications
 import dev.adminos.api.domain.financial.Bill
 import dev.adminos.api.domain.financial.BillRepository
 import dev.adminos.api.domain.financial.BillStatus
+import dev.adminos.api.domain.scheduling.BatchCounts
+import dev.adminos.api.domain.scheduling.forEachIsolated
 import org.slf4j.LoggerFactory
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -21,33 +23,33 @@ class ReminderEngine(
 ) {
     private val logger = LoggerFactory.getLogger(ReminderEngine::class.java)
 
-    suspend fun runReminders() {
+    /** Marks overdue bills, then sends due reminders. One bill's failure never stops the others. */
+    suspend fun runReminders(): ReminderRunSummary {
         val today = LocalDate.now()
-        markOverdueBills(today)
+        val overdue = markOverdueBills(today)
 
         // Fix #1: delegate to repository instead of returning empty list
         val upcomingBills = billRepository.findUpcoming(7)
-
-        for (bill in upcomingBills) {
-            try {
-                processReminder(bill, today)
-            } catch (e: Exception) {
-                logger.error("Failed to process reminder for bill {}: {}", bill.id, e.message)
-            }
+        var sent = 0
+        val counts = forEachIsolated(upcomingBills, logger, { "reminder for bill ${it.id}" }) { bill ->
+            sent += processReminder(bill, today)
         }
+        return ReminderRunSummary(overdueMarked = overdue.succeeded, remindersSent = sent, failed = overdue.failed + counts.failed)
     }
 
-    internal suspend fun processReminder(bill: Bill, today: LocalDate) {
+    /** @return how many reminders were sent for [bill] */
+    internal suspend fun processReminder(bill: Bill, today: LocalDate): Int {
         val daysUntilDue = ChronoUnit.DAYS.between(today, bill.dueDate).toInt()
-        if (daysUntilDue < 0) return
+        if (daysUntilDue < 0) return 0
 
         val prefs = preferencesRepository.findByUserId(bill.userId)
             ?: NotificationPreferences.defaultFor(bill.userId)
 
-        if (!prefs.billReminders) return
+        if (!prefs.billReminders) return 0
 
         // Each day once, and check against the bill as updated by this run (AOS-613: [3,3] sent twice).
         var current = bill
+        var sent = 0
         for (reminderDay in prefs.billReminderDays.distinct()) {
             if (daysUntilDue == reminderDay && !isReminderSent(current, reminderDay)) {
                 notificationService.send(
@@ -70,14 +72,15 @@ class ReminderEngine(
                     sentReminderDays = updatedSentDays
                 )
                 current = billRepository.update(updated)
-                logger.info("Sent {}d reminder for bill {} ({})", reminderDay, bill.id, bill.billerName)
+                sent++
+                logger.info("Sent {}d reminder for bill {}", reminderDay, bill.id)
             }
         }
+        return sent
     }
 
-    internal suspend fun markOverdueBills(today: LocalDate) {
-        val overdueBills = billRepository.findOverdue()
-        for (bill in overdueBills) {
+    internal suspend fun markOverdueBills(today: LocalDate): BatchCounts =
+        forEachIsolated(billRepository.findOverdue(), logger, { "overdue bill ${it.id}" }) { bill ->
             billRepository.update(bill.copy(status = BillStatus.OVERDUE))
             notificationService.send(
                 userId = bill.userId,
@@ -87,7 +90,6 @@ class ReminderEngine(
                 data = mapOf("entity_type" to "bill", "entity_id" to bill.id.toString())
             )
         }
-    }
 
     // Fix #2: Check sentReminderDays set for custom days, fall back to flags for 3/1
     private fun isReminderSent(bill: Bill, days: Int): Boolean {
@@ -117,3 +119,6 @@ class ReminderEngine(
         }
     }
 }
+
+/** What one reminder run did (counts only). */
+data class ReminderRunSummary(val overdueMarked: Int, val remindersSent: Int, val failed: Int)

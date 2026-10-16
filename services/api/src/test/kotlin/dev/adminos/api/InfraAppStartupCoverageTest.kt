@@ -24,11 +24,20 @@ import kotlin.test.assertTrue
 /** The real `Application.module` (in-memory configuration) and the Netty start-up used by `main` (AOS-312). */
 class InfraAppStartupCoverageTest {
 
-    private fun appTest(block: suspend io.ktor.server.testing.ApplicationTestBuilder.() -> Unit) = testApplication {
+    private fun appTest(
+        appConfig: dev.adminos.api.config.AppConfig = config,
+        block: suspend io.ktor.server.testing.ApplicationTestBuilder.() -> Unit
+    ) = testApplication {
         environment { this.config = MapApplicationConfig() }
-        application { module(config) }
+        application { module(appConfig) }
         block()
     }
+
+    @Test
+    fun `the app starts and serves with the scheduler switched off`() =
+        appTest(config.copy(scheduler = dev.adminos.api.config.SchedulerConfig(enabled = false))) {
+            assertEquals(HttpStatusCode.OK, client.get("/health").status)
+        }
 
     @Test
     fun `health route answers ok with the standard envelope`() = appTest {

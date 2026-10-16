@@ -135,7 +135,7 @@ class NotificationsDropOffNudgeCoverageTest {
         val pending = user(0, createdAt = Instant.now().minus(1, ChronoUnit.DAYS).minus(1, ChronoUnit.HOURS))
         val done = user(0, OnboardingStatus.COMPLETED, createdAt = Instant.now().minus(1, ChronoUnit.DAYS).minus(1, ChronoUnit.HOURS))
 
-        service.runNudges()
+        assertEquals(NudgeRunSummary(usersChecked = 1, nudgesSent = 1, failed = 0), service.runNudges())
 
         assertEquals(listOf("gmail"), sources(pending))
         assertTrue(notifRepo.findByUserId(done.id).isEmpty())
@@ -149,7 +149,7 @@ class NotificationsDropOffNudgeCoverageTest {
         val failingRepo = FailingForUserNotificationRepository(broken.id)
         val svc = DropOffNudgeService(users, failingRepo, NotificationService(prefsRepo, failingRepo, PushService(InMemoryDeviceRepository())))
 
-        svc.runNudges()
+        assertEquals(NudgeRunSummary(usersChecked = 2, nudgesSent = 1, failed = 1), svc.runNudges())
 
         assertEquals(1, failingRepo.findByUserAndType(ok.id, NotificationType.NUDGE).size)
     }

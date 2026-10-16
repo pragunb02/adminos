@@ -14,6 +14,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 
 /**
  * Property 2: Repository Save/FindById Round-Trip (Exposed)
@@ -99,6 +101,23 @@ class ExposedUserRepositoryIntegrationTest {
         assertNotNull(found)
         assertEquals(user.id, found!!.id)
         assertEquals(email, found.email)
+    }
+
+    @Test
+    fun `findActive returns users who can sign in, not inactive or deleted ones`() = runBlocking<Unit> {
+        val repo = ExposedUserRepository()
+        fun user(tag: String, active: Boolean = true, deleted: Boolean = false) =
+            User(email = "$tag-${UUID.randomUUID()}@example.com", googleId = "g-$tag-${UUID.randomUUID()}", isActive = active,
+                deletedAt = if (deleted) Instant.now() else null)
+        val active = repo.save(user("active"))
+        val inactive = repo.save(user("inactive", active = false))
+        val deleted = repo.save(user("deleted", deleted = true))
+
+        val ids = repo.findActive().map { it.id }
+
+        assertTrue(active.id in ids)
+        assertFalse(inactive.id in ids)
+        assertFalse(deleted.id in ids)
     }
 
     @Test

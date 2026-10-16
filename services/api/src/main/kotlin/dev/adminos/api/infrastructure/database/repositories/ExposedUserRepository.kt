@@ -34,6 +34,12 @@ class ExposedUserRepository : UserRepository {
         }.map { it.toUser() }
     }
 
+    override suspend fun findActive(): List<User> = dbQuery {
+        UsersTable.selectAll().where { (UsersTable.isActive eq true) and UsersTable.deletedAt.isNull() }
+            .orderBy(UsersTable.createdAt to SortOrder.ASC)
+            .map { it.toUser() }
+    }
+
     override suspend fun save(user: User): User = dbQuery {
         try {
             UsersTable.insert {

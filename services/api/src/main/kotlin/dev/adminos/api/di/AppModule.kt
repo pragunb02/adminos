@@ -41,7 +41,9 @@ import dev.adminos.api.infrastructure.database.repositories.*
 import dev.adminos.api.infrastructure.queue.AsynqPublisher
 import io.lettuce.core.RedisClient
 import org.koin.core.module.Module
+import org.koin.dsl.bind
 import org.koin.dsl.module
+import dev.adminos.api.domain.scheduling.*
 
 val appModule = buildAppModule()
 
@@ -86,6 +88,8 @@ internal fun buildAppModule(
         single<NotificationRepository> { ExposedNotificationRepository() }
         // Audit
         single<AuditRepository> { ExposedAuditRepository() }
+        // Scheduling
+        single<JobRunRepository> { ExposedJobRunRepository() }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -108,6 +112,7 @@ internal fun buildAppModule(
         single<NotificationPreferencesRepository> { InMemoryNotificationPreferencesRepository() }
         single<NotificationRepository> { InMemoryNotificationRepository() }
         single<AuditRepository> { InMemoryAuditRepository() }
+        single<JobRunRepository> { InMemoryJobRunRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -180,4 +185,10 @@ internal fun buildAppModule(
     single { NotificationService(get(), get(), get()) }
     single { ReminderEngine(get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
+
+    // Scheduled jobs (AOS-501, D-50): a new job is one `single { … } bind ScheduledJob::class` line.
+    single { BillRemindersJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

@@ -7,6 +7,8 @@ interface UserRepository {
     suspend fun findByGoogleId(googleId: String): User?
     suspend fun findByEmail(email: String): User?
     suspend fun findByOnboardingIncomplete(): List<User>
+    /** Users who can sign in (active, not deleted): the ones scheduled per-user work runs for. */
+    suspend fun findActive(): List<User>
     suspend fun save(user: User): User
     suspend fun update(user: User): User
 }

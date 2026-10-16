@@ -23,6 +23,8 @@ class InMemoryUserRepository : UserRepository {
     override suspend fun findByOnboardingIncomplete(): List<User> =
         users.values.filter { it.onboardingStatus != OnboardingStatus.COMPLETED && it.isActive }
 
+    override suspend fun findActive(): List<User> = users.values.filter { it.canSignIn() }
+
     override suspend fun save(user: User): User {
         users[user.id] = user
         return user
