@@ -7,7 +7,8 @@ data class AppConfig(
     val app: AppSettings,
     val security: SecurityConfig,
     val statementParser: StatementParserConfig,
-    val google: GoogleConfig
+    val google: GoogleConfig,
+    val scheduler: SchedulerConfig = SchedulerConfig()
 ) {
     companion object {
         fun load(): AppConfig = AppConfig(
@@ -48,7 +49,8 @@ data class AppConfig(
             google = GoogleConfig(
                 gmailPubsubTopic = env("GOOGLE_GMAIL_PUBSUB_TOPIC", ""),
                 gmailPubsubSubscription = env("GOOGLE_GMAIL_PUBSUB_SUBSCRIPTION", "")
-            )
+            ),
+            scheduler = SchedulerConfig.from(System::getenv)
         )
 
         private fun env(key: String, default: String): String =
@@ -124,3 +126,41 @@ data class GoogleConfig(
     val gmailPubsubTopic: String,
     val gmailPubsubSubscription: String
 )
+
+/**
+ * Scheduled jobs (AOS-501). On by default; `SCHEDULER_ENABLED=false` turns them off (e.g. a second
+ * instance that should only serve requests, or tests). Invalid values stop start-up.
+ */
+data class SchedulerConfig(
+    val enabled: Boolean = true,
+    /** How often the scheduler checks for due slots. */
+    val tick: java.time.Duration = java.time.Duration.ofSeconds(30),
+    /** The time zone daily jobs are scheduled in (the owner's; per-user zones are a later step). */
+    val zone: java.time.ZoneId = java.time.ZoneId.of("Asia/Kolkata")
+) {
+    init {
+        require(tick >= java.time.Duration.ofSeconds(1)) { "SCHEDULER_TICK_SECONDS must be at least 1" }
+    }
+
+    companion object {
+        internal fun from(getenv: (String) -> String?): SchedulerConfig {
+            val enabled = when (val raw = getenv("SCHEDULER_ENABLED")?.trim()?.lowercase()) {
+                null, "", "true" -> true
+                "false" -> false
+                else -> throw IllegalArgumentException("SCHEDULER_ENABLED must be true or false, was '$raw'")
+            }
+            val tick = getenv("SCHEDULER_TICK_SECONDS")?.trim()?.takeIf { it.isNotEmpty() }?.let { raw ->
+                val seconds = raw.toLongOrNull() ?: throw IllegalArgumentException("SCHEDULER_TICK_SECONDS must be a whole number, was '$raw'")
+                java.time.Duration.ofSeconds(seconds)
+            } ?: java.time.Duration.ofSeconds(30)
+            val zone = getenv("SCHEDULER_ZONE")?.trim()?.takeIf { it.isNotEmpty() }?.let { raw ->
+                try {
+                    java.time.ZoneId.of(raw)
+                } catch (e: java.time.DateTimeException) {
+                    throw IllegalArgumentException("SCHEDULER_ZONE must be a time zone such as Asia/Kolkata, was '$raw'", e)
+                }
+            } ?: java.time.ZoneId.of("Asia/Kolkata")
+            return SchedulerConfig(enabled, tick, zone)
+        }
+    }
+}

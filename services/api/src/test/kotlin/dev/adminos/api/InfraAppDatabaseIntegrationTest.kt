@@ -29,7 +29,9 @@ class InfraAppDatabaseIntegrationTest {
     @Test
     fun `the app starts on Postgres and stores intake events there`() {
         val ds = PostgresTestDatabase.dataSource as HikariDataSource
-        val dbConfig = config.copy(database = config.database.copy(url = ds.jdbcUrl, user = ds.username, password = ds.password, maxPoolSize = 2))
+        val dbConfig = config.copy(database = config.database.copy(url = ds.jdbcUrl, user = ds.username, password = ds.password, maxPoolSize = 2),
+            // The shared test database is used by other tests too: no scheduled jobs touching their data.
+            scheduler = dev.adminos.api.config.SchedulerConfig(enabled = false))
         val user = runBlocking {
             ExposedUserRepository().save(User(email = "db-${UUID.randomUUID()}@example.in", googleId = "g-${UUID.randomUUID()}",
                 role = UserRole.OWNER, onboardingStatus = OnboardingStatus.STARTED))

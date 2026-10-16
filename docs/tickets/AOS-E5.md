@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | **Type** | Epic |
-| **Status** | ⬜ Todo |
+| **Status** | 🟦 In progress |
 | **Priority** | P1 |
 | **Owner** | Pragun |
 | **ETA (rollup)** | 26h |
@@ -11,7 +11,7 @@
 | **Target date** | TBD (AOS-005) |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **BRD reference** | §5.3, §5.4, §6 M5 |
-| **Decisions** | D-3 |
+| **Decisions** | D-3, D-48, D-50 |
 | **Depends on** | AOS-E3 |
 
 ## Goal
@@ -25,7 +25,7 @@ The app tells me what to act on: mandates, dues, odd charges, a weekly briefing.
 ## Stories
 | ID | Story | Status | ETA |
 |---|---|---|---|
-| [AOS-S5.1](AOS-S5.1.md) | Scheduler & notifications | ⬜ | 7h |
+| [AOS-S5.1](AOS-S5.1.md) | Scheduler & notifications | 🟦 | 7h |
 | [AOS-S5.2](AOS-S5.2.md) | Recurring payments & dues | ⬜ | 8h |
 | [AOS-S5.3](AOS-S5.3.md) | Alerts & weekly briefing | ⬜ | 5h |
 | [AOS-S5.4](AOS-S5.4.md) | Documents vault | ⬜ | 6h |
@@ -33,9 +33,19 @@ The app tells me what to act on: mandates, dues, odd charges, a weekly briefing.
 ## Out of scope
 - Auto-paying or auto-cancelling
 
+## Plan (2026-10-16, Pragun: "go go ahead"; no ETAs, as soon as possible)
+Order: AOS-501 scheduler → AOS-504 notification channels (in-app, Web Push for iPhone, email) → AOS-505 unusual-charge alerts → AOS-508 bill-payment matching → AOS-502/503 recurring, mandates, dues calendar → AOS-506 weekly briefing → AOS-509 waste score → AOS-507 documents vault (needs a storage decision, D-37).
+
+Legacy bugs found by the E5 survey, each fixed in its task:
+- AOS-503: custom reminder days not persisted in Postgres; reminder dates use the server date; Gmail bills without a due date fail the NOT NULL column.
+- AOS-505: anomaly context windows use "now" instead of the transaction's time (wrong for imported statements).
+- AOS-508: card bill payments are tagged as transfers, so they never match a card bill.
+- AOS-506/509: the queue publisher turns every payload value into a string (numbers and lists break in Go).
+
 ## Risks
 | Risk | Impact | Mitigation |
 |---|---|---|
 
 ## Activity log
 - 2026-10-16 — Claude: epic created (AOS-004).
+- 2026-10-16 — Claude: started (survey of legacy code; plan above). AOS-501 done; AOS-508, AOS-509 added.

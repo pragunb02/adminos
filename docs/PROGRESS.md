@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Milestone 3 code is complete (AOS-309 Review was the last task). Next candidates: Epic E5 legacy integration (incl. AOS-508 bill-payment matching, AOS-509 subscription waste score), AOS-401 Gmail flow, AOS-606 dev-only audit advisory. Pragun: AOS-111 OAuth client (unblocks AOS-112 real login and the real-data check), AOS-211/212 real SMS and statements, GitGuardian incident 38276594 → false positive, `.env` before `docker compose up`.
+**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~ scheduler done; next AOS-504 notification channels (in-app, Web Push for iPhone, email), then AOS-505, AOS-508, AOS-502/503, AOS-506, AOS-509, AOS-507. Pragun: AOS-111 OAuth client (unblocks real login and the real-data check), AOS-211/212 real SMS and statements, GitGuardian incident 38276594 → false positive, `.env` before `docker compose up`.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -45,7 +45,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Cash quick-add (AOS-204) | ✅ | 🟡 | `POST /transactions/cash` + "+ Cash" button; through the pipeline; tested (unit, route, Postgres). Not yet used live: needs login (AOS-112) |
 | Web pages (8) | ✅ | ❌ | Call the real API; blocked by auth |
 | Notifications | 🟡 | ❌ | FCM stubbed; email marked sent without sending |
-| Scheduler | ❌ | ❌ | Nothing runs briefings, reminders or detectors |
+| Scheduler | ✅ | 🟡 | AOS-501: runs bill reminders, nudges, subscription detection once per slot (D-50). Briefing job → AOS-506 |
 | `services/api/Dockerfile` | ✅ | ✅ | JDK 25 JRE, non-root, healthcheck (AOS-110) |
 | Android SMS app | ❌ | ❌ | Not in repo |
 
@@ -59,13 +59,13 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Categorization, Go | Removed in AOS-205: Gmail goes through the Kotlin pipeline | Removed |
 | Categorization, Kotlin (`CategorizationService.kt`, AOS-210, D-41) | The only categorizer for pipeline sources. Order: your remembered rule (UPI ID, else merchant), then 22 known merchants, then 7 whole-word patterns, else Other. It never guesses Transfer (TransferStep does). Corrections re-label past spend/refunds except hand-set ones | Live |
 | Dedup (`normalizer.go:47`) | SHA256(user, amount, merchant, date-to-hour, last4) in `ingestion_fingerprints` | Live |
-| Subscription detection (`SubscriptionDetectorService.kt`) | 90 days of debits per merchant, ≥2 charges. Day-gap mean/sd: weekly 6–8, monthly 25–35, quarterly 85–95, yearly 355–375. Price change >5% | Dead |
+| Subscription detection (`SubscriptionDetectorService.kt`) | 90 days of debits per merchant, ≥2 charges. Day-gap mean/sd: weekly 6–8, monthly 25–35, quarterly 85–95, yearly 355–375. Price change >5% | Scheduled nightly 04:00 IST for active users (AOS-501) |
 | Waste score (Go) | +0.4 no logins & no usage emails; +0.3 paid 3+ months with no logins; +0.1 if 6+; +0.2 no usage emails. >0.7 = unused | Never triggered |
 | Anomalies (`AnomalyRules.kt`) | >3× 30-day category average; non-INR; 01:00–05:00 IST; ₹1–2 (card testing); same merchant+amount within 24h | Dead |
 | Bill detection, Gmail | 12 keywords in the email, saved as upcoming bill | Live (due_date bug) |
 | Bill payment matching | Name similarity >0.8 (Jaro-Winkler) and amount within 5% | Dead |
-| Reminders | Bills due within 7 days; remind on user days (default 3,1); past-due → overdue | Dead |
-| Onboarding nudges | Gmail days 1/3/7, SMS 3/5/7, max 3 | Dead |
+| Reminders | Bills due within 7 days; remind on user days (default 3,1); past-due → overdue | Scheduled daily 09:00 IST (AOS-501); delivery in-app only until AOS-504 |
+| Onboarding nudges | Gmail days 1/3/7, SMS 3/5/7, max 3 | Scheduled daily 11:00 IST (AOS-501) |
 | Quiet hours | 22:00–08:00 default; only anomalies bypass | Dead |
 | Dashboard (`DashboardRoutes.kt`) | Last 7 days of debit spend; counts of subscriptions, bills (30d) and anomalies; action items | Live |
 | Spend summary (`/transactions/summary`) | Debit totals by category, default 30 days | Live |
@@ -84,6 +84,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
 8. ~~AOS-307 float amounts / missing nature~~ fixed in AOS-611.
 9. Onboarding copy still describes an Android SMS app (D-19: iPhone); the subscriptions "cancellation draft" modal can never open (dead code). Fold into the console redesign (AOS-302…).
 11. ~~AOS-607~~ fixed: the whole `JWT_SECRET` is the HMAC key. Existing sessions and device tokens must be re-issued once (sign in again; new Mac SMS reader token).
+12. AOS-503 — custom reminder days aren't persisted in Postgres (only the 3d/1d flags), and reminder/overdue dates use the server's date; Gmail bills without a due date fail the NOT NULL column. Now that reminders run (AOS-501) this matters; delivery is in-app only until AOS-504.
+13. AOS-505 — anomaly rule windows use "now", not the transaction's time. AOS-508 — card bill payments are transfers, so they never match card bills. AOS-506/509 — `AsynqPublisher` turns every payload value into a string.
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
@@ -102,6 +104,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
+  - AOS-501: scheduler (D-50): `domain/scheduling` (Schedule, ScheduledJob, JobScheduler, claim per (job, slot) in V17 `job_runs`, retries, timeouts, shutdown-safe); jobs: bill reminders 09:00, nudges 11:00, subscription detection 04:00 IST. Unit 1,101, integration 99; 99.6% lines / 95.3% branches.
   - AOS-309: Review page (tabs in the URL; both sides, reason, score; plain-language answers; Undo for 5 s before sending; send on leave; error → card returns). `UndoToast` timer runs once per message. Web 283 unit (98.49% / 95.85%), Playwright 217 + 4 skips. **Milestone 3 code complete.**
   - AOS-307: Activity feed (filters in URL, batch apply, chips, day groups, edit sheet `?txn=`, re-categorize + Undo); API `nature` filter; **fixed feed paging that skipped same-timestamp rows** (cursor = time + id).
   - AOS-306: Spending → Trends: 12 months spent vs received (bars/lines in the URL) and 12 weeks.

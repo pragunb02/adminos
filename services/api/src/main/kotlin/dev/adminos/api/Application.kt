@@ -11,6 +11,7 @@ import dev.adminos.api.domain.identity.identityModule
 import dev.adminos.api.domain.ingestion.ingestionModule
 import dev.adminos.api.domain.ingestion.pipeline.IngestProcessor
 import dev.adminos.api.domain.notifications.notificationModule
+import dev.adminos.api.domain.scheduling.JobScheduler
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.server.application.*
@@ -73,4 +74,12 @@ fun Application.module(
     // Background processing of intake events (D-34); stops with the application.
     val ingestProcessor: IngestProcessor by inject()
     ingestProcessor.start(this)
+
+    // Scheduled jobs (AOS-501): reminders, nudges, detectors; they stop with the application.
+    if (config.scheduler.enabled) {
+        val scheduler: JobScheduler by inject()
+        scheduler.start(this, config.scheduler.tick)
+    } else {
+        log.warn("SCHEDULER_ENABLED=false: scheduled jobs (reminders, nudges, detection) will not run on this instance.")
+    }
 }

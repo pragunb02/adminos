@@ -3,6 +3,7 @@ package dev.adminos.api.domain.notifications
 import dev.adminos.api.domain.identity.OnboardingStatus
 import dev.adminos.api.domain.identity.User
 import dev.adminos.api.domain.identity.UserRepository
+import dev.adminos.api.domain.scheduling.forEachIsolated
 import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -31,24 +32,24 @@ class DropOffNudgeService(
      * Run the daily nudge check.
      * Fix #4: Queries incomplete users from repository instead of taking as parameter.
      */
-    suspend fun runNudges() {
+    suspend fun runNudges(): NudgeRunSummary {
         val now = Instant.now()
         val incompleteUsers = userRepository.findByOnboardingIncomplete()
 
         logger.info("Running drop-off nudges: {} incomplete users found", incompleteUsers.size)
 
-        for (user in incompleteUsers) {
-            try {
-                processUserNudges(user, now)
-            } catch (e: Exception) {
-                logger.error("Failed to process nudges for user {}: {}", user.id, e.message)
-            }
+        var sent = 0
+        val counts = forEachIsolated(incompleteUsers, logger, { "nudges for user ${it.id}" }) { user ->
+            sent += processUserNudges(user, now)
         }
+        return NudgeRunSummary(usersChecked = incompleteUsers.size, nudgesSent = sent, failed = counts.failed)
     }
 
-    internal suspend fun processUserNudges(user: User, now: Instant) {
+    /** @return how many nudges were sent to [user] */
+    internal suspend fun processUserNudges(user: User, now: Instant): Int {
         val daysSinceCreation = ChronoUnit.DAYS.between(user.createdAt, now).toInt()
-        if (daysSinceCreation < 1) return
+        if (daysSinceCreation < 1) return 0
+        var sent = 0
 
         // Fix #3: Get source-specific nudge counts by filtering notification data
         val allNudges = notificationRepository.findByUserAndType(user.id, NotificationType.NUDGE)
@@ -63,6 +64,7 @@ class DropOffNudgeService(
             val days = nudgeDays("gmail")
             if (days.size < MAX_NUDGES_PER_SOURCE && daysSinceCreation in GMAIL_NUDGE_DAYS && daysSinceCreation.toString() !in days) {
                 sendGmailNudge(user, daysSinceCreation)
+                sent++
             }
         }
 
@@ -70,8 +72,10 @@ class DropOffNudgeService(
             val days = nudgeDays("sms")
             if (days.size < MAX_NUDGES_PER_SOURCE && daysSinceCreation in SMS_NUDGE_DAYS && daysSinceCreation.toString() !in days) {
                 sendSmsNudge(user, daysSinceCreation)
+                sent++
             }
         }
+        return sent
     }
 
     private suspend fun sendGmailNudge(user: User, daysSinceCreation: Int) {
@@ -109,3 +113,6 @@ class DropOffNudgeService(
         return daysSinceCreation in nudgeDays
     }
 }
+
+/** What one nudge run did (counts only). */
+data class NudgeRunSummary(val usersChecked: Int, val nudgesSent: Int, val failed: Int)

@@ -164,8 +164,9 @@ class NotificationsReminderEngineCoverageTest {
         val dueIn3 = bills.save(bill(now.plusDays(3)))
         val paid = bills.save(bill(now.plusDays(1), status = BillStatus.PAID))
 
-        engine.runReminders()
+        val summary = engine.runReminders()
 
+        assertEquals(ReminderRunSummary(overdueMarked = 1, remindersSent = 1, failed = 0), summary)
         assertEquals(BillStatus.OVERDUE, bills.findById(overdue.id)!!.status)
         assertEquals(setOf(3), bills.findById(dueIn3.id)!!.sentReminderDays)
         assertEquals(null, bills.findById(paid.id)!!.sentReminderDays)
@@ -182,15 +183,16 @@ class NotificationsReminderEngineCoverageTest {
         bills.save(bill(LocalDate.now().plusDays(3), user = brokenUser))
         val ok = bills.save(bill(LocalDate.now().plusDays(3)))
 
-        eng.runReminders()
+        val summary = eng.runReminders()
 
+        assertEquals(ReminderRunSummary(overdueMarked = 0, remindersSent = 1, failed = 1), summary)
         assertEquals(setOf(3), bills.findById(ok.id)!!.sentReminderDays)
         assertEquals(1, reminders().size)
     }
 
     @Test
     fun `runReminders with no bills does nothing`() = runBlocking<Unit> {
-        engine.runReminders()
+        assertEquals(ReminderRunSummary(0, 0, 0), engine.runReminders())
 
         assertTrue(notifRepo.findPending().isEmpty())
     }
