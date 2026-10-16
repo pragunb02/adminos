@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { deleteData, errorMessage, getData, postData } from "@/lib/query";
 
 interface DeviceToken {
   id: string;
@@ -21,36 +22,34 @@ const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : "nev
  * reader). The secret is shown once, right after creation, and never again.
  */
 export default function DeviceTokens() {
-  const [tokens, setTokens] = useState<DeviceToken[]>([]);
+  const queryClient = useQueryClient();
+  const KEY = ["settings", "device-tokens"];
+  const { data: tokens = [], error: loadError } = useQuery({
+    queryKey: KEY,
+    queryFn: () => getData<DeviceToken[]>("/api/v1/device-tokens"),
+  });
   const [name, setName] = useState("My Mac – SMS reader");
   const [fresh, setFresh] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const res = await api.get<DeviceToken[]>("/api/v1/device-tokens");
-    if (res.success && res.data) setTokens(res.data);
-    else setError(res.error?.message ?? "Couldn't load devices");
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const create = async () => {
-    setError(null);
-    const res = await api.post<DeviceToken>("/api/v1/device-tokens", { name });
-    if (res.success && res.data?.token) {
-      setFresh(res.data.token);
+  const createToken = useMutation({
+    mutationFn: () => postData<DeviceToken>("/api/v1/device-tokens", { name }),
+    onSuccess: (t) => {
+      if (t?.token) setFresh(t.token);
       setCopied(false);
-      load();
-    } else setError(res.error?.message ?? "Couldn't create the token");
-  };
+      queryClient.invalidateQueries({ queryKey: KEY });
+    },
+  });
+  const revokeToken = useMutation({
+    mutationFn: (id: string) => deleteData(`/api/v1/device-tokens/${id}`),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+  const error = loadError || createToken.error || revokeToken.error ? errorMessage(loadError ?? createToken.error ?? revokeToken.error) : null;
 
-  const revoke = async (id: string) => {
+  const create = () => createToken.mutate();
+  const revoke = (id: string) => {
     if (!window.confirm("Revoke this device? It will stop sending SMS immediately.")) return;
-    await api.delete(`/api/v1/device-tokens/${id}`);
-    load();
+    revokeToken.mutate(id);
   };
 
   const copy = async () => {

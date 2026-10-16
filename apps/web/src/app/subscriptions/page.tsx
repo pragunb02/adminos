@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { Subscription, SubscriptionSummary } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
@@ -18,63 +19,31 @@ const TAB_QUERY: Record<Tab, string> = {
 };
 
 export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [summary, setSummary] = useState<SubscriptionSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("active");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [cancelDraft, setCancelDraft] = useState<Subscription | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [subsRes, summaryRes] = await Promise.all([
-        api.get<Subscription[]>(`/api/v1/subscriptions?${TAB_QUERY[tab]}&limit=50`),
-        api.get<SubscriptionSummary>("/api/v1/subscriptions/summary"),
-      ]);
-      if (subsRes.success && subsRes.data) setSubscriptions(subsRes.data);
-      if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
-      if (!subsRes.success) setError(subsRes.error?.message || "Failed to load");
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, [tab]);
+  const listQuery = useQuery({
+    queryKey: ["subscriptions", "list", tab],
+    queryFn: () => getData<Subscription[]>(`/api/v1/subscriptions?${TAB_QUERY[tab]}&limit=50`),
+  });
+  const { data: summary } = useQuery({
+    queryKey: ["subscriptions", "summary"],
+    queryFn: () => getData<SubscriptionSummary>("/api/v1/subscriptions/summary"),
+  });
+  const subscriptions = listQuery.data ?? [];
+  const loading = listQuery.isPending;
+  const error = listQuery.error ? errorMessage(listQuery.error, "Failed to load") : null;
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleCancel = async (id: string) => {
-    setActionLoading(id);
-    try {
-      // TODO: The cancel endpoint queues a draft generation job.
-      // In production, poll GET /api/v1/subscriptions/:id until
-      // cancellation_draft is populated, then show the email draft modal.
-      // For MVP, we just acknowledge the cancellation request.
-      await api.post(`/api/v1/subscriptions/${id}/cancel`, {});
-      await fetchData();
-    } catch {
-      // silent
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleKeep = async (id: string) => {
-    setActionLoading(id);
-    try {
-      await api.patch(`/api/v1/subscriptions/${id}/dismiss`, {});
-      await fetchData();
-    } catch {
-      // silent
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  // Cancel queues a draft-generation job; "keep" dismisses the flag. Both refresh the lists.
+  const action = useMutation({
+    mutationFn: ({ id, kind }: { id: string; kind: "cancel" | "keep" }) =>
+      kind === "cancel" ? postData(`/api/v1/subscriptions/${id}/cancel`, {}) : patchData(`/api/v1/subscriptions/${id}/dismiss`, {}),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
+  });
+  const actionLoading = action.isPending ? action.variables?.id : null;
+  const handleCancel = (id: string) => action.mutate({ id, kind: "cancel" });
+  const handleKeep = (id: string) => action.mutate({ id, kind: "keep" });
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "active", label: "Active", count: summary ? Number(summary.activeCount) : undefined },
@@ -121,7 +90,8 @@ export default function SubscriptionsPage() {
 
         {/* List */}
         {loading && <LoadingSpinner />}
-        {error && <ErrorMessage message={error} onRetry={fetchData} />}
+        {error && <ErrorMessage message={error} onRetry={() => listQuery.refetch()} />}
+        {action.error && <ErrorMessage message={errorMessage(action.error)} />}
         {!loading && !error && subscriptions.length === 0 && (
           <p className="text-center text-gray-500 py-8">No {tab} subscriptions</p>
         )}

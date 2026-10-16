@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { errorMessage, getData } from "@/lib/query";
 import type { Bill } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
@@ -9,30 +9,10 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorMessage from "@/components/ErrorMessage";
 
 export default function BillsPage() {
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchBills = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get<Bill[]>("/api/v1/bills/upcoming");
-      if (res.success && res.data) {
-        setBills(res.data);
-      } else {
-        setError(res.error?.message || "Failed to load bills");
-      }
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchBills();
-  }, [fetchBills]);
+  const { data: bills = [], isPending: loading, error, refetch } = useQuery({
+    queryKey: ["bills", "upcoming"],
+    queryFn: () => getData<Bill[]>("/api/v1/bills/upcoming"),
+  });
 
   const daysUntilDue = (dueDate: string) => {
     const due = new Date(dueDate);
@@ -57,7 +37,7 @@ export default function BillsPage() {
         <h2 className="text-xl font-bold">Upcoming Bills</h2>
 
         {loading && <LoadingSpinner message="Loading bills..." />}
-        {error && <ErrorMessage message={error} onRetry={fetchBills} />}
+        {error && <ErrorMessage message={errorMessage(error)} onRetry={() => refetch()} />}
 
         {!loading && !error && bills.length === 0 && (
           <p className="text-center text-gray-500 py-8">No upcoming bills</p>

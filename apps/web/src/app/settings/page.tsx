@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DeviceTokens from "@/components/DeviceTokens";
-import { api } from "@/lib/api";
+import { deleteData, errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { UserConnection, NotificationPreferences, Session } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
@@ -12,90 +13,56 @@ import ErrorMessage from "@/components/ErrorMessage";
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 export default function SettingsPage() {
-  const [connections, setConnections] = useState<UserConnection[]>([]);
-  const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const PREFS_KEY = ["settings", "notification-preferences"];
+  const connectionsQuery = useQuery({ queryKey: ["settings", "connections"], queryFn: () => getData<UserConnection[]>("/api/v1/connections") });
+  const prefsQuery = useQuery({ queryKey: PREFS_KEY, queryFn: () => getData<NotificationPreferences>("/api/v1/users/me/notification-preferences") });
+  const sessionsQuery = useQuery({ queryKey: ["settings", "sessions"], queryFn: () => getData<Session[]>("/api/v1/auth/sessions") });
+  const connections = connectionsQuery.data ?? [];
+  const prefs = prefsQuery.data ?? null;
+  const sessions = sessionsQuery.data ?? [];
+  const loading = connectionsQuery.isPending && prefsQuery.isPending;
+  const error = connectionsQuery.error && prefsQuery.error ? "Failed to load settings" : null;
+  const fetchData = () => queryClient.invalidateQueries({ queryKey: ["settings"] });
   const [saving, setSaving] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [connRes, prefsRes, sessRes] = await Promise.all([
-        api.get<UserConnection[]>("/api/v1/connections"),
-        api.get<NotificationPreferences>("/api/v1/users/me/notification-preferences"),
-        api.get<Session[]>("/api/v1/auth/sessions"),
-      ]);
-      if (connRes.success && connRes.data) setConnections(connRes.data);
-      if (prefsRes.success && prefsRes.data) setPrefs(prefsRes.data);
-      if (sessRes.success && sessRes.data) setSessions(sessRes.data);
-      if (!connRes.success && !prefsRes.success) setError("Failed to load settings");
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const prefTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPrefsRef = useRef<Record<string, unknown>>({});
 
-  const updatePref = async (key: string, value: unknown) => {
+  // Optimistic: the toggle changes at once; the save is debounced (500ms) and a failure reloads the real values.
+  const updatePref = (key: string, value: unknown) => {
     if (!prefs) return;
-    const updated = { ...prefs, [key]: value };
-    setPrefs(updated);
-
-    // Accumulate pending changes
+    queryClient.setQueryData<NotificationPreferences>(PREFS_KEY, { ...prefs, [key]: value });
     pendingPrefsRef.current = { ...pendingPrefsRef.current, [key]: value };
-
-    // Debounce the API call (500ms)
     if (prefTimerRef.current) clearTimeout(prefTimerRef.current);
     prefTimerRef.current = setTimeout(async () => {
       const batch = { ...pendingPrefsRef.current };
       pendingPrefsRef.current = {};
       setSaving(true);
       try {
-        await api.patch("/api/v1/users/me/notification-preferences", batch);
-      } catch {
-        // revert on error
-        setPrefs(prefs);
+        await patchData("/api/v1/users/me/notification-preferences", batch);
+      } catch (e) {
+        setActionError(errorMessage(e, "Couldn't save your notification settings"));
+        queryClient.invalidateQueries({ queryKey: PREFS_KEY });
       } finally {
         setSaving(false);
       }
     }, 500);
   };
 
-  const handleDisconnect = async (id: string) => {
+  const run = async (work: () => Promise<unknown>, refresh = true) => {
+    setActionError(null);
     try {
-      await api.delete(`/api/v1/connections/${id}`);
-      await fetchData();
-    } catch {
-      // silent
+      await work();
+      if (refresh) await fetchData();
+    } catch (e) {
+      setActionError(errorMessage(e));
     }
   };
-
-  const handleSync = async (id: string) => {
-    try {
-      await api.post(`/api/v1/connections/${id}/sync`, {});
-    } catch {
-      // silent
-    }
-  };
-
-  const handleReconnect = async (sourceType: string) => {
-    try {
-      await api.post("/api/v1/connections", { sourceType });
-      await fetchData();
-    } catch {
-      // silent
-    }
-  };
+  const handleDisconnect = (id: string) => run(() => deleteData(`/api/v1/connections/${id}`));
+  const handleSync = (id: string) => run(() => postData(`/api/v1/connections/${id}/sync`, {}), false);
+  const handleReconnect = (sourceType: string) => run(() => postData("/api/v1/connections", { sourceType }));
 
   return (
     <AppShell>
@@ -104,6 +71,7 @@ export default function SettingsPage() {
 
         {loading && <LoadingSpinner message="Loading settings..." />}
         {error && <ErrorMessage message={error} onRetry={fetchData} />}
+        {actionError && <ErrorMessage message={actionError} />}
 
         {!loading && !error && (
           <>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { api } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { errorMessage, getPage } from "@/lib/query";
 import type { Transaction } from "@/lib/types";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
@@ -14,13 +15,6 @@ const CATEGORIES = [
 ];
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-
   // Filters
   const [category, setCategory] = useState("all");
   const [type, setType] = useState("all");
@@ -30,25 +24,18 @@ export default function TransactionsPage() {
   const [dateTo, setDateTo] = useState("");
   const [recurring, setRecurring] = useState(false);
 
-  // Debounce merchant search (300ms)
-  const merchantTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Debounce merchant search (300ms); the state update happens in the timer, not the effect body.
   useEffect(() => {
-    if (merchantTimerRef.current) clearTimeout(merchantTimerRef.current);
-    merchantTimerRef.current = setTimeout(() => {
-      setDebouncedMerchant(merchantSearch);
-    }, 300);
-    return () => {
-      if (merchantTimerRef.current) clearTimeout(merchantTimerRef.current);
-    };
+    const t = setTimeout(() => setDebouncedMerchant(merchantSearch), 300);
+    return () => clearTimeout(t);
   }, [merchantSearch]);
 
-  // Reset cursor when filters change
-  useEffect(() => {
-    setCursor(null);
-  }, [category, type, debouncedMerchant, dateFrom, dateTo, recurring]);
-
-  const buildQuery = useCallback(
-    (cursorVal?: string | null) => {
+  const filters = { category, type, merchant: debouncedMerchant, from: dateFrom, to: dateTo, recurring };
+  // A change of filters is a new query key, so paging restarts from the first page by itself.
+  const feed = useInfiniteQuery({
+    queryKey: ["transactions", "feed", filters],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
       const params = new URLSearchParams();
       if (category !== "all") params.set("category", category);
       if (type !== "all") params.set("type", type);
@@ -56,52 +43,18 @@ export default function TransactionsPage() {
       if (dateFrom) params.set("from", dateFrom);
       if (dateTo) params.set("to", dateTo);
       if (recurring) params.set("isRecurring", "true");
-      if (cursorVal) params.set("cursor", cursorVal);
+      if (pageParam) params.set("cursor", pageParam);
       params.set("limit", "20");
-      return `/api/v1/transactions?${params}`;
+      return getPage<Transaction>(`/api/v1/transactions?${params}`);
     },
-    [category, type, debouncedMerchant, dateFrom, dateTo, recurring]
-  );
-
-  const fetchTransactions = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get<Transaction[]>(buildQuery());
-      if (res.success && res.data) {
-        setTransactions(res.data);
-        setCursor(res.pagination?.cursor || null);
-        setHasMore(res.pagination?.hasMore || false);
-      } else {
-        setError(res.error?.message || "Failed to load transactions");
-      }
-    } catch {
-      setError("Unable to connect to server");
-    } finally {
-      setLoading(false);
-    }
-  }, [buildQuery]);
-
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
-
-  const loadMore = async () => {
-    if (!cursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const res = await api.get<Transaction[]>(buildQuery(cursor));
-      if (res.success && res.data) {
-        setTransactions((prev) => [...prev, ...res.data!]);
-        setCursor(res.pagination?.cursor || null);
-        setHasMore(res.pagination?.hasMore || false);
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+    getNextPageParam: (last) => (last.hasMore ? last.cursor : null),
+  });
+  const transactions = feed.data?.pages.flatMap((p) => p.items) ?? [];
+  const loading = feed.isPending;
+  const error = feed.error ? errorMessage(feed.error, "Failed to load transactions") : null;
+  const hasMore = feed.hasNextPage;
+  const loadingMore = feed.isFetchingNextPage;
+  const loadMore = () => feed.fetchNextPage();
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -170,7 +123,7 @@ export default function TransactionsPage() {
 
         {/* Transaction list */}
         {loading && <LoadingSpinner message="Loading transactions..." />}
-        {error && <ErrorMessage message={error} onRetry={fetchTransactions} />}
+        {error && <ErrorMessage message={error} onRetry={() => feed.refetch()} />}
         {!loading && !error && transactions.length === 0 && (
           <p className="text-center text-gray-500 py-8">No transactions found</p>
         )}

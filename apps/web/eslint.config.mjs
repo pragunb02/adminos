@@ -6,9 +6,8 @@ const config = [
   ...nextTs,
   {
     rules: {
-      // Pages fetch data with setState inside useEffect. Kept visible as warnings until the
-      // shared data-fetching layer replaces that pattern (AOS-308, decision D-29).
-      "react-hooks/set-state-in-effect": "warn",
+      // Data loading goes through TanStack Query (AOS-308, D-45); setState in an effect body is a bug.
+      "react-hooks/set-state-in-effect": "error",
     },
   },
   { ignores: [".next/**", "node_modules/**", "next-env.d.ts"] },
