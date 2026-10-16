@@ -47,12 +47,20 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                     throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_003", "Invalid source type: ${request.sourceType}"))
                 }
 
-                val connection = if (sourceType == SourceType.GMAIL && request.code != null && googleOAuthClient != null) {
-                    // Exchange OAuth code for tokens and store them
+                val connection = if (sourceType == SourceType.GMAIL) {
+                    // Gmail is only connected with a real OAuth grant: never a placeholder address (AOS-613).
+                    if (request.code == null || googleOAuthClient == null) throw ApiException(
+                        HttpStatusCode.BadRequest, ApiError("CONN_006", "Connecting Gmail needs a Google sign-in (OAuth code)")
+                    )
                     val redirectUri = request.redirectUri ?: throw ApiException(
                         HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri is required for OAuth code exchange")
                     )
-                    val (tokens, userInfo) = googleOAuthClient.exchangeCodeForTokens(request.code, redirectUri)
+                    val (tokens, userInfo) = try {
+                        googleOAuthClient.exchangeCodeForTokens(request.code, redirectUri)
+                    } catch (e: Exception) {
+                        // Google refused the code (expired, reused, wrong redirect): the user's problem, not a 500 (AOS-613).
+                        throw ApiException(HttpStatusCode.BadRequest, ApiError.OAUTH_FAILED)
+                    }
                     connectionService.createConnection(
                         userId = principal.userId,
                         sourceType = sourceType,
@@ -61,11 +69,7 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                         refreshToken = tokens.refreshToken
                     )
                 } else {
-                    connectionService.createConnection(
-                        userId = principal.userId,
-                        sourceType = sourceType,
-                        gmailAddress = if (sourceType == SourceType.GMAIL) "user@gmail.com" else null
-                    )
+                    connectionService.createConnection(userId = principal.userId, sourceType = sourceType)
                 }
 
                 auditService.log(

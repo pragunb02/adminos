@@ -53,16 +53,22 @@ class DropOffNudgeService(
         // Fix #3: Get source-specific nudge counts by filtering notification data
         val allNudges = notificationRepository.findByUserAndType(user.id, NotificationType.NUDGE)
 
+        // One send writes a record per channel (in-app, push, email), so count distinct nudge *days*, not
+        // records (AOS-613: the day-1 nudge used to use up the whole cap); and never nudge twice on one day.
+        // A record without a nudge_day (older data) counts as its own nudge.
+        fun nudgeDays(source: String) = allNudges.filter { it.data?.get("source") == source }
+            .map { it.data?.get("nudge_day") ?: "record:${it.id}" }.toSet()
+
         if (needsGmailNudge(user.onboardingStatus)) {
-            val gmailNudgesSent = allNudges.count { it.data?.get("source") == "gmail" }
-            if (gmailNudgesSent < MAX_NUDGES_PER_SOURCE && daysSinceCreation in GMAIL_NUDGE_DAYS) {
+            val days = nudgeDays("gmail")
+            if (days.size < MAX_NUDGES_PER_SOURCE && daysSinceCreation in GMAIL_NUDGE_DAYS && daysSinceCreation.toString() !in days) {
                 sendGmailNudge(user, daysSinceCreation)
             }
         }
 
         if (needsSmsNudge(user.onboardingStatus)) {
-            val smsNudgesSent = allNudges.count { it.data?.get("source") == "sms" }
-            if (smsNudgesSent < MAX_NUDGES_PER_SOURCE && daysSinceCreation in SMS_NUDGE_DAYS) {
+            val days = nudgeDays("sms")
+            if (days.size < MAX_NUDGES_PER_SOURCE && daysSinceCreation in SMS_NUDGE_DAYS && daysSinceCreation.toString() !in days) {
                 sendSmsNudge(user, daysSinceCreation)
             }
         }

@@ -136,7 +136,6 @@ class ConnectionRoutesCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: ConnectionRoutes lets a failed Google code exchange escape as a 500 instead of answering OAUTH_FAILED")
     fun `a gmail code google rejects is OAUTH_FAILED, not a server error`() = routesTest {
         google.tokenStatus = 400
         google.tokenBody = """{"error":"invalid_grant"}"""
@@ -148,7 +147,6 @@ class ConnectionRoutesCoverageTest {
     }
 
     @Test
-    @Disabled("BUG AOS-312: ConnectionRoutes stores Gmail without an OAuth code (or without a client) under the shared placeholder address user@gmail.com")
     fun `connecting gmail without an oauth code is rejected`() = routesTest(oauth = null) {
         val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
 

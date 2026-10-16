@@ -127,6 +127,14 @@ class NotificationsRoutesCoverageTest {
     }
 
     @Test
+    fun `PATCH stores each reminder day once, largest first (AOS-613)`() = routeTest {
+        val (status, body) = call(HttpMethod.Patch, prefsPath, """{"billReminderDays":[1,3,3,1]}""")
+
+        assertEquals(HttpStatusCode.OK, status)
+        assertEquals(listOf(3, 1), body.data()["billReminderDays"]!!.jsonArray.map { it.jsonPrimitive.int })
+    }
+
+    @Test
     fun `PATCH rejects a reminder day above 30`() = routeTest {
         val (status, body) = call(HttpMethod.Patch, prefsPath, """{"billReminderDays":[31]}""")
 
