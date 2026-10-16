@@ -134,6 +134,7 @@ export default function SettingsPage() {
                   {prefs.weeklyBriefing && (
                     <div className="ml-6 flex gap-3 items-center">
                       <select
+                        aria-label="Briefing day"
                         value={prefs.briefingDay}
                         onChange={(e) => updatePref("briefingDay", e.target.value)}
                         className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
@@ -144,6 +145,7 @@ export default function SettingsPage() {
                       </select>
                       <input
                         type="time"
+                        aria-label="Briefing time"
                         value={prefs.briefingTime}
                         onChange={(e) => updatePref("briefingTime", e.target.value)}
                         className="text-sm border border-gray-300 rounded-md px-2 py-1"
@@ -165,6 +167,7 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-2 text-sm">
                       <input
                         type="time"
+                        aria-label="Quiet hours start"
                         value={prefs.quietHoursStart}
                         onChange={(e) => updatePref("quietHoursStart", e.target.value)}
                         className="border border-gray-300 rounded-md px-2 py-1"
@@ -172,6 +175,7 @@ export default function SettingsPage() {
                       <span className="text-gray-400">to</span>
                       <input
                         type="time"
+                        aria-label="Quiet hours end"
                         value={prefs.quietHoursEnd}
                         onChange={(e) => updatePref("quietHoursEnd", e.target.value)}
                         className="border border-gray-300 rounded-md px-2 py-1"

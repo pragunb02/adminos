@@ -25,6 +25,9 @@
 | AOS-302 | Chart library + design system: Recharts chosen (D-45) | Claude + Pragun | ⬜ | 1h |  |
 | [AOS-308](AOS-308.md) | Web: shared data-fetching layer: TanStack Query (D-45) | Claude | ✅ | 3h | 1.5h |
 | [AOS-120](AOS-120.md) | Per-user timezone for date-range params | Claude | ✅ | 1h | 1h |
+| [AOS-310](AOS-310.md) | Web unit tests: Vitest + Testing Library + MSW, coverage gate 90/85 (D-47) | Claude | ✅ | 4h | 2.5h |
+| AOS-311 | Playwright end-to-end: every screen, navigation/back/forward, deep links, a11y, mobile/desktop (D-47) | Claude | ⬜ | 5h |  |
+| AOS-312 | API coverage: Kover report + gate, fill gaps (D-47) | Claude | ⬜ | 2h |  |
 
 _Task tickets are created as files when this story is picked up._
 

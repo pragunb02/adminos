@@ -40,7 +40,12 @@ export default function CashQuickAdd() {
   };
 
   useEffect(() => {
-    if (open) amountRef.current?.focus();
+    if (!open) return;
+    amountRef.current?.focus();
+    // Escape closes the sheet wherever focus is (not only inside it).
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
   useEffect(() => {
@@ -94,7 +99,6 @@ export default function CashQuickAdd() {
             aria-label="Add cash spending"
             className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
           >
             <div className="flex items-center gap-2 text-3xl font-bold">
               <span className="text-gray-400">₹</span>

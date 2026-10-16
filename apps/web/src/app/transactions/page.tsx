@@ -72,11 +72,13 @@ export default function TransactionsPage() {
             <input
               type="text"
               placeholder="Search merchant..."
+              aria-label="Search merchant"
               value={merchantSearch}
               onChange={(e) => setMerchantSearch(e.target.value)}
               className="flex-1 min-w-[150px] px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <select
+              aria-label="Category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -86,6 +88,7 @@ export default function TransactionsPage() {
               ))}
             </select>
             <select
+              aria-label="Type"
               value={type}
               onChange={(e) => setType(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -98,6 +101,7 @@ export default function TransactionsPage() {
           <div className="flex flex-wrap gap-2 items-center">
             <input
               type="date"
+              aria-label="From date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -105,6 +109,7 @@ export default function TransactionsPage() {
             <span className="text-gray-400 text-sm">to</span>
             <input
               type="date"
+              aria-label="To date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

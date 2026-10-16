@@ -10,7 +10,7 @@ const config = [
       "react-hooks/set-state-in-effect": "error",
     },
   },
-  { ignores: [".next/**", "node_modules/**", "next-env.d.ts"] },
+  { ignores: [".next/**", "node_modules/**", "next-env.d.ts", "coverage/**", "playwright-report/**", "test-results/**"] },
 ];
 
 export default config;

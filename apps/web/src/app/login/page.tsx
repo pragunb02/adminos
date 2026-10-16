@@ -3,12 +3,11 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-
 function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
-
+  // Inlined by Next at build time (public client id, not a secret).
+  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
   const configured = GOOGLE_CLIENT_ID.length > 0;
 
   const handleGoogleLogin = () => {

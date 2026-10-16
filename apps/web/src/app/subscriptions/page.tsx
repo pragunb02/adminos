@@ -106,8 +106,9 @@ export default function SubscriptionsPage() {
                       <StatusBadge status={sub.status} />
                       {sub.priceChanged && (
                         <span className="text-xs text-orange-600">
-                          {sub.priceChangePct != null && sub.priceChangePct > 0 ? "↑" : "↓"}
-                          {sub.priceChangePct != null ? `${Math.abs(sub.priceChangePct).toFixed(0)}%` : "changed"}
+                          {sub.priceChangePct == null
+                            ? "price changed"
+                            : `${sub.priceChangePct > 0 ? "↑" : "↓"}${Math.abs(sub.priceChangePct).toFixed(0)}%`}
                         </span>
                       )}
                     </div>

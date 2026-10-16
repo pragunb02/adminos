@@ -1,0 +1,5 @@
+
+# Test output (AOS-310/311)
+coverage/
+test-results/
+playwright-report/
