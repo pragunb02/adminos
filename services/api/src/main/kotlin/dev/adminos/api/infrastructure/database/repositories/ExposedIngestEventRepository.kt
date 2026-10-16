@@ -29,6 +29,7 @@ class ExposedIngestEventRepository : IngestEventRepository {
                 it[accountHint] = e.accountHint
                 it[paymentMethod] = e.paymentMethod?.name?.lowercase()
                 it[upiVpa] = e.upiVpa
+                it[paymentRef] = e.paymentRef
                 it[metadata] = e.metadata?.let { m -> JsonColumns.encode(m) }
                 it[status] = e.status.name.lowercase()
                 it[error] = e.error
@@ -88,6 +89,7 @@ class ExposedIngestEventRepository : IngestEventRepository {
         accountHint = this[IngestEventsTable.accountHint],
         paymentMethod = this[IngestEventsTable.paymentMethod]?.let { PaymentMethod.valueOf(it.uppercase()) },
         upiVpa = this[IngestEventsTable.upiVpa],
+        paymentRef = this[IngestEventsTable.paymentRef],
         metadata = this[IngestEventsTable.metadata]?.let { JsonColumns.decode(it) },
         status = IngestEventStatus.valueOf(this[IngestEventsTable.status].uppercase()),
         error = this[IngestEventsTable.error],

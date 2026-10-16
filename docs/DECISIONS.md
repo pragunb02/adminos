@@ -42,6 +42,7 @@
 | D-35 | Architecture | SMS transport: Mac Messages reader now; iOS Shortcut via Cloudflare Access once hosted | Accepted | AOS-203, AOS-404, AOS-605 |
 | D-36 | Architecture | Device tokens: scoped JWT (typ=device) + revocable row; token types never interchangeable | Accepted | AOS-203 |
 | D-37 | Architecture | Statements parsed by the Python service; files and passwords discarded after parsing | Accepted | AOS-202 |
+| D-38 | Product | Cross-source dedup: reference first, then score with auto/suggest/separate bands; links, never overwrite | Accepted | AOS-207, AOS-307 |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -379,3 +380,15 @@ Proposed
   - **Why:** a statement is the full account history, and storing it creates risk for no current benefit.
 - **How columns are found:** by role, using header synonyms, not per-bank code. Bank quirks extend the synonyms.
 - **Accuracy check:** running-balance reconciliation flags mis-read columns.
+
+### D-38 — Cross-source duplicate detection rules
+2026-10-16 · Accepted by Pragun (after research) · Type: Product · Tasks: AOS-207, AOS-307
+- Reference (RRN) match first.
+- Then a points score with three bands (≥8 auto-merge, 5–7 suggest, <5 separate) and an ambiguity guard (best − runner-up ≥ 3).
+- **Windows by payment type:**
+  - card −1…+3 days; UPI ±1 day; NEFT ±2 days; SMS vs email ±10 min;
+  - hard limit 7 days.
+- **Auto-merge only on exact amounts.** Manual entries are only suggested.
+- **Merges are links** (`transaction_links`): source rows stay immutable, blanks are filled but values never overwritten, and user rejections are remembered.
+- **Why:** this combines GnuCash's scoring bands, Actual Budget's id-first, 1:1 and fill-blanks approach, YNAB's windows and occurrence ids, and beangulp/Plaid's cautions on amount drift.
+- Thresholds are versioned (`dedup-v1`) and will be tuned on real data.

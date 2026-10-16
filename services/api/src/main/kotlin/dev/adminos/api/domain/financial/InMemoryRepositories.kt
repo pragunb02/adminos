@@ -22,6 +22,11 @@ class InMemoryTransactionRepository : TransactionRepository {
     override suspend fun findByIngestEventId(ingestEventId: UUID): Transaction? =
         store.values.firstOrNull { it.ingestEventId == ingestEventId }
 
+    override suspend fun findMatchCandidates(userId: UUID, type: TransactionType, amount: java.math.BigDecimal, from: Instant, to: Instant): List<Transaction> =
+        store.values.filter { it.userId == userId && it.type == type && it.amount.compareTo(amount) == 0 && it.transactedAt in from..to }
+
+    override suspend fun delete(id: UUID) { store.remove(id) }
+
     override suspend fun findByUserId(
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,

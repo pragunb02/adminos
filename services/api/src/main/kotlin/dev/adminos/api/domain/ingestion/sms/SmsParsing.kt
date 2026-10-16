@@ -12,7 +12,9 @@ data class ParsedSmsTransaction(
     val merchantRaw: String?,
     val upiVpa: String?,
     val paymentMethod: PaymentMethod?,
-    val bankCode: String?
+    val bankCode: String?,
+    /** UPI/IMPS reference number (RRN), when the SMS shows one. */
+    val reference: String? = null
 )
 
 sealed interface SmsParseResult {

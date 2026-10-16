@@ -10,6 +10,9 @@ interface TransactionRepository {
     suspend fun save(transaction: Transaction): Transaction
     suspend fun findById(id: UUID): Transaction?
     suspend fun findByIngestEventId(ingestEventId: UUID): Transaction?
+    /** Same user, type and exact amount, transacted in [from, to]: possible same-payment matches (AOS-207). */
+    suspend fun findMatchCandidates(userId: UUID, type: TransactionType, amount: java.math.BigDecimal, from: Instant, to: Instant): List<Transaction>
+    suspend fun delete(id: UUID)
     suspend fun findByUserId(
         userId: UUID,
         from: Instant? = null,

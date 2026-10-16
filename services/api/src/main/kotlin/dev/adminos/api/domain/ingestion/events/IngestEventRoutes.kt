@@ -27,7 +27,8 @@ data class IngestEventDto(
     val merchantRaw: String? = null,
     val accountHint: String? = null,
     val paymentMethod: String? = null,
-    val upiVpa: String? = null
+    val upiVpa: String? = null,
+    val paymentRef: String? = null
 )
 
 @Serializable
@@ -67,7 +68,8 @@ internal fun IngestEventDto.toDomain(userId: UUID, at: String): IngestEvent {
             merchantRaw = merchantRaw,
             accountHint = accountHint,
             paymentMethod = paymentMethod?.let { parse(PaymentMethod.entries.toTypedArray(), it, "paymentMethod") },
-            upiVpa = upiVpa
+            upiVpa = upiVpa,
+            paymentRef = paymentRef
         )
     } catch (e: IllegalArgumentException) {
         if (e.message?.startsWith(at) == true) throw e

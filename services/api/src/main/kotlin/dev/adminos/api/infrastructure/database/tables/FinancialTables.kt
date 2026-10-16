@@ -25,6 +25,7 @@ object TransactionsTable : Table("transactions") {
     val accountLast4 = varchar("account_last4", 4).nullable()
     val paymentMethod = varchar("payment_method", 20).nullable()
     val upiVpa = varchar("upi_vpa", 255).nullable()
+    val paymentRef = varchar("payment_ref", 32).nullable()
     val category = varchar("category", 30).default("other")
     val subcategory = varchar("subcategory", 100).nullable()
     val categorySource = varchar("category_source", 20).default("rules")

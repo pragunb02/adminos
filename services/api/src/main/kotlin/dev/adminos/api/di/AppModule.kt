@@ -19,6 +19,11 @@ import dev.adminos.api.domain.ingestion.events.IngestEventRepository
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.pipeline.*
+import dev.adminos.api.domain.financial.links.InMemoryTransactionLinkRepository
+import dev.adminos.api.domain.financial.links.TransactionLinkRepository
+import dev.adminos.api.domain.financial.links.TransactionMatcher
+import dev.adminos.api.domain.financial.links.DuplicateService
+import dev.adminos.api.infrastructure.database.repositories.ExposedTransactionLinkRepository
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.domain.ingestion.statements.StatementImportService
 import dev.adminos.api.domain.ingestion.statements.StatementParser
@@ -56,6 +61,7 @@ val appModule = module {
         single<SyncSessionRepository> { ExposedSyncSessionRepository() }
         single<IngestEventRepository> { ExposedIngestEventRepository() }
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
+        single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
@@ -79,6 +85,7 @@ val appModule = module {
         single<SyncSessionRepository> { InMemorySyncSessionRepository() }
         single<IngestEventRepository> { InMemoryIngestEventRepository() }
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
+        single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
@@ -111,10 +118,19 @@ val appModule = module {
     single { IngestionService(get(), get(), getOrNull()) }
     // Ingest pipeline (D-34): pending intake events → transactions
     single { MerchantNormalizer() }
-    single { IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(get()), CategorizeStep(get()))) }
+    single { TransactionMatcher() }
+    single {
+        if (useDatabase) DuplicateService(get(), get()) { work -> dbQuery { work() } } else DuplicateService(get(), get())
+    }
+    single<MatchCandidateSource> { RepositoryMatchCandidates(get(), get()) }
+    single {
+        IngestPipeline(listOf(
+            ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get())
+        ))
+    }
     single<IngestOutcomeWriter> {
-        if (useDatabase) RepositoryOutcomeWriter(get(), get()) { work -> dbQuery { work() } }
-        else RepositoryOutcomeWriter(get(), get())
+        if (useDatabase) RepositoryOutcomeWriter(get(), get(), get()) { work -> dbQuery { work() } }
+        else RepositoryOutcomeWriter(get(), get(), get())
     }
     single { IngestProcessor(get(), get(), get()) }
     single { IngestEventService(get(), onAccepted = { get<IngestProcessor>().wake() }) }

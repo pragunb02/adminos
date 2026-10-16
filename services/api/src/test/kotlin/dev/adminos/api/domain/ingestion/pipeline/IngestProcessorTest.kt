@@ -24,7 +24,7 @@ class IngestProcessorTest {
 
     private val events = InMemoryIngestEventRepository()
     private val transactions = InMemoryTransactionRepository()
-    private val writer = RepositoryOutcomeWriter(transactions, events)
+    private val writer = RepositoryOutcomeWriter(transactions, events, dev.adminos.api.domain.financial.links.InMemoryTransactionLinkRepository())
     private val userId = UUID.randomUUID()
 
     private fun pipeline(vararg extra: IngestStep) =

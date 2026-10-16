@@ -23,6 +23,7 @@ class ToTransactionStep : IngestStep {
             accountLast4 = e.accountHint,
             paymentMethod = e.paymentMethod,
             upiVpa = e.upiVpa,
+            paymentRef = e.paymentRef,
             ingestEventId = e.id,
             transactedAt = e.occurredAt
         )
@@ -47,5 +48,29 @@ class CategorizeStep(private val categorizer: CategorizationService) : IngestSte
         return StepResult.Continue(
             context.copy(transaction = t.copy(category = result.category, subcategory = result.subcategory, categorySource = result.source))
         )
+    }
+}
+
+/** Supplies possible same-payment transactions for an incoming one (persistence-agnostic). */
+fun interface MatchCandidateSource {
+    suspend fun candidatesFor(incoming: Transaction): List<dev.adminos.api.domain.financial.links.MatchCandidate>
+}
+
+/**
+ * Cross-source duplicate detection (AOS-207). Auto-merges strong matches into the existing transaction;
+ * weaker or ambiguous ones become a suggestion the user confirms or rejects.
+ */
+class CrossSourceDedupStep(
+    private val candidates: MatchCandidateSource,
+    private val matcher: dev.adminos.api.domain.financial.links.TransactionMatcher
+) : IngestStep {
+    override suspend fun apply(context: PipelineContext): StepResult {
+        val t = context.txn
+        return when (val d = matcher.decide(t, candidates.candidatesFor(t))) {
+            dev.adminos.api.domain.financial.links.MatchDecision.None -> StepResult.Continue(context)
+            is dev.adminos.api.domain.financial.links.MatchDecision.AutoMerge -> StepResult.Merge(d.target, d.score, d.reason)
+            is dev.adminos.api.domain.financial.links.MatchDecision.Suggest ->
+                StepResult.Continue(context.copy(suggestion = MatchSuggestion(d.target, d.score, d.reason)))
+        }
     }
 }

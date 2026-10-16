@@ -31,7 +31,8 @@ class BankSmsParser(
             merchantRaw = merchant(flat)?.take(255),
             upiVpa = vpa,
             paymentMethod = paymentMethod(flat, vpa),
-            bankCode = bankCode
+            bankCode = bankCode,
+            reference = REFERENCE.find(flat)?.groupValues?.get(1)
         )
     }
 
@@ -78,6 +79,8 @@ class BankSmsParser(
         private val VERB_AMOUNT = Regex("\\b(?:debited|credited) (?:by|with|for) ([0-9][0-9,]*(?:\\.[0-9]{1,2})?)", I)
         private val NOT_THE_AMOUNT = listOf("avl", "avail", "bal", "limit", "outstanding", "min due", "total due")
         private val ACCOUNT = Regex("(?:A/?c|Acct|Account|Card)(?: no\\.?)?(?: ending(?: with)?)?\\s*[X*x]*\\s*(\\d{3,4})\\b", I)
+        /** 12-digit UPI/IMPS RRN after a reference label: "Ref 1234…", "Refno", "UPI:", "UPI Ref", "RRN". */
+        private val REFERENCE = Regex("(?i)\\b(?:ref(?:erence)?(?: ?no)?|refno|rrn|upi(?: ref)?)\\.?[ :#-]*(\\d{12})(?!\\d)")
         private val VPA = Regex("(?<![A-Za-z0-9._])[a-zA-Z0-9._]{2,}@[a-zA-Z]{2,}\\b")
 
         private val COMMON_MERCHANT_PATTERNS = listOf(

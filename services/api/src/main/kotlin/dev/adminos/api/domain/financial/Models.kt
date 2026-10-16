@@ -44,6 +44,8 @@ data class Transaction(
     val accountLast4: String? = null,
     val paymentMethod: PaymentMethod? = null,
     val upiVpa: String? = null,
+    /** UPI/IMPS reference (RRN), when known (AOS-207). */
+    val paymentRef: String? = null,
     val category: TransactionCategory = TransactionCategory.OTHER,
     val subcategory: String? = null,
     val categorySource: String = "rules",
