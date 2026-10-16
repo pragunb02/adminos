@@ -21,7 +21,8 @@ fun Route.dashboardRoutes(
     billTrackingService: BillTrackingService,
     anomalyRepository: AnomalyRepository,
     briefingRepository: BriefingRepository,
-    insightRepository: InsightRepository
+    insightRepository: InsightRepository,
+    clock: java.time.Clock = java.time.Clock.systemDefaultZone()
 ) {
     authenticate("auth-jwt") {
         route("/dashboard") {
@@ -30,7 +31,7 @@ fun Route.dashboardRoutes(
             get("/home") {
                 val principal = call.userPrincipal
                 val userId = principal.userId
-                val now = Instant.now()
+                val now = Instant.now(clock)
                 val weekAgo = now.minus(7, ChronoUnit.DAYS)
 
                 // Aggregate data
@@ -44,7 +45,7 @@ fun Route.dashboardRoutes(
 
                 val upcomingBills = billTrackingService.getUpcomingBills(userId)
                 val billsDueWithin7 = upcomingBills.filter {
-                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), it.dueDate)
+                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(clock), it.dueDate)
                     daysUntil in 0..7
                 }
 
@@ -86,7 +87,7 @@ fun Route.dashboardRoutes(
 
                 // Bills due within 7 days
                 billsDueWithin7.forEach { b ->
-                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(), b.dueDate)
+                    val daysUntil = ChronoUnit.DAYS.between(LocalDate.now(clock), b.dueDate)
                     val desc = when {
                         daysUntil <= 0 -> "Due today — ₹${b.amount}"
                         daysUntil == 1L -> "Due tomorrow — ₹${b.amount}"

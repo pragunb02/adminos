@@ -206,7 +206,7 @@ class InMemorySubscriptionRepository : SubscriptionRepository {
 
 // ── In-Memory Bill Repository ──
 
-class InMemoryBillRepository : BillRepository {
+class InMemoryBillRepository(private val clock: java.time.Clock = java.time.Clock.systemDefaultZone()) : BillRepository {
     private val store = ConcurrentHashMap<UUID, Bill>()
 
     override suspend fun save(bill: Bill): Bill {
@@ -244,7 +244,7 @@ class InMemoryBillRepository : BillRepository {
         }.sortedBy { it.dueDate }
 
     override suspend fun findUpcoming(userId: UUID, withinDays: Int): List<Bill> {
-        val today = LocalDate.now()
+        val today = LocalDate.now(clock)
         val cutoff = today.plusDays(withinDays.toLong())
         return store.values.filter {
             it.userId == userId &&
@@ -255,7 +255,7 @@ class InMemoryBillRepository : BillRepository {
 
     // Find upcoming bills across ALL users (for cron)
     override suspend fun findUpcoming(withinDays: Int): List<Bill> {
-        val today = LocalDate.now()
+        val today = LocalDate.now(clock)
         val cutoff = today.plusDays(withinDays.toLong())
         return store.values.filter {
             it.status in listOf(BillStatus.UPCOMING, BillStatus.DUE) &&
@@ -264,7 +264,7 @@ class InMemoryBillRepository : BillRepository {
     }
 
     override suspend fun findOverdue(): List<Bill> {
-        val today = LocalDate.now()
+        val today = LocalDate.now(clock)
         return store.values.filter {
             it.status in listOf(BillStatus.UPCOMING, BillStatus.DUE) && it.dueDate < today
         }
