@@ -97,6 +97,6 @@ val RateLimitPlugin = createRouteScopedPlugin("RateLimit", ::RateLimitConfig) {
 class RateLimitConfig {
     var limiter: RateLimiter = RateLimiters.auth
     var keyExtractor: (ApplicationCall) -> String = { call ->
-        call.request.local.remoteHost
+        call.clientIp
     }
 }

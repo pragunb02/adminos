@@ -43,7 +43,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S1.2](tickets/AOS-S1.2.md)** | **I can log in with Google** | | 🟦 | 7.25h | |
 | └ [AOS-106](tickets/AOS-106.md) | Auth reads the JWT from the `access_token` cookie too | Claude | ✅ | 1h | 0.5h |
 | └ [AOS-107](tickets/AOS-107.md) | JSON/query contract web ↔ API (camelCase, D-31) | Claude | ✅ | 2h | 1.5h |
-| └ [AOS-108](tickets/AOS-108.md) | Web config: Google client ID, browser API URL, CORS | Claude | ⬜ | 1h |  |
+| └ [AOS-108](tickets/AOS-108.md) | Web config: same-origin API proxy (D-32), Google client id, fixes | Claude | ✅ | 1h | 1.5h |
 | └ [AOS-109](tickets/AOS-109.md) | Session refresh via cookie + logout button | Claude | ⬜ | 2h |  |
 | └ [AOS-111](tickets/AOS-111.md) | Create Google OAuth client | Pragun | ⬜ | 0.25h |  |
 | └ [AOS-112](tickets/AOS-112.md) | End-to-end login on laptop | Claude + Pragun | ⬜ | 1h |  |
@@ -130,4 +130,4 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⬜ | 6h |  |
 | └ AOS-604 | Android app (SMS + notification listener) | Claude | ⬜ | 20h |  |
 | **[AOS-S6.3](tickets/AOS-S6.3.md)** | **Launch** | | ⬜ | 8h | |
-| └ AOS-605 | Onboarding + hosting | Claude + Pragun | ⬜ | 8h |  |
+| └ [AOS-605](tickets/AOS-605.md) | Onboarding + hosting (edge proxy owns XFF, D-32) | Claude + Pragun | ⬜ | 8h |  |

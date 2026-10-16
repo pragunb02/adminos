@@ -127,12 +127,13 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
+      args:
+        API_INTERNAL_URL: http://api-server:8080      # same-origin proxy target (D-32)
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
       - api-server
-    environment:
-      NEXT_PUBLIC_API_URL: http://api-server:8080
 
 volumes:
   postgres_data:

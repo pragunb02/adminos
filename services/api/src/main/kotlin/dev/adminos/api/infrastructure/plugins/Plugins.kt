@@ -10,6 +10,7 @@ import io.ktor.server.application.*
  * following the pattern from JetBrains' Ktor DDD guide.
  */
 fun Application.configurePlugins(config: AppConfig, jwtService: JwtService) {
+    configureForwardedHeaders() // first: everything after sees the real client IP (D-32)
     configureRequestId()
     configureSerialization()
     configureHTTP(config.app.appUrl)

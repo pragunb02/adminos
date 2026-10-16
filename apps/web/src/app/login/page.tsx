@@ -9,7 +9,10 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
+  const configured = GOOGLE_CLIENT_ID.length > 0;
+
   const handleGoogleLogin = () => {
+    if (!configured) return;
     const redirectUri = `${window.location.origin}/auth/callback`;
     const params = new URLSearchParams({
       client_id: GOOGLE_CLIENT_ID,
@@ -36,9 +39,16 @@ function LoginContent() {
           </div>
         )}
 
+        {!configured && (
+          <p role="alert" className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+            Google sign-in isn&apos;t configured. Set <code>GOOGLE_CLIENT_ID</code> in the repo&apos;s <code>.env</code> and rebuild.
+          </p>
+        )}
+
         <button
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 transition-colors"
+          disabled={!configured}
+          className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
