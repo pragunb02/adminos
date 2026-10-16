@@ -27,10 +27,10 @@ My transactions arrive automatically from statements and iPhone SMS, plus cash q
 | ID | Story | Status | ETA |
 |---|---|---|---|
 | [AOS-S2.1](AOS-S2.1.md) | Reliable ingestion pipeline | ✅ | 3h |
-| [AOS-S2.2](AOS-S2.2.md) | Import bank statements | ⬜ | 6h |
-| [AOS-S2.3](AOS-S2.3.md) | iPhone SMS auto-capture | ⬜ | 5h |
+| [AOS-S2.2](AOS-S2.2.md) | Import bank statements | 🟦 (AOS-212 left) | 6h |
+| [AOS-S2.3](AOS-S2.3.md) | iPhone SMS auto-capture | 🟦 (AOS-211 left) | 5h |
 | [AOS-S2.4](AOS-S2.4.md) | Cash quick-add | ✅ | 2h |
-| [AOS-S2.5](AOS-S2.5.md) | Numbers I can trust | ⬜ | 15h |
+| [AOS-S2.5](AOS-S2.5.md) | Numbers I can trust | 🟨 code done | 15h |
 
 ## Out of scope
 - Gmail, WhatsApp (E4)

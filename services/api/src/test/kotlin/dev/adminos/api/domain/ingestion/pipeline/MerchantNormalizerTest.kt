@@ -22,7 +22,8 @@ class MerchantNormalizerTest {
     @Test
     fun `aliases match whole words only`() {
         assertEquals("Coca Cola Store", n.normalize("COCA COLA STORE")) // not "Ola"
-        assertEquals("Jiomart Grocery", n.normalize("JIOMART GROCERY")) // not "Jio"
+        assertEquals("JioMart", n.normalize("JIOMART GROCERY")) // its own brand, not "Jio"
+        assertEquals("Motorola Store", n.normalize("MOTOROLA STORE")) // not "Ola"
     }
 
     @Test
@@ -35,5 +36,38 @@ class MerchantNormalizerTest {
         assertEquals("Ram Tea Stall", n.normalize("RAM  TEA stall"))
         assertNull(n.normalize("  "))
         assertNull(n.normalize(null))
+    }
+
+    // ── AOS-206: catalogue + narration cleaning ──
+
+    @Test
+    fun `legal entity names map to the brand people know`() {
+        assertEquals("Swiggy", n.normalize("BUNDL TECHNOLOGIES PVT LTD"))
+        assertEquals("Ola", n.normalize("ANI TECHNOLOGIES PRIVATE LIMITED"))
+        assertEquals("BookMyShow", n.normalize("BIGTREE ENTERTAINMENT"))
+        assertEquals("IndiGo", n.normalize("INTERGLOBE AVIATION LTD"))
+        assertEquals("Cult", n.normalize("CULT.FIT GURGAON"))
+        assertEquals("Apple", n.normalize("APPLE.COM/BILL"))
+    }
+
+    @Test
+    fun `payment gateway prefixes do not hide the merchant`() {
+        assertEquals("Nykaa", n.normalize("PAYU*NYKAA"))
+        assertEquals("Sharma Sweets", n.normalize("RAZ*SHARMA SWEETS"))
+    }
+
+    @Test
+    fun `bank narrations give the payee's name`() {
+        assertEquals("Ramu Chaiwala", n.normalize("UPI-RAMU CHAIWALA-ramu@okicici-ICIC0001234-123456789012-PAYMENT"))
+        assertEquals("Ramu Chai", n.normalize("UPI/DR/123456789012/RAMU CHAI/YESB/ramu@ybl/Payment"))
+        assertEquals("Ravi Kumar", n.normalize("UPI/123456789012/RAVI KUMAR/ravi.k@okaxis/Axis Bank"))
+        assertEquals("Blue Bottle Cafe", n.normalize("POS 512345XXXXXX1234 BLUE BOTTLE CAFE BANGALORE"))
+        assertEquals("Back To Basics", n.normalize("BACK TO BASICS"), "inner words are kept")
+    }
+
+    @Test
+    fun `the UPI handle is the name when the narration has none`() {
+        assertEquals("Ramu Chai", n.normalize(raw = "UPI-123456789012", upiVpa = "ramu.chai@ybl"))
+        assertEquals("Swiggy", n.normalize(raw = null, upiVpa = "bundl.swiggy@axisbank"))
     }
 }
