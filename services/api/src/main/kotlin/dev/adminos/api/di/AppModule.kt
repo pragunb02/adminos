@@ -62,6 +62,7 @@ val appModule = module {
         single<IngestEventRepository> { ExposedIngestEventRepository() }
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
+        single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
@@ -86,6 +87,7 @@ val appModule = module {
         single<IngestEventRepository> { InMemoryIngestEventRepository() }
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
+        single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
@@ -150,7 +152,10 @@ val appModule = module {
     single { GmailCronService(get(), get()) }
 
     // Financial Services
-    single { CategorizationService() }
+    single { CategorizationService(get()) }
+    single {
+        if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
+    }
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get()) }
     single { BillTrackingService(get(), get()) }

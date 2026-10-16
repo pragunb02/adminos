@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~ done. Next in M2: AOS-210 categories, AOS-204 cash quick-add; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
+**Next step:** story S1.2, Google login (~~AOS-106~~, ~~AOS-107~~, ~~AOS-108~~ done; ~~AOS-109~~, ~~AOS-110~~ done; waiting on AOS-111 (Pragun: OAuth client) for AOS-112; ~~AOS-113~~, ~~AOS-201~~ done. ~~AOS-203~~ iPhone SMS done (Pragun: AOS-211 setup once logged in). ~~AOS-202~~ statement upload done (Pragun: AOS-212 with real statements). ~~AOS-207~~ cross-source dedup done. ~~AOS-208~~, ~~AOS-209~~, ~~AOS-210~~ done. Next in M2: AOS-204 cash quick-add; AOS-107 JSON contract, AOS-108 web config, AOS-109 refresh/logout, AOS-111 Pragun creates the OAuth client, AOS-112 end-to-end).
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -56,8 +56,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Feature | Rule (as implemented) | State |
 |---|---|---|
 | Merchant normalization (Go `normalizer.go:60`) | Uppercase, then first of 13 aliases contained (GPay, Swiggy, Uber…), else title-case. Map order is random, so overlapping names can misfire (`UBER EATS` → Uber) | Live, buggy |
-| Categorization, Go (`categorizer.go:23`) | 10 ordered substring rules; no match gives `other` (0.3) | Live, buggy (`jio cinema` → utilities) |
-| Categorization, Kotlin (`CategorizationService.kt`) | 25 known merchants, then 7 regex rules, then UPI → transfer, else other. 11 categories | Dead |
+| Categorization, Go (`categorizer.go:23`) | 10 ordered substring rules; no match gives `other` (0.3). Only the old Go Gmail path uses it; it goes when AOS-401 moves Gmail to the pipeline | Live, buggy (`jio cinema` → utilities) |
+| Categorization, Kotlin (`CategorizationService.kt`, AOS-210, D-41) | The only categorizer for pipeline sources. Order: your remembered rule (UPI ID, else merchant), then 22 known merchants, then 7 whole-word patterns, else Other. It never guesses Transfer (TransferStep does). Corrections re-label past spend/refunds except hand-set ones | Live |
 | Dedup (`normalizer.go:47`) | SHA256(user, amount, merchant, date-to-hour, last4) in `ingestion_fingerprints` | Live |
 | Subscription detection (`SubscriptionDetectorService.kt`) | 90 days of debits per merchant, ≥2 charges. Day-gap mean/sd: weekly 6–8, monthly 25–35, quarterly 85–95, yearly 355–375. Price change >5% | Dead |
 | Waste score (Go) | +0.4 no logins & no usage emails; +0.3 paid 3+ months with no logins; +0.1 if 6+; +0.2 no usage emails. >0.7 = unused | Never triggered |
@@ -96,6 +96,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Re-scoped to a personal spending console (D-4 … D-7).
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
+  - AOS-210: single categorizer with remembered corrections (D-41, V15 `category_rules`): one rule per payee, future and past re-labelled (not hand-set), `remember:false` opt-out. Removed wrong guesses (unknown UPI/NEFT/IMPS/Paytm/PhonePe/GPay → Transfer), substring false matches (Motorola → Ola), dead strategy and AI-queue code. Unit 283, integration 49.
   - AOS-209: refunds/reversals (D-40): reversals net to zero; refunds capped at the original, same merchant, ≤90 days, net their category's spend; works in either order. Unit 275, integration 47.
   - AOS-208: transaction nature (D-39) drives totals; own-account transfer pairs + card bill payments; generic relation side effects; suggestions API generalised. Unit 262, integration 45.
   - AOS-207: cross-source dedup (D-38, research-backed): RRN first, score bands, 1:1, payment-type windows, links table (V13), enrich blanks only, review API. Fixed: transaction update silently dropped account/VPA/method. Unit 251, integration 44.

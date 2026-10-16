@@ -16,7 +16,7 @@ import org.koin.ktor.ext.inject
 fun Application.financialModule() {
     val transactionRepository: TransactionRepository by inject()
     val subscriptionRepository: SubscriptionRepository by inject()
-    val categorizationService: CategorizationService by inject()
+    val categoryCorrections: CategoryCorrectionService by inject()
     val accountDiscoveryService: AccountDiscoveryService by inject()
     val billTrackingService: BillTrackingService by inject()
     val auditService: AuditService by inject()
@@ -27,7 +27,7 @@ fun Application.financialModule() {
 
     routing {
         route("/api/v1") {
-            transactionRoutes(transactionRepository, categorizationService, auditService)
+            transactionRoutes(transactionRepository, categoryCorrections, auditService)
             suggestionRoutes(suggestionService)
             accountRoutes(accountDiscoveryService)
             subscriptionRoutes(subscriptionRepository)

@@ -23,7 +23,7 @@ import java.util.UUID
 
 fun Route.transactionRoutes(
     transactionRepository: TransactionRepository,
-    categorizationService: CategorizationService,
+    corrections: CategoryCorrectionService,
     auditService: AuditService
 ) {
     authenticate("auth-jwt") {
@@ -92,7 +92,7 @@ fun Route.transactionRoutes(
                 )
             }
 
-            // PATCH /api/v1/transactions/:id — user category override
+            // PATCH /api/v1/transactions/:id — user category override, remembered for the payee (AOS-210)
             patch("/{id}") {
                 val principal = call.userPrincipal
                 val txnId = call.parameters["id"]?.let { UUID.fromString(it) }
@@ -114,16 +114,15 @@ fun Route.transactionRoutes(
                     "category_source" to JsonPrimitive(txn.categorySource)
                 ))
 
-                val updated = transactionRepository.update(txn.copy(
-                    category = newCategory,
-                    subcategory = request.subcategory,
-                    categorySource = "user"
-                ))
+                val correction = corrections.correct(txn, newCategory, request.subcategory, request.remember)
+                val updated = correction.transaction
 
                 val afterState = JsonObject(mapOf(
                     "category" to JsonPrimitive(newCategory.name.lowercase()),
                     "subcategory" to JsonPrimitive(request.subcategory ?: ""),
-                    "category_source" to JsonPrimitive("user")
+                    "category_source" to JsonPrimitive("user"),
+                    "remembered" to JsonPrimitive(correction.remembered),
+                    "relabelled" to JsonPrimitive(correction.relabelled)
                 ))
 
                 auditService.log(

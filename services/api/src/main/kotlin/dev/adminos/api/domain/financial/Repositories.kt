@@ -16,6 +16,8 @@ interface TransactionRepository {
     /** Transactions of [type] in [from, to] with amount in [minAmount, maxAmount] (bounds optional): refund/reversal candidates. */
     suspend fun findInWindow(userId: UUID, type: TransactionType, from: Instant, to: Instant,
                              minAmount: java.math.BigDecimal? = null, maxAmount: java.math.BigDecimal? = null): List<Transaction>
+    /** Every transaction of [userId] paid to this payee (case-insensitive UPI ID or merchant name), for remembered rules (AOS-210). */
+    suspend fun findByPayee(userId: UUID, match: RuleMatch, value: String): List<Transaction>
     suspend fun findByUserId(
         userId: UUID,
         from: Instant? = null,

@@ -32,6 +32,14 @@ class InMemoryTransactionRepository : TransactionRepository {
         store.values.filter { it.userId == userId && it.type == type && it.transactedAt in from..to &&
             (minAmount == null || it.amount >= minAmount) && (maxAmount == null || it.amount <= maxAmount) }
 
+    override suspend fun findByPayee(userId: UUID, match: RuleMatch, value: String): List<Transaction> =
+        store.values.filter { t ->
+            t.userId == userId && when (match) {
+                RuleMatch.VPA -> t.upiVpa?.trim()?.lowercase() == value
+                RuleMatch.MERCHANT -> t.merchantName?.trim()?.lowercase() == value
+            }
+        }
+
     override suspend fun findByUserId(
         userId: UUID, from: Instant?, to: Instant?,
         category: TransactionCategory?, type: TransactionType?,
