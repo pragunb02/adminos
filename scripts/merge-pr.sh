@@ -2,7 +2,7 @@
 # Merge a PR only after every check on its head commit is explicitly `success` (CLAUDE.md working rules)
 # AND both reviews passed on that same commit: commit statuses review/code and review/security (AOS-013, D-101).
 # Usage (always run main's copy, never a PR branch's, so a PR can't change its own gate):
-#   git fetch origin && git show origin/main:scripts/merge-pr.sh | bash -s -- <pr-number> [timeout-seconds]
+#   git fetch origin && bash <(git show origin/main:scripts/merge-pr.sh) <pr-number> [timeout-seconds]
 # Exits non-zero WITHOUT merging on failure, cancellation, neutral, a missing conclusion, a missing or failed
 # review, a push during the wait, or timeout.
 set -euo pipefail
