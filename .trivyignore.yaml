@@ -1,0 +1,6 @@
+# Trivy exceptions (AOS-622). Each entry needs a statement (why it is safe or unfixable) and expired_at.
+# vulnerabilities:
+#   - id: CVE-0000-00000
+#     statement: "not reachable: …"
+#     expired_at: 2026-12-31
+vulnerabilities: []

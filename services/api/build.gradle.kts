@@ -18,6 +18,13 @@ repositories {
     mavenCentral()
 }
 
+// Supply chain (AOS-622): every resolved version is locked in gradle.lockfile, so builds are reproducible and
+// OSV-Scanner sees every transitive dependency; gradle/verification-metadata.xml pins each artifact's SHA-256.
+// After changing a dependency: ./gradlew dependencies --write-locks && ./gradlew --write-verification-metadata sha256 test integrationTest koverVerify buildFatJar
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 dependencies {
     // Ktor server
     implementation(libs.ktor.server.core)

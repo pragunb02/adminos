@@ -6,6 +6,9 @@
 # It merged only if it prints "MERGED #<pr-number>". MERGE_PR_POLL_SECONDS (default 5) sets the poll interval.
 # Exits non-zero WITHOUT merging on failure, cancellation, neutral, a missing conclusion, a missing or failed
 # review, a push during the wait, or timeout.
+# Required checks (AOS-622): every name in main's .github/required-checks.txt must have reported `success` on the
+# head commit. Until all of them exist the PR keeps waiting, so a fast check (GitGuardian) finishing before CI's
+# jobs are even created can't trigger a merge. The list is read from main through the API, never from the PR.
 set -euo pipefail
 repo="pragunb02/adminos"
 owner="pragunb02"   # the only account whose review statuses count
@@ -18,6 +21,12 @@ poll="${MERGE_PR_POLL_SECONDS:-5}"
 # The SHA everything below is judged on. The merge is pinned to it (--match-head-commit), so a push during
 # the wait can't be merged unreviewed: GitHub refuses the merge if the head moved.
 sha=$(gh pr view "$pr" -R "$repo" --json headRefOid -q .headRefOid)
+if ! required_file=$(gh api -H "Accept: application/vnd.github.raw" "repos/$repo/contents/.github/required-checks.txt?ref=main"); then
+  echo "NOT MERGED: could not read .github/required-checks.txt from main"
+  exit 1
+fi
+required=$(sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' <<<"$required_file" | grep -v '^$' || true)
+if [[ -z "$required" ]]; then echo "NOT MERGED: main's .github/required-checks.txt lists no checks"; exit 1; fi
 deadline=$(( $(date +%s) + timeout ))
 while :; do
   runs=$(gh api "repos/$repo/commits/$sha/check-runs?per_page=100")
@@ -28,6 +37,9 @@ while :; do
     exit 1
   fi
   pending=$(jq '[.check_runs[] | select(.status != "completed")] | length' <<<"$runs")
+  # A required check that hasn't reported yet counts as pending.
+  missing=$(jq -r --arg req "$required" '($req | split("\n")) - [.check_runs[].name] | join(", ")' <<<"$runs")
+  if [[ -n "$missing" ]]; then pending=$(( pending + 1 )); fi
   succeeded=$(jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length' <<<"$runs")
   if [[ "$total" -gt 0 && "$pending" -eq 0 ]]; then
     if [[ "$succeeded" -ne "$total" ]]; then
@@ -60,6 +72,9 @@ while :; do
     echo "MERGED #$pr at $sha after: $summary"
     exit 0
   fi
-  if [[ $(date +%s) -ge $deadline ]]; then echo "NOT MERGED: checks still pending after ${timeout}s"; exit 1; fi
+  if [[ $(date +%s) -ge $deadline ]]; then
+    echo "NOT MERGED: checks still pending after ${timeout}s${missing:+ (required checks not reported: $missing)}"
+    exit 1
+  fi
   sleep "$poll"
 done
