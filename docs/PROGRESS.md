@@ -95,6 +95,14 @@ Verified on 2026-10-16 on `main` (before branch changes):
 17. `ConnectionRepository.update` writes every column: a connect/disconnect racing a worker sync can rewind `history_id` (found in AOS-405; new watch code writes only its own columns). Fix: narrow updates for connect/disconnect.
 18. Gmail push bursts aren't coalesced: the worker never marks a sync session `in_progress`, so "queued" may already be running. Fix: worker sets `in_progress`, then coalesce (found in AOS-405).
 19. Connect Gmail takes `redirectUri` from the client; Google only accepts registered URIs, so it isn't exploitable, but checking it against the app's own URL would add depth. If the session expires during consent, login drops the code (start again; a return-to on login would be nicer). Both from AOS-406.
+20. Non-JSON bodies to JSON routes return 500 instead of 415 (AOS-633, in progress).
+21. Account balances are dropped at ingestion (SMS "Avl Bal", statement balances); net worth and "money left" need them (AOS-814 in E8).
+22. Subscription detection is too broad: any regularly charged merchant (e.g. a weekly grocery shop) can be called a subscription; after a monthly → yearly switch it keeps the monthly cycle and marks the subscription ended.
+23. `StatementImportService` and `RateLimiting.kt` use `!!` / `System.currentTimeMillis()` (ENGINEERING §2).
+24. Web unit tests that wait 1–5 s (Documents, Briefings, CashQuickAdd, Import, Home) time out under heavy parallel load; they pass on a quiet run.
+25. The Playwright session cookie is set without HttpOnly (test-only), so "no token in storage" specs can't check `document.cookie`.
+26. `PATCH /transactions/{id}` calls the repository directly (layer rule).
+27. AI follow-ups from the AOS-702/703 reviews: SDK retries can overshoot the cost cap by a bounded amount; IFSC and short account numbers not masked (partly done in AOS-705); no DB CHECK on `ai_calls.model`; sanitise model `reason` before display; warn at start-up when an eval record is synthetic; `evals.json` loads with AI off; a test for a trickling Ollama body + `@Volatile`; per-code-point digit mapping in `PiiMasker`; model weights pinned by digest in eval records; a YAML-aware compose exposure test.
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
