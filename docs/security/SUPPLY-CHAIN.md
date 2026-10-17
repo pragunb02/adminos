@@ -60,11 +60,13 @@ Checked by `scripts/check-compose-hardening.sh` (CI `shell`) and proven by `scri
   - Our images set `USER`.
   - Postgres runs as uid 70 and Redis as uid 999, so no root entrypoint and no capabilities.
   - The documented exception is Tailscale's userspace `containerboot`: root, but with no capabilities and no tun device.
+  - Ollama (AOS-703) is the other: root, so it can write its root-owned model volume, but with no capabilities, a read-only root, no published port, and only the API as a peer.
 - **No package manager at run time.** npm/npx/corepack are removed from the web image, and pip/setuptools from the parser image. The web image ships production dependencies only.
 - **Networks** (D-99):
   - `backend`: Postgres, Redis, the API, the workers, the backup job.
   - `edge`: the web app and the API (plus the Tailscale and cloudflared sidecars).
   - `parser` (internal, no internet): the API and the statement parser.
+  - `ai`: the API and the optional Ollama service (AOS-703).
   - So the two components that handle untrusted input, the web app (browsers) and the parser (uploaded files), can't reach Postgres or Redis, and the parser can't reach the internet.
 - **Ports:** published on `127.0.0.1` only (AOS-616).
 

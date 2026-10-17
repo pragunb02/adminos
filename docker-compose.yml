@@ -240,6 +240,8 @@ services:
     profiles: ["ollama"]
     image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
     networks: [ai]
+    cap_drop: ["ALL"]                 # also in *hardened; kept explicit here (ComposeExposureTest, AOS-703)
+    security_opt: ["no-new-privileges:true"]
     # Root, as the image ships: it writes the model volume at /root/.ollama, which a fresh named volume creates
     # root-owned. Named exception in scripts/check-compose-hardening.sh; it still has no capabilities (so root
     # can't bypass file permissions or bind privileged ports), no-new-privileges, a read-only root filesystem,
