@@ -4,6 +4,10 @@ import dev.adminos.api.domain.agent.Anomaly
 import dev.adminos.api.domain.agent.AnomalyRepository
 import dev.adminos.api.domain.agent.AnomalyStatus
 import dev.adminos.api.domain.agent.AnomalyType
+import dev.adminos.api.domain.coach.limits.LimitPeriod
+import dev.adminos.api.domain.coach.limits.LimitScope
+import dev.adminos.api.domain.coach.limits.SpendingLimit
+import dev.adminos.api.domain.coach.limits.SpendingLimitRepository
 import dev.adminos.api.domain.financial.*
 import dev.adminos.api.domain.financial.links.LinkKind
 import dev.adminos.api.domain.financial.links.LinkRelation
@@ -76,6 +80,10 @@ class IdorTest {
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
             push.id, mandate.id, notification.id, receipt.id).map { it.toString() } + documentId
+        val limit: SpendingLimit
+    ) {
+        fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
+            push.id, mandate.id, notification.id, limit.id).map { it.toString() } + documentId
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -121,6 +129,9 @@ class IdorTest {
         val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
             receipt)
+        val limit = app.get<SpendingLimitRepository>().save(SpendingLimit(userId = alice.id, scope = LimitScope.Merchant("Alice Secret Merchant"),
+            label = "Alice Secret Merchant", period = LimitPeriod.MONTHLY, amount = BigDecimal("3000"), createdAt = Instant.now(), updatedAt = Instant.now()))
+        return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId, limit)
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -159,6 +170,8 @@ class IdorTest {
             Attack(HttpMethod.Delete, { "/api/v1/auth/sessions/$it" }, a.sessionId.toString()),
             Attack(HttpMethod.Post, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString(), """{"transactionId":"${a.txn.id}"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
+            Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
         )
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
@@ -187,6 +200,8 @@ class IdorTest {
         client.asBob(HttpMethod.Delete, "/api/v1/device-tokens/${a.deviceTokenId}", null)
         client.asBob(HttpMethod.Delete, "/api/v1/auth/sessions/${a.sessionId}", null)
         client.asBob(HttpMethod.Delete, "/api/v1/push/subscriptions", """{"endpoint":"${a.push.endpoint.url}"}""")
+        client.asBob(HttpMethod.Patch, "/api/v1/coach/limits/${a.limit.id}", """{"amount":"1"}""")
+        client.asBob(HttpMethod.Delete, "/api/v1/coach/limits/${a.limit.id}", null)
 
         assertEquals(TransactionCategory.SHOPPING, app.get<TransactionRepository>().findById(a.txn.id)?.category)
         assertEquals(true, app.get<SubscriptionRepository>().findById(a.subscription.id)?.isFlagged)
@@ -196,6 +211,7 @@ class IdorTest {
         assertTrue(app.get<DeviceTokenService>().authenticate(a.deviceToken, Scopes.INGEST_SMS) != null, "Alice's device token still works")
         assertTrue(app.get<SessionRepository>().findActiveByUserId(alice.id).any { it.id == a.sessionId }, "Alice's session is still active")
         assertTrue(app.get<PushSubscriptionRepository>().findByUserId(alice.id).any { it.id == a.push.id }, "Alice still has push")
+        assertEquals(BigDecimal("3000"), app.get<SpendingLimitRepository>().findById(alice.id, a.limit.id)?.amount, "Alice's limit is unchanged")
         val doc = client.get("/api/v1/documents/${a.documentId}") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
@@ -220,6 +236,7 @@ class IdorTest {
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
             "/api/v1/leaks/fees", "/api/v1/receipts",
+            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
