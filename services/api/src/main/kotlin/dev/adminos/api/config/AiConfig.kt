@@ -98,10 +98,21 @@ class AiConfig(
                 throw IllegalArgumentException("OLLAMA_BASE_URL is not a URL", e)
             }
             require(url.scheme in setOf("http", "https") && !url.host.isNullOrBlank()) { "OLLAMA_BASE_URL must be an http(s) URL with a host" }
+            // Prompts carry financial text: plain http only to this machine or a compose service (no dot in the
+            // name, so it never leaves the compose network); anything else must be https (D-91).
+            require(url.scheme == "https" || isPrivateHost(url.host)) {
+                "OLLAMA_BASE_URL must use https unless it is localhost, a loopback address or a compose service name"
+            }
             val seconds = value("OLLAMA_TIMEOUT_SECONDS")?.let {
                 it.toLongOrNull()?.takeIf { s -> s in 1..600 } ?: throw IllegalArgumentException("OLLAMA_TIMEOUT_SECONDS is 1..600, was '$it'")
             } ?: DEFAULT_OLLAMA_TIMEOUT_SECONDS
             return OllamaSettings(url, Duration.ofSeconds(seconds))
+        }
+
+        /** Loopback, or a single-label compose service name like `ollama`. */
+        internal fun isPrivateHost(host: String): Boolean {
+            val h = host.lowercase().removePrefix("[").removeSuffix("]")
+            return h == "localhost" || h == "::1" || h.startsWith("127.") || ('.' !in h && ':' !in h)
         }
     }
 }

@@ -90,6 +90,12 @@ class AiConfigTest {
         assertEquals(Duration.ofSeconds(30), config(withModel + mapOf("OLLAMA_BASE_URL" to "http://127.0.0.1:11434", "OLLAMA_TIMEOUT_SECONDS" to "30")).ollama?.timeout)
         assertContains(message(withModel + ("OLLAMA_BASE_URL" to "ftp://ollama")), "OLLAMA_BASE_URL")
         assertContains(message(withModel + ("OLLAMA_BASE_URL" to "http://bad url")), "OLLAMA_BASE_URL")
+        // Financial text never travels in cleartext off this machine or the compose network (D-91).
+        assertContains(message(withModel + ("OLLAMA_BASE_URL" to "http://gpu-box.example.com:11434")), "https")
+        assertContains(message(withModel + ("OLLAMA_BASE_URL" to "http://192.168.1.20:11434")), "https")
+        assertEquals(URI("https://gpu-box.example.com"), config(withModel + ("OLLAMA_BASE_URL" to "https://gpu-box.example.com")).ollama?.baseUrl)
+        assertEquals(URI("http://[::1]:11434"), config(withModel + ("OLLAMA_BASE_URL" to "http://[::1]:11434")).ollama?.baseUrl)
+        assertEquals(URI("http://localhost:11434"), config(withModel + ("OLLAMA_BASE_URL" to "http://localhost:11434")).ollama?.baseUrl)
         assertContains(message(withModel + mapOf("OLLAMA_BASE_URL" to "http://ollama:11434", "OLLAMA_TIMEOUT_SECONDS" to "0")), "OLLAMA_TIMEOUT_SECONDS")
         assertContains(message(withModel + mapOf("OLLAMA_BASE_URL" to "http://ollama:11434", "OLLAMA_TIMEOUT_SECONDS" to "soon")), "OLLAMA_TIMEOUT_SECONDS")
     }
