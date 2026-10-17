@@ -71,6 +71,7 @@
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
+| D-80 | Product | North star "spend less → save more → invest well", measured by the savings rate; Epic E9 Spending coach (leaks, limits, nudges, goals) goes before the E8 wealth build; the coach informs and never acts; nudges are few and configurable | Accepted | AOS-011, E9 |
 | D-78 | Scope | AdminOS is always personal and single-user, self-hosted and secured end to end; wealth (all holdings, net worth, policy-based guidance with AI explanations) is in scope; public-user work (E6 public ingestion, onboarding, DPDP consent records) is parked | Accepted | AOS-010, AOS-801, E6, E8 |
 | D-67 | Architecture / Product | AI ground rules: AI never invents a number shown as fact; outputs validated against input or DB; each feature off by default with minimum data; local-first where good enough; one provider port; per-feature eval gate | Accepted | AOS-701, E7 (AOS-702…719) |
 
@@ -856,4 +857,16 @@ Proposed
 - **India-based:** INR first, Indian banks; other currencies for foreign holdings. It is not a product for India or anywhere.
 - **Still out of scope:** trading or placing orders, stock tips, splitting with friends, paying or cancelling on Pragun's behalf, Account Aggregator, WhatsApp Web automation.
 - **Rejected:** keeping multi-user extensibility as a goal (adds work and attack surface for no user).
+
+### D-80 — North star and the spending coach first
+2026-10-17 · Accepted (Pragun: the portal should help him become rich, "starting with how my spending habits are, and then I should focus on my investment things") · Type: Product · Tasks: AOS-011, Epic E9 · Builds on D-57, D-67, D-78
+- **North star:** spend less → save more → invest well. The **savings rate**, (income − spend) / income per month, is the headline metric that links spending and wealth.
+- **Order:** Epic E9 Spending coach is built before the E8 wealth implementation (E8 research continues). Go-live with real data follows in a day or two.
+- **Coach principles:**
+  - it changes behaviour by reaching the owner (push), not by adding screens he must remember to open;
+  - few nudges: one evening digest, one Sunday report card, each limit threshold once per period; all configurable;
+  - every number is deterministic and links to its transactions (D-57, D-67); projections show their assumptions;
+  - it informs and never acts (no blocking apps or payments).
+- **Habit lenses** are data (editable groups of merchants and categories), so a new app or habit is one entry.
+- **Rejected:** gamification beyond streaks (noise); AI-written nudges (D-67: numbers from code; a later option for wording only).
 

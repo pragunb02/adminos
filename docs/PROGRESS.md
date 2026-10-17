@@ -14,6 +14,7 @@ _Last updated: 2026-10-17 by a Claude session. Update this file at the end of ev
 | 6. Hardening (public items parked, D-78) | ⚪ Not started |
 | 7. Smart features (E7) | 🟦 Wave 1 in progress |
 | 8. Wealth (E8) | 🟦 Research (AOS-801) |
+| 9. Spending coach (E9) | 🟦 Started (before E8 build) |
 
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
@@ -113,6 +114,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-17:**
+  - AOS-011: north star "spend less → save more → invest well" (D-80); Epic E9 Spending coach planned (S9.1–S9.4, AOS-901…910, 47h) and prioritised before the E8 build. Go-live with real data in 1–2 days (Pragun).
   - AOS-010: re-scoped (D-78): always personal, single-user, secured end to end; wealth in scope (all holdings, net worth, guidance "policy + AI explanations"); BRD v3, CLAUDE.md; E6 renamed Hardening, public items parked (⏸). AOS-801 wealth research + Epic E8 started in a background agent.
   - Pragun accepted D-67 (AI ground rules) and the AOS-512 choices ("start all with best decision long term"). E7 wave 1 started in four background agents: AOS-702→703→704 (AI layer, local models, consent), 707→708 (learned categoriser, Review queue), 713→715→709 (anomaly baselines, price rise, merchant grouping), 714→718 (forecast, cash from text). Reserved: D-68…D-77; migrations are renumbered by the integrator at merge (next free V29).
   - AOS-512 (background agent, reviewed + merged): AI fallback categorizer for "Other" (D-62), **off by default** (`AI_CATEGORIZATION_ENABLED`, `ANTHROPIC_API_KEY`, model `claude-haiku-5-5`): privacy gate sends only business names (never people, UPI IDs, amounts, text); strict JSON schema; ≥ 0.7 confidence sets the category (`ai`), else stays Other with the guess in metadata; `ai-categorization` job every 15 min (now 10 jobs), per-merchant cache (V28), circuit breaker. On the golden set, from **hand-recorded** answers: accuracy 82.6% → 91.7%, coverage 69.4% → 79.2%. API unit 1,497 / integration 125. **Next:** one real run (`ANTHROPIC_API_KEY=… ./gradlew -q categorizationReport -PrecordAi`) to measure Claude itself; web UI for AI suggestions; Go workers still use `CLAUDE_API_KEY` with an old model id (unify, with AOS-702).

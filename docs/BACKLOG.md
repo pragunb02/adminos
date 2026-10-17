@@ -23,6 +23,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-008](tickets/AOS-008.md) | Design principles, patterns, design-before-code; dependency policy | Claude | ✅ | 1h | 1h |
 | └ [AOS-009](tickets/AOS-009.md) | Dependency audit: current vs latest stable | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-010](tickets/AOS-010.md) | Re-scope: always personal and single-user; wealth (portfolio, net worth, guidance) in scope; public items parked (D-78) | Claude | ✅ | 0.5h | 0.5h |
+| └ [AOS-011](tickets/AOS-011.md) | North star "spend less → save more → invest well"; Epic E9 Spending coach planned (D-80) | Claude | ✅ | 0.5h | 0.5h |
 
 ## 🟦 [AOS-E1](tickets/AOS-E1.md) — Foundation runs · P0 · ETA 30h
 
@@ -187,3 +188,24 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
 | └ AOS-718 | Cash quick-add from free text or dictation | Claude (agent) | 🟦 | 5h |  |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
+
+## 🟦 [AOS-E9](tickets/AOS-E9.md) — Spending coach · P0 · ETA 47h
+
+Step one of the north star "spend less → save more → invest well" (D-80). Priority over the E8 build.
+
+| ID | Title | Owner | Status | ETA | Actual |
+|---|---|---|---|---|---|
+| **[AOS-S9.1](tickets/AOS-S9.1.md)** | **Where it leaks** | | ⬜ | 18h | |
+| └ AOS-901 | Habit lenses: data-driven groups of merchants/categories (quick commerce, food delivery, nights out, shopping, pay-later, travel home), editable; catalogue additions | Claude | ⬜ | 4h |  |
+| └ AOS-902 | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ⬜ | 6h |  |
+| └ AOS-903 | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees (delivery, handling, small-cart, platform, surge) and item counts from Gmail; matched to the payment | Claude | ⬜ | 8h |  |
+| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ⬜ | 12h | |
+| └ AOS-904 | Limits per lens, merchant or category (monthly/weekly), pushes at 50/80/100%, once per threshold per period | Claude | ⬜ | 5h |  |
+| └ AOS-905 | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ⬜ | 3h |  |
+| └ AOS-906 | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ⬜ | 4h |  |
+| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ⬜ | 9h | |
+| └ AOS-907 | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ⬜ | 5h |  |
+| └ AOS-908 | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ⬜ | 4h |  |
+| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
+| └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
+| └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
