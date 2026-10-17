@@ -10,6 +10,7 @@
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
+| D-89 | Product / Architecture | Pay-later is counted like a card: purchases are spends at the merchant (`paymentMethod = pay_later`), the bank repayment is a transfer that pays the provider's bill (a `pay_later` bill in dues); providers are data; a bill larger than the recorded purchases shows the gap, never a guess | Accepted | AOS-909, AOS-901, AOS-902 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
 | D-83 | Product / Architecture | Limits: no limits during a 30-day learning month; per-lens suggested weekly limits (median of 4 weeks − 10%, rounded down to ₹50) that only push once accepted; lens, merchant or category, weekly or monthly; one push per (limit, period, threshold) at 50/80/100% via a claim ledger | Accepted | AOS-904 |
 | D-99 | Architecture / Process | Supply chain and runtime: CI, OSV-Scanner, npm audit, govulncheck, Trivy and CodeQL on every PR as required checks (fail CVSS ≥ 7 or unscored, CRITICAL images or secrets); images by digest, Gradle locked + SHA-256 verified, Python hash-locked, Actions by SHA, Dependabot; containers non-root, read-only, no capabilities, limits, segmented networks; merge-pr.sh waits for every required check | Accepted | AOS-622 |
@@ -1285,3 +1286,21 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+
+### D-89 — Pay-later is counted like a card; gaps are shown, not guessed
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-909, AOS-901, AOS-902 · Builds on D-39, D-54, D-55, D-59
+- **Counting:**
+  - A pay-later purchase is a spend at the merchant, with `paymentMethod = pay_later` and `metadata.payLater = <provider>`.
+  - The bank repayment to the provider is a **transfer** (`subcategory = pay_later_bill`), as card bills are (D-39), and it pays the provider's bill (D-54, both directions).
+- **Bills:**
+  - A provider's bill (SMS or email) is a bill of type `pay_later` with the provider as biller, so dues and reminders apply (D-55).
+  - The same provider and due date (or within 2 days with the same amount) is one bill, across reminders and channels.
+- **Providers are data** on both sides: LazyPay, Simpl, Amazon Pay Later, Flipkart Pay Later, ICICI PayLater, Paytm Postpaid, MobiKwik ZIP.
+  - Provider SMS are read before the drop rules, and only when the text names a provider and isn't a bank account alert or a mandate notice.
+  - Provider email is decided by the sender's domain; shared domains (Amazon, Flipkart, Paytm) also need the provider's name in the subject.
+- **The gap is visible:** a bill larger than the purchases recorded for its period shows the difference in `GET /api/v1/pay-later` and in Review. It is never filled in by guessing.
+- **Debt outstanding** = unpaid pay-later bills + pay-later purchases since the provider's latest bill.
+- **Rejected:**
+  - the cash model (category and timing lost);
+  - a separate debt ledger (a second source of truth);
+  - recognising provider SMS by sender header only (headers vary and aren't public).

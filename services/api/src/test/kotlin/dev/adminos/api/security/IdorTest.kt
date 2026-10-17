@@ -230,7 +230,7 @@ class IdorTest {
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
-            "/api/v1/leaks/fees", "/api/v1/receipts",
+            "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/pay-later",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
         )
         val leaks = lists.mapNotNull { path ->
@@ -258,5 +258,10 @@ class IdorTest {
         for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
             assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
+        // Pay-later debt (AOS-909): Alice's unpaid pay-later bill shows for her, and not for Bob.
+        val payLater = app.get<BillRepository>().save(Bill(userId = alice.id, billType = BillType.PAY_LATER, billerName = "LazyPay",
+            amount = BigDecimal("1200"), dueDate = LocalDate.now().plusDays(5)))
+        assertTrue(payLater.id.toString() in client.get("/api/v1/pay-later") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        assertFalse(payLater.id.toString() in client.asBob(HttpMethod.Get, "/api/v1/pay-later", null).bodyAsText())
     }
 }

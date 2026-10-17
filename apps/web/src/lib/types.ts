@@ -116,6 +116,33 @@ export interface DueItem {
   trial: boolean;
 }
 
+/** A pay-later bill next to the purchases recorded for it (AOS-909). */
+export interface PayLaterGap {
+  billId: string;
+  billAmount: string;
+  dueDate: string;
+  status: string;
+  recorded: string;
+  unrecorded: string;
+}
+
+/** Pay-later debt per provider (AOS-909, GET /api/v1/pay-later). */
+export interface PayLaterProvider {
+  provider: string;
+  outstanding: string;
+  nextDue: string | null;
+  purchasesLast30Days: string;
+  unpaidBills: { id: string; amount: string; minimumDue: string | null; dueDate: string; status: string }[];
+  unbilledPurchases: { amount: string; count: number; transactionIds: string[] };
+  gaps: PayLaterGap[];
+}
+
+export interface PayLaterSummary {
+  outstanding: string;
+  currency: string;
+  providers: PayLaterProvider[];
+}
+
 /** A UPI AutoPay / e-NACH / card standing instruction, learnt from bank SMS (AOS-502, GET /api/v1/mandates). */
 export interface Mandate {
   id: string;
