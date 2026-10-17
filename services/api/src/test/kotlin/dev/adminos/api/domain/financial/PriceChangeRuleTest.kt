@@ -95,6 +95,16 @@ class PriceChangeRuleTest {
     }
 
     @Test
+    fun `absurd amounts and thousands of charges are handled without overflow or slowdown`() {
+        val big = assertNotNull(rule("999999999999.00", "999999999999.00", "1999999999999.00", cycle = BillingCycle.MONTHLY))
+        assertEquals(BigDecimal("100.00"), big.pct)
+        assertEquals(1_999_999_999_999L, PriceRise.of(UUID.randomUUID(), UUID.randomUUID(), big).priceKey)
+        val many = (0 until 5000).map { Charge(UUID.randomUUID(), BigDecimal("649.00"), "INR", start.plusDays(it.toLong())) } +
+            Charge(UUID.randomUUID(), BigDecimal("799.00"), "INR", start.plusDays(5000))
+        assertEquals(BigDecimal("649.00"), assertNotNull(PriceChangeRule.evaluate(many, BillingCycle.DAILY)).usual)
+    }
+
+    @Test
     fun `prices under one rupee are never compared`() {
         assertNull(rule("0.40", "0.40", "0.45"))
     }

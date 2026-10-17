@@ -59,9 +59,24 @@ class PriceRiseAlerts(
     companion object {
         private val DAY = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
 
+        /** Longest subscription name put in a notice: a merchant chooses its own name, and a notice isn't a billboard. */
+        const val MAX_NAME = 60
+
         fun title(s: Subscription, r: PriceRise): String {
-            val name = s.name.ifBlank { s.merchantName ?: "A subscription" }
+            val name = displayName(s.name).ifBlank { displayName(s.merchantName.orEmpty()) }.ifBlank { "A subscription" }
             return "$name went up: ${money(r.oldAmount, r.currency)} → ${money(r.newAmount, r.currency)} (+${percent(r)}%)"
+        }
+
+        /**
+         * The name as plain, single-line text (AOS-715 security review): control and invisible formatting
+         * characters (newlines, RTL overrides) are removed and it is cut to [MAX_NAME], so a hostile merchant
+         * name can't fake a second line or reverse the text of a push notice. Markup stays literal text.
+         */
+        fun displayName(raw: String): String {
+            val plain = raw.filterNot { Character.getType(it) == Character.FORMAT.toInt() }
+                .map { if (Character.getType(it) == Character.CONTROL.toInt()) ' ' else it }.joinToString("")
+                .replace(Regex("\\s+"), " ").trim()
+            return if (plain.length <= MAX_NAME) plain else plain.take(MAX_NAME - 1).trimEnd() + "…"
         }
 
         fun body(r: PriceRise): String =

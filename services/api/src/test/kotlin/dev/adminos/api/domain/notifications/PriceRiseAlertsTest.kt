@@ -153,6 +153,19 @@ class PriceRiseAlertsTest {
     }
 
     @Test
+    fun `a hostile subscription name can't fake lines, reverse text or flood the notice`() {
+        val rise = PriceRise(userId = userId, subscriptionId = UUID.randomUUID(), oldAmount = BigDecimal("100.00"), newAmount = BigDecimal("150.00"),
+            currency = "INR", chargedOn = LocalDate.of(2026, 3, 4), transactionId = UUID.randomUUID())
+        val nasty = Subscription(userId = userId, name = "Netflix\nYour account is locked: call 9800000000\u202E<img src=x onerror=alert(1)>",
+            amount = BigDecimal("150.00"), billingCycle = BillingCycle.MONTHLY)
+        val title = PriceRiseAlerts.title(nasty, rise)
+        assertFalse(title.contains('\n') || title.contains('\u202E'), title)
+        assertTrue(title.startsWith("Netflix Your account is locked"), "markup and words stay literal text: $title")
+        assertTrue(PriceRiseAlerts.displayName("x".repeat(500)).length == PriceRiseAlerts.MAX_NAME)
+        assertEquals("A subscription went up: ₹100 → ₹150 (+50%)", PriceRiseAlerts.title(nasty.copy(name = "\u200B\u200B", merchantName = "\n"), rise))
+    }
+
+    @Test
     fun `nothing pending sends nothing`() = runBlocking<Unit> {
         assertEquals(PriceRiseRun(0, 0), alerts.notifyPending(userId))
         assertNull(rises.findUnnotified(userId).firstOrNull())
