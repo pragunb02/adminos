@@ -1,0 +1,20 @@
+From: Swiggy <noreply@swiggy.in>
+Subject: Your Swiggy order summary for Order #187654321098
+Date: Sat, 17 Oct 2026 21:40:00 +0530
+
+Thank you for ordering with Swiggy!
+Order No: 187654321098
+Restaurant: Sample Test Kitchen
+Items (3)
+Paneer Bowl x 1 ₹220.00
+Garlic Bread x 2 ₹180.00
+Item Total ₹400.00
+Delivery Fee ₹50.00 ₹35.00
+Platform fee ₹10.00
+Restaurant Packaging ₹20.00
+Rain Fee ₹25.00
+Delivery partner tip ₹20.00
+Taxes ₹27.00
+Item Discount -₹50.00
+Grand Total ₹487.00
+Paid via UPI ₹487.00

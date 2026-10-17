@@ -1,0 +1,14 @@
+From: "Amazon.in" <auto-confirm@amazon.in>
+Subject: Your Amazon.in order #402-1234567-7654321
+Date: Thu, 15 Oct 2026 14:20:00 +0530
+
+Order Confirmation
+Order #402-1234567-7654321
+Sample Product One
+Qty: 1
+Sample Product Two
+Qty: 2
+Item Subtotal: ₹1,289.00
+Shipping: ₹40.00
+Order Total: ₹1,329.00
+Paid via HDFC Bank Credit Card

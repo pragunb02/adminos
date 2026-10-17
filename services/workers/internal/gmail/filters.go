@@ -3,6 +3,7 @@ package gmail
 import (
 	"fmt"
 	"net/mail"
+	"regexp"
 	"strings"
 )
 
@@ -55,10 +56,23 @@ var (
 		"autopay",
 		"e-mandate",
 	}
+	// ReceiptDomains send order receipts (AOS-903): quick commerce, food delivery and e-commerce.
+	// They also send promotions, so their mail is read only when the subject reads like an order
+	// (ReceiptSubjects, whole words). Each domain has a parser in internal/receipts; a test keeps
+	// the two lists equal.
+	ReceiptDomains = []string{
+		"swiggy.in", "swiggy.com", "zomato.com", "zeptonow.com", "zepto.com",
+		"blinkit.com", "grofers.com", "amazon.in", "flipkart.com",
+	}
+	ReceiptSubjects = []string{"order", "delivered", "receipt", "invoice", "refund", "cancelled", "canceled", "bill"}
 )
 
+var receiptSubject = func() *regexp.Regexp {
+	return regexp.MustCompile(`(?i)\b(?:` + strings.Join(ReceiptSubjects, "|") + `)\b`)
+}()
+
 // SearchQuery is the Gmail search for financial mail in the last `days` days:
-// newer_than:Nd (from:(…) OR subject:(…)).
+// newer_than:Nd (from:(…) OR subject:(…) OR (from:(receipt senders) subject:(order words))).
 func SearchQuery(days int) string {
 	senders := make([]string, 0, len(FinancialDomains)+len(FinancialAddresses))
 	senders = append(senders, FinancialDomains...)
@@ -67,8 +81,9 @@ func SearchQuery(days int) string {
 	for i, s := range FinancialSubjects {
 		subjects[i] = `"` + s + `"`
 	}
-	return fmt.Sprintf("newer_than:%dd (from:(%s) OR subject:(%s))", days,
-		strings.Join(senders, " OR "), strings.Join(subjects, " OR "))
+	return fmt.Sprintf("newer_than:%dd (from:(%s) OR subject:(%s) OR (from:(%s) subject:(%s)))", days,
+		strings.Join(senders, " OR "), strings.Join(subjects, " OR "),
+		strings.Join(ReceiptDomains, " OR "), strings.Join(ReceiptSubjects, " OR "))
 }
 
 // IsFinancial applies the same filters locally to a message's From and Subject headers. Used for
@@ -82,16 +97,27 @@ func IsFinancial(from, subject string) bool {
 		}
 		if at := strings.LastIndexByte(addr, '@'); at >= 0 {
 			domain := addr[at+1:]
-			for _, d := range FinancialDomains {
-				if domain == d || strings.HasSuffix(domain, "."+d) {
-					return true
-				}
+			if inDomains(domain, FinancialDomains) {
+				return true
+			}
+			if inDomains(domain, ReceiptDomains) && receiptSubject.MatchString(subject) {
+				return true
 			}
 		}
 	}
 	subject = strings.ToLower(subject)
 	for _, s := range FinancialSubjects {
 		if strings.Contains(subject, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// inDomains reports whether domain is one of domains or a subdomain of one.
+func inDomains(domain string, domains []string) bool {
+	for _, d := range domains {
+		if domain == d || strings.HasSuffix(domain, "."+d) {
 			return true
 		}
 	}

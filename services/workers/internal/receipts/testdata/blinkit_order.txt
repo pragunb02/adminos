@@ -1,0 +1,14 @@
+From: blinkit <noreply@blinkit.com>
+Subject: Order delivered: here is your Blinkit bill
+Date: Sun, 18 Oct 2026 00:05:00 +0530
+
+Order ID: 4433221100
+Order placed on: 17 Oct 2026, 11:52 PM
+3 items
+Item total ₹156.00
+Handling charge ₹4.00
+Small cart fee ₹20.00
+Delivery charge ₹25.00
+Late night fee ₹15.00
+Grand total ₹220.00
+Paid by: Cash on delivery

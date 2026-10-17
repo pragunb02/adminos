@@ -60,6 +60,9 @@ class FinancialModuleWiringCoverageTest {
             val learned = dev.adminos.api.domain.financial.learning.LearnedCategorizer(store, InMemoryCategoryRuleRepository(), transactions)
             dev.adminos.api.domain.financial.learning.CategoryModelTrainingService(transactions, store, learned, emptyList(), enabled = false)
         }
+        single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
+        single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
+        single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), transactions) }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
