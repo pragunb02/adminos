@@ -1,8 +1,7 @@
--- V50 (AOS-903, D-88): order receipts from quick-commerce, food-delivery and e-commerce emails.
+-- V38 (AOS-903, D-88): order receipts from quick-commerce, food-delivery and e-commerce emails.
 -- Written by the Gmail worker (one row per order, every email about it merged in), matched to
 -- the payment by the API. Structured fields only (D-33): no body, no item names, no address; the
 -- order number is kept only as a SHA-256 hash.
--- Tentative number: the integrator renumbers at merge.
 
 CREATE TABLE order_receipts (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

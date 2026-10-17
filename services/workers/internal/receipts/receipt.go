@@ -34,7 +34,7 @@ const (
 )
 
 // FeeKind is a charge on top of the items. The same closed set is in the API (FeeKind) and in the
-// order_receipt_fees CHECK constraint (V50).
+// order_receipt_fees CHECK constraint (V38).
 type FeeKind string
 
 const (

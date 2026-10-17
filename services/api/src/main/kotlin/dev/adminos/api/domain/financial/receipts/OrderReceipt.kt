@@ -9,7 +9,7 @@ import java.util.UUID
 /** The kind of app (AOS-903), for the habit lenses (AOS-901). */
 enum class ReceiptVertical { QUICK_COMMERCE, FOOD_DELIVERY, ECOMMERCE }
 
-/** A charge on top of the items. Same closed set as the Go parsers and the V50 CHECK. */
+/** A charge on top of the items. Same closed set as the Go parsers and the V38 CHECK. */
 enum class FeeKind {
     DELIVERY, HANDLING, SMALL_CART, PLATFORM, SURGE, PACKAGING, TIP;
 

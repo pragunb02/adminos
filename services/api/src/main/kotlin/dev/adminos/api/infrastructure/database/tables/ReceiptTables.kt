@@ -4,7 +4,7 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.javatime.timestamp
 
-/** Maps to db/migration/V50__order_receipts.sql (AOS-903). Rows are written by the Gmail worker. */
+/** Maps to db/migration/V38__order_receipts.sql (AOS-903). Rows are written by the Gmail worker. */
 object OrderReceiptsTable : Table("order_receipts") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)

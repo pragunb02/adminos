@@ -6,7 +6,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Order receipts (AOS-903). In production the Gmail worker writes them (V50); the API reads them
+ * Order receipts (AOS-903). In production the Gmail worker writes them (V38); the API reads them
  * and records how each is tied to its payment.
  */
 interface OrderReceiptRepository {
@@ -52,7 +52,7 @@ class InMemoryOrderReceiptRepository : OrderReceiptRepository {
         val current = store[id] ?: throw NoSuchElementException("order receipt $id not found")
         if (match.state == ReceiptMatchState.MATCHED) {
             val taken = store.values.any { it.id != id && it.match.state == ReceiptMatchState.MATCHED && it.match.transactionId == match.transactionId }
-            check(!taken) { "payment ${match.transactionId} is already another order's" } // the V50 unique index
+            check(!taken) { "payment ${match.transactionId} is already another order's" } // the V38 unique index
         }
         val updated = current.copy(match = match, rejectedTransactionIds = rejected, updatedAt = Instant.now())
         store[id] = updated

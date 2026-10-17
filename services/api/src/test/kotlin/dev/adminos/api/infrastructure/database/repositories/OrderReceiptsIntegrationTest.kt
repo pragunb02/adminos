@@ -25,7 +25,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** AOS-903 on Postgres (V50): receipts round-trip, are matched to the SMS payment, and stay 1:1. */
+/** AOS-903 on Postgres (V38): receipts round-trip, are matched to the SMS payment, and stay 1:1. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderReceiptsIntegrationTest {

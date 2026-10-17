@@ -10,7 +10,7 @@ import (
 	"github.com/adminos/adminos/workers/internal/receipts"
 )
 
-// ReceiptRecord is one order receipt for order_receipts (V50, AOS-903): structured fields only.
+// ReceiptRecord is one order receipt for order_receipts (V38, AOS-903): structured fields only.
 // The order number is already hashed; item names and addresses were never read into it (D-33).
 type ReceiptRecord struct {
 	UserID       string

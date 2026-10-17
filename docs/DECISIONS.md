@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
 | D-94 | Architecture | Browser and sign-in hardening: nonce CSP (no unsafe-inline scripts) and security headers on web and API, CORS removed; one app-wide CSRF check (Fetch-Metadata/Origin, fail closed) on cookie mutations; Google sign-in with server-side single-use state + PKCE; sign-in backoff; X-Forwarded-For distrusted unless TRUST_FORWARDED_FOR (amends D-32); strict JWTs; generic errors | Accepted | AOS-618 |
@@ -1098,3 +1099,22 @@ Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
 - First passkey: enrolled from the first pending session (alerted); later ones only from a confirmed session. Ten recovery codes (80-bit, SHA-256), regenerable from a confirmed session. Reset only server-side (runbook).
 - Five failed attempts end the session and alert.
 - Rejected: TOTP (phishable), SMS codes, optional second factor, hand-rolled WebAuthn.
+
+### D-88 — Order receipts: parsed per sender in the worker, stored apart, matched to the payment
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-903, AOS-902 · Builds on D-33, D-38, D-54, D-59
+- **What a receipt is:** evidence about a payment, never a money event. Mail from a receipt sender never reaches the bank-email parser, so an order is never a second spend.
+- **Where it is read:** in the Go worker, one parser per sender (Strategy and Registry by sender domain). Receipt senders are read only for order-like subjects (order, delivered, receipt, invoice, refund, cancelled, bill), so promotions are never fetched in full. The filter and parser domain lists are kept equal by a test.
+- **What is kept (D-33):**
+  - app, vertical, order time, total, item count, fees by kind, payment mode, the bank-charged amount, and refunds;
+  - the order number only as SHA-256(app : number);
+  - no item names, no address, no text.
+- **One row per order:** every email about an order merges into it. Blanks are filled and values never overwritten, the earliest time wins, and a cancellation cancels whenever it comes. The same refund amount twice is one refund.
+- **Matching:** a reusable `PaymentMatcher` (D-38 ideas).
+  - Hard rules: same user, a spending debit, an exact amount, the window (−15 min…+3 h; date-only rows the same or next day, cards −1…+3), not cash, not taken, not rejected.
+  - Points: amount 4, time up to 3, payee evidence 4, the same method 1.
+  - Auto-link at ≥ 8 *with payee evidence* and a margin of 3. Everything else that passes the hard rules is a suggestion.
+  - One receipt per payment (a unique index).
+  - It runs in both directions: a post-commit listener, plus the `receipt-matching` job every 10 minutes (D-50).
+  - Wallet, pay-later and cash-on-delivery orders are `no_payment`. A split payment matches on its bank part.
+- **Fees:** `GET /api/v1/leaks/fees` per user month and app. Hidden fees exclude tips. Cancelled and fully refunded orders add none. Every figure lists its receipts and payments.
+- **Rejected:** receipts as ingest events (an unmatched receipt becomes a spend, or is lost); matching in Go (a second copy of the rules); storing order numbers or item lists.
