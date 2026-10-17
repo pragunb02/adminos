@@ -116,6 +116,14 @@ class OllamaProviderTest {
     }
 
     @Test
+    fun `a hostile server's negative counts and huge content can't break cost or parsing`() = runBlocking<Unit> {
+        val huge = "x".repeat(2_000_000)
+        replies += Reply(200, """{"message":{"content":"$huge"},"done_reason":"stop","prompt_eval_count":-5,"eval_count":-9}""")
+        val result = provider().complete(request)
+        assertEquals(AiCompletion.Completed(huge, AiUsage.NONE), result, "negative counts are zero, so cost can't go negative")
+    }
+
+    @Test
     fun `missing token counts are zero`() = runBlocking<Unit> {
         replies += Reply(200, """{"message":{"content":"{}"},"done_reason":7}""")
         assertEquals(AiCompletion.Completed("{}", AiUsage.NONE), provider().complete(request))
