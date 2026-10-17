@@ -41,3 +41,4 @@ Gmail, WhatsApp and SMS history are captured too, so nothing is missed.
 - 2026-10-17 — Claude: AOS-401 merged (D-59).
 - 2026-10-17 — Claude: AOS-403 done (WhatsApp export import, D-66).
 - 2026-10-17 — Claude: AOS-405 merged (Gmail push watch, D-63).
+- 2026-10-17 — Claude: AOS-406 merged (Connect Gmail screen, D-64).

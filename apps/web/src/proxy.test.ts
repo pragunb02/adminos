@@ -25,6 +25,12 @@ describe("route guard (proxy.ts)", () => {
     expect(res.headers.get("location")).toBe("http://localhost:3000/login");
   });
 
+  it("the Connect Gmail callback is for signed-in users only (AOS-406)", () => {
+    // Google's code is redeemed for the signed-in user; without a session there is no one to bind it to.
+    expect(proxy(req("/connections/gmail/callback?code=x&state=y")).headers.get("location")).toBe("http://localhost:3000/login");
+    expect(proxy(req("/connections/gmail/callback?code=x&state=y", "access_token=jwt")).headers.get("location")).toBeNull();
+  });
+
   it("app pages with a session pass", () => {
     expect(proxy(req("/transactions", "access_token=jwt")).headers.get("location")).toBeNull();
   });

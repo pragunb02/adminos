@@ -30,6 +30,11 @@ export class MockApi {
       .on("GET /api/v1/anomalies/:id", (_r, u) => { const a = opens.find((x) => u.pathname.endsWith(x.id)); return a ? { data: a } : { status: 404, error: { code: "NOT_FOUND", message: "Anomaly not found" } }; })
       .on("PATCH /api/v1/anomalies/:id", (_r, u) => { const i = opens.findIndex((x) => u.pathname.endsWith(x.id)); if (i >= 0) opens.splice(i, 1); return { data: {} }; })
       .on("GET /api/v1/connections", () => ({ data: [fx.connection()] }))
+      // Connect Gmail (AOS-406): the consent URL carries the redirect and a state; e2e/gmail.spec.ts stands in for Google.
+      .on("GET /api/v1/connections/gmail/authorize-url", (_r, u) => ({
+        data: { url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({ client_id: "e2e-client-id", redirect_uri: u.searchParams.get("redirectUri") ?? "", response_type: "code", state: "e2e-state", code_challenge: "e2e-challenge", code_challenge_method: "S256" })}` },
+      }))
+      .on("POST /api/v1/connections", () => ({ status: 201, data: fx.connection({ gmailAddress: "pragun.b@gmail.com", lastSyncedAt: null, totalSynced: 0, lastSyncStatus: null }) }))
       .on("GET /api/v1/users/me/notification-preferences", () => ({ data: fx.prefs() }))
       .on("PATCH /api/v1/users/me/notification-preferences", () => ({ data: {} }))
       .on("GET /api/v1/auth/sessions", () => ({ data: [fx.session()] }))

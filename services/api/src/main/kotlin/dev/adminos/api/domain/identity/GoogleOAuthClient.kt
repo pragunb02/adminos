@@ -49,15 +49,17 @@ class GoogleOAuthClient(
      * Exchanges an OAuth authorization code for tokens and user info.
      * Returns both the token response (for storage) and user info.
      */
-    suspend fun exchangeCodeForTokens(code: String, redirectUri: String): Pair<GoogleTokenResponse, GoogleUserInfo> = withContext(Dispatchers.IO) {
+    suspend fun exchangeCodeForTokens(code: String, redirectUri: String, codeVerifier: String? = null): Pair<GoogleTokenResponse, GoogleUserInfo> = withContext(Dispatchers.IO) {
         // Every value is form-encoded (AOS-610): a raw '&', '+' or '%' in the code would corrupt the form or add fields.
-        val tokenBody = formEncode(
+        val fields = listOfNotNull(
             "code" to code,
             "client_id" to config.googleClientId,
             "client_secret" to config.googleClientSecret,
             "redirect_uri" to redirectUri,
-            "grant_type" to "authorization_code"
+            "grant_type" to "authorization_code",
+            codeVerifier?.let { "code_verifier" to it } // PKCE (AOS-406): proves this server started the consent
         )
+        val tokenBody = formEncode(*fields.toTypedArray())
 
         val tokenRequest = HttpRequest.newBuilder()
             .uri(URI.create(tokenUrl))
@@ -87,13 +89,17 @@ class GoogleOAuthClient(
         Pair(tokens, userInfo)
     }
 
+    /** True when a Google OAuth client is configured (GOOGLE_CLIENT_ID). */
+    val isConfigured: Boolean get() = config.googleClientId.isNotBlank()
+
     /**
      * Google's consent page for connecting Gmail (AOS-401): read-only Gmail plus the address,
      * offline access (a refresh token) and a fresh consent so Google always returns one.
+     * [state] is the CSRF check and [codeChallenge] the PKCE S256 challenge (AOS-406, D-64).
      * Null when no Google client is configured.
      */
-    fun gmailConsentUrl(redirectUri: String): String? {
-        if (config.googleClientId.isBlank()) return null
+    fun gmailConsentUrl(redirectUri: String, state: String, codeChallenge: String): String? {
+        if (!isConfigured) return null
         return "https://accounts.google.com/o/oauth2/v2/auth?" + formEncode(
             "client_id" to config.googleClientId,
             "redirect_uri" to redirectUri,
@@ -101,7 +107,10 @@ class GoogleOAuthClient(
             "scope" to "openid email ${dev.adminos.api.domain.ingestion.connection.GMAIL_READONLY_SCOPE}",
             "access_type" to "offline",
             "prompt" to "consent",
-            "include_granted_scopes" to "true"
+            "include_granted_scopes" to "true",
+            "state" to state,
+            "code_challenge" to codeChallenge,
+            "code_challenge_method" to "S256"
         )
     }
 
@@ -111,7 +120,7 @@ class GoogleOAuthClient(
      * anything else is [GmailAccessException.Unavailable]. Response bodies are never quoted.
      */
     override suspend fun refresh(refreshToken: String): RefreshedAccessToken = withContext(Dispatchers.IO) {
-        if (config.googleClientId.isBlank()) throw GmailAccessException.Unavailable()
+        if (!isConfigured) throw GmailAccessException.Unavailable()
         val request = HttpRequest.newBuilder()
             .uri(URI.create(tokenUrl))
             .timeout(java.time.Duration.ofSeconds(10))

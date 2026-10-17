@@ -57,6 +57,7 @@
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 | D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
 | D-63 | Architecture | Gmail push: the API registers `users.watch` after connect, renews every 6 h (missing/expired/ending within 24 h), `users.stop` on disconnect; INBOX only; failures recorded, never disconnect; narrow watch column writes; every push is an incremental sync | Accepted | AOS-405 |
+| D-64 | Architecture | Connect Gmail: a random single-use OAuth state bound to user, purpose and redirect URI, stored server-side as a SHA-256 hash (10 min), checked before the code goes to Google; PKCE S256 with the verifier encrypted in the API | Accepted | AOS-406 |
 | D-66 | Architecture | WhatsApp chat export import: only bank senders (by display name) are parsed, through the same SMS rules (`parseFromBank`); fingerprint of sender, time and text makes re-import idempotent; day/month order read from the file (default day first); user-zone times; text never kept (D-33) | Accepted | AOS-403 |
 | D-65 | Product | Subscription detection looks back 400 days, uses the user's dates and calendar steps, takes the catalogue's category, and marks a subscription ended (reversibly) after two cycles without a charge; "cancel" gives honest steps (via the AutoPay mandate when one pays it), never a fake "queued" | Accepted | AOS-513 |
 | D-60 | Architecture | Documents vault: user-chosen files stored in Cloudflare R2 (any S3), envelope-encrypted in the app (per-file AES-256-GCM key wrapped with the app key); owner-only access via the API; extends D-37 (imported statements are still never kept) | Accepted | AOS-507 |
@@ -724,3 +725,17 @@ Proposed
   - an Asynq periodic task for renewal;
   - a separate watches table;
   - watching all mailbox changes.
+
+### D-64 — Connect Gmail: a server-side, single-use OAuth state, with PKCE
+2026-10-17 · Accepted (built by a background agent at Pragun's request, reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-406 · Extends D-59
+- **State:** the API issues 32 random bytes (base64url) per consent, bound to the signed-in user, the purpose (`gmail_connect`) and the redirect URI, valid for 10 minutes, usable once.
+  - Stored server-side as SHA-256 only (`oauth_states`), so nothing is signed and no secret is added.
+  - Checked **before** the code is sent to Google. Missing, unknown or mismatched → `CONN_010`; expired → `CONN_011`; reused → `CONN_012` (all 400). A mismatch never uses up the owner's state.
+  - Single use is one conditional update, safe across instances.
+- **PKCE:** S256 on every Gmail consent. The verifier never leaves the API and is stored encrypted (TokenEncryptor, context `oauth_states:<id>:code_verifier`).
+- **Callback:** `/connections/gmail/callback` (signed-in only) posts code + state once, then shows success at `?connected=1` so refresh/Back never re-post. Every failure is said in words with a way to start again.
+- **Housekeeping:** rows are deleted a day after they expire (kept that long so an old link reads "expired").
+- **Rejected:**
+  - an HMAC-signed state (still needs storage for single use);
+  - a double-submit cookie (single use depends on the browser);
+  - no PKCE.

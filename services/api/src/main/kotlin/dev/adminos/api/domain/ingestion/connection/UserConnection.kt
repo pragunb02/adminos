@@ -33,7 +33,9 @@ enum class ConnectionStatus { CONNECTED, DISCONNECTED, ERROR, PENDING }
 data class CreateConnectionRequest(
     val sourceType: String,
     val code: String? = null,
-    val redirectUri: String? = null
+    val redirectUri: String? = null,
+    /** The OAuth state Google returned with the code; required for Gmail (AOS-406, D-64). */
+    val state: String? = null
 )
 
 @Serializable
@@ -50,7 +52,9 @@ data class ConnectionResponse(
     val totalSynced: Int = 0,
     val createdAt: String,
     /** Until when Gmail push is registered (AOS-405); null when it isn't (the daily fallback still syncs). */
-    val watchExpiresAt: String? = null
+    val watchExpiresAt: String? = null,
+    /** Why the last sync failed or the connection is in error, short and content-free (AOS-406). */
+    val lastError: String? = null
 ) {
     companion object {
         fun from(conn: UserConnection) = ConnectionResponse(
@@ -62,7 +66,8 @@ data class ConnectionResponse(
             lastSyncStatus = conn.lastSyncStatus,
             totalSynced = conn.totalSynced,
             createdAt = conn.createdAt.toString(),
-            watchExpiresAt = conn.watch.expiresAt?.toString()
+            watchExpiresAt = conn.watch.expiresAt?.toString(),
+            lastError = conn.lastError
         )
     }
 }

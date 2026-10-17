@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ConnectGmailButton from "@/components/ConnectGmailButton";
 import DeviceTokens from "@/components/DeviceTokens";
 import PushDevice from "@/components/PushDevice";
 import { deleteData, errorMessage, getData, patchData, postData } from "@/lib/query";
@@ -76,33 +77,41 @@ export default function SettingsPage() {
 
         {!loading && !error && (
           <>
-            {/* Data Sources */}
+            {/* Data Sources (Connect Gmail: AOS-406) */}
             <section className="bg-white border border-gray-200 rounded-lg p-4">
               <h3 className="font-semibold text-gray-900 mb-3">Data Sources</h3>
               {connections.length === 0 ? (
                 <p className="text-sm text-gray-500">No data sources connected yet.</p>
               ) : (
-                <div className="space-y-3">
+                <ul className="space-y-3">
                   {connections.map((conn) => (
-                    <div key={conn.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                      <div>
+                    <li key={conn.id} aria-label={`${conn.sourceType} connection`} className="flex items-center justify-between gap-3 py-2 border-b border-gray-100 last:border-0">
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium text-gray-900 capitalize">{conn.sourceType}</p>
                           <StatusBadge status={conn.status} />
                         </div>
-                        <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                        {conn.gmailAddress && <p className="text-xs text-gray-500 mt-0.5">{conn.gmailAddress}</p>}
+                        <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
                           {conn.lastSyncedAt && <span>Last sync: {new Date(conn.lastSyncedAt).toLocaleDateString("en-IN")}</span>}
                           <span>{conn.totalSynced} items synced</span>
+                          {pushNote(conn) && <span>{pushNote(conn)}</span>}
                         </div>
+                        {conn.lastError && <p className="text-xs text-red-700 mt-1">Last error: {conn.lastError}</p>}
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleSync(conn.id)}
-                          className="text-xs px-2.5 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50"
-                        >
-                          Sync
-                        </button>
-                        {conn.status === "error" && (
+                      <div className="flex flex-wrap items-start justify-end gap-2">
+                        {conn.status === "connected" && (
+                          <button
+                            onClick={() => handleSync(conn.id)}
+                            className="text-xs px-2.5 py-1.5 rounded-md border border-gray-200 hover:bg-gray-50"
+                          >
+                            Sync
+                          </button>
+                        )}
+                        {conn.sourceType === "gmail" && (conn.status === "error" || conn.status === "disconnected") && (
+                          <ConnectGmailButton label="Reconnect" />
+                        )}
+                        {conn.sourceType !== "gmail" && conn.status === "error" && (
                           <button
                             onClick={() => handleReconnect(conn.sourceType)}
                             className="text-xs px-2.5 py-1.5 rounded-md border border-blue-200 text-blue-600 hover:bg-blue-50"
@@ -110,15 +119,23 @@ export default function SettingsPage() {
                             Reconnect
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDisconnect(conn.id)}
-                          className="text-xs px-2.5 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
-                        >
-                          Disconnect
-                        </button>
+                        {conn.status !== "disconnected" && (
+                          <button
+                            onClick={() => handleDisconnect(conn.id)}
+                            className="text-xs px-2.5 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            Disconnect
+                          </button>
+                        )}
                       </div>
-                    </div>
+                    </li>
                   ))}
+                </ul>
+              )}
+              {!connections.some((c) => c.sourceType === "gmail") && (
+                <div className="mt-3 flex items-start justify-between gap-3 border-t border-gray-100 pt-3">
+                  <p className="text-xs text-gray-500">Gmail: import bank alerts and receipts (read-only access).</p>
+                  <ConnectGmailButton />
                 </div>
               )}
             </section>
@@ -219,6 +236,15 @@ export default function SettingsPage() {
       </div>
     </AppShell>
   );
+}
+
+/** Gmail push status (AOS-405): instant while the watch is on, else the daily check. */
+function pushNote(conn: UserConnection, now = Date.now()): string | null {
+  if (conn.sourceType !== "gmail" || conn.status !== "connected") return null;
+  if (conn.watchExpiresAt && Date.parse(conn.watchExpiresAt) > now) {
+    return `Instant updates on until ${new Date(conn.watchExpiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+  }
+  return "Checked once a day";
 }
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
