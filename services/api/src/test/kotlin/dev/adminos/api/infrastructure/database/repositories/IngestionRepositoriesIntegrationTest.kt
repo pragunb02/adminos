@@ -33,7 +33,7 @@ class IngestionRepositoriesIntegrationTest {
                 sourceType = source,
                 status = ConnectionStatus.CONNECTED,
                 oauthScope = listOf("openid", "email", "https://www.googleapis.com/auth/gmail.readonly"),
-                gmailAddress = "me-${UUID.randomUUID()}@gmail.com",
+                gmailAddress = "me-${UUID.randomUUID()}@example.com",
                 historyId = "12345",
                 totalSynced = 3
             )

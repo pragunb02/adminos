@@ -23,7 +23,7 @@ class NotificationsDropOffNudgeCoverageTest {
     private val now = Instant.parse("2026-10-16T06:30:00Z")
 
     private suspend fun user(daysAgo: Long, status: OnboardingStatus = OnboardingStatus.STARTED, createdAt: Instant = now.minus(daysAgo, ChronoUnit.DAYS)): User {
-        val u = User(email = "pragun+${UUID.randomUUID()}@gmail.com", googleId = "g-${UUID.randomUUID()}", onboardingStatus = status, createdAt = createdAt)
+        val u = User(email = "owner+${UUID.randomUUID()}@example.com", googleId = "g-${UUID.randomUUID()}", onboardingStatus = status, createdAt = createdAt)
         prefsRepo.save(prefs(u.id))
         return users.save(u)
     }

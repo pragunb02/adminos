@@ -26,7 +26,7 @@ object SecurityTestKit {
     }
 
     fun newUser(name: String) = User(
-        id = UUID.randomUUID(), email = "$name-${UUID.randomUUID()}@example.in", googleId = "g-${UUID.randomUUID()}", role = UserRole.OWNER
+        id = UUID.randomUUID(), email = "$name-${UUID.randomUUID()}@example.com", googleId = "g-${UUID.randomUUID()}", role = UserRole.OWNER
     )
 
     fun tokenFor(user: User): String = InfraIngestTestKit.tokenFor(user)

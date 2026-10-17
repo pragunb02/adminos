@@ -15,7 +15,7 @@ export const fx = {
     evaluation: { answers: "recorded-synthetic", evaluatedOn: "2026-10-17", goldenRows: 288 }, spentThisMonthUsd: "0.00", ...over,
   }),
   home: (over: Partial<DashboardHome> = {}): DashboardHome => ({
-    greeting: "Good morning, Pragun",
+    greeting: "Good morning, Owner",
     summary: { totalSpentThisWeek: "12500", activeSubscriptions: 4, flaggedSubscriptions: 1, upcomingBills: 2, openAnomalies: 1 },
     actionItems: [
       { id: "a1", type: "anomaly", title: "Unusual charge", description: "₹50,000 at 3am", severity: "critical", entityId: "an-1", actionLabel: "Review" },

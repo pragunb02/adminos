@@ -21,7 +21,7 @@ func gmailConnection(t *testing.T, ctx context.Context, pool *pgxpool.Pool, user
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO user_connections (id, user_id, source_type, status, gmail_address, access_token, refresh_token, token_expires_at, history_id)
 		VALUES ($1, $2, 'gmail', 'connected', $3, NULLIF($4, ''), NULLIF($5, ''), $6, NULLIF($7, ''))`,
-		id, userID, "u-"+id+"@gmail.com", access, refresh, expires, historyID); err != nil {
+		id, userID, "u-"+id+"@example.com", access, refresh, expires, historyID); err != nil {
 		t.Fatalf("create gmail connection: %v", err)
 	}
 	return id
@@ -49,7 +49,7 @@ func TestGmailSyncEndToEnd_Integration(t *testing.T) {
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO user_connections (id, user_id, source_type, status, gmail_address, access_token, refresh_token, history_id)
 		VALUES ($1, $2, 'gmail', 'connected', $3, $4, $5, 'history_1760000000')`,
-		connID, userID, "e2e-"+connID+"@gmail.com",
+		connID, userID, "e2e-"+connID+"@example.com",
 		seal(t, cipher, "old-access", connID, "access_token"), "legacy-plain-refresh"); err != nil {
 		t.Fatalf("create connection: %v", err)
 	}

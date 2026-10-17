@@ -35,7 +35,7 @@ export class MockApi {
       .on("GET /api/v1/connections/gmail/authorize-url", (_r, u) => ({
         data: { url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({ client_id: "e2e-client-id", redirect_uri: u.searchParams.get("redirectUri") ?? "", response_type: "code", state: "e2e-state", code_challenge: "e2e-challenge", code_challenge_method: "S256" })}` },
       }))
-      .on("POST /api/v1/connections", () => ({ status: 201, data: fx.connection({ gmailAddress: "pragun.b@gmail.com", lastSyncedAt: null, totalSynced: 0, lastSyncStatus: null }) }))
+      .on("POST /api/v1/connections", () => ({ status: 201, data: fx.connection({ gmailAddress: "owner@example.com", lastSyncedAt: null, totalSynced: 0, lastSyncStatus: null }) }))
       .on("GET /api/v1/users/me/notification-preferences", () => ({ data: fx.prefs() }))
       .on("PATCH /api/v1/users/me/notification-preferences", () => ({ data: {} }))
       .on("GET /api/v1/auth/sessions", () => ({ data: [fx.session()] }))

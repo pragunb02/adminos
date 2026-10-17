@@ -38,7 +38,7 @@ class GmailWatchServiceTest {
             id = id, userId = UUID.randomUUID(), sourceType = source, status = status,
             accessToken = encryptor.encrypt(access, "user_connections:$id:access_token"),
             refreshToken = encryptor.encrypt(refresh, "user_connections:$id:refresh_token"),
-            tokenExpiresAt = tokenExpiresAt, gmailAddress = "u-$id@gmail.com", historyId = "1200", watch = watch
+            tokenExpiresAt = tokenExpiresAt, gmailAddress = "u-$id@example.com", historyId = "1200", watch = watch
         ))
         return Stored(conn, access, refresh)
     }

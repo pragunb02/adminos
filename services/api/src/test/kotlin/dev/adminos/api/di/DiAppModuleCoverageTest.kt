@@ -78,7 +78,7 @@ class DiAppModuleCoverageTest {
         val vapid = mapOf(
             "VAPID_PUBLIC_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.public as java.security.interfaces.ECPublicKey)),
             "VAPID_PRIVATE_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.private as java.security.interfaces.ECPrivateKey)),
-            "VAPID_SUBJECT" to "mailto:pragun@example.com"
+            "VAPID_SUBJECT" to "mailto:owner@example.com"
         )
         val koin = koinOf(buildAppModule(useDatabase = false, env = vapid::get))
         assertTrue(dev.adminos.api.domain.notifications.NotificationChannel.PUSH in

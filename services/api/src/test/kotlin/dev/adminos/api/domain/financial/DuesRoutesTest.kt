@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /** GET /api/v1/dues (AOS-503). */
 class DuesRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-503")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-503")
     private val jwt = jwtService.generateAccessToken(user)
     private val bills = InMemoryBillRepository()
     private val today = LocalDate.now(ZoneId.of("Asia/Kolkata"))
