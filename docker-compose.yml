@@ -81,6 +81,7 @@ services:
       DOCS_S3_BUCKET: ${DOCS_S3_BUCKET:-}
       DOCS_S3_ACCESS_KEY_ID: ${DOCS_S3_ACCESS_KEY_ID:-}
       DOCS_S3_SECRET_ACCESS_KEY: ${DOCS_S3_SECRET_ACCESS_KEY:-}
+    networks: [default, ai]   # ai: reaches only the optional ollama service (AOS-703)
 
   gmail-worker:
     profiles: ["full"]
@@ -147,13 +148,17 @@ services:
 
   ollama:
     # Local models for the AI layer (AOS-703, D-69). Opt-in: `docker compose --profile ollama up -d ollama`, then
-    # `docker compose exec ollama ollama pull <model>`. Ollama has no authentication, so it is published on the
-    # loopback interface only (for the bake-off from the host); never a bare host port. The API reaches it on
-    # the compose network: OLLAMA_BASE_URL=http://ollama:11434.
+    # `docker compose exec ollama ollama pull <model>`. The API reaches it at OLLAMA_BASE_URL=http://ollama:11434.
+    # NO published port, not even loopback: Ollama has no authentication and skips its Host-header check when it
+    # listens on 0.0.0.0 (as it must in a container), so a published port is reachable by DNS rebinding from any
+    # web page the owner visits (AOS-703 security review). For a bake-off from the host, use the native Ollama app
+    # (it binds to loopback, where its Host check applies): docs/guides/local-models.md.
+    # Its own network, shared only with the API: it can't reach Postgres or Redis.
     profiles: ["ollama"]
-    image: ollama/ollama:0.40.6
-    ports:
-      - "127.0.0.1:11434:11434"
+    image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
+    networks: [ai]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     volumes:
       - ollama_models:/root/.ollama   # model files (1–3 GB each), kept across restarts
     environment:
@@ -167,3 +172,8 @@ services:
 volumes:
   postgres_data:
   ollama_models:
+
+networks:
+  default: {}
+  # The optional local-model network: only api-server and ollama are on it (AOS-703, D-69).
+  ai: {}

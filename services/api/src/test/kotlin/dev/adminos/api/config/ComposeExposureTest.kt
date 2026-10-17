@@ -6,9 +6,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * AOS-703: nothing in `docker-compose.yml` is published on a bare host port. Every published port is bound to
- * the loopback interface (`127.0.0.1:host:container`). Ollama in particular has no authentication, so a bare
- * `11434:11434` would expose a model server to the whole network.
+ * AOS-703: nothing in `docker-compose.yml` is published on a bare host port; every published port is bound to
+ * the loopback interface (`127.0.0.1:host:container`). Ollama publishes nothing at all (see the test below).
  */
 class ComposeExposureTest {
 
@@ -40,7 +39,18 @@ class ComposeExposureTest {
         assertTrue(ports.isNotEmpty(), "found no ports in ${compose.path}")
         val bare = ports.filterNot { (_, p) -> p.startsWith("127.0.0.1:") }
         assertEquals(emptyList(), bare, "publish only on 127.0.0.1 (D-69)")
-        assertTrue(ports.contains("ollama" to "127.0.0.1:11434:11434"), "the ollama profile publishes on loopback only: $ports")
+        // Not even loopback for Ollama: it has no auth and skips its Host check on 0.0.0.0, so a published port is
+        // reachable by DNS rebinding (AOS-703 security review). The API reaches it on the `ai` network.
+        assertTrue(ports.none { (service, _) -> service == "ollama" }, "ollama must not publish any port: $ports")
+    }
+
+    @Test
+    fun `ollama is pinned by digest and sits on the ai network only, with dropped capabilities`() {
+        val text = compose.readText()
+        val block = text.substringAfter("\n  ollama:\n").substringBefore("\nvolumes:")
+        assertTrue(Regex("image: ollama/ollama:[^@\\s]+@sha256:[0-9a-f]{64}").containsMatchIn(block), "image pinned by digest")
+        assertTrue("networks: [ai]" in block, "only the ai network")
+        assertTrue("cap_drop: [\"ALL\"]" in block && "no-new-privileges:true" in block, "hardened")
     }
 
     @Test

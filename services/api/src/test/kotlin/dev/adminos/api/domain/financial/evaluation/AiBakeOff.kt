@@ -57,6 +57,12 @@ fun main(args: Array<String>) = bakeOff(args)
 fun bakeOff(args: Array<String>, env: (String) -> String? = System::getenv) {
     val options = BakeOffArgs.parse(args, env)
     val bakeOff = CategorizationBakeOff()
+    // Same rules as the app's OLLAMA_BASE_URL (AOS-702/703 reviews): no credentials, https unless truly local.
+    val url = options.baseUrl
+    require(url.rawUserInfo == null) { "--base-url must not contain credentials" }
+    require(url.scheme == "https" || (url.scheme == "http" && url.host != null && dev.adminos.api.config.AiConfig.isPrivateHost(url.host))) {
+        "--base-url must use https unless it is localhost, a loopback IP or the compose service ollama"
+    }
     val provider = OllamaProvider(options.baseUrl, options.timeout, options.numThread)
     val runs = runBlocking {
         bakeOff.baselines() + options.models.map { model ->
