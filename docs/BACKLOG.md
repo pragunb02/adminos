@@ -24,6 +24,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-009](tickets/AOS-009.md) | Dependency audit: current vs latest stable | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-010](tickets/AOS-010.md) | Re-scope: always personal and single-user; wealth (portfolio, net worth, guidance) in scope; public items parked (D-78) | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-011](tickets/AOS-011.md) | North star "spend less → save more → invest well"; Epic E9 Spending coach planned (D-80) | Claude | ✅ | 0.5h | 0.5h |
+| └ [AOS-012](tickets/AOS-012.md) | Security gate for every feature rollout: ENGINEERING §4a, PR checklist, CLAUDE.md (D-100) | Claude | ✅ | 0.5h | 0.5h |
 
 ## 🟦 [AOS-E1](tickets/AOS-E1.md) — Foundation runs · P0 · ETA 30h
 

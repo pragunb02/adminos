@@ -31,6 +31,11 @@ architecture clean and extensible, but build nothing for other users.
 - Before ending a session, update `docs/PROGRESS.md`: what changed, what was verified, and the next step.
 - Record any meaningful choice in `docs/DECISIONS.md` (append only).
 - Code follows `docs/ENGINEERING.md`. A task is done only when its Definition of Done is met.
+- **Security is P0 (D-91). Every feature rolls out only after the security gate (`docs/ENGINEERING.md` §4a, D-100):**
+  - a threat review in the ticket;
+  - unit, integration and Playwright attack tests;
+  - no new public exposure.
+  A security finding blocks the merge.
 - If you find a bug, report it and mention it in PROGRESS.md; don't silently fix things outside the agreed step.
 
 ## Stack

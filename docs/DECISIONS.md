@@ -71,6 +71,7 @@
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
+| D-100 | Process | Every feature rolls out only through the security gate (ENGINEERING §4a): threat review in the ticket, unit + integration + Playwright attack tests, no new exposure, dependency checks, attacker review before merge; findings block the merge | Accepted | AOS-012, all tasks |
 | D-91 | Process / Architecture | Security is always P0: the site is owner-only (one allowlisted, pinned Google account, fail closed), private-network by default, defence in depth, and every security control has unit, integration and Playwright attack tests; we red-team our own site before go-live and on every security change | Accepted | AOS-614…623, S6.4 |
 | D-80 | Product | North star "spend less → save more → invest well", measured by the savings rate; Epic E9 Spending coach (leaks, limits, nudges, goals) goes before the E8 wealth build; the coach informs and never acts; nudges are few and configurable | Accepted | AOS-011, E9 |
 | D-78 | Scope | AdminOS is always personal and single-user, self-hosted and secured end to end; wealth (all holdings, net worth, policy-based guidance with AI explanations) is in scope; public-user work (E6 public ingestion, onboarding, DPDP consent records) is parked | Accepted | AOS-010, AOS-801, E6, E8 |
@@ -885,4 +886,15 @@ Proposed
 - **Attack tests, always:** each control ships with unit, integration and Playwright attack specs (a stranger's account, a forged or replayed token, another user's IDs, missing CSRF, oversized uploads, path tricks). A red-team audit (OWASP ASVS L2 and WSTG) runs before go-live (AOS-615, AOS-623) and again on every security-relevant change.
 - **Honesty:** "unhackable" isn't a property anyone can promise. The aim is no reachable attack surface from the internet, and every layer tested as if the others had failed.
 - **Rejected:** relying on Google's "Testing" consent mode as the control (sensitive-scope refresh tokens expire every 7 days); a public URL protected only by the app's login.
+
+### D-100 — Every feature ships through the security gate
+2026-10-17 · Accepted (Pragun: "if we roll out a feature we should roll it out under all security testing; this should be our ongoing practice") · Type: Process · Tasks: AOS-012, every task from now on · Builds on D-91
+- **Rule:** no feature merges until it passes `docs/ENGINEERING.md` §4a. A security finding blocks the merge until it is fixed or Pragun explicitly accepts it.
+- **The gate:**
+  - a threat review in the ticket;
+  - attack tests at three levels: unit with hostile input; route tests for auth, ownership (404 for others' data), CSRF and limits; Playwright for signed-out access, forged tokens, safe rendering and no secrets client-side;
+  - checks: no secrets, PII or raw text; no new public listener; dependencies clean; sensitive data encrypted; AI rules (D-67);
+  - the integrator re-reads the diff as an attacker and runs the full Playwright suite before merging.
+- **Enforced by:** the PR template; the route-inventory test (AOS-619), so an unprotected new route fails CI; CI dependency and image scans (AOS-622); GitGuardian on every commit; `scripts/merge-pr.sh` (merges only when every check is success).
+- **Applies to agents too:** every background agent's brief includes the gate, and PRs without it are sent back.
 
