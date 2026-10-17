@@ -134,6 +134,7 @@ class RequestBodyErrorsRoutesTest {
     fun `a form body with a charset parameter is still 415`() = appTest {
         val res = client.post("/api/v1/transactions/cash") {
             cookie(ACCESS_TOKEN_COOKIE, token)
+            header("Sec-Fetch-Site", "same-origin")
             contentType(ContentType.Application.FormUrlEncoded.withCharset(Charsets.UTF_8))
             setBody("amount=120")
         }
@@ -144,6 +145,7 @@ class RequestBodyErrorsRoutesTest {
     fun `a valid JSON body still works after the mapping`() = appTest {
         val res = client.post("/api/v1/transactions/cash") {
             cookie(ACCESS_TOKEN_COOKIE, token)
+            header("Sec-Fetch-Site", "same-origin")
             contentType(ContentType.Application.Json)
             setBody("""{"clientRef":"cash-0633-abcd","amount":"120","category":"food","note":"Chai"}""")
         }
