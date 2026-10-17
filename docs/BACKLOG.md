@@ -107,6 +107,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S4.1](tickets/AOS-S4.1.md)** | **Gmail import** | | 🟦 | 6h | |
 | └ [AOS-401](tickets/AOS-401.md) | Gmail incremental sync (real history ID), full body, sender filters, encrypted tokens, connect flow, daily fallback with skip rule (D-59) — live check needs AOS-111 | Claude (agent) | 🟨 | 5h | 4.5h |
 | └ [AOS-405](tickets/AOS-405.md) | Gmail push: `users.watch` after connect, 6-hourly renewal job, `users.stop` on disconnect, V26 (D-63) — live check needs AOS-111 | Claude (agent) | 🟨 | 4h | 3h |
+| └ [AOS-406](tickets/AOS-406.md) | Web Connect Gmail: callback page, Settings buttons, single-use OAuth state + PKCE, V27 (D-64) — live check needs AOS-111 | Claude (agent) | 🟨 | 5h | 3.5h |
 | **[AOS-S4.2](tickets/AOS-S4.2.md)** | **WhatsApp capture** | | 🟦 | 9h | |
 | └ AOS-402 | WhatsApp forward-to-bot (Cloud API) | Claude + Pragun | ⬜ | 6h |  |
 | └ [AOS-403](tickets/AOS-403.md) | WhatsApp chat export import (`.txt` / `.zip`), bank senders only, same rules as SMS (D-66) | Claude | ✅ | 3h | 2h |

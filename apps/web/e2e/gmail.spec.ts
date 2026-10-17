@@ -4,17 +4,21 @@ import { fx } from "../test/fixtures";
 
 /**
  * Connect Gmail in a real browser (AOS-406, D-64): Settings → Google → back to the callback page.
- * Google can't be reached from tests, so its consent page is replaced by a redirect straight back
- * to the app with what Google would send: `code` + `state`, or `error`.
+ * Google can't be reached from tests, so its consent page is replaced by a page that sends the user
+ * straight back to the app with what Google would send: `code` + `state`, or `error`. (A mocked 302
+ * isn't allowed in WebKit, so `location.replace` does the redirect, also leaving no history entry.)
  */
 async function google(page: Page, answer: (url: URL) => Record<string, string>) {
   await page.route("https://accounts.google.com/**", async (route) => {
     const url = new URL(route.request().url());
     const back = new URL(url.searchParams.get("redirect_uri") ?? "");
     for (const [k, v] of Object.entries(answer(url))) back.searchParams.set(k, v);
-    await route.fulfill({ status: 302, headers: { location: back.toString() } });
+    await route.fulfill({ contentType: "text/html", body: `<script>location.replace(${JSON.stringify(back.toString())})</script>` });
   });
 }
+
+/** The page's own alert: Next's route announcer is also `role="alert"`. */
+const alertOf = (page: Page) => page.getByRole("alert").and(page.locator(":not(#__next-route-announcer__)"));
 
 const approve = (url: URL) => ({ code: "4/0-e2e-code", state: url.searchParams.get("state") ?? "", scope: "email https://www.googleapis.com/auth/gmail.readonly" });
 
@@ -53,7 +57,7 @@ test.describe("Connect Gmail", () => {
     await page.goto("/settings");
     await page.getByRole("button", { name: "Connect Gmail" }).click();
 
-    await expect(page.getByRole("alert")).toContainText("You didn't allow access");
+    await expect(alertOf(page)).toContainText("You didn't allow access");
     expect(api.callsTo("POST", "/api/v1/connections")).toHaveLength(0);
     await expectAccessible(page);
   });
@@ -63,10 +67,10 @@ test.describe("Connect Gmail", () => {
     await google(page, approve);
 
     await page.goto("/connections/gmail/callback?code=planted&state=not-mine");
-    await expect(page.getByRole("alert")).toContainText("This sign-in didn't start here");
+    await expect(alertOf(page)).toContainText("This sign-in didn't start here");
 
     await page.getByRole("button", { name: "Start again" }).click();
-    await expect(page.getByRole("alert")).toContainText("This sign-in didn't start here"); // the fresh answer is refused too here
+    await expect(alertOf(page)).toContainText("This sign-in didn't start here"); // the fresh answer is refused too here
     expect(api.callsTo("GET", "/api/v1/connections/gmail/authorize-url")).toHaveLength(1);
     expect(api.callsTo("POST", "/api/v1/connections")).toHaveLength(2);
   });
@@ -78,7 +82,7 @@ test.describe("Connect Gmail", () => {
     await page.goto("/settings");
     await page.getByRole("button", { name: "Connect Gmail" }).click();
 
-    await expect(page.getByRole("alert")).toContainText("Google sign-in isn't set up");
+    await expect(alertOf(page)).toContainText("Google sign-in isn't set up");
   });
 
   test("the callback needs a session: signed out it goes to the login page", async ({ page }) => {
