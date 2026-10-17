@@ -151,7 +151,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S6.4](tickets/AOS-S6.4.md)** | **Owner-only fortress** (P0, D-91) | | 🟦 | 39.5h | 1.5h |
 | └ [AOS-614](tickets/AOS-614.md) | Owner-only sign-in: one allowlisted Google email, pinned Google ID, fail closed (critical finding) | Claude | ✅ | 1.5h | 1.5h |
 | └ [AOS-615](tickets/AOS-615.md) | Threat model + red-team audit (ASVS 5.0 L2 / WSTG): 27 findings; fixed pre-auth body exhaustion and Jackson advisories; rest ticketed (D-92) | Claude (agent) | ✅ | 6h | 4h |
-| └ AOS-616 | Private network only: Tailscale (no public listener); Cloudflare Tunnel + Access as the documented alternative | Claude | ⬜ | 3h |  |
+| └ [AOS-616](tickets/AOS-616.md) | Private network only: Tailscale, webhook-only tunnel option for Gmail push, exposure check script (D-97) | Claude (agent) | ✅ | 3h | 3h |
 | └ AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
 | └ AOS-618 | Security headers (CSP, HSTS, frame-ancestors, Referrer/Permissions-Policy), CSRF review, auth rate limits and lockout | Claude | ⬜ | 3h |  |
 | └ AOS-619 | Authorization tests: every route requires auth unless allowlisted; every resource scoped to its owner (IDOR); Playwright attack specs | Claude | ⬜ | 4h |  |

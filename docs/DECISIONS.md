@@ -72,6 +72,7 @@
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
+| D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
 | D-100 | Process | Every feature rolls out only through the security gate (ENGINEERING §4a): threat review in the ticket, unit + integration + Playwright attack tests, no new exposure, dependency checks, attacker review before merge; findings block the merge | Accepted | AOS-012, all tasks |
 | D-91 | Process / Architecture | Security is always P0: the site is owner-only (one allowlisted, pinned Google account, fail closed), private-network by default, defence in depth, and every security control has unit, integration and Playwright attack tests; we red-team our own site before go-live and on every security change | Accepted | AOS-614…623, S6.4 |
 | D-80 | Product | North star "spend less → save more → invest well", measured by the savings rate; Epic E9 Spending coach (leaks, limits, nudges, goals) goes before the E8 wealth build; the coach informs and never acts; nudges are few and configurable | Accepted | AOS-011, E9 |
@@ -906,4 +907,20 @@ Proposed
 - **Every request body is size-capped before routing:** `Content-Length` required and any `Transfer-Encoding` refused (a chunked body would bypass the declared size), 1 MiB default, larger limits only for explicitly listed upload paths.
 - **Dependency advisories are fixed on discovery** even when the environmental risk is low; transitive libraries are pinned with a BOM when needed, and unused dependencies are removed.
 - Rejected: scanner-only audits; relying on the order "auth before body" for safety.
+
+### D-97 — Private network only
+2026-10-18 · Accepted (built by the infra-security agent under D-91; reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-616
+Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
+- AdminOS has **no public listener**. The owner reaches it over **Tailscale**: `tailscale serve` on 443
+  (tailnet only), MagicDNS, HTTPS certificates, device approval, key expiry on user devices, Tailnet Lock,
+  and the repo's deny-by-default policy (owner devices → `tag:adminos:443` only; no Funnel).
+- On the Mac the Tailscale app serves `127.0.0.1:3000`; on a server, the `docker-compose.tailnet.yml` sidecar.
+- Compose publishes only on `127.0.0.1`; `scripts/check-compose-exposure.sh` enforces it for every stack and profile.
+- `APP_URL` must be https unless loopback, and a bare origin; the API refuses to start otherwise.
+- **Gmail push is off at go-live**; the daily fallback and Sync now cover email (D-59). If push is needed,
+  prefer Pub/Sub pull (new ticket); the webhook-only Cloudflare Tunnel overlay (one path, OIDC-verified,
+  everything else 404 at the edge) is the opt-in alternative.
+- **Rejected:** Cloudflare Tunnel + Access for the whole site (public login page; Cloudflare sees plaintext);
+  hand-run WireGuard (inbound port, manual keys and certs); a public port with the app login (D-91).
+- **Integration note:** the webhook tunnel sends `Content-Length` (`disableChunkedEncoding: true`) because the API refuses any `Transfer-Encoding` (D-92).
 

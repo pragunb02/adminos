@@ -13,5 +13,5 @@ ingress:
     originRequest:
       connectTimeout: 10s
       noHappyEyeballs: true
-      disableChunkedEncoding: false
+      disableChunkedEncoding: true    # send Content-Length: the API refuses any Transfer-Encoding (AOS-615, D-92)
   - service: http_status:404

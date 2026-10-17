@@ -18,7 +18,7 @@
 
 ## Acceptance criteria
 - [x] Only the owner's Google account can sign in (AOS-614)
-- [ ] The site is not reachable from the internet at all by default (AOS-616)
+- [x] The site is not reachable from the internet at all by default (AOS-616; Pragun sets up Tailscale at go-live)
 - [ ] A stolen Google session alone is not enough: a passkey is also required (AOS-617)
 - [ ] Every route and resource is tested for authentication and ownership, including in Playwright (AOS-619)
 - [ ] The owner is alerted to every new or refused sign-in (AOS-620)
@@ -33,7 +33,7 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 |---|---|---|---|---|---|
 | [AOS-614](AOS-614.md) | Owner-only sign-in: one allowlisted Google email, pinned Google ID, fail closed (critical finding) | Claude | ✅ | 1.5h | 1.5h |
 | [AOS-615](AOS-615.md) | Threat model + red-team audit: 27 findings; 2 fixed, rest ticketed (D-92) | Claude (agent) | ✅ | 6h | 4h |
-| AOS-616 | Private network only: Tailscale (no public listener); Cloudflare Tunnel + Access as the documented alternative | Claude | ⬜ | 3h |  |
+| [AOS-616](AOS-616.md) | Private network only (D-97) | Claude (agent) | ✅ | 3h | 3h |
 | AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
 | AOS-618 | Security headers (CSP, HSTS, frame-ancestors, Referrer/Permissions-Policy), CSRF review, auth rate limits and lockout | Claude | ⬜ | 3h |  |
 | AOS-619 | Authorization tests: every route requires auth unless allowlisted; every resource scoped to its owner (IDOR); Playwright attack specs | Claude | ⬜ | 4h |  |
