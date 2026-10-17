@@ -7,22 +7,32 @@ package dev.adminos.api.domain.ingestion.sms
 class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
 
     private val byHeader: Map<String, SmsParser> = parsers.flatMap { p -> p.headers.map { it to p } }.toMap()
+    private val byBank: Map<String, SmsParser> = parsers.mapNotNull { p -> p.bankCode?.let { it to p } }.toMap()
     private val generic: SmsParser = parsers.firstOrNull { it.headers.isEmpty() } ?: GENERIC
 
     fun parse(message: SmsMessage): SmsParseResult {
         val sender = SenderId.parse(message.sender)
             ?: return SmsParseResult.Ignored("sender is not a registered business header")
         if (sender.isPromotional) return SmsParseResult.Ignored("promotional sender")
-        val parser = byHeader[sender.header]
+        return parseText(message.text, byHeader[sender.header])
+    }
+
+    /**
+     * For channels without TRAI headers (a WhatsApp export, AOS-403): the caller has already decided the
+     * text comes from a bank, and names it by [bankCode] when it knows which one (null = generic parser).
+     */
+    fun parseFromBank(text: String, bankCode: String?): SmsParseResult = parseText(text, bankCode?.let { byBank[it] })
+
+    private fun parseText(text: String, parser: SmsParser?): SmsParseResult {
         // OTPs and failures are never anything; mandate notices come before the "upcoming payment" drop rule,
         // because a pre-debit notice is exactly that (AOS-502).
-        BEFORE_MANDATES.firstOrNull { (re, _) -> re.containsMatchIn(message.text) }?.let { return SmsParseResult.Ignored(it.second) }
-        MandateSmsParser.parse(message.text, parser?.bankCode)?.let { return SmsParseResult.Mandate(it) }
-        DROP_RULES.firstOrNull { (re, _) -> re.containsMatchIn(message.text) }?.let { return SmsParseResult.Ignored(it.second) }
+        BEFORE_MANDATES.firstOrNull { (re, _) -> re.containsMatchIn(text) }?.let { return SmsParseResult.Ignored(it.second) }
+        MandateSmsParser.parse(text, parser?.bankCode)?.let { return SmsParseResult.Mandate(it) }
+        DROP_RULES.firstOrNull { (re, _) -> re.containsMatchIn(text) }?.let { return SmsParseResult.Ignored(it.second) }
 
-        val parsed = parser?.parse(message.text) ?: generic.parse(message.text)
+        val parsed = parser?.parse(text) ?: generic.parse(text)
             ?: return SmsParseResult.Ignored("not a recognised transaction message")
-        return SmsParseResult.Transaction(parsed.copy(markers = MandateDebitMarker.metadataFor(message.text)))
+        return SmsParseResult.Transaction(parsed.copy(markers = MandateDebitMarker.metadataFor(text)))
     }
 
     companion object {

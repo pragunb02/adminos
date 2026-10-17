@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import AppShell from "@/components/AppShell";
+import WhatsAppImport from "@/components/WhatsAppImport";
 import { api } from "@/lib/api";
 
 interface ImportResult {
@@ -110,6 +111,8 @@ export default function ImportPage() {
           <Link href="/transactions" className="mt-3 inline-block text-sm text-blue-600 hover:underline">See transactions →</Link>
         </section>
       )}
+
+      <WhatsAppImport />
     </AppShell>
   );
 }

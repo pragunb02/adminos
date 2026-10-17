@@ -15,6 +15,8 @@ import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.domain.ingestion.sync.ingestionRoutes
 import dev.adminos.api.domain.ingestion.statements.StatementImportService
 import dev.adminos.api.domain.ingestion.statements.statementRoutes
+import dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService
+import dev.adminos.api.domain.ingestion.whatsapp.whatsAppImportRoutes
 import dev.adminos.api.domain.ingestion.webhook.webhookRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
@@ -33,6 +35,7 @@ fun Application.ingestionModule(config: AppConfig) {
     val ingestEventService: IngestEventService by inject()
     val smsIntake: SmsIntake by inject()
     val cashIntake: CashIntake by inject()
+    val whatsAppImportService: WhatsAppImportService by inject()
 
     routing {
         route("/api/v1") {
@@ -43,6 +46,7 @@ fun Application.ingestionModule(config: AppConfig) {
             connectionRoutes(connectionService, auditService, googleOAuthClient)
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience, config.auth.googlePubsubServiceAccount)
             statementRoutes(statementImportService)
+            whatsAppImportRoutes(whatsAppImportService)
         }
     }
 }

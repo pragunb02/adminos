@@ -183,6 +183,7 @@ internal fun buildAppModule(
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
     single { SmsIntake(get(), get(), get()) }
+    single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
 
     // Statement import (AOS-202, D-37)

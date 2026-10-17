@@ -121,16 +121,28 @@ test.describe("statement import", () => {
       : { data: { bankCode: "hdfc", accountLast4: "1234", periodStart: "2026-09-01", periodEnd: "2026-09-30", rows: 40, accepted: 37, duplicates: 2, skippedRows: 5, warnings: [] } }));
     await page.goto("/import");
     await page.getByLabel("Statement file").setInputFiles({ name: "Sept.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7") });
-    await page.getByRole("button", { name: "Import" }).click();
+    await page.getByRole("button", { name: "Import", exact: true }).click();
     await expect(page.locator("form").getByRole("alert")).toContainText("password-protected");
     await page.getByLabel("Statement password").fill("01011990");
-    await page.getByRole("button", { name: "Import" }).click();
+    await page.getByRole("button", { name: "Import", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("37 new transactions imported");
     await page.getByRole("link", { name: "See transactions →" }).click();
     await expect(page).toHaveURL(/\/transactions$/);
     await expect(page.getByRole("heading", { level: 2, name: "Transactions" })).toBeVisible();
     await page.goBack();
     await expect(page.getByRole("heading", { name: "Import a bank statement" })).toBeVisible();
+  });
+
+  test("a WhatsApp bank chat imports and says what was skipped (AOS-403)", async ({ signedIn: page, api }) => {
+    api.on("POST /api/v1/imports/whatsapp", () => ({
+      data: { messages: 40, fromBanks: 30, accepted: 21, duplicates: 4, mandates: 1, ignored: { "one-time password": 3 }, unreadableLines: 0 },
+    }));
+    await page.goto("/import");
+    await page.getByLabel("WhatsApp chat export").setInputFiles({ name: "_chat.txt", mimeType: "text/plain", buffer: Buffer.from("16/10/26, 09:12 - HDFC Bank: hi") });
+    await page.getByRole("button", { name: "Import chat" }).click();
+    const done = page.getByRole("status", { name: "WhatsApp import result" });
+    await expect(done).toContainText("21 new transactions imported");
+    await expect(done).toContainText("3 messages skipped: one-time password");
   });
 });
 
