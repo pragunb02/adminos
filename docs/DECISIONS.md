@@ -57,6 +57,7 @@
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 | D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
 | D-61 | Architecture | Categorization is measured on a synthetic, labelled golden set through the real pipeline steps; a regression gate fails any drop below `baseline.json` (overall, subcategory, per-category F1); raising the floor is a deliberate commit | Accepted | AOS-511 |
+| D-62 | Architecture | AI fallback categorizer fills in "Other" only: off by default, rules always win, only business names (never people, UPI IDs, amounts or text) go to Claude Haiku via a strict JSON schema; confident (≥ 0.7) answers set the category as `ai`, unsure ones stay Other as a suggestion; batch job every 15 min with a per-merchant cache; gated by the golden set | Accepted | AOS-512 |
 | D-63 | Architecture | Gmail push: the API registers `users.watch` after connect, renews every 6 h (missing/expired/ending within 24 h), `users.stop` on disconnect; INBOX only; failures recorded, never disconnect; narrow watch column writes; every push is an incremental sync | Accepted | AOS-405 |
 | D-64 | Architecture | Connect Gmail: a random single-use OAuth state bound to user, purpose and redirect URI, stored server-side as a SHA-256 hash (10 min), checked before the code goes to Google; PKCE S256 with the verifier encrypted in the API | Accepted | AOS-406 |
 | D-66 | Architecture | WhatsApp chat export import: only bank senders (by display name) are parsed, through the same SMS rules (`parseFromBank`); fingerprint of sender, time and text makes re-import idempotent; day/month order read from the file (default day first); user-zone times; text never kept (D-33) | Accepted | AOS-403 |
@@ -799,3 +800,41 @@ Proposed
   - real transactions in the repo (personal data);
   - a ratchet that fails on unrecorded improvements (it breaks `main` when parallel improvements merge).
 - **Consequence:** D-57's "evaluation harness" exists. Model output may be considered where it can be scored this way.
+
+### D-62 — An AI fallback fills in "Other" only: off by default, rules first, business names only, measured
+2026-10-17 · Accepted (built by a background agent at Pragun's request — "AI fallback for Other, off by default, privacy-limited"; reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-512 · Builds on D-33, D-41, D-57, D-61
+- **When:**
+  - only for transactions the built-in rules left as Other (`categorySource = rules`), for spending and refunds;
+  - never when a remembered rule or catalogue entry exists, or when a person or a transfer rule decided.
+  - Rules and corrections always win; a later correction becomes a rule (D-41) and the AI is never asked about that payee again.
+- **Switch:**
+  - off unless `AI_CATEGORIZATION_ENABLED=true`;
+  - then `ANTHROPIC_API_KEY` is required, or the app refuses to start;
+  - the model is `claude-haiku-5-5` by default (`AI_CATEGORIZATION_MODEL`).
+- **What is sent (D-33):**
+  - the cleaned merchant name, the payment method and the allowed categories;
+  - a name is sent only with positive evidence it is a business (card payment, gateway descriptor, registered company, business word in the name).
+  - Never amounts, dates, account or card numbers, UPI IDs, raw text, identity, or a person's name.
+- **What is accepted:**
+  - structured JSON (category from the list, which excludes Transfer; confidence 0–1; short reason), validated again on receipt;
+  - anything else is rejected, and the row stays Other.
+- **Applying:**
+  - confidence ≥ 0.7 sets the category with source `ai`;
+  - below that, the row stays Other with the guess in `metadata.ai` as a suggestion;
+  - confidence, reason and model are stored either way.
+- **How it runs:**
+  - a scheduled job every 15 minutes over the last 30 days, never inside ingestion;
+  - one question per merchant (cache `ai_category_cache`, V28);
+  - SDK retries with backoff for 429/5xx;
+  - a circuit breaker pauses for 15 minutes after 3 failures in a row;
+  - idempotent through `metadata.ai`.
+- **Measured (D-61):**
+  - rules + AI has its own baseline on the golden set, from recorded answers;
+  - tests prove it never changes a rule-decided row and never sees a `p2p` row;
+  - real answers are recorded deliberately with `-PrecordAi`.
+- **Rejected:**
+  - a pipeline step or a post-commit listener (they slow ingestion);
+  - reusing link suggestions (they are pairwise);
+  - hand-written HTTP (we would own retries and errors);
+  - sending every Other payee (people's names).
+- **Consequence:** fewer Other rows where the model is sure, with every AI label traceable. D-57 still bars model-written prose; this decision only allows a category chosen from a closed list.
