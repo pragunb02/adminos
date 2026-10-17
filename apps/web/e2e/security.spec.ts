@@ -15,7 +15,7 @@ import { signAccessToken, signIn, tamper } from "./support/session";
 /** Every page of the app. A new page must be added here. */
 export const PAGES = [
   "/", "/spending", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/bills", "/subscriptions",
-  "/documents", "/briefings", "/settings", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
+  "/documents", "/briefings", "/settings", "/settings/security", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
 ];
 
 /** Paths that only *look* like public pages (AUD-13: the guard used to prefix-match). */
@@ -71,6 +71,31 @@ test.describe("sign-in by anyone but the owner (mocked)", () => {
     await page.goto("/auth/callback?error=access_denied");
     await expect(page).toHaveURL(/\/login\?error=auth_failed$/);
     expect(api.callsTo("POST", "/api/v1/auth/google")).toHaveLength(0);
+  });
+});
+
+test.describe("Settings → Security (mocked)", () => {
+  mockedOnly();
+
+  test("lists where you're signed in and signs out everywhere, landing on login", async ({ signedIn: page, api }) => {
+    api.on("GET /api/v1/auth/sessions", () => ({
+      data: [
+        { id: "s-1", device: "Chrome on Mac", current: true, ipAddress: null, userAgent: null, lastActiveAt: "2026-10-18T05:00:00Z", createdAt: "2026-10-17T05:00:00Z" },
+        { id: "s-2", device: "<img src=x onerror=alert(1)>", current: false, ipAddress: null, userAgent: null, lastActiveAt: null, createdAt: "2026-10-16T05:00:00Z" },
+      ],
+    }));
+    api.on("POST /api/v1/auth/sessions/revoke-all", () => ({ data: { revoked: 2, signedOut: true } }));
+    await page.goto("/settings/security");
+    await expect(page.getByRole("heading", { level: 2, name: "Security" })).toBeVisible();
+    await expect(page.getByRole("listitem", { name: "Chrome on Mac" }).getByText("This device")).toBeVisible();
+    // Untrusted text renders as text.
+    await expect(page.getByText("<img src=x onerror=alert(1)>")).toBeVisible();
+    expect(await page.getByRole("list", { name: "Sessions" }).locator("img").count()).toBe(0);
+
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Sign out everywhere", exact: true }).click();
+    await expect.poll(() => api.callsTo("POST", "/api/v1/auth/sessions/revoke-all").length).toBe(1);
+    await expect(page).toHaveURL(/\/login$/);
   });
 });
 

@@ -257,6 +257,10 @@ export interface Session {
   userAgent: string | null;
   lastActiveAt: string | null;
   createdAt: string;
+  /** A coarse name such as "Chrome on Mac" (AOS-620). */
+  device?: string;
+  /** The session making this request. */
+  current?: boolean;
 }
 
 // ── Sync ──

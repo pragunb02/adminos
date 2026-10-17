@@ -144,7 +144,14 @@ internal fun buildAppModule(
 
     // Services — depend on interfaces, unchanged
     single { AuditService(get(), kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())) }
-    single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth) }
+    // Sign-in alerts go to the owner over every channel they have (AOS-620); notifications implement the port.
+    single {
+        val notifications = lazy { get<NotificationService>() }
+        SignInAlerts(SecurityNotifier { userId, alert ->
+            notifications.value.send(userId, NotificationType.SECURITY, alert.title, alert.body, mapOf("url" to "/settings/security"))
+        })
+    }
+    single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth, alerts = get()) }
 
     // Redis queue publisher — only if REDIS_URL is configured and not default
     val redisUrl = env("REDIS_URL") ?: ""

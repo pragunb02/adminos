@@ -67,7 +67,7 @@ class AuthServiceTest {
         sessionRepository.save(session)
 
         // Act
-        val newAccessToken = authService.refreshToken(refreshToken)
+        val newAccessToken = authService.refreshToken(refreshToken).accessToken
 
         // Assert
         assertNotNull(newAccessToken, "Should return a new access token")

@@ -28,16 +28,13 @@ describe("Settings", () => {
     expect(screen.getByRole("switch", { name: "Weekly briefing" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("switch", { name: "Push notifications" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByRole("heading", { name: "Connected devices" })).toBeInTheDocument();
-    expect(screen.getByText("Safari on Mac")).toBeInTheDocument();
-    expect(screen.getByText("Unknown device")).toBeInTheDocument();
-    expect(screen.getByText("Unknown IP")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open security settings" })).toHaveAttribute("href", "/settings/security");
   });
 
-  it("empty connections and sessions say so; no briefing day when weekly briefing is off", async () => {
+  it("empty connections say so; no briefing day when weekly briefing is off", async () => {
     routes({ connections: [], sessions: [], prefs: fx.prefs({ weeklyBriefing: false }) });
     renderWithQuery(<SettingsPage />);
     expect(await screen.findByText("No data sources connected yet.")).toBeInTheDocument();
-    expect(screen.getByText("No active sessions.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Briefing day")).not.toBeInTheDocument();
   });
 

@@ -63,8 +63,15 @@ data class SessionResponse(
     val ipAddress: String?,
     val userAgent: String?,
     val lastActiveAt: String?,
-    val createdAt: String
+    val createdAt: String,
+    /** A coarse name such as "Chrome on Mac" (AOS-620); the raw user agent stays in [userAgent]. */
+    val device: String = "Unknown device",
+    /** True for the session making this request. */
+    val current: Boolean = false
 )
+
+@Serializable
+data class RevokeAllResponse(val revoked: Int, val signedOut: Boolean)
 
 fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: AppConfig, auditService: AuditService, login: LoginOAuth) {
     val cookies = AuthCookies(config)
@@ -165,8 +172,15 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
             val refreshToken = cookies.refreshToken(call)
                 ?: throw ApiException(HttpStatusCode.Unauthorized, ApiError.TOKEN_INVALID)
             try {
-                cookies.setAccess(call, authService.refreshToken(refreshToken))
+                val refreshed = authService.refreshToken(refreshToken)
+                cookies.setAccess(call, refreshed.accessToken)
+                // Rotation (AOS-620): the old refresh token stops working; reusing it later revokes the session.
+                refreshed.refreshToken?.let { cookies.setRefresh(call, it) }
                 call.respond(HttpStatusCode.OK, ApiResponse.success(AccessTokenResponse(expiresIn = accessTokenTtl), call.requestId))
+            } catch (e: RefreshTokenReusedException) {
+                cookies.clear(call)
+                auditService.log(userId = null, actor = ActorType.SYSTEM, action = AuditActions.AUTH_SESSION_REVOKE, entityType = "session", ipAddress = call.clientIp)
+                throw ApiException(HttpStatusCode.Unauthorized, REFRESH_REUSED)
             } catch (e: SessionNotFoundException) {
                 cookies.clear(call)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.TOKEN_INVALID)
@@ -209,13 +223,15 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 val principal = call.userPrincipal
                 val sessions = authService.getActiveSessions(principal.userId)
 
-                val response = sessions.map { session ->
+                val response = sessions.sortedByDescending { it.lastActiveAt ?: it.createdAt }.map { session ->
                     SessionResponse(
                         id = session.id.toString(),
                         ipAddress = session.ipAddress,
                         userAgent = session.userAgent,
                         lastActiveAt = session.lastActiveAt?.toString(),
-                        createdAt = session.createdAt.toString()
+                        createdAt = session.createdAt.toString(),
+                        device = DeviceLabel.of(session.userAgent),
+                        current = session.id == principal.sessionId
                     )
                 }
 
@@ -223,6 +239,20 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     HttpStatusCode.OK,
                     ApiResponse.success(response, call.requestId)
                 )
+            }
+
+            // Sign out everywhere (AOS-620): every session ends at once, access tokens included (they carry their session).
+            // `?keepCurrent=true` keeps this device signed in.
+            post("/sessions/revoke-all") {
+                val principal = call.userPrincipal
+                val keep = call.request.queryParameters["keepCurrent"] == "true"
+                val except = if (keep) principal.sessionId else null
+                val revoked = authService.revokeAll(principal.userId, except)
+                auditService.log(userId = principal.userId, actor = ActorType.USER, action = AuditActions.AUTH_SESSION_REVOKE,
+                    entityType = "session", ipAddress = call.clientIp)
+                val signedOut = except == null
+                if (signedOut) cookies.clear(call)
+                call.respond(HttpStatusCode.OK, ApiResponse.success(RevokeAllResponse(revoked, signedOut), call.requestId))
             }
 
             delete("/sessions/{id}") {
@@ -246,6 +276,8 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     entityId = sessionUuid,
                     ipAddress = ipAddress
                 )
+                // Signing out this very device: its cookies go too.
+                if (sessionUuid == principal.sessionId) cookies.clear(call)
 
                 call.respond(
                     HttpStatusCode.OK,
@@ -257,6 +289,9 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
 }
 
 /** A sign-in that didn't start in this browser, was already used, or expired (AOS-618). One answer for all. */
+/** A rotated refresh token came back: the session was ended (AOS-620). */
+val REFRESH_REUSED = ApiError("AUTH_009", "This session was signed out for your safety. Sign in again.")
+
 val LOGIN_STATE_INVALID = ApiError("AUTH_007", "This sign-in didn't start here or has expired. Start again.")
 
 /** 429 with Retry-After while [client] is locked out after refused sign-ins (AOS-618). */

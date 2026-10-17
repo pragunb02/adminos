@@ -38,9 +38,35 @@ class InMemoryUserRepository : UserRepository {
 
 class InMemorySessionRepository : SessionRepository {
     private val sessions = ConcurrentHashMap<UUID, Session>()
+    private val rotated = ConcurrentHashMap<String, RotatedToken>()
 
     override suspend fun findByTokenHash(tokenHash: String): Session? =
         sessions.values.find { it.tokenHash == tokenHash }
+
+    override suspend fun findById(id: UUID): Session? = sessions[id]
+
+    override suspend fun findRecentByUserId(userId: UUID, limit: Int): List<Session> =
+        sessions.values.filter { it.userId == userId }.sortedByDescending { it.createdAt }.take(limit)
+
+    override suspend fun revokeAllForUser(userId: UUID): Int {
+        val now = Instant.now()
+        var n = 0
+        for (s in sessions.values.filter { it.userId == userId && it.isActive }) {
+            if (sessions.replace(s.id, s, s.copy(revokedAt = now))) n++
+        }
+        return n
+    }
+
+    override suspend fun rotate(sessionId: UUID, oldHash: String, newHash: String, at: Instant): Boolean {
+        var won = false
+        sessions.computeIfPresent(sessionId) { _, s ->
+            if (s.tokenHash == oldHash) { won = true; s.copy(tokenHash = newHash) } else s
+        }
+        if (won) rotated[oldHash] = RotatedToken(sessionId, at)
+        return won
+    }
+
+    override suspend fun findRotated(tokenHash: String): RotatedToken? = rotated[tokenHash]
 
     override suspend fun findActiveByUserId(userId: UUID): List<Session> =
         sessions.values.filter { it.userId == userId && it.isActive }

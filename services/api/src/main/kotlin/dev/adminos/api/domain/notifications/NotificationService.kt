@@ -107,7 +107,7 @@ class NotificationService(
          * Critical notifications (anomaly alerts) bypass quiet hours.
          */
         fun isCriticalNotification(type: NotificationType): Boolean =
-            type == NotificationType.ANOMALY
+            type == NotificationType.ANOMALY || type == NotificationType.SECURITY
 
         /**
          * Check if a notification type is enabled in user preferences.
@@ -120,6 +120,7 @@ class NotificationService(
             NotificationType.OVERDUE -> prefs.billReminders
             NotificationType.NUDGE -> true  // nudges always enabled (system-level)
             NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM -> true
+            NotificationType.SECURITY -> true // sign-in alerts can't be switched off (AOS-620)
         }
     }
 }

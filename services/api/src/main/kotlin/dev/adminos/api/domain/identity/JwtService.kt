@@ -23,7 +23,9 @@ data class JwtClaims(
     val email: String,
     val role: String,
     /** The user's timezone for day boundaries (AOS-120); tokens issued before it existed have none. */
-    val timezone: String? = null
+    val timezone: String? = null,
+    /** The session this token belongs to (`sid`, AOS-620): revoking the session ends the token at once. */
+    val sessionId: UUID? = null
 )
 
 /** Claims of a scoped device token (AOS-203). [tokenId] is the revocable `device_tokens` row. */
@@ -50,9 +52,9 @@ class JwtService(private val config: AuthConfig) {
     private val verifier = MACVerifier(secretBytes)
     private val random = SecureRandom()
 
-    fun generateTokenPair(user: User): TokenPair {
-        val accessToken = generateAccessToken(user)
-        val refreshToken = generateRefreshToken()
+    fun generateTokenPair(user: User, sessionId: UUID? = null): TokenPair {
+        val accessToken = generateAccessToken(user, sessionId)
+        val refreshToken = newRefreshToken()
         return TokenPair(
             accessToken = accessToken,
             refreshToken = refreshToken,
@@ -60,10 +62,11 @@ class JwtService(private val config: AuthConfig) {
         )
     }
 
-    fun generateAccessToken(user: User): String {
+    fun generateAccessToken(user: User, sessionId: UUID? = null): String {
         val now = Instant.now()
         val claims = JWTClaimsSet.Builder()
             .subject(user.id.toString())
+            .apply { if (sessionId != null) claim("sid", sessionId.toString()) }
             .claim("typ", TYPE_ACCESS)
             .claim("email", user.email)
             .claim("role", user.role.name.lowercase())
@@ -95,7 +98,8 @@ class JwtService(private val config: AuthConfig) {
                 userId = UUID.fromString(claims.subject),
                 email = claims.getStringClaim("email"),
                 role = claims.getStringClaim("role"),
-                timezone = claims.getStringClaim("tz")
+                timezone = claims.getStringClaim("tz"),
+                sessionId = claims.getStringClaim("sid")?.let(UUID::fromString)
             )
         } catch (e: Exception) {
             null
@@ -147,7 +151,8 @@ class JwtService(private val config: AuthConfig) {
         return exp.after(now) && (iat == null || iat.time <= now.time + CLOCK_SKEW_MS)
     }
 
-    private fun generateRefreshToken(): String {
+    /** A new refresh token: 256 random bits, base64url. Only its hash is stored. */
+    fun newRefreshToken(): String {
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)

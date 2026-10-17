@@ -7,7 +7,8 @@ import DeviceTokens from "@/components/DeviceTokens";
 import PushDevice from "@/components/PushDevice";
 import AiFeatures from "@/components/AiFeatures";
 import { deleteData, errorMessage, getData, patchData, postData } from "@/lib/query";
-import type { UserConnection, NotificationPreferences, Session } from "@/lib/types";
+import type { UserConnection, NotificationPreferences } from "@/lib/types";
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import StatusBadge from "@/components/StatusBadge";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -20,10 +21,8 @@ export default function SettingsPage() {
   const PREFS_KEY = ["settings", "notification-preferences"];
   const connectionsQuery = useQuery({ queryKey: ["settings", "connections"], queryFn: () => getData<UserConnection[]>("/api/v1/connections") });
   const prefsQuery = useQuery({ queryKey: PREFS_KEY, queryFn: () => getData<NotificationPreferences>("/api/v1/users/me/notification-preferences") });
-  const sessionsQuery = useQuery({ queryKey: ["settings", "sessions"], queryFn: () => getData<Session[]>("/api/v1/auth/sessions") });
   const connections = connectionsQuery.data ?? [];
   const prefs = prefsQuery.data ?? null;
-  const sessions = sessionsQuery.data ?? [];
   const loading = connectionsQuery.isPending && prefsQuery.isPending;
   const error = connectionsQuery.error && prefsQuery.error ? "Failed to load settings" : null;
   const fetchData = () => queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -214,26 +213,11 @@ export default function SettingsPage() {
             {/* Connected devices (AOS-203) */}
             <DeviceTokens />
 
-            {/* Sessions */}
+            {/* Security: sessions and sign-out live on their own page (AOS-620) */}
             <section className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">Active Sessions</h3>
-              {sessions.length === 0 ? (
-                <p className="text-sm text-gray-500">No active sessions.</p>
-              ) : (
-                <div className="space-y-2">
-                  {sessions.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                      <div>
-                        <p className="text-sm text-gray-700">{s.userAgent || "Unknown device"}</p>
-                        <p className="text-xs text-gray-500">
-                          {s.ipAddress || "Unknown IP"}
-                          {s.lastActiveAt && ` · Last active: ${new Date(s.lastActiveAt).toLocaleDateString("en-IN")}`}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <h3 className="font-semibold text-gray-900 mb-1">Security</h3>
+              <p className="text-sm text-gray-600 mb-2">Where you&apos;re signed in, and signing out everywhere.</p>
+              <Link href="/settings/security" className="text-sm text-accent underline">Open security settings</Link>
             </section>
           </>
         )}
