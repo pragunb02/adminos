@@ -113,6 +113,10 @@ data class SubscriptionResponse(
     val priceChangePct: Double?,
     val isFlagged: Boolean,
     val flaggedReason: String?,
+    /** 0.00–1.00, null until first scored (AOS-509); ≥ 0.70 flags it. */
+    val wasteScore: Double?,
+    /** Why the score is what it is, strongest first; may end with "Usage unknown…". */
+    val wasteReasons: List<String>,
     val transactionIds: List<String>,
     val createdAt: String
 ) {
@@ -133,6 +137,8 @@ data class SubscriptionResponse(
             priceChangePct = s.priceChangePct?.toDouble(),
             isFlagged = s.isFlagged,
             flaggedReason = s.flaggedReason,
+            wasteScore = s.wasteScore?.toDouble(),
+            wasteReasons = s.wasteReasons.map { it.reason },
             transactionIds = s.transactionIds.map { it.toString() },
             createdAt = s.createdAt.toString()
         )

@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-58 | Product | Subscription waste score in Kotlin from signals we have (price rise, duplicate service, cost share, long-running, dormant AutoPay, trial ending, marked unused); usage never guessed; ≥ 0.70 flags with reasons; "keep" remembers seen factors | Accepted | AOS-509 |
 | D-57 | Product | Weekly briefing is deterministic: made in the API from the console's analytics and dues, written by a template (no LLM for numbers); on the user's day/time/zone, once per week, catch-up within the week; queue payloads keep JSON types | Accepted | AOS-506 |
 | D-56 | Architecture | Mandates (UPI AutoPay, e-NACH, card SI) are their own model, learnt from bank SMS notices (never the text), identified by UMN or payee+rail, robust to late/duplicate messages; debits matched after commit and marked recurring; dormant mandates flagged; shown on Subscriptions and the dues calendar | Accepted | AOS-502 |
 | D-55 | Product | Dues calendar = bills by due date + renewals projected from next billing date (today on, ≤ 1 year, daily = next only, month-ends kept); renewal reminders on the bill-reminder days, once per date; every reminder and overdue judged on the user's own date | Accepted | AOS-503 |
@@ -608,3 +609,32 @@ Proposed
 - **AI later:** an LLM may only rephrase the template's facts, after an evaluation harness exists (proposed AOS-511). The legacy Go + Claude handler is kept but not used.
 - **Queue:** payloads sent to the Go workers keep their JSON types, so typed Go structs can read them.
 
+### D-58 — Subscription waste score in Kotlin, from signals we have
+2026-10-17 · Accepted (Pragun: "can we do 2-3 task parallely" — built by a background agent, reviewed and merged by Claude) · Type: Product · Tasks: AOS-509
+
+**Context:** The Go `ComputeWasteScore` scored only from Gmail login signals that nothing produces, and was never enqueued. The owner's data is iPhone SMS, bank statements and mandates.
+
+**Decision:**
+- A pure Kotlin `WasteScorer` (API, `domain/financial`) scores each active or trial subscription 0.00–1.00 as the sum of named, explained factors (points out of 100, capped):
+  - trial ending within 7 days: 40;
+  - marked unused: 40;
+  - dormant AutoPay for the same payee: 40;
+  - duplicate service of the same kind: 35;
+  - price rise: 30, or 40 if 20% or more;
+  - 5% or more of the last 30 days' spending: 25;
+  - 12 or more months unchanged: 15.
+- Usage is never guessed: unknown usage is said plainly ("Usage unknown"), with 0 points.
+- A score of 0.70 or more flags the subscription with the top three reasons; below that the flag is cleared.
+- "Keep" remembers the factors the user saw. Only a new factor flags it again.
+- The job `subscription-waste-score` runs daily at 05:00 (scheduler zone), after detection.
+- V24 stores the reasons and the kept factors. The API returns `wasteScore` and `wasteReasons`, and the web shows "Why flagged".
+- The Go handler stays but is superseded.
+
+**Alternatives rejected:**
+- Feeding the Go scorer via the queue: two copies of one rule, payloads that break on non-strings, and signals we don't have.
+- Scoring on every read: unstable flags, and "kept" can't be remembered.
+
+**Consequences:**
+- New signals (Gmail logins after AOS-401) are new factors.
+- The thresholds are constants, to be tuned on real data.
+- Detection should set the category and end stopped subscriptions (follow-ups).

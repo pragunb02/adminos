@@ -63,8 +63,9 @@ class DiAppModuleCoverageTest {
             setOf(dev.adminos.api.domain.notifications.NotificationChannel.IN_APP, dev.adminos.api.domain.notifications.NotificationChannel.EMAIL),
             channels(smtp::get)
         )
-        assertEquals(5, koinOf(buildAppModule(useDatabase = false, env = smtp::get))
-            .getAll<dev.adminos.api.domain.scheduling.ScheduledJob>().size, "reminders, nudges, detection, pending notifications, weekly briefing")
+        val jobs = koinOf(buildAppModule(useDatabase = false, env = smtp::get)).getAll<dev.adminos.api.domain.scheduling.ScheduledJob>()
+        assertEquals(6, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing")
+        assertTrue(jobs.any { it.name.value == "subscription-waste-score" }, "AOS-509")
     }
 
     @Test

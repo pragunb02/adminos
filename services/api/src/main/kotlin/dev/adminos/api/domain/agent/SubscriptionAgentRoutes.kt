@@ -7,7 +7,6 @@ import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.financial.SubscriptionRepository
 import dev.adminos.api.domain.financial.SubscriptionResponse
-import dev.adminos.api.domain.financial.UsageStatus
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
@@ -44,11 +43,8 @@ fun Route.subscriptionAgentRoutes(
                     throw ApiException(HttpStatusCode.NotFound, ApiError.SUBSCRIPTION_NOT_FOUND)
                 }
 
-                val updated = subscriptionRepository.update(sub.copy(
-                    usageStatus = UsageStatus.ACTIVE,
-                    isFlagged = false,
-                    flagDismissedAt = Instant.now()
-                ))
+                // Keep: the factors behind today's waste score count as seen (AOS-509).
+                val updated = subscriptionRepository.update(sub.keep(Instant.now()))
 
                 auditService.log(
                     userId = principal.userId,

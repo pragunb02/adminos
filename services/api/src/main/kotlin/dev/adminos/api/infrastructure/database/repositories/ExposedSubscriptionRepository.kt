@@ -45,6 +45,8 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
             it[metadata] = subscription.metadata?.let { m -> JsonColumns.encode(m) }
             it[renewalRemindedFor] = subscription.renewalRemindedFor
             it[renewalReminderDaysSent] = encodeDays(subscription.renewalReminderDaysSent)
+            it[wasteReasons] = encodeWasteReasons(subscription.wasteReasons)
+            it[wasteFactorsDismissed] = encodeFactors(subscription.wasteFactorsDismissed)
             it[createdAt] = subscription.createdAt
             it[updatedAt] = subscription.updatedAt
         }
@@ -125,6 +127,8 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
             it[metadata] = subscription.metadata?.let { m -> JsonColumns.encode(m) } // was dropped on update (as bills were, AOS-508)
             it[renewalRemindedFor] = subscription.renewalRemindedFor
             it[renewalReminderDaysSent] = encodeDays(subscription.renewalReminderDaysSent)
+            it[wasteReasons] = encodeWasteReasons(subscription.wasteReasons)
+            it[wasteFactorsDismissed] = encodeFactors(subscription.wasteFactorsDismissed)
             it[updatedAt] = now
         }
         subscription.copy(updatedAt = now)
@@ -165,7 +169,32 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
         },
         renewalRemindedFor = this[SubscriptionsTable.renewalRemindedFor],
         renewalReminderDaysSent = decodeDays(this[SubscriptionsTable.renewalReminderDaysSent]) ?: emptySet(),
+        wasteReasons = decodeWasteReasons(this[SubscriptionsTable.wasteReasons]),
+        wasteFactorsDismissed = decodeFactors(this[SubscriptionsTable.wasteFactorsDismissed]),
         createdAt = this[SubscriptionsTable.createdAt],
         updatedAt = this[SubscriptionsTable.updatedAt]
     )
+
+    private companion object {
+        /** Reasons as a JSON array of {factor, points, reason}; none is NULL. */
+        fun encodeWasteReasons(reasons: List<WasteReason>): String? = reasons.takeIf { it.isNotEmpty() }?.let { list ->
+            JsonColumns.encodeList(list.map { mapOf("factor" to it.factor.code, "points" to it.points, "reason" to it.reason) })
+        }
+
+        fun decodeWasteReasons(text: String?): List<WasteReason> = text?.let { t ->
+            JsonColumns.decodeList(t).map { m ->
+                WasteReason(
+                    factor = WasteFactor.fromCode(requireNotNull(m["factor"] as? String) { "waste reason without a factor" }),
+                    points = requireNotNull(m["points"] as? Number) { "waste reason without points" }.toInt(),
+                    reason = requireNotNull(m["reason"] as? String) { "waste reason without a sentence" }
+                )
+            }
+        } ?: emptyList()
+
+        fun encodeFactors(factors: Set<WasteFactor>): String? =
+            factors.takeIf { it.isNotEmpty() }?.map { it.code }?.sorted()?.joinToString(",")
+
+        fun decodeFactors(text: String?): Set<WasteFactor> =
+            text?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.map { WasteFactor.fromCode(it) }?.toSet() ?: emptySet()
+    }
 }

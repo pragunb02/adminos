@@ -224,6 +224,8 @@ internal fun buildAppModule(
     single { BillRemindersJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { WasteScoreService(get(), get(), get(), java.time.Clock.systemUTC(), get<AppConfig>().scheduler.zone) }
+    single { SubscriptionWasteScoreJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
     // Weekly briefing from real data (AOS-506)
     single { dev.adminos.api.domain.agent.briefing.BriefingSources(get(), get(), get(), get(), get()) }

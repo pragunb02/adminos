@@ -27,7 +27,7 @@ export const fx = {
   subscription: (over: Partial<Subscription> = {}): Subscription => ({
     id: "s-1", name: "Netflix", merchantName: "Netflix", category: "entertainment", amount: "649", currency: "INR", billingCycle: "monthly",
     nextBillingDate: "2026-10-25", lastBilledDate: "2026-09-25", firstBilledDate: "2025-01-25", status: "active", priceChanged: false,
-    priceChangePct: null, isFlagged: false, flaggedReason: null, transactionIds: [], ...over,
+    priceChangePct: null, isFlagged: false, flaggedReason: null, wasteScore: null, wasteReasons: [], transactionIds: [], ...over,
   } as Subscription),
   subscriptionSummary: (over: Partial<SubscriptionSummary> = {}): SubscriptionSummary => ({
     totalMonthlyCost: "1847", currency: "INR", activeCount: 4, flaggedCount: 1, cancelledCount: 2, byCategory: {}, ...over,

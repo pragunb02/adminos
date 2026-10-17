@@ -82,6 +82,10 @@ export interface Subscription {
   priceChangePct: number | null;
   isFlagged: boolean;
   flaggedReason: string | null;
+  /** 0–1, null until scored (AOS-509); 0.70 or more flags it. */
+  wasteScore: number | null;
+  /** Why the waste score is what it is, strongest first. */
+  wasteReasons: string[];
   transactionIds: string[];
   createdAt: string;
 }

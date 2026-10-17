@@ -88,7 +88,8 @@ class DuesService(
     companion object {
         private const val MAX_ITEMS = 500
 
-        private fun coveredByMandate(s: Subscription, payees: List<String>): Boolean {
+        /** Whether a subscription is paid by one of these (normalized) mandate payees: same name, or one inside the other. */
+        internal fun coveredByMandate(s: Subscription, payees: List<String>): Boolean {
             val names = listOfNotNull(s.name, s.merchantName).map { dev.adminos.api.domain.financial.mandates.MandateService.normalize(it) }.filter { it.isNotEmpty() }
             return names.any { n -> payees.any { p -> p == n || p in n || n in p } }
         }

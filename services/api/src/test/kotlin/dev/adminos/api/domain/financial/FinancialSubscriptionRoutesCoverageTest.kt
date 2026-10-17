@@ -63,6 +63,23 @@ class FinancialSubscriptionRoutesCoverageTest {
     }
 
     @Test
+    fun `a subscription shows its waste score and reasons, strongest first (AOS-509)`() = subTest {
+        runBlocking {
+            subscriptions.save(sub("Netflix", "649", flagged = true).copy(wasteScore = BigDecimal("0.75"), wasteReasons = listOf(
+                WasteReason(WasteFactor.DUPLICATE_SERVICE, 35, "You also pay for JioHotstar (both streaming)"),
+                WasteReason(WasteFactor.USAGE_UNKNOWN, 0, "Usage unknown: AdminOS can't see whether you use it"))))
+            subscriptions.save(sub("Spotify", "119", createdMinutesAgo = 5))
+        }
+        val (_, body) = getAs(token, "/api/v1/subscriptions")
+        val (netflix, spotify) = body.dataArray().map { it.jsonObject }
+        assertEquals(0.75, netflix["wasteScore"]!!.jsonPrimitive.double)
+        assertEquals(listOf("You also pay for JioHotstar (both streaming)", "Usage unknown: AdminOS can't see whether you use it"),
+            netflix["wasteReasons"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertTrue(spotify.isNull("wasteScore"), "not scored yet")
+        assertEquals(0, spotify["wasteReasons"]!!.jsonArray.size)
+    }
+
+    @Test
     fun `a full page returns a cursor that fetches the next page`() = subTest {
         runBlocking { (1..3).forEach { subscriptions.save(sub("Sub $it", "99", createdMinutesAgo = it.toLong())) } }
         val (_, page1) = getAs(token, "/api/v1/subscriptions?limit=2")

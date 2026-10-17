@@ -29,7 +29,16 @@ enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL;
 
 enum class TransactionStatus { COMPLETED, PENDING, FAILED, REVERSED }
 enum class AccountType { SAVINGS, CURRENT, CREDIT_CARD, WALLET, UPI }
-enum class BillingCycle { DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY }
+enum class BillingCycle { DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY;
+    /** What [amount] charged once per this cycle costs per month (the summary's and the waste score's one rule). */
+    fun monthlyCost(amount: BigDecimal): BigDecimal = when (this) {
+        DAILY -> amount.multiply(BigDecimal(30))
+        WEEKLY -> amount.multiply(BigDecimal("4.33"))
+        MONTHLY -> amount
+        QUARTERLY -> amount.divide(BigDecimal(3), 2, java.math.RoundingMode.HALF_UP)
+        YEARLY -> amount.divide(BigDecimal(12), 2, java.math.RoundingMode.HALF_UP)
+    }
+}
 enum class SubscriptionStatus { ACTIVE, CANCELLED, PAUSED, TRIAL, UNKNOWN }
 enum class SubscriptionCategory {
     ENTERTAINMENT, FITNESS, PRODUCTIVITY, CLOUD, FOOD, NEWS, GAMING, OTHER
@@ -125,10 +134,29 @@ data class Subscription(
     /** The renewal date the reminders in [renewalReminderDaysSent] were sent for (AOS-503). */
     val renewalRemindedFor: LocalDate? = null,
     val renewalReminderDaysSent: Set<Int> = emptySet(),
+    /** Why [wasteScore] is what it is, strongest first (AOS-509, V24). */
+    val wasteReasons: List<WasteReason> = emptyList(),
+    /** The factors the user had seen when they last kept it: only a factor outside this set flags it again (AOS-509). */
+    val wasteFactorsDismissed: Set<WasteFactor> = emptySet(),
     val metadata: Map<String, Any?>? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()
-)
+) {
+    init {
+        require(wasteScore == null || (wasteScore.signum() >= 0 && wasteScore <= BigDecimal.ONE)) { "A waste score is between 0 and 1" }
+    }
+
+    /**
+     * The user keeps it ("I use this"): the flag goes, and the factors behind the current score count
+     * as seen, so tomorrow's score only flags it again for a new reason (AOS-509).
+     */
+    fun keep(at: Instant): Subscription = copy(
+        usageStatus = UsageStatus.ACTIVE,
+        isFlagged = false,
+        flagDismissedAt = at,
+        wasteFactorsDismissed = wasteReasons.filter { it.points > 0 }.map { it.factor }.toSet()
+    )
+}
 
 data class Bill(
     val id: UUID = UUID.randomUUID(),

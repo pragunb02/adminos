@@ -36,10 +36,41 @@ describe("Subscriptions", () => {
     routes();
     const { user } = renderWithQuery(<SubscriptionsPage />);
     await user.click(screen.getByRole("button", { name: /Flagged/ }));
-    expect(await screen.findByText("No visits in 45 days")).toBeInTheDocument();
+    expect(await screen.findByText(/No visits in 45 days/)).toHaveTextContent("Why flagged: No visits in 45 days");
     expect(screen.getByText("↓10%")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Cancelled/ }));
     expect(await screen.findByText("No cancelled subscriptions")).toBeInTheDocument();
+  });
+
+  it("a scored flag says why with every waste reason, strongest first", async () => {
+    server.use(
+      http.get("/api/v1/subscriptions/summary", () => ok(fx.subscriptionSummary())),
+      http.get("/api/v1/subscriptions", () => ok([
+        fx.subscription({
+          isFlagged: true, flaggedReason: "old reason", wasteScore: 0.75,
+          wasteReasons: ["Price went up 25% at the last charge", "You also pay for JioHotstar (both streaming)", "Usage unknown: AdminOS can't see whether you use it"],
+        }),
+        fx.subscription({ id: "s-2", name: "Spotify", wasteScore: 0.3, wasteReasons: ["Price went up 12% at the last charge"] }),
+      ])),
+    );
+    renderWithQuery(<SubscriptionsPage />);
+    const why = await screen.findByText(/Why flagged:/);
+    expect(why.closest("p")).toHaveTextContent(
+      "Why flagged: Price went up 25% at the last charge; You also pay for JioHotstar (both streaming); Usage unknown: AdminOS can't see whether you use it",
+    );
+    expect(screen.queryByText(/old reason/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Why flagged:/)).toHaveLength(1);
+    expect(screen.queryByText(/12% at the last charge/)).not.toBeInTheDocument();
+  });
+
+  it("a flag with no reason at all shows no why line", async () => {
+    server.use(
+      http.get("/api/v1/subscriptions/summary", () => ok(fx.subscriptionSummary())),
+      http.get("/api/v1/subscriptions", () => ok([fx.subscription({ isFlagged: true })])),
+    );
+    renderWithQuery(<SubscriptionsPage />);
+    expect(await screen.findByRole("button", { name: "Keep" })).toBeInTheDocument();
+    expect(screen.queryByText(/Why flagged/)).not.toBeInTheDocument();
   });
 
   it("price change without a percentage says changed; no summary hides counts", async () => {

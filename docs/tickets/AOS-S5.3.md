@@ -23,6 +23,7 @@
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-505](AOS-505.md) | Unusual-charge alerts: every new spend checked, alert when it matters | Claude | ✅ | 2h | 1.5h |
+| [AOS-509](AOS-509.md) | Subscription waste score (explained factors) | Claude (agent) | ✅ | — | 2h |
 | [AOS-506](AOS-506.md) | Weekly briefing from real data (deterministic) + typed queue payloads | Claude | ✅ | 3h | 1.5h |
 
 _Task tickets are created as files when this story is picked up._
@@ -34,3 +35,4 @@ Receive a briefing
 - 2026-10-16 — Claude: story created (AOS-004).
 - 2026-10-16 — Claude: started; AOS-505 done.
 - 2026-10-17 — Claude: AOS-506 done; story done.
+- 2026-10-17 — Claude: AOS-509 merged (built in parallel by a background agent).
