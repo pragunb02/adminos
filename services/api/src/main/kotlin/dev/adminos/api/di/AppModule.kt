@@ -76,6 +76,8 @@ internal fun buildAppModule(
 ): Module = module {
     // Spending coach (Epic E9): its own module, so its tasks don't edit this file.
     includes(coachKoinModule(useDatabase))
+    // Wealth (Epic E8, D-79): its own module too.
+    includes(wealthKoinModule(useDatabase))
     single { AppConfig.load() }
     single { TokenEncryptor(get<AppConfig>().security.tokenEncryptionKey) }
     single { JwtService(get<AppConfig>().auth) }
