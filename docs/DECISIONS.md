@@ -6,6 +6,7 @@
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
+| D-112 | Architecture | Bank mail is admitted by sender only, and only when Gmail's topmost Authentication-Results show DMARC pass or aligned DKIM pass; SPF alone and subjects never admit; receipt senders (AOS-903) go through the same check, their order words only narrow candidates (amends D-59) | Accepted | AOS-624, AOS-903 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1285,3 +1286,8 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+### D-112 — Bank mail is admitted by authenticated sender only
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-624, AOS-903 · Amends D-59 (sender filter) · Builds on D-63, D-33, D-91, D-100
+- Gmail mail is admitted by sender only, and only when Gmail's topmost `Authentication-Results` (`mx.google.com`) shows DMARC pass for the From domain or a DKIM pass aligned with the listed organisation; SPF alone and subject phrases never admit; every fetched message is qualified locally (`Qualify`).
+- **With AOS-903 (integration):** order-receipt senders (`ReceiptDomains`) go through the same `Qualify`: their mail must be authenticated in the same way, and the receipt subject words only narrow which of their messages are candidates (promotions stay unread); a subject never admits a message on its own. The metadata step therefore reads `From`, `Subject` and `Authentication-Results`.
+- **Rejected:** subject as a filter that admits mail on its own; verifying DKIM ourselves from raw mail.
