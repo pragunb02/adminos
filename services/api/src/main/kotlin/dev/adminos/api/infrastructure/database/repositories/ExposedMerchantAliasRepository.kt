@@ -17,7 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.upsert
 import java.time.Instant
 import java.util.UUID
 
-/** V35 `merchant_aliases` and `merchant_merge_rejections` (AOS-709). */
+/** V46 `merchant_aliases` and `merchant_merge_rejections` (AOS-709). */
 class ExposedMerchantAliasRepository : MerchantAliasRepository {
 
     override suspend fun aliases(userId: UUID): List<MerchantAlias> = dbQuery {

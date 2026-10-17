@@ -32,7 +32,7 @@ import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
-/** AOS-709 on Postgres: V35 aliases and rejections, and a merge seen by the detector and the analytics. */
+/** AOS-709 on Postgres: V46 aliases and rejections, and a merge seen by the detector and the analytics. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MerchantAliasIntegrationTest {

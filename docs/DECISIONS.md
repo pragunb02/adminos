@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-75 | Architecture / Product | Look-alike merchants are proposed in Review, never merged silently (cleaned names, guarded Jaro-Winkler, shared UPI ID; never two brands or two people); a confirmed merge is an alias every reader uses (subscriptions, analytics); rejections remembered; stored transactions never rewritten | Accepted | AOS-709 |
 | D-74 | Product | A subscription price rise (latest charge vs the median of the previous up to 3, at least max(5%, ₹20), plan switches excluded) is told once per new price; one rule for the alert, the ↑/↓ and the waste score; cuts shown, not alerted | Accepted | AOS-715 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
@@ -1269,3 +1270,32 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - **Price cuts are shown, not alerted.**
 - **Alternatives rejected:** a per-transaction listener (a second copy of the grouping, inside ingestion), a "notified price" flag on the subscription (forgets history; can't tell a rise back to an old price from a repeat), last-two comparison (noisy).
 - **Consequences:** a price history per subscription exists for later UI; the thresholds are constants to tune on real data.
+
+### D-75 — Look-alike merchants are proposed, never merged silently; a confirmed merge is an alias every reader uses
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-709 · Builds on D-41, D-44, D-58, D-61, D-100
+- **Context:** Merchants were grouped by exact name. One uncatalogued service could be two subscriptions (both flagged as duplicates) and two lines in spending.
+- **Decision:**
+  - **Matching (`MerchantMatcher` over a `MerchantSimilarity` strategy):**
+    - names are cleaned (legal, web and filler words, gateways, honorifics, initials, glued suffixes, NFKC);
+    - a pair is evidence when the cleaned names are equal, a non-gateway UPI ID is shared, or a business's names are Jaro-Winkler ≥ 0.92 word by word with the same first 3 letters;
+    - **never**: two different catalogue brands, two people's names without a shared UPI ID, or a name with look-alike foreign letters or invisible characters.
+  - **Proposals** are computed when Review asks (400 days, after existing aliases, without rejected pairs), grouped around the most used name or the catalogue brand. They are bounded to 1,000 merchants and same-start/UPI comparisons.
+  - **Answers:**
+    - confirming stores one alias per member (V46), and earlier aliases follow, so they never chain;
+    - rejecting stores every pair, never asked again;
+    - both are audited (names only);
+    - the web gives one tap with a 5 s Undo before sending.
+  - **Readers:** `AliasResolver` is the one rule.
+    - Subscription detection groups by it, and ends a merged member's subscription "Merged into X".
+    - The analytics read facts through `AliasedAnalyticsRepository`.
+    - Stored transactions are never rewritten.
+  - **Measured (D-61 style):** 160 synthetic pairs (`merchants/pairs.csv`, `baseline.json`). The shipped matcher has precision 1.00 and recall 0.88, vs 0.72 recall for exact names. The gate requires precision ≥ 0.98 and no drop.
+- **Alternatives rejected:**
+  - a nightly proposals job (stale, a second state machine);
+  - rewriting transactions (destructive, fights the normalizer);
+  - token-set ratio (calls a subset identical);
+  - unguarded Jaro-Winkler (merges people, 0.95 precision);
+  - embeddings or an LLM (not needed for spelling variants).
+- **Consequences:**
+  - better similarity is one class;
+  - follow-ups: removing an alias, per-name answers, and anomaly baselines keyed by alias.

@@ -4,7 +4,7 @@ import dev.adminos.api.domain.financial.MerchantKey
 import java.time.Instant
 import java.util.UUID
 
-/** A confirmed merge (AOS-709, V35): payments under [aliasKey] are this user's [canonicalName]. */
+/** A confirmed merge (AOS-709, V46): payments under [aliasKey] are this user's [canonicalName]. */
 data class MerchantAlias(
     val userId: UUID,
     val aliasKey: String,
