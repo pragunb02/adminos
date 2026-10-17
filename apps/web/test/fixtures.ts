@@ -128,4 +128,9 @@ export const fx = {
     nextDebitOn: "2026-11-05", nextDebitAmount: "5400.00", lastDebitAt: "2026-10-05T04:00:00Z", lastDebitAmount: "5400.00",
     validUntil: "2030-03-05", dormant: false, hasReference: true, ...over,
   }),
+  /** A document in the vault (AOS-507). */
+  document: (over: Partial<import("@/lib/types").VaultDocument> = {}): import("@/lib/types").VaultDocument => ({
+    id: "d-1", title: "Form 16 FY26", category: "tax", fileType: "pdf", mime: "application/pdf", sizeBytes: 245_760,
+    originalName: "Form16.pdf", expiresOn: null, notes: null, createdAt: "2026-10-16T06:00:00Z", ...over,
+  }),
 };

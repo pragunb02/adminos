@@ -64,8 +64,9 @@ class DiAppModuleCoverageTest {
             channels(smtp::get)
         )
         val jobs = koinOf(buildAppModule(useDatabase = false, env = smtp::get)).getAll<dev.adminos.api.domain.scheduling.ScheduledJob>()
-        assertEquals(6, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing")
+        assertEquals(7, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry")
         assertTrue(jobs.any { it.name.value == "subscription-waste-score" }, "AOS-509")
+        assertTrue(jobs.any { it.name.value == "document-expiry" }, "AOS-507")
     }
 
     @Test

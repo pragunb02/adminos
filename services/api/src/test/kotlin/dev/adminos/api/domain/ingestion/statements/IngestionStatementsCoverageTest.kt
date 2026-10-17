@@ -147,6 +147,13 @@ class IngestionStatementsCoverageTest {
     }
 
     @Test
+    fun `a statement well over 20 MB is a 413 too, not a 500 (found in AOS-507)`() = uploadTest {
+        val res = upload { file(bytes = ByteArray(20 * 1024 * 1024 + 4096)) }
+        assertEquals(HttpStatusCode.PayloadTooLarge, res.status)
+        assertTrue("FILE_TOO_LARGE" in res.bodyAsText())
+    }
+
+    @Test
     fun `a statement over 20 MB is a 413`() = uploadTest {
         val res = upload { file(bytes = ByteArray(20 * 1024 * 1024 + 1)) }
         assertEquals(HttpStatusCode.PayloadTooLarge, res.status)

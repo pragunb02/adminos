@@ -20,6 +20,7 @@ export const MORE_LINKS = [
   { href: "/import", label: "Import statement" },
   { href: "/bills", label: "Bills" },
   { href: "/subscriptions", label: "Subscriptions" },
+  { href: "/documents", label: "Documents" },
   { href: "/briefings", label: "Briefings" },
   { href: "/settings", label: "Settings" },
 ] as const;

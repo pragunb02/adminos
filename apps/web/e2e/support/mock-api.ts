@@ -39,6 +39,11 @@ export class MockApi {
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
+      .on("GET /api/v1/documents", (_r, u) => {
+        const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];
+        const c = u.searchParams.get("category"); const q = u.searchParams.get("q")?.toLowerCase();
+        return { data: all.filter((d) => (!c || d.category === c) && (!q || d.title.toLowerCase().includes(q))) };
+      })
       .on("GET /api/v1/mandates", () => ({ data: [fx.mandate(), fx.mandate({ id: "m-2", payee: "Cult.fit", rail: "upi_autopay", amount: "999.00", nextDebitOn: null, nextDebitAmount: null, dormant: true })] }))
       .on("GET /api/v1/dues", (_r, u) => {
         const m = u.searchParams.get("month");

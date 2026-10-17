@@ -41,6 +41,7 @@ class InfraPluginsCoverageTest {
                 get("/date-parse") { call.respondText(LocalDate.parse("16-10-2026").toString()) }
                 get("/zone") { call.respondText(ZoneId.of("Mars/Olympus").id) }
                 get("/boom") { throw IllegalStateException("db password=hunter2 at 10.0.0.5") }
+                get("/io") { throw java.io.IOException("socket closed") }
                 get("/bad-body-chain") { throw BadRequestException("outer", RuntimeException("mid", RuntimeException("field 'amount' expected string\nat line 2"))) }
                 get("/bad-body-no-message") { throw BadRequestException("outer", RuntimeException()) }
                 get("/bad-body-self-cause") { throw BadRequestException("outer", SelfCaused()) }
@@ -107,6 +108,13 @@ class InfraPluginsCoverageTest {
         assertEquals(HttpStatusCode.InternalServerError, res.status)
         val body = res.bodyAsText()
         assertFalse("hunter2" in body || "10.0.0.5" in body || "IllegalStateException" in body, body)
+    }
+
+    @Test
+    fun `an input-output failure that isn't an oversized upload is still a plain 500`() = pluginTest {
+        val res = client.get("/io")
+        assertEquals(HttpStatusCode.InternalServerError, res.status)
+        assertTrue("socket closed" !in res.bodyAsText())
     }
 
     @Test

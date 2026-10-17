@@ -98,6 +98,7 @@ internal fun buildAppModule(
         single<AuditRepository> { ExposedAuditRepository() }
         // Scheduling
         single<JobRunRepository> { ExposedJobRunRepository() }
+        single<dev.adminos.api.domain.documents.DocumentRepository> { ExposedDocumentRepository() }
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
     } else {
@@ -123,6 +124,7 @@ internal fun buildAppModule(
         single<NotificationRepository> { InMemoryNotificationRepository() }
         single<AuditRepository> { InMemoryAuditRepository() }
         single<JobRunRepository> { InMemoryJobRunRepository() }
+        single<dev.adminos.api.domain.documents.DocumentRepository> { dev.adminos.api.domain.documents.InMemoryDocumentRepository() }
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
     }
@@ -138,11 +140,21 @@ internal fun buildAppModule(
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }
-    val r2AccessKey = env("R2_ACCESS_KEY") ?: ""
-    val r2Endpoint = env("R2_ENDPOINT") ?: ""
-    if (r2AccessKey.isNotBlank() && r2Endpoint.isNotBlank()) {
-    } else {
+    // Documents vault (AOS-507, D-60): Cloudflare R2 / S3 when configured; memory only in dev mode; otherwise refused clearly.
+    val documentStorage = dev.adminos.api.config.DocumentStorageConfig.from(env)
+    single<dev.adminos.api.domain.documents.DocumentStorage> {
+        when {
+            documentStorage != null -> dev.adminos.api.infrastructure.documents.S3DocumentStorage(documentStorage)
+            !useDatabase -> dev.adminos.api.infrastructure.documents.InMemoryDocumentStorage().also {
+                org.slf4j.LoggerFactory.getLogger("Documents").warn("DOCS_S3_* not set: documents are kept IN MEMORY and lost on restart (dev mode only).")
+            }
+            else -> dev.adminos.api.infrastructure.documents.UnconfiguredDocumentStorage().also {
+                org.slf4j.LoggerFactory.getLogger("Documents").warn("DOCS_S3_* not set: the documents vault is off (uploads are refused).")
+            }
+        }
     }
+    single<dev.adminos.api.domain.documents.DocumentSealer> { dev.adminos.api.infrastructure.documents.AesGcmDocumentSealer(get()) }
+    single { dev.adminos.api.domain.documents.DocumentService(get(), get(), get()) }
 
     single { IngestionService(get(), get(), getOrNull()) }
     // Ingest pipeline (D-34): pending intake events → transactions
@@ -231,5 +243,6 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.agent.briefing.BriefingSources(get(), get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get()) }
     single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingJob(get(), get(), get()) } bind ScheduledJob::class
+    single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

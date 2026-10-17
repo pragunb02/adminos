@@ -64,6 +64,16 @@ fun Application.configureErrorHandling() {
         status(HttpStatusCode.Unauthorized) { call, status ->
             call.respond(status, ApiResponse.error(ApiError.TOKEN_INVALID, call.requestId))
         }
+        // An upload over the route's formFieldLimit (statements, documents): Ktor's multipart parser fails the
+        // call with an IOException. That's the client's file being too large, not a server error (AOS-507).
+        exception<java.io.IOException> { call, cause ->
+            if (cause.message?.contains("exceeds limit") == true) {
+                call.respond(HttpStatusCode.PayloadTooLarge, ApiResponse.error(ApiError("FILE_TOO_LARGE", "The file is too large (at most 20 MB)"), call.requestId))
+            } else {
+                logger.error("Unhandled I/O exception", cause)
+                call.respond(HttpStatusCode.InternalServerError, ApiResponse.error(ApiError.INTERNAL_ERROR, call.requestId))
+            }
+        }
         exception<Throwable> { call, cause ->
             logger.error("Unhandled exception", cause)
             call.respond(

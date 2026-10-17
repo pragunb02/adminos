@@ -150,3 +150,23 @@ object MandatesTable : Table("mandates") {
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Maps to db/migration/V23__documents.sql (AOS-507). */
+object DocumentsTable : Table("documents") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val title = varchar("title", 120)
+    val category = varchar("category", 16)
+    val fileType = varchar("file_type", 8)
+    val sizeBytes = long("size_bytes")
+    val sha256 = varchar("sha256", 64)
+    val wrappedKey = text("wrapped_key")
+    val storageKey = varchar("storage_key", 200)
+    val originalName = varchar("original_name", 100).nullable()
+    val expiresOn = date("expires_on").nullable()
+    val notes = text("notes").nullable()
+    val expiryRemindersSent = text("expiry_reminders_sent").nullable()
+    val createdAt = timestamp("created_at")
+    val updatedAt = timestamp("updated_at")
+    override val primaryKey = PrimaryKey(id)
+}
