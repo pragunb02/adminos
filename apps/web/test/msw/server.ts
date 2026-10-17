@@ -22,4 +22,8 @@ export const server = setupServer(
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
   http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Splitwise (AOS-911): nothing imported unless a test says otherwise (Import and Review read these).
+  http.get("/api/v1/splitwise/entries", () => ok([])),
+  http.get("/api/v1/splitwise/summary", () => ok({ balances: [], counts: {} })),
+  http.get("/api/v1/splitwise/imports", () => ok([])),
 );

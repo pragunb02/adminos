@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppShell from "@/components/AppShell";
 import { Skeleton } from "@/components/console/Section";
 import UndoToast from "@/components/console/UndoToast";
+import SplitwiseReview from "@/components/SplitwiseReview";
 import { categoryLabel } from "@/lib/analytics";
 import { browserZone, relativeDate } from "@/lib/format";
 import { formatInr } from "@/lib/money";
@@ -127,6 +128,7 @@ function ReviewContent() {
           ))}
         </ul>
       )}
+      <SplitwiseReview />
       {pending && <UndoToast key={pending.s.id} message={COPY[pending.s.relation].done(pending.yes)} ms={UNDO_MS} onUndo={() => { pendingRef.current = null; setPending(null); }} onClose={timeUp} />}
     </div>
   );

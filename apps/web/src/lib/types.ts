@@ -48,7 +48,7 @@ export interface BriefingSummary {
 export interface Transaction {
   id: string;
   type: string;
-  /** spend / income / transfer / refund / reversal: what it counts as (D-39). */
+  /** spend / income / transfer / refund / reversal / settlement: what it counts as (D-39, D-111). */
   nature: string;
   amount: string; // exact decimal (D-30)
   currency: string;
@@ -62,6 +62,8 @@ export interface Transaction {
   isRecurring: boolean;
   isAnomaly: boolean;
   transactedAt: string;
+  /** Your share when the bill was split on Splitwise (AOS-911): what the totals count. */
+  ownShare?: string | null;
 }
 
 // ── Subscriptions ──
