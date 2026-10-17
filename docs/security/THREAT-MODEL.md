@@ -128,7 +128,7 @@ Each row: the threat, the control in place (✅), the gap and its ticket (⚠). 
 | STRIDE | Threat | Controls / gaps |
 |---|---|---|
 | T/E | Parser exploit via a crafted PDF/XLS(X)/CSV | ✅ Separate non-root container, no published port, no secrets, files never written to disk; deps scanned clean (pip-audit 2026-10-17). |
-| D | Decompression / page bombs | ✅ 20 MB cap both sides, 60 s API timeout. ⚠ No in-parser time or page cap (AUD-22 → AOS-626). |
+| D | Decompression / page bombs | ✅ 20 MB cap both sides, 60 s API timeout. Each parse runs in a killed-on-timeout child process (30 s, 1 GiB address space, 2 at once); at most 300 pages, 50 sheets, 100 000 rows and 2 000 000 cells (AOS-626). |
 | I | File or password in logs | ✅ Only error codes and counts are logged (D-37). |
 
 ### TB6 — Workers ↔ Gmail (untrusted mail)

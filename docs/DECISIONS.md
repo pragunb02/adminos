@@ -6,6 +6,7 @@
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
+| D-113 | Architecture | Statement parser: each file parsed in its own spawned child, killed after 30 s, 1 GiB address space, at most 2 at once; per-file budgets (300 pages, 50 sheets, 100 000 rows, 2 000 000 cells); over a limit is 422 with a stable code | Accepted | AOS-626 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1285,3 +1286,10 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+### D-113 — Statement parser: one killable child per file, per-file budgets
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-626 · Builds on D-37, D-92, D-100
+- The statement parser runs each file in its own `spawn`ed child process, which is killed after 30 s and limited to a 1 GiB address space, with at most 2 at once.
+- Every reader charges a per-file budget: 300 pages, 50 sheets, 100 000 rows and 2 000 000 cells.
+- Over a limit, the parser answers 422 with a stable code.
+- Works inside the hardened parser container (D-99: read-only root, `/tmp` tmpfs, no capabilities, 1 GiB, 128 PIDs).
+- **Rejected:** thread timeouts (a thread can't be stopped); `SIGALRM` (main thread only); a process pool (a stuck worker stays in the pool).
