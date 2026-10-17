@@ -171,6 +171,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
 | └ AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
 | └ AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
+| └ [AOS-637](tickets/AOS-637.md) | Worker logs the database as host:port/database only (no user info, no pgx error text) | Claude (agent) | ✅ | 1h | 1h |
 | └ [AOS-635](tickets/AOS-635.md) | AI replies: size and depth checked before parsing; a validator exception or stack overflow rejects the answer (audited), other JVM errors propagate | Claude (agent) | ✅ | 1h | 1h |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
