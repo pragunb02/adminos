@@ -30,7 +30,8 @@ test.describe("full stack", () => {
   test("one user's data is invisible to another", async ({ page, context, baseURL }) => {
     const a = signAccessToken();
     await signIn(context, baseURL!, a.token);
-    const saved = await page.request.post("/api/v1/transactions/cash", { data: { clientRef: crypto.randomUUID(), amount: "99", category: "shopping" } });
+    // Like the browser's own fetch, send our Origin: the API refuses cookie mutations without it (AOS-618).
+    const saved = await page.request.post("/api/v1/transactions/cash", { data: { clientRef: crypto.randomUUID(), amount: "99", category: "shopping" }, headers: { origin: baseURL! } });
     expect(saved.status()).toBe(202);
 
     const b = signAccessToken();

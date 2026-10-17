@@ -26,10 +26,12 @@ class AuthService(
         code: String,
         redirectUri: String,
         ipAddress: String?,
-        userAgent: String?
+        userAgent: String?,
+        /** The PKCE verifier of the sign-in state this code answers (AOS-618). */
+        codeVerifier: String? = null
     ): AuthResult {
         // Exchange code with Google
-        val googleUser = googleOAuthClient.exchangeCode(code, redirectUri)
+        val googleUser = googleOAuthClient.exchangeCode(code, redirectUri, codeVerifier)
 
         // Verify email is verified (Google Identity docs requirement)
         if (googleUser.emailVerified != true) {

@@ -49,6 +49,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       APP_URL: ${APP_URL:-http://localhost:3000}
       API_URL: ${API_URL:-http://localhost:8080}
+      TRUST_FORWARDED_FOR: ${TRUST_FORWARDED_FOR:-false}   # true only behind an edge that appends X-Forwarded-For (AOS-618)
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
       GOOGLE_PUBSUB_AUDIENCE: ${GOOGLE_PUBSUB_AUDIENCE:-}
       GOOGLE_PUBSUB_SERVICE_ACCOUNT: ${GOOGLE_PUBSUB_SERVICE_ACCOUNT:-}

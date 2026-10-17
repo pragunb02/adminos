@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { config, proxy } from "./proxy";
+import { config, contentSecurityPolicy, proxy } from "./proxy";
 
 const req = (path: string, cookie?: string) =>
   new NextRequest(new URL(path, "http://localhost:3000"), { headers: cookie ? { cookie } : {} });
@@ -52,6 +52,35 @@ describe("route guard (proxy.ts)", () => {
 
   it("app pages with a session pass", () => {
     expect(proxy(req("/transactions", "access_token=jwt")).headers.get("location")).toBeNull();
+  });
+
+  // AOS-618 (AUD-07): a strict, per-response CSP on every page.
+  const scriptSrc = (csp: string) => csp.split("; ").find((d) => d.startsWith("script-src ")) ?? "";
+
+  it("every page gets a CSP whose scripts need this response's nonce, and nothing may frame it", () => {
+    const csp = proxy(req("/transactions", "access_token=jwt")).headers.get("content-security-policy") ?? "";
+    const script = scriptSrc(csp);
+    expect(script).toMatch(/'nonce-[A-Za-z0-9+/=]{20,}'/);
+    expect(script).toContain("'strict-dynamic'");
+    expect(script).not.toContain("unsafe-inline");
+    expect(script).not.toContain("unsafe-eval");
+    for (const d of ["frame-ancestors 'none'", "object-src 'none'", "base-uri 'none'", "default-src 'self'", "form-action 'self'"]) expect(csp).toContain(d);
+  });
+
+  it("each response has a fresh nonce", () => {
+    const a = scriptSrc(proxy(req("/login")).headers.get("content-security-policy") ?? "");
+    const b = scriptSrc(proxy(req("/login")).headers.get("content-security-policy") ?? "");
+    expect(a).not.toBe(b);
+  });
+
+  it("API responses keep the API's own headers", () => {
+    expect(proxy(req("/api/v1/transactions")).headers.get("content-security-policy")).toBeNull();
+  });
+
+  it("development allows eval for hot reload, https upgrades insecure requests", () => {
+    expect(scriptSrc(contentSecurityPolicy("n", { dev: true, https: false }))).toContain("'unsafe-eval'");
+    expect(contentSecurityPolicy("n", { dev: false, https: true })).toContain("upgrade-insecure-requests");
+    expect(contentSecurityPolicy("n", { dev: false, https: false })).not.toContain("upgrade-insecure-requests");
   });
 
   it("static assets are not matched", () => {

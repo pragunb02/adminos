@@ -1,7 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
+import { api } from "@/lib/api";
+
+/** Where the sign-in starts: the API issues a single-use state + PKCE and Google's URL (AOS-618). */
+const LOGIN_START_PATH = "/api/v1/auth/google/start";
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -9,19 +13,26 @@ function LoginContent() {
   // Inlined by Next at build time (public client id, not a secret).
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
   const configured = GOOGLE_CLIENT_ID.length > 0;
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
-  const handleGoogleLogin = () => {
-    if (!configured) return;
-    const redirectUri = `${window.location.origin}/auth/callback`;
-    const params = new URLSearchParams({
-      client_id: GOOGLE_CLIENT_ID,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "openid email profile",
-      access_type: "offline",
-      prompt: "consent",
-    });
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  const handleGoogleLogin = async () => {
+    if (!configured || starting) return;
+    setStarting(true);
+    setStartError(null);
+    try {
+      const res = await api.get<{ url: string }>(LOGIN_START_PATH);
+      const url = res.success ? res.data?.url : undefined;
+      // Only ever Google's sign-in page: never a URL that merely came back from the network.
+      if (url && url.startsWith("https://accounts.google.com/")) {
+        window.location.assign(url);
+        return;
+      }
+      setStartError(res.error?.code === "RATE_002" ? (res.error.message ?? "Too many attempts. Try again later.") : "Sign-in couldn't start. Please try again.");
+    } catch {
+      setStartError("Sign-in couldn't start. Check your connection and try again.");
+    }
+    setStarting(false);
   };
 
   return (
@@ -40,6 +51,12 @@ function LoginContent() {
           </div>
         )}
 
+        {startError && (
+          <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+            {startError}
+          </p>
+        )}
+
         {!configured && (
           <p role="alert" className="mb-4 rounded-md bg-amber-50 p-3 text-sm text-amber-800">
             Google sign-in isn&apos;t configured. Set <code>GOOGLE_CLIENT_ID</code> in the repo&apos;s <code>.env</code> and rebuild.
@@ -48,7 +65,7 @@ function LoginContent() {
 
         <button
           onClick={handleGoogleLogin}
-          disabled={!configured}
+          disabled={!configured || starting}
           className="w-full flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-xs hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">

@@ -43,6 +43,7 @@ class RouteInventoryTest {
         /** No session needed. Each entry names what protects it instead. */
         val PUBLIC: Map<Endpoint, String> = mapOf(
             Endpoint(HttpMethod.Get, "/health") to "liveness probe; returns only {status: ok}",
+            Endpoint(HttpMethod.Get, "/api/v1/auth/google/start") to "starts a sign-in: issues a single-use state + PKCE bound to the browser by cookie (AOS-618); returns only Google's URL",
             Endpoint(HttpMethod.Post, "/api/v1/auth/google") to "sign-in itself: Google code exchange, owner-only and pinned (AOS-614), rate limited, body capped (AOS-615)",
             Endpoint(HttpMethod.Post, "/api/v1/auth/refresh") to "authenticated by the HttpOnly refresh cookie (path /api/v1/auth); must work after the access JWT expired",
             Endpoint(HttpMethod.Post, "/api/v1/auth/logout") to "revokes only the session of the presented refresh cookie; nothing to gain without one",
@@ -108,7 +109,7 @@ class RouteInventoryTest {
         val wrong = protectedRoutes.mapNotNull { r ->
             val res = client.request(concrete(r.endpoint.path)) {
                 method = r.endpoint.method
-                header(HttpHeaders.XForwardedFor, "192.0.2.${(1..250).random()}") // rate limits are per client
+                header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl)
             }
             if (res.status == HttpStatusCode.Unauthorized && "AUTH_002" in res.bodyAsText()) null else "${r.endpoint} → ${res.status}"
         }
@@ -121,8 +122,8 @@ class RouteInventoryTest {
         val sessionRoutes = inventory(app).filter { it.providers == listOf(SESSION) }
         val wrong = sessionRoutes.flatMap { r ->
             listOf(
-                client.request(concrete(r.endpoint.path)) { method = r.endpoint.method; bearerAuth(device); header(HttpHeaders.XForwardedFor, "192.0.2.${(1..250).random()}") },
-                client.request(concrete(r.endpoint.path)) { method = r.endpoint.method; cookie(ACCESS_TOKEN_COOKIE, device); header(HttpHeaders.XForwardedFor, "192.0.2.${(1..250).random()}") }
+                client.request(concrete(r.endpoint.path)) { method = r.endpoint.method; bearerAuth(device) },
+                client.request(concrete(r.endpoint.path)) { method = r.endpoint.method; cookie(ACCESS_TOKEN_COOKIE, device); header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) }
             ).filter { it.status != HttpStatusCode.Unauthorized }.map { "${r.endpoint} → ${it.status}" }
         }
         assertEquals(emptyList(), wrong)
@@ -135,7 +136,7 @@ class RouteInventoryTest {
             val asHeader = client.request(e.path) { method = e.method; bearerAuth(session); contentType(ContentType.Application.Json); setBody("""{"messages":[]}""") }
             assertEquals(HttpStatusCode.Unauthorized, asHeader.status, "$e with an access token in the header")
             // Device auth reads the header only: a browser's cookie must not count (D-36).
-            val asCookie = client.request(e.path) { method = e.method; cookie(ACCESS_TOKEN_COOKIE, session); contentType(ContentType.Application.Json); setBody("""{"messages":[]}""") }
+            val asCookie = client.request(e.path) { method = e.method; cookie(ACCESS_TOKEN_COOKIE, session); header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl); contentType(ContentType.Application.Json); setBody("""{"messages":[]}""") }
             assertEquals(HttpStatusCode.Unauthorized, asCookie.status, "$e with an access token as the cookie")
         }
     }

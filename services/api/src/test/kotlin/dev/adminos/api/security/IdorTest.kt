@@ -109,7 +109,7 @@ class IdorTest {
             append("file", "%PDF-1.4\n% alice\n".toByteArray(), Headers.build {
                 append(HttpHeaders.ContentType, "application/pdf"); append(HttpHeaders.ContentDisposition, "filename=\"alice.pdf\"")
             })
-        }) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
+        }) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)); header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) }
         assertEquals(HttpStatusCode.Created, upload.status, upload.bodyAsText())
         val documentId = Json.parseToJsonElement(upload.bodyAsText()).jsonObject["data"]?.jsonObject?.get("id")?.jsonPrimitive?.content
             ?: error("no document id in ${upload.bodyAsText()}")
@@ -122,7 +122,7 @@ class IdorTest {
     private suspend fun HttpClient.asBob(method: HttpMethod, path: String, body: String?) = request(path) {
         this.method = method
         cookie(ACCESS_TOKEN_COOKIE, tokenFor(bob))
-        header(HttpHeaders.XForwardedFor, "198.51.100.${(1..250).random()}")
+        header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) // a real browser on our pages (CSRF check)
         if (body != null) { contentType(ContentType.Application.Json); setBody(body) }
     }
 

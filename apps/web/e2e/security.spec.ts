@@ -59,7 +59,7 @@ test.describe("sign-in by anyone but the owner (mocked)", () => {
 
   test("a refused Google account sees that this AdminOS is private, and nothing is shown", async ({ page, api }) => {
     api.on("POST /api/v1/auth/google", () => ({ status: 403, error: { code: "USER_003", message: "This AdminOS is private" } }));
-    await page.goto("/auth/callback?code=stranger-code");
+    await page.goto("/auth/callback?code=stranger-code&state=e2e-login-state");
     await expect(page).toHaveURL(/\/login\?error=private$/);
     await expect(page.getByText("This AdminOS is private. Only its owner can sign in.")).toBeVisible();
     await expect.poll(() => api.callsTo("POST", "/api/v1/auth/google").length).toBe(1);
@@ -103,7 +103,7 @@ test.describe("forged and stale sessions (real API)", () => {
   test("another user's transaction is not found, and stays as it was", async ({ page, context, baseURL }) => {
     const alice = signAccessToken();
     await signIn(context, baseURL!, alice.token);
-    const saved = await page.request.post("/api/v1/transactions/cash", { data: { clientRef: randomUUID(), amount: "777", category: "shopping", note: "Alice only" } });
+    const saved = await page.request.post("/api/v1/transactions/cash", { data: { clientRef: randomUUID(), amount: "777", category: "shopping", note: "Alice only" }, headers: { origin: baseURL! } });
     expect(saved.status()).toBe(202);
     // The pipeline is asynchronous: wait until Alice's entry exists.
     let id = "";
@@ -116,8 +116,8 @@ test.describe("forged and stale sessions (real API)", () => {
     const bob = signAccessToken();
     await context.clearCookies();
     await signIn(context, baseURL!, bob.token);
-    const attack = await page.request.patch(`/api/v1/transactions/${id}`, { data: { category: "food" } });
-    const missing = await page.request.patch(`/api/v1/transactions/${randomUUID()}`, { data: { category: "food" } });
+    const attack = await page.request.patch(`/api/v1/transactions/${id}`, { data: { category: "food" }, headers: { origin: baseURL! } });
+    const missing = await page.request.patch(`/api/v1/transactions/${randomUUID()}`, { data: { category: "food" }, headers: { origin: baseURL! } });
     expect(attack.status()).toBe(404);
     expect((await attack.json()).error.code).toBe((await missing.json()).error.code);
     expect(JSON.stringify(await (await page.request.get("/api/v1/transactions")).json())).not.toContain(id);
@@ -136,6 +136,107 @@ test.describe("forged and stale sessions (real API)", () => {
       await expect(page.getByRole("main")).toBeVisible();
       await expectNoSecrets(page, token);
     }
+  });
+});
+
+/** Browser hardening headers on every page (AOS-618, AUD-07). */
+base.describe("security headers", () => {
+  for (const path of ["/login", "/auth/callback", "/sw.js", "/manifest.webmanifest"]) {
+    base(`${path} is served with the hardening headers`, async ({ request }) => {
+      const res = await request.get(path, { maxRedirects: 0 });
+      const h = res.headers();
+      expect(h["x-frame-options"]).toBe("DENY");
+      expect(h["x-content-type-options"]).toBe("nosniff");
+      expect(h["referrer-policy"]).toBe("no-referrer");
+      expect(h["cross-origin-opener-policy"]).toBe("same-origin");
+      expect(h["permissions-policy"]).toContain("camera=()");
+      expect(h["x-powered-by"]).toBeUndefined();
+    });
+  }
+
+  base("pages have a nonce-based CSP with no inline script allowance, and nothing may frame them", async ({ request }) => {
+    const csp = (await request.get("/login")).headers()["content-security-policy"] ?? "";
+    const script = csp.split("; ").find((d) => d.startsWith("script-src ")) ?? "";
+    expect(script).toMatch(/'nonce-[^']+'/);
+    expect(script).not.toContain("unsafe-inline");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+  });
+
+  base("the login page runs under its CSP without a single violation", async ({ page }) => {
+    const violations: string[] = [];
+    page.on("console", (m) => { if (/Content Security Policy|Refused to (execute|load|apply)/i.test(m.text())) violations.push(m.text()); });
+    await page.goto("/login");
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+    // Hydrated (React handlers attached): the error text below only renders client-side.
+    await page.goto("/login?error=private");
+    await expect(page.getByText("This AdminOS is private. Only its owner can sign in.")).toBeVisible();
+    expect(violations).toEqual([]);
+  });
+
+  base("injected markup can't run script: inline handlers are blocked by the CSP", async ({ page }) => {
+    await page.goto("/login");
+    await page.evaluate(() => {
+      (window as unknown as { __pwned?: boolean }).__pwned = false;
+      // What an HTML-injection bug would let an attacker write: an inline event handler.
+      const box = document.createElement("div");
+      box.innerHTML = '<img alt="" src="data:," onload="window.__pwned = true"><svg onload="window.__pwned = true"></svg>';
+      document.body.appendChild(box);
+    });
+    await expect.poll(() => page.evaluate(() => document.querySelectorAll("img[alt='']").length)).toBeGreaterThan(0);
+    // Give the image time to load: the handler must still not have run.
+    await page.waitForLoadState("load");
+    expect(await page.evaluate(() => (window as unknown as { __pwned?: boolean }).__pwned)).toBe(false);
+  });
+});
+
+test.describe("API hardening (real API)", () => {
+  realApiOnly();
+
+  test("API responses are inert and uncacheable", async ({ page }) => {
+    const res = await page.request.get("/api/v1/transactions");
+    const h = res.headers();
+    expect(h["content-security-policy"]).toContain("default-src 'none'");
+    expect(h["x-content-type-options"]).toBe("nosniff");
+    expect(h["cache-control"]).toBe("no-store");
+    expect(h["access-control-allow-origin"]).toBeUndefined();
+  });
+
+  test("a cookie mutation from another site, or with no origin at all, is refused (CSRF)", async ({ page, context, baseURL }) => {
+    await signIn(context, baseURL!, signAccessToken().token);
+    const body = { data: { clientRef: randomUUID(), amount: "5", category: "food" } };
+    const forged: Record<string, string>[] = [{ origin: "https://evil.example" }, { "sec-fetch-site": "cross-site" }, {}];
+    for (const headers of forged) {
+      const res = await page.request.post("/api/v1/transactions/cash", { ...body, headers });
+      expect(res.status(), JSON.stringify(headers)).toBe(403);
+      expect((await res.json()).error.code).toBe("CSRF_001");
+    }
+    expect((await page.request.post("/api/v1/transactions/cash", { ...body, headers: { origin: baseURL! } })).status()).toBe(202);
+  });
+
+  test("the app's own fetches pass the CSRF check", async ({ page, context, baseURL }) => {
+    await signIn(context, baseURL!, signAccessToken().token);
+    await page.goto("/transactions");
+    await page.getByRole("button", { name: "Add cash spending" }).click();
+    await page.getByLabel("Amount in rupees").fill("40");
+    await page.getByRole("button", { name: /Food/ }).click();
+    await expect(page.getByRole("status")).toHaveText("₹40 cash saved");
+  });
+
+  test("sign-in starts at the API with a state and PKCE, and a forged state never reaches Google", async ({ page }) => {
+    await page.route("https://accounts.google.com/**", (r) => r.fulfill({ status: 200, body: "google" }));
+    await page.goto("/login");
+    await page.getByRole("button", { name: "Continue with Google" }).click();
+    await expect(page).toHaveURL(/accounts\.google\.com/);
+    const q = new URL(page.url()).searchParams;
+    expect(q.get("state")?.length).toBeGreaterThanOrEqual(43);
+    expect(q.get("code_challenge_method")).toBe("S256");
+    expect(q.get("scope")).toBe("openid email profile");
+    expect(q.get("access_type")).toBeNull();
+
+    // An attacker's link back with their own code and state: refused before any call to Google.
+    await page.goto(`/auth/callback?code=attacker-code&state=${randomUUID()}`);
+    await expect(page).toHaveURL(/\/login\?error=auth_failed$/);
   });
 });
 

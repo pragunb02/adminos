@@ -27,7 +27,7 @@ fun Application.configureErrorHandling() {
             call.respond(
                 HttpStatusCode.BadRequest,
                 ApiResponse.error(
-                    ApiError("VALIDATION_001", cause.message ?: "Invalid input"),
+                    ApiError("VALIDATION_001", publicMessage(cause.message, "Invalid input")),
                     call.requestId
                 )
             )
@@ -37,7 +37,7 @@ fun Application.configureErrorHandling() {
             call.respond(
                 HttpStatusCode.BadRequest,
                 ApiResponse.error(
-                    ApiError("VALIDATION_002", "Invalid date/time format: ${cause.message}"),
+                    ApiError("VALIDATION_002", "Invalid date/time format"), // the parser's text quotes the input (AUD-15)
                     call.requestId
                 )
             )
@@ -47,7 +47,7 @@ fun Application.configureErrorHandling() {
             call.respond(
                 HttpStatusCode.BadRequest,
                 ApiResponse.error(
-                    ApiError("VALIDATION_003", "Invalid date/time value: ${cause.message}"),
+                    ApiError("VALIDATION_003", "Invalid date/time value"),
                     call.requestId
                 )
             )
@@ -57,7 +57,7 @@ fun Application.configureErrorHandling() {
         exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
             call.respond(
                 HttpStatusCode.BadRequest,
-                ApiResponse.error(ApiError("VALIDATION_004", "Malformed request body: ${rootMessage(cause)}"), call.requestId)
+                ApiResponse.error(ApiError("VALIDATION_004", "Malformed request body: ${publicMessage(rootMessage(cause), "invalid")}"), call.requestId)
             )
         }
         // Auth challenges (missing/invalid JWT) carry no body by default; clients always get the envelope.
@@ -84,9 +84,34 @@ fun Application.configureErrorHandling() {
     }
 }
 
+/**
+ * What of an exception's message may reach a client (AOS-618, AUD-15). Our own `require(...)` messages are written
+ * for people and name the field ("to: …"). Library messages can leak internals: class names
+ * ("No enum constant dev.adminos…"), JDK wording that quotes the input, or long dumps. Those become [fallback].
+ * Control characters are removed either way, so nothing can forge log lines or headers.
+ */
+internal fun publicMessage(raw: String?, fallback: String): String {
+    val text = raw?.replace(Regex("[\\p{Cntrl}]"), " ")?.trim().orEmpty()
+    if (text.isEmpty() || text.length > 300) return fallback
+    if (INTERNAL_DETAIL.any { it.containsMatchIn(text) }) return fallback
+    return text.replace(QUALIFIED_NAME, "the request")
+}
+
+/** A fully-qualified class name, e.g. a serializer's `'dev.adminos.api…CashRequest'`: replaced, never shown. */
+private val QUALIFIED_NAME = Regex("'?\\b(dev\\.adminos|java|javax|kotlin|kotlinx|io\\.ktor|org|com)(\\.[\\w$]+){2,}'?")
+
+private val INTERNAL_DETAIL = listOf(
+    Regex("No enum constant|Invalid UUID string|For input string|UUID string too large|Index \\d+ out of bounds"),
+    Regex("(?i)exception|stack ?trace|\\bat [\\w.$]+\\("),
+)
+
 /** Innermost message of an exception chain (the decoder's message names the bad field). */
 private fun rootMessage(t: Throwable): String {
     var c: Throwable = t
-    while (c.cause != null && c.cause !== c) c = c.cause!!
+    while (true) {
+        val next = c.cause ?: break
+        if (next === c) break
+        c = next
+    }
     return (c.message ?: "invalid").lineSequence().first().take(200)
 }

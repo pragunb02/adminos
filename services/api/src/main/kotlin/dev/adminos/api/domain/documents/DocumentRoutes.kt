@@ -57,16 +57,21 @@ fun Route.documentRoutes(service: DocumentService) {
                 var bytes: ByteArray? = null
                 var name: String? = null
                 val fields = mutableMapOf<String, String>()
+                val form = dev.adminos.api.infrastructure.plugins.UploadForm("file", setOf("title", "category", "expiresOn", "notes"))
                 call.receiveMultipart(formFieldLimit = Document.MAX_BYTES + 1).forEachPart { part ->
-                    when (part) {
-                        is PartData.FileItem -> if (part.name == "file") {
-                            name = part.originalFileName
-                            bytes = part.provider().readRemaining(Document.MAX_BYTES + 1).readByteArray()
+                    try {
+                        form.check(part)
+                        when (part) {
+                            is PartData.FileItem -> {
+                                name = part.originalFileName
+                                bytes = part.provider().readRemaining(Document.MAX_BYTES + 1).readByteArray()
+                            }
+                            is PartData.FormItem -> part.name?.let { fields[it] = part.value }
+                            else -> {}
                         }
-                        is PartData.FormItem -> part.name?.let { fields[it] = part.value }
-                        else -> {}
+                    } finally {
+                        part.dispose()
                     }
-                    part.dispose()
                 }
                 val file = bytes ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("DOC_006", "Attach the file as 'file'"))
                 val upload = DocumentUpload(
@@ -92,8 +97,9 @@ fun Route.documentRoutes(service: DocumentService) {
                 val file = mapped { service.download(call.userPrincipal.userId, id(call.parameters["id"])) }
                 call.response.header(HttpHeaders.ContentDisposition,
                     "attachment; filename=\"${file.downloadName.replace(Regex("[^A-Za-z0-9._ -]"), "_")}\"; filename*=UTF-8''${URLEncoder.encode(file.downloadName, Charsets.UTF_8).replace("+", "%20")}")
-                call.response.header(HttpHeaders.CacheControl, "no-store")
-                call.response.header("X-Content-Type-Options", "nosniff")
+                // Also set app-wide by SecurityHeaders (AOS-618); kept here so the route is safe on its own.
+                if (call.response.headers[HttpHeaders.CacheControl] == null) call.response.header(HttpHeaders.CacheControl, "no-store")
+                if (call.response.headers["X-Content-Type-Options"] == null) call.response.header("X-Content-Type-Options", "nosniff")
                 call.respondBytes(file.bytes, ContentType.parse(file.type.mime))
             }
             patch("/{id}") {

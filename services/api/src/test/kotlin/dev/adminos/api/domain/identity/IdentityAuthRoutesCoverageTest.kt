@@ -1,5 +1,9 @@
 package dev.adminos.api.domain.identity
 
+import dev.adminos.api.domain.ingestion.connection.InMemoryOAuthStateRepository
+import dev.adminos.api.domain.ingestion.connection.OAuthStateService
+import io.ktor.client.request.get
+
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.di.testAppModule
 import dev.adminos.api.domain.audit.AuditActions
@@ -33,7 +37,7 @@ private const val OWNER = "pragun.b@gmail.com"
 class IdentityAuthRoutesCoverageTest {
 
     private val google = FakeGoogleServer()
-    private val baseConfig = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = OWNER)) }
+    private val baseConfig = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = OWNER, googleClientId = "test-client-id")) }
     private val users = InMemoryUserRepository()
     private val sessions = InMemorySessionRepository()
     private val audit = RecordingAuditRepository()
@@ -51,7 +55,8 @@ class IdentityAuthRoutesCoverageTest {
             configureForwardedHeaders(); configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwt)
             routing {
                 route("/api/v1") {
-                    authRoutes(service, config.auth.accessTokenTtlSeconds, config, AuditService(audit, CoroutineScope(Dispatchers.Unconfined)))
+                    authRoutes(service, config.auth.accessTokenTtlSeconds, config, AuditService(audit, CoroutineScope(Dispatchers.Unconfined)),
+                        LoginOAuth(google.client(config.auth), OAuthStateService(InMemoryOAuthStateRepository(), null)))
                 }
             }
         }
@@ -69,7 +74,16 @@ class IdentityAuthRoutesCoverageTest {
     private suspend fun ApplicationTestBuilder.post(path: String, setup: HttpRequestBuilder.() -> Unit = {}) =
         client.post(path) { header("X-Forwarded-For", ip); setup() }
 
-    private fun loginBody(redirectUri: String = callback) = """{"code":"4/0AbCdEf","redirectUri":"$redirectUri"}"""
+    private fun loginBody(redirectUri: String = callback, state: String? = null) =
+        """{"code":"4/0AbCdEf","redirectUri":"$redirectUri"${state?.let { ",\"state\":\"$it\"" } ?: ""}}"""
+
+    /** A browser sign-in (AOS-618): start (state cookie + Google URL), then post Google's code with that state. */
+    private suspend fun ApplicationTestBuilder.login(redirectUri: String = callback): HttpResponse {
+        val start = client.get("/api/v1/auth/google/start") { header("X-Forwarded-For", ip) }
+        assertEquals(HttpStatusCode.OK, start.status, start.bodyAsText())
+        val state = assertNotNull(start.setCookie(LOGIN_STATE_COOKIE)).substringAfter("$LOGIN_STATE_COOKIE=").substringBefore(";")
+        return postJson("/api/v1/auth/google", loginBody(redirectUri, state)) { cookie(LOGIN_STATE_COOKIE, state) }
+    }
 
     private fun HttpResponse.setCookie(name: String) = headers.getAll(HttpHeaders.SetCookie).orEmpty().firstOrNull { it.startsWith("$name=") }
 
@@ -92,7 +106,7 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `google login with a foreign redirect uri is rejected before calling google`() = routesTest {
-        val res = postJson("/api/v1/auth/google", loginBody("https://evil.example/auth/callback"))
+        val res = login("https://evil.example/auth/callback")
 
         assertEquals(HttpStatusCode.BadRequest, res.status)
         assertEquals("AUTH_005", res.errorCode())
@@ -101,7 +115,7 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `google login sets both session cookies and returns the user without tokens`() = routesTest {
-        val res = postJson("/api/v1/auth/google", loginBody())
+        val res = login()
 
         assertEquals(HttpStatusCode.OK, res.status)
         val body = res.bodyAsText()
@@ -114,7 +128,7 @@ class IdentityAuthRoutesCoverageTest {
     @Test
     fun `a google account that isn't the owner gets 403 private, no cookies, and the owner is never named (AOS-614)`() = routesTest {
         google.userInfoBody = FakeGoogleServer.userInfo(sub = "stranger-9", email = "stranger@example.com")
-        val res = postJson("/api/v1/auth/google", loginBody())
+        val res = login()
 
         assertEquals(HttpStatusCode.Forbidden, res.status)
         val body = res.bodyAsText()
@@ -126,7 +140,7 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `the refresh cookie is HttpOnly, SameSite=Strict and scoped to the auth path`() = routesTest {
-        val refresh = assertNotNull(postJson("/api/v1/auth/google", loginBody()).setCookie(REFRESH_TOKEN_COOKIE))
+        val refresh = assertNotNull(login().setCookie(REFRESH_TOKEN_COOKIE))
 
         assertTrue("HttpOnly" in refresh)
         assertTrue("SameSite=Strict" in refresh)
@@ -135,7 +149,7 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `the refresh cookie from login matches the stored session`() = routesTest {
-        val cookie = assertNotNull(postJson("/api/v1/auth/google", loginBody()).setCookie(REFRESH_TOKEN_COOKIE))
+        val cookie = assertNotNull(login().setCookie(REFRESH_TOKEN_COOKIE))
         val refresh = cookie.substringAfter("$REFRESH_TOKEN_COOKIE=").substringBefore(";")
 
         val session = assertNotNull(sessions.findByTokenHash(JwtService.hashToken(refresh)))
@@ -144,7 +158,7 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `google login is audited with the client ip`() = routesTest {
-        postJson("/api/v1/auth/google", loginBody())
+        login()
 
         val user = assertNotNull(users.findByGoogleId("109876543210987654321"))
         val entry = audit.findByUserId(user.id, 10).single()
@@ -154,7 +168,7 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `cookies are Secure when the app is not served from localhost`() = routesTest(baseConfig.copy(app = baseConfig.app.copy(appUrl = "https://adminos.example.in"))) {
-        val res = postJson("/api/v1/auth/google", loginBody("https://adminos.example.in/auth/callback"))
+        val res = login("https://adminos.example.in/auth/callback")
 
         assertTrue("Secure" in res.setCookie(ACCESS_TOKEN_COOKIE)!!)
         assertTrue("Secure" in res.setCookie(REFRESH_TOKEN_COOKIE)!!)
@@ -162,14 +176,14 @@ class IdentityAuthRoutesCoverageTest {
 
     @Test
     fun `cookies are not Secure on the http localhost dev url`() = routesTest {
-        val res = postJson("/api/v1/auth/google", loginBody())
+        val res = login()
 
         assertFalse("Secure" in res.setCookie(ACCESS_TOKEN_COOKIE)!!)
     }
 
     @Test
     fun `cookies are Secure for a host that merely starts with localhost`() = routesTest(baseConfig.copy(app = baseConfig.app.copy(appUrl = "http://localhost.example.in"))) {
-        val res = postJson("/api/v1/auth/google", loginBody("http://localhost.example.in/auth/callback"))
+        val res = login("http://localhost.example.in/auth/callback")
 
         assertTrue("Secure" in res.setCookie(ACCESS_TOKEN_COOKIE)!!)
     }
@@ -179,7 +193,7 @@ class IdentityAuthRoutesCoverageTest {
         google.tokenStatus = 400
         google.tokenBody = """{"error":"invalid_grant"}"""
 
-        val res = postJson("/api/v1/auth/google", loginBody())
+        val res = login()
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("CONN_002", res.errorCode())
@@ -190,7 +204,7 @@ class IdentityAuthRoutesCoverageTest {
     fun `google login with an unverified email is a 401 and creates no session`() = routesTest {
         google.userInfoBody = FakeGoogleServer.userInfo(emailVerified = false)
 
-        val res = postJson("/api/v1/auth/google", loginBody())
+        val res = login()
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertNull(users.findByGoogleId("109876543210987654321"))
@@ -376,7 +390,7 @@ class IdentityAuthRoutesCoverageTest {
     fun `the identity module mounts auth and device-token routes under api v1`() = testApplication {
         environment { config = MapApplicationConfig() }
         application {
-            install(Koin) { modules(testAppModule, module { single { DeviceTokenService(InMemoryDeviceTokenRepository(), get()) } }) }
+            install(Koin) { modules(testAppModule, module { single { DeviceTokenService(InMemoryDeviceTokenRepository(), get()) }; single { OAuthStateService(InMemoryOAuthStateRepository(), null) } }) }
             configureForwardedHeaders(); configureSerialization(); configureRequestId(); configureErrorHandling()
             configureAuthentication(JwtService(baseConfig.auth))
             identityModule(baseConfig)
