@@ -142,7 +142,7 @@ Each row: the threat, the control in place (✅), the gap and its ticket (⚠). 
 | STRIDE | Threat | Controls / gaps |
 |---|---|---|
 | S | Forged push | ✅ Google OIDC: RS256 via JWKS, our audience, Google issuer, our push service account, `email_verified`; fails closed (503) when unconfigured (AOS-609). |
-| R/D | Replayed push token queues extra syncs | ⚠ Syncs are idempotent; no per-connection debounce (AUD-27 → AOS-630). |
+| R/D | Replayed push token queues extra syncs | ✅ Syncs are idempotent; a push at or before the stored history ID is ignored, and while a sync is queued (not started) further pushes fold into it: at most one running and one waiting sync per connection (AOS-630). |
 
 ### TB8 — Mac SMS reader → API
 | STRIDE | Threat | Controls / gaps |

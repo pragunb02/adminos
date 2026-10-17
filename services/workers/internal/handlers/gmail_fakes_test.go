@@ -132,6 +132,15 @@ type memConnections struct {
 	revoked  string
 	failures []syncFailure
 	saveErr  error
+	started  []string // sync sessions marked in_progress
+	startErr error
+}
+
+func (m *memConnections) MarkStarted(_ context.Context, syncSessionID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.started = append(m.started, syncSessionID)
+	return m.startErr
 }
 
 func (m *memConnections) Load(_ context.Context, _ string) (*storedConnection, error) {

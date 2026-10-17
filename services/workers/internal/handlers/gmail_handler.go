@@ -192,6 +192,12 @@ func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
 	if h.gmailClient == nil || h.conns == nil || h.cipher == nil {
 		return nil, errGmailNotConfigured
 	}
+	// Before anything is read (AOS-630): a push that arrives from now on queues the next sync instead of
+	// being folded into this one. Not being able to mark it only makes such a push wait for the next
+	// one or the daily fallback, so the sync still runs.
+	if err := h.conns.MarkStarted(ctx, p.SyncSessionID); err != nil {
+		log.Printf("[gmail] Could not mark sync session %s started: %v", p.SyncSessionID, err)
+	}
 	result, err := h.execute(ctx, p)
 	if err != nil {
 		f := syncFailure{ConnectionID: p.ConnectionID, SyncSessionID: p.SyncSessionID, Reason: failureReason(err)}

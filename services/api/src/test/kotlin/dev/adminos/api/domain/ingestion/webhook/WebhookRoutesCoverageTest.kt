@@ -38,7 +38,8 @@ import kotlin.test.*
 class WebhookRoutesCoverageTest {
 
     private val syncSessions = InMemorySyncSessionRepository()
-    private val connections = ConnectionService(InMemoryConnectionRepository(), syncSessions)
+    private val connectionRepo = InMemoryConnectionRepository()
+    private val connections = ConnectionService(connectionRepo, syncSessions)
     private val ingestion = IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncSessions)
     private val userId = UUID.randomUUID()
     private val audience = "https://api.adminos.example.in/api/v1/webhooks/gmail"
@@ -254,6 +255,35 @@ class WebhookRoutesCoverageTest {
 
         assertEquals(DailySyncResult(totalConnections = 1, enqueued = 0, skipped = 1, errors = 0), result)
         assertEquals(listOf(pushed.id), syncSessions.findByUserId(userId).filter { it.connectionId == conn.id }.map { it.id })
+    }
+
+    // --- Replays (AOS-630, AUD-27) ---
+
+    @Test
+    fun `replaying a captured push while its sync is queued is acknowledged without another sync`() = webhookTest {
+        gmail()
+        val body = push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}""")
+        val first = deliver(body).data()["syncSessionId"]!!.jsonPrimitive.content
+
+        repeat(20) {
+            val again = deliver(body)
+            assertEquals(HttpStatusCode.OK, again.status, "Pub/Sub must not be told to retry")
+            assertEquals("Sync already queued", again.data()["message"]!!.jsonPrimitive.content)
+            assertEquals(first, again.data()["syncSessionId"]!!.jsonPrimitive.content)
+        }
+        assertEquals(1, syncSessions.findByUserId(userId).size)
+    }
+
+    @Test
+    fun `a push for a change the last sync already read is acknowledged without a sync`() = webhookTest {
+        val conn = gmail()
+        runBlocking { connectionRepo.update(conn.copy(historyId = "9876")) }
+
+        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""))
+
+        assertEquals(HttpStatusCode.OK, res.status)
+        assertEquals("Already synced", res.data()["message"]!!.jsonPrimitive.content)
+        assertTrue(syncSessions.findByUserId(userId).isEmpty())
     }
 
     // --- Wire formats ---

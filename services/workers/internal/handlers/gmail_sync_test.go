@@ -135,6 +135,29 @@ func TestIncrementalSyncWithNothingNewKeepsTheHistoryIDGmailReturns(t *testing.T
 	}
 }
 
+// --- The session is marked started before Gmail is read (AOS-630) ---
+
+func TestASyncMarksItsSessionStartedBeforeReadingGmail(t *testing.T) {
+	f := newSyncFixture(t, "1000")
+	f.google.historyPages["1000|"] = `{"historyId":"1001"}`
+
+	f.mustRun(t)
+
+	if strings.Join(f.conns.started, ",") != testSession {
+		t.Errorf("want session %s marked started, got %v", testSession, f.conns.started)
+	}
+}
+
+func TestASyncStillRunsWhenItCantMarkItsSessionStarted(t *testing.T) {
+	f := newSyncFixture(t, "1000")
+	f.google.historyPages["1000|"] = `{"historyId":"1001"}`
+	f.conns.startErr = errors.New("db down")
+
+	if r := f.mustRun(t); r.NewHistoryID != "1001" {
+		t.Errorf("the sync must still run, got %+v", r)
+	}
+}
+
 // --- Sender filters: personal mail is never read ---
 
 func TestPersonalMailIsNeverFetchedInFull(t *testing.T) {
