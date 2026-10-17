@@ -48,6 +48,7 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
 | AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
 | AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
+| [AOS-640](AOS-640.md) | Playwright in GitHub CI as the required `e2e` check (all projects, cached browsers, per-run secret, report on failure) | Claude (agent) | 🟨 | 1h | 1h |
 
 ## Demo / verification
 From a device outside the private network the site doesn't answer; a second Google account is refused; the audit report lists no open findings.
