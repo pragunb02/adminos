@@ -1,11 +1,6 @@
 package dev.adminos.api.domain.ask
 
-import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiNotice
-import dev.adminos.api.domain.ai.AiPrompt
-import dev.adminos.api.domain.ai.AiReading
-import dev.adminos.api.domain.ai.AiReasonCode
-import dev.adminos.api.domain.ai.AiTask
 import dev.adminos.api.domain.analytics.Bucket
 import dev.adminos.api.domain.financial.TransactionCategory
 import java.time.LocalDate
@@ -50,21 +45,6 @@ object AskContract {
             "People's names, your name or your user ID"
         )
     )
-}
-
-/**
- * Ask's entry in the AI layer's task list until the Ask API (AOS-710) brings its two tasks: the eval gate and
- * Settings read its prompt version and notice, and it never sends anything (fail closed). AOS-710 replaces it.
- */
-internal object AskNotBuiltTask : AiTask<Unit, Nothing> {
-    val NOT_BUILT = AiReasonCode("not_built")
-    override val feature = AiFeature.ASK
-    override val promptVersion = AskContract.PROMPT_VERSION
-    override val notice = AskContract.NOTICE
-
-    override fun prompt(input: Unit): AiPrompt = AiPrompt.Withhold(NOT_BUILT)
-
-    override fun read(text: String, input: Unit): AiReading<Nothing> = AiReading.Invalid(NOT_BUILT)
 }
 
 /** One read-only tool. Each is a thin wrapper over an [dev.adminos.api.domain.analytics.AnalyticsService] method. */

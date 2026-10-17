@@ -34,7 +34,7 @@ class AiFeaturesServiceTest {
 
     private fun service(on: Boolean) = AiFeaturesService(
         AiGateway(if (on) listOf(AiRoute.of(AiFeature.CATEGORIZATION, FakeAiProvider(), FakeAiProvider.MODEL)) else emptyList(), costs, calls, AiConsents(consents)),
-        mapOf(AiFeature.CATEGORIZATION to EchoTask, AiFeature.ASK to dev.adminos.api.domain.ask.AskNotBuiltTask), consents, calls, AiEvalRecords(listOf(record)), costs, audit, clock
+        mapOf(AiFeature.CATEGORIZATION to EchoTask, AiFeature.ASK to dev.adminos.api.domain.ask.AskPlanTask), consents, calls, AiEvalRecords(listOf(record)), costs, audit, clock
     )
 
     @Test

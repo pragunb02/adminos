@@ -312,5 +312,12 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingJob(get()) } bind ScheduledJob::class
     // The AI layer (AOS-702, D-67) and the AI fallback categorizer (AOS-512, D-62): every feature off by default.
     aiDefinitions(useDatabase, env)
+    // "Ask your money" (AOS-710): read-only tools over the analytics, through the AI gateway only.
+    single { dev.adminos.api.domain.ask.AskToolRunner(get()) }
+    single {
+        val consents = get<dev.adminos.api.domain.ai.AiConsentCheck>()
+        dev.adminos.api.domain.ask.AskService(get(), get(), dev.adminos.api.domain.ask.AskQuota(java.time.Clock.systemUTC()), java.time.Clock.systemUTC(),
+            consent = { user -> consents.allows(user, dev.adminos.api.domain.ai.AiFeature.ASK) })
+    }
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

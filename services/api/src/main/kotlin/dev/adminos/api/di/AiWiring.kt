@@ -23,7 +23,7 @@ import dev.adminos.api.domain.ai.Micros
 import dev.adminos.api.domain.ai.eval.AiEvalGate
 import dev.adminos.api.domain.ai.eval.AiEvalKey
 import dev.adminos.api.domain.ai.eval.AiEvalRecords
-import dev.adminos.api.domain.ask.AskNotBuiltTask
+import dev.adminos.api.domain.ask.AskPlanTask
 import dev.adminos.api.domain.financial.ai.AiCategorizationJob
 import dev.adminos.api.domain.financial.ai.AiCategorizationService
 import dev.adminos.api.domain.financial.ai.AiCategoryCacheRepository
@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory
 /** Each feature's task: its prompt version (an eval record must match it, D-68) and its notice (AOS-704). One line per feature. */
 internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
     AiFeature.CATEGORIZATION to CategorizeMerchantTask,
-    AiFeature.ASK to AskNotBuiltTask
+    AiFeature.ASK to AskPlanTask
 )
 
 /**
