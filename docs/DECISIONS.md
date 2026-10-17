@@ -56,6 +56,7 @@
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 | D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
+| D-61 | Architecture | Categorization is measured on a synthetic, labelled golden set through the real pipeline steps; a regression gate fails any drop below `baseline.json` (overall, subcategory, per-category F1); raising the floor is a deliberate commit | Accepted | AOS-511 |
 | D-63 | Architecture | Gmail push: the API registers `users.watch` after connect, renews every 6 h (missing/expired/ending within 24 h), `users.stop` on disconnect; INBOX only; failures recorded, never disconnect; narrow watch column writes; every push is an incremental sync | Accepted | AOS-405 |
 | D-64 | Architecture | Connect Gmail: a random single-use OAuth state bound to user, purpose and redirect URI, stored server-side as a SHA-256 hash (10 min), checked before the code goes to Google; PKCE S256 with the verifier encrypted in the API | Accepted | AOS-406 |
 | D-66 | Architecture | WhatsApp chat export import: only bank senders (by display name) are parsed, through the same SMS rules (`parseFromBank`); fingerprint of sender, time and text makes re-import idempotent; day/month order read from the file (default day first); user-zone times; text never kept (D-33) | Accepted | AOS-403 |
@@ -777,3 +778,24 @@ Proposed
   - AOS-702 refactors AOS-512's call path into the port.
   - The legacy Go `internal/claude` client is retired or routed through it.
   - Evidence and options: `docs/research/AI-ML-RESEARCH.md`.
+
+### D-61 — Categorization is measured on a synthetic golden set, with a no-regression floor
+2026-10-17 · Accepted (built by a background agent at Pragun's request, reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-511, AOS-512
+- **What's measured:** the shipped pipeline steps that decide a category on their own (normalize → categorize → card-bill/ATM transfer rules), run on each golden row with no other transactions.
+- **Golden set:** `services/api/src/test/resources/categorization/golden.csv`.
+  - It is synthetic, with realistic Indian formats and no real personal data; the expected label is what a careful person would choose.
+  - It grows by scrubbed, real-shaped rows from Pragun's own corrections (process in AOS-511). Raw messages are never added (D-33).
+- **Scores:**
+  - per-category precision, recall and F1; accuracy; subcategory accuracy;
+  - coverage (share not Other), reported but not gated, because guessing more isn't being right;
+  - confusion pairs and misses.
+- **Gate:**
+  - a unit test fails if accuracy, subcategory accuracy or any category's F1 drops below `baseline.json`, naming each metric that dropped;
+  - improvements are printed, not failed;
+  - the floor is raised only deliberately, with `./gradlew -q categorizationReport -PwriteBaseline` committed alongside the change that moved it.
+- **Each categorizer variant has its own baseline** (e.g. rules + AI in AOS-512). A model-assisted variant must beat or match the rules baseline, and may never change a row the rules decided.
+- **Rejected:**
+  - evaluating `CategorizationService` alone on hand-normalized names (it misses normalizer bugs; one was found);
+  - real transactions in the repo (personal data);
+  - a ratchet that fails on unrecorded improvements (it breaks `main` when parallel improvements merge).
+- **Consequence:** D-57's "evaluation harness" exists. Model output may be considered where it can be scored this way.
