@@ -19,7 +19,7 @@ architecture clean and extensible, but build nothing for other users.
 - Work in small steps on a feature branch; never commit to `main` directly.
 - Commit, push, open PRs and merge to `main` are allowed for this repo (Pragun, 2026-10-16), one PR per task.
   - Use `gh auth switch --hostname github.com --user pragunb02` first.
-  - **Merge only after the security check has reported success**, using main's copy of the merge script: `git fetch origin && bash <(git show origin/main:scripts/merge-pr.sh) N` (a PR can't change its own gate, D-101).
+  - **Merge only after the security check has reported success**, using main's copy of the merge script: `f=$(mktemp) && git fetch origin && git show origin/main:scripts/merge-pr.sh > "$f" && bash "$f" N; rm -f "$f"` (a temp file, so a failed `git show` can't run an empty script; the merge happened only if it prints `MERGED #N`) (a PR can't change its own gate, D-101).
     - It waits for every check to complete, merges only if all are `success`, and otherwise exits without merging (including on a timeout).
     - Never hand-roll a wait loop: one that waited for "success" and then merged after a timeout let a failed check through (2026-10-16, PR #43).
 - **Tickets (D-25):** Epic `AOS-E<n>` → Story `AOS-S<n>.<m>` → Task `AOS-<n><nn>`. New tickets copy `docs/tickets/_templates/`.

@@ -2,7 +2,8 @@
 # Merge a PR only after every check on its head commit is explicitly `success` (CLAUDE.md working rules)
 # AND both reviews passed on that same commit: commit statuses review/code and review/security (AOS-013, D-101).
 # Usage (always run main's copy, never a PR branch's, so a PR can't change its own gate):
-#   git fetch origin && bash <(git show origin/main:scripts/merge-pr.sh) <pr-number> [timeout-seconds]
+#   f=$(mktemp) && git fetch origin && git show origin/main:scripts/merge-pr.sh > "$f" && bash "$f" <pr-number> [timeout-seconds]; rm -f "$f"
+# It merged only if it prints "MERGED #<pr-number>". MERGE_PR_POLL_SECONDS (default 5) sets the poll interval.
 # Exits non-zero WITHOUT merging on failure, cancellation, neutral, a missing conclusion, a missing or failed
 # review, a push during the wait, or timeout.
 set -euo pipefail
@@ -11,6 +12,8 @@ owner="pragunb02"   # the only account whose review statuses count
 [[ $# -ge 1 && "$1" =~ ^[0-9]+$ ]] || { echo "usage: $0 <pr-number> [timeout-seconds]" >&2; exit 2; }
 pr="$1"; timeout="${2:-600}"
 [[ "$timeout" =~ ^[0-9]+$ ]] || { echo "timeout must be a number of seconds" >&2; exit 2; }
+poll="${MERGE_PR_POLL_SECONDS:-5}"
+[[ "$poll" =~ ^[1-9][0-9]{0,2}$ ]] || { echo "MERGE_PR_POLL_SECONDS must be 1..999" >&2; exit 2; }
 
 # The SHA everything below is judged on. The merge is pinned to it (--match-head-commit), so a push during
 # the wait can't be merged unreviewed: GitHub refuses the merge if the head moved.
@@ -58,5 +61,5 @@ while :; do
     exit 0
   fi
   if [[ $(date +%s) -ge $deadline ]]; then echo "NOT MERGED: checks still pending after ${timeout}s"; exit 1; fi
-  sleep 5
+  sleep "$poll"
 done

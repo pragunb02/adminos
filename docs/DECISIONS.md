@@ -1067,13 +1067,15 @@ Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
   any checksum, decrypt, restore or count mismatch fails.
 - `TOKEN_ENCRYPTION_KEY`, `JWT_SECRET`, the age key and the restore token are never in the repo or the bucket.
 
-P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Process · Tasks: AOS-619
+### D-93 — Route inventory and 404 for other users' data
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Process · Tasks: AOS-619
 - Every API route needs `authenticate("auth-jwt")` unless it is on the allowlist in `RouteInventoryTest` (today: `/health`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/webhooks/gmail`; device-token route `/ingest/sms/raw`). Adding an entry is a security decision recorded in the ticket with its replacing control and attack tests.
 - Another user's resource is always **404 with the same error as a missing ID**, never 403; each new `{id}` route adds an IDOR row in `IdorTest`.
 - `e2e/security.spec.ts` is the shared Playwright attack suite; new pages are added to `PAGES`.
 - Rejected: hand-maintained route lists; 403 for others' resources.
 
-P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-618
+### D-94 — Browser and sign-in hardening
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-618
 - Web pages: per-response nonce CSP from `proxy.ts` (scripts: nonce + `strict-dynamic`, never `unsafe-inline`), `frame-ancestors 'none'`, and the standard hardening headers from `next.config`; API responses: `default-src 'none'` CSP, `no-store`, the same headers; no CORS.
 - Cookie-authenticated mutations require `Sec-Fetch-Site: same-origin` or the app's exact `Origin`; neither → 403. `APP_URL` must be the exact browser origin.
 - Google sign-in uses a server-side single-use state + PKCE (D-64 store, purpose `login`) bound to the browser by an HttpOnly cookie, identity scopes only.
@@ -1081,14 +1083,16 @@ P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claud
 - **Amends D-32:** the API trusts `X-Forwarded-For` only with `TRUST_FORWARDED_FOR=true`, which a deployment sets only behind an edge proxy that appends the real peer.
 - JWTs: exactly HS256, `exp` required. Client errors never echo library text.
 
-P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-620
+### D-95 — Refresh-token rotation, instant revoke and sign-in alerts
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-620
 - Refresh tokens rotate on every use; rotated hashes are kept per session; reuse after a 30 s grace revokes the session and alerts the owner (AOS-121 done).
 - Access tokens carry `sid`; each request requires a live session of the token's user. With a database, tokens without `sid` are refused.
 - Sign-in alerts (new device, refused, reused key) go through a `SecurityNotifier` port to push, email and in-app as type `security`: always on, never held. They contain only our own facts: a fixed device vocabulary, a masked account, our time.
 - Settings → Security lists sessions and signs out one, every other, or all.
 - Rejected: shorter TTL as the only fix; raw user agents or IPs in alerts.
 
-P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-617
+### D-96 — Google plus a passkey, always
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-617
 - A session is full only after a passkey (user verification required) or a one-time recovery code; until then only the passkey step is reachable (`AUTH_010` elsewhere).
 - RP ID = `APP_URL` host, origin = `APP_URL` origin; Yubico java-webauthn-server verifies; no attestation.
 - First passkey: enrolled from the first pending session (alerted); later ones only from a confirmed session. Ten recovery codes (80-bit, SHA-256), regenerable from a confirmed session. Reset only server-side (runbook).
