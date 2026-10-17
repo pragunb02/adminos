@@ -53,6 +53,7 @@ class FinancialModuleWiringCoverageTest {
         single<InsightRepository> { InMemoryInsightRepository() }
         single { SuggestionService(InMemoryTransactionLinkRepository(), transactions) }
         single { AnalyticsService(InMemoryAnalyticsRepository(transactions)) }
+        single { DuesService(bills, subscriptions) }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -78,6 +79,7 @@ class FinancialModuleWiringCoverageTest {
         assertEquals("4821", getAs(token, "/api/v1/accounts").second.dataArray().single().jsonObject.str("accountLast4"))
         assertEquals("Netflix", getAs(token, "/api/v1/subscriptions").second.dataArray().single().jsonObject.str("name"))
         assertEquals("Tata Power", getAs(token, "/api/v1/bills/upcoming").second.dataArray().single().jsonObject.str("billerName"))
+        assertEquals(io.ktor.http.HttpStatusCode.OK, getAs(token, "/api/v1/dues").first, "dues calendar (AOS-503)")
     }
 
     @Test

@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). ~~AOS-501~~, ~~AOS-504~~, ~~AOS-510~~, ~~AOS-505~~, ~~AOS-508~~ done; next AOS-503 dues & renewals calendar (+ fix custom reminder days and user-zone dates), then AOS-502, AOS-506, AOS-509, AOS-507. Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys and SMTP settings in `.env`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
+**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). Done: AOS-501, 504, 510, 505, 508, 503. Next AOS-502 recurring / UPI AutoPay mandates, then AOS-506, AOS-509, AOS-507. Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys and SMTP settings in `.env`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -62,9 +62,9 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Subscription detection (`SubscriptionDetectorService.kt`) | 90 days of debits per merchant, ≥2 charges. Day-gap mean/sd: weekly 6–8, monthly 25–35, quarterly 85–95, yearly 355–375. Price change >5% | Scheduled nightly 04:00 IST for active users (AOS-501) |
 | Waste score (Go) | +0.4 no logins & no usage emails; +0.3 paid 3+ months with no logins; +0.1 if 6+; +0.2 no usage emails. >0.7 = unused | Never triggered |
 | Anomalies (`AnomalyRules.kt`) | >3× the 30 days before (≥3 spends, from ₹2,000); non-INR; 01:00–04:59 user time; ₹1–2 (card testing); same merchant+amount within 24h | Live on every new spend (AOS-505); alert if confidence ≥ 0.7 and recent (D-53) |
-| Bill detection, Gmail | 12 keywords in the email, saved as upcoming bill | Live (due_date bug) |
+| Bill detection, Gmail | 12 keywords in the email; ISO due date (day-first), type, card last 4; no due date → skipped | Live (AOS-503) |
 | Bill payment matching | Full (±5%) or minimum due (±1%), in the bill window, with evidence (card number / name / only card bill); ties match nothing (D-54) | Live on every new transaction + daily sweep (AOS-508) |
-| Reminders | Bills due within 7 days; remind on user days (default 3,1); past-due → overdue | Scheduled daily 09:00 IST (AOS-501); delivery in-app only until AOS-504 |
+| Reminders | Bills and subscription renewals, on the user's days (default 3,1; up to 30), on the user's own date; days sent stored (V21); past-due → overdue | Daily 09:00 (AOS-501, AOS-503); delivered in-app, email, Web Push |
 | Onboarding nudges | Gmail days 1/3/7, SMS 3/5/7, max 3 | Scheduled daily 11:00 IST (AOS-501) |
 | Quiet hours | 22:00–08:00 default; only anomalies bypass | Dead |
 | Dashboard (`DashboardRoutes.kt`) | Last 7 days of debit spend; counts of subscriptions, bills (30d) and anomalies; action items | Live |
@@ -84,7 +84,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 8. ~~AOS-307 float amounts / missing nature~~ fixed in AOS-611.
 9. Onboarding copy still describes an Android SMS app (D-19: iPhone); the subscriptions "cancellation draft" modal can never open (dead code). Fold into the console redesign (AOS-302…).
 11. ~~AOS-607~~ fixed: the whole `JWT_SECRET` is the HMAC key. Existing sessions and device tokens must be re-issued once (sign in again; new Mac SMS reader token).
-12. AOS-503 — custom reminder days aren't persisted in Postgres (only the 3d/1d flags), and reminder/overdue dates use the server's date; Gmail bills without a due date fail the NOT NULL column. Now that reminders run (AOS-501) this matters; delivery is in-app only until AOS-504.
+12. ~~AOS-503 reminder days not stored, server dates, Gmail bills without a due date~~ fixed (also: the look-ahead stopped at 7 days though preferences allow 30; subscription metadata dropped on update).
 13. ~~AOS-505 anomaly windows used "now"~~ fixed. ~~AOS-508 card bills never matched~~ fixed (also: Postgres bill update dropped metadata, fixed). AOS-506/509 — `AsynqPublisher` turns every payload value into a string.
 14. `GET /notifications` lists every channel's record, so one reminder appears up to 3 times; an inbox should list in-app only (with the inbox screen task).
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
@@ -105,6 +105,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Started the DB fixes (D-8 … D-10).
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
+- **2026-10-17:**
+  - AOS-503: dues & renewals (D-55): `GET /api/v1/dues` (bills + projected renewals + overdue, totals), web `/bills` month view (URL `?m=`); renewal reminders; reminders on the user's own date (`UserCalendar`); reminder days stored (V21); look-ahead 30 days; Gmail bills: ISO day-first dates, skipped without one, type + card last 4. API unit 1,195 / integration 105; Go unit + integration (throwaway Postgres); web 314 unit, Playwright 229 + 7 skips.
   - AOS-508: bill-payment matching (D-54): pure `BillPaymentMatcher` (amount full/minimum, window, evidence, ranking, ties → nothing), listener on each new transaction, daily sweep before reminders; card bills paid by transfer now match. **Found:** Postgres bill update dropped `metadata` (fixed). Unit 1,177, integration 104.
   - AOS-505: unusual-charge alerts (D-53): `TransactionCreatedListener` hook after the commit; detector judges each spend against its own past (30-day average with ≥3 spends and ₹2,000 minimum, 24 h duplicates incl. same minute, user-zone odd hours); one anomaly per transaction (V20); alert only if confidence ≥ 0.7 and from the last 3 days. Unit 1,162, integration 102.
   - AOS-510: Web Push (D-52): RFC 8291 encryption + RFC 8292 VAPID with JDK crypto (RFC test vector passes), push-service allowlist (no SSRF), `/api/v1/push` routes, V19, `./gradlew -q vapidKeys`; web service worker, manifest + icons, Settings → Notifications on this device. **Found by tests:** the route guard would have blocked the manifest and service worker without a session. API unit 1,146 / integration 101; web 310 unit, Playwright 226 + 7 skips.

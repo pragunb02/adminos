@@ -39,6 +39,10 @@ export class MockApi {
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
+      .on("GET /api/v1/dues", (_r, u) => {
+        const m = u.searchParams.get("month");
+        return { data: m && m !== "2026-10" ? fx.duesMonth({ month: m, items: [], totals: { open: "0.00", paid: "0.00", renewals: "0.00" } }) : fx.duesMonth() };
+      })
       .on("GET /api/v1/analytics/summary", (_r, u) => ({ data: { ...fx.summary(), period: { from: u.searchParams.get("from"), to: u.searchParams.get("to") } } }))
       .on("GET /api/v1/analytics/series", () => ({ data: fx.week() }))
       .on("GET /api/v1/analytics/categories", () => ({ data: fx.categories() }))

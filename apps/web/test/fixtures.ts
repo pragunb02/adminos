@@ -104,4 +104,22 @@ export const fx = {
     related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
     ...over,
   }),
+  /** A due item for the dues calendar (AOS-503). */
+  due: (over: Partial<import("@/lib/types").DueItem> = {}): import("@/lib/types").DueItem => ({
+    kind: "bill", id: "b-1", name: "Tata Power", amount: "2350.00", minimumDue: null, date: "2026-10-20",
+    status: "upcoming", detail: "electricity", trial: false, ...over,
+  }),
+  /** October 2026 as the user sees it on the 16th. */
+  duesMonth: (over: Partial<import("@/lib/types").DuesMonth> = {}): import("@/lib/types").DuesMonth => ({
+    month: "2026-10", today: "2026-10-16",
+    items: [
+      fx.due(),
+      fx.due({ kind: "renewal", id: "s-1", name: "Netflix", amount: "649.00", status: "expected", detail: "monthly" }),
+      fx.due({ id: "b-2", name: "HDFC Credit Card", amount: "18450.00", minimumDue: "922.50", date: "2026-10-17", detail: "credit_card" }),
+      fx.due({ id: "b-3", name: "Airtel", amount: "599.00", date: "2026-10-10", status: "paid", detail: "mobile" }),
+    ].sort((a, b) => a.date.localeCompare(b.date)),
+    overdue: [],
+    totals: { open: "20800.00", paid: "599.00", renewals: "649.00" },
+    ...over,
+  }),
 };

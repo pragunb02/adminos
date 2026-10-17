@@ -186,6 +186,7 @@ internal fun buildAppModule(
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get()) }
     single { BillTrackingService(get(), get()) }
+    single { DuesService(get(), get()) }
 
     // Agent Services
     single { AnomalyDetectorService(get(), get(), get()) }
@@ -210,11 +211,13 @@ internal fun buildAppModule(
     single { PushSubscriptionService(get(), getOrNull<WebPushChannel>(), vapid?.publicKey) }
     single { NotificationDispatcher(getAll<DeliveryChannel>(), get(), get()) }
     single { NotificationService(get(), get(), get()) }
-    single { ReminderEngine(get(), get(), get()) }
+    single { dev.adminos.api.domain.identity.UserCalendar(get()) }
+    single { ReminderEngine(get(), get(), get(), get()) }
+    single { RenewalReminders(get(), get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
 
     // Scheduled jobs (AOS-501, D-50): a new job is one `single { … } bind ScheduledJob::class` line.
-    single { BillRemindersJob(get(), get<AppConfig>().scheduler.zone, get(), get()) } bind ScheduledJob::class
+    single { BillRemindersJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class

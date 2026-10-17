@@ -33,6 +33,9 @@ class BillTrackingService(
      * arrives late) are matched against the payments in their window, so no reminder goes out for a
      * bill that's paid. @return how many bills were marked paid
      */
+    suspend fun matchEarlierPayments(): Int =
+        matchEarlierPayments((billRepository.findUpcoming(dev.adminos.api.domain.notifications.ReminderEngine.MAX_REMINDER_DAYS + 1) + billRepository.findOverdue()).distinctBy { it.id })
+
     suspend fun matchEarlierPayments(bills: List<Bill>): Int {
         var paid = 0
         for (bill in bills) {

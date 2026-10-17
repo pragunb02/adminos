@@ -22,7 +22,8 @@ class NotificationsReminderEngineCoverageTest {
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()
     private val notifications = notificationService(prefsRepo, notifRepo)
-    private val engine = ReminderEngine(bills, prefsRepo, notifications)
+    private val calendar = dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository())
+    private val engine = ReminderEngine(bills, prefsRepo, notifications, calendar)
     private val today = LocalDate.of(2026, 10, 16)
 
     private fun bill(dueDate: LocalDate, user: UUID = userId, status: BillStatus = BillStatus.UPCOMING, sent: Set<Int>? = null,
@@ -148,7 +149,7 @@ class NotificationsReminderEngineCoverageTest {
         prefsRepo.save(prefs(userId))
         val past = bills.save(bill(LocalDate.now().minusDays(2)))
 
-        engine.markOverdueBills(LocalDate.now())
+        engine.markOverdueBills()
 
         assertEquals(BillStatus.OVERDUE, bills.findById(past.id)!!.status)
         val n = notifRepo.findByUserAndType(userId, NotificationType.OVERDUE).single()
@@ -178,7 +179,7 @@ class NotificationsReminderEngineCoverageTest {
         val brokenUser = UUID.randomUUID()
         val failingPrefs = FailingForUserPreferencesRepository(brokenUser)
         val svc = notificationService(failingPrefs, notifRepo)
-        val eng = ReminderEngine(bills, failingPrefs, svc)
+        val eng = ReminderEngine(bills, failingPrefs, svc, calendar)
         failingPrefs.save(prefs(userId))
         bills.save(bill(LocalDate.now().plusDays(3), user = brokenUser))
         val ok = bills.save(bill(LocalDate.now().plusDays(3)))

@@ -35,6 +35,7 @@ class ExposedBillRepository : BillRepository {
             it[sourceRef] = bill.sourceRef
             it[reminderSent3d] = bill.reminderSent3d
             it[reminderSent1d] = bill.reminderSent1d
+            it[reminderDaysSent] = encodeDays(bill.sentReminderDays)
             it[metadata] = bill.metadata?.let { m -> JsonColumns.encode(m) }
             it[createdAt] = bill.createdAt
             it[updatedAt] = bill.updatedAt
@@ -123,6 +124,7 @@ class ExposedBillRepository : BillRepository {
             it[paymentTxnId] = bill.paymentTxnId
             it[reminderSent3d] = bill.reminderSent3d
             it[reminderSent1d] = bill.reminderSent1d
+            it[reminderDaysSent] = encodeDays(bill.sentReminderDays)
             // AOS-508: metadata used to be dropped on update (the in-memory repository kept it).
             it[metadata] = bill.metadata?.let { m -> JsonColumns.encode(m) }
             it[updatedAt] = now
@@ -151,6 +153,7 @@ class ExposedBillRepository : BillRepository {
         sourceRef = this[BillsTable.sourceRef],
         reminderSent3d = this[BillsTable.reminderSent3d],
         reminderSent1d = this[BillsTable.reminderSent1d],
+        sentReminderDays = decodeDays(this[BillsTable.reminderDaysSent]),
         metadata = this[BillsTable.metadata]?.let {
             JsonColumns.decode(it)
         },
