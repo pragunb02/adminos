@@ -22,4 +22,6 @@ export const server = setupServer(
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
   http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Review → pay-later gaps (AOS-909): nothing owed unless a test says otherwise.
+  http.get("/api/v1/pay-later", () => ok({ outstanding: "0.00", currency: "INR", providers: [] })),
 );

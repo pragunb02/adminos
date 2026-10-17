@@ -38,6 +38,8 @@ var (
 		"aexp.com",
 		// UPI apps and wallets
 		"paytm.com", "phonepe.com", "amazonpay.in", "mobikwik.com", "cred.club",
+		// Pay-later providers (AOS-909)
+		"lazypay.in", "getsimpl.com",
 		// Billers: telecom, broadband, electricity
 		"airtel.com", "airtel.in", "jio.com", "myvi.in", "actcorp.in",
 		"tatapower.com", "adanielectricity.com", "bescom.co.in",

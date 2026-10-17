@@ -39,10 +39,10 @@ object BillPaymentMatcher {
     private const val WINDOW_BEFORE_DUE_DAYS = 40L
     private const val GRACE_AFTER_DUE_DAYS = 15L
 
-    /** Money leaving the account that can pay a bill: a spend, or a credit-card bill transfer (AOS-208). */
+    /** Money leaving the account that can pay a bill: a spend, or a card-bill or pay-later repayment transfer (AOS-208, AOS-909). */
     fun canPayBills(t: Transaction): Boolean =
         t.type == TransactionType.DEBIT &&
-            (t.nature == TransactionNature.SPEND || (t.nature == TransactionNature.TRANSFER && t.subcategory == CARD_BILL_TRANSFER))
+            (t.nature == TransactionNature.SPEND || (t.nature == TransactionNature.TRANSFER && t.subcategory in BILL_TRANSFERS))
 
     /** The bill [payment] pays among [bills] (pending ones of the same user), or null if none or ambiguous. */
     fun billFor(payment: Transaction, bills: List<Bill>): BillMatch? {
@@ -112,5 +112,8 @@ object BillPaymentMatcher {
 
     /** Pipeline subcategory for a credit-card bill payment (TransferStep, AOS-208). */
     const val CARD_BILL_TRANSFER = "credit_card_bill"
+    /** Pipeline subcategory for a pay-later repayment (TransferStep, AOS-909). */
+    const val PAY_LATER_BILL_TRANSFER = "pay_later_bill"
+    private val BILL_TRANSFERS = setOf(CARD_BILL_TRANSFER, PAY_LATER_BILL_TRANSFER)
     private val PAYABLE = setOf(BillStatus.UPCOMING, BillStatus.DUE, BillStatus.OVERDUE)
 }

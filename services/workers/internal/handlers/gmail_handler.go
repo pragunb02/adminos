@@ -87,6 +87,8 @@ type GmailResult struct {
 	NotReceipts int `json:"not_receipts"`
 	// ReceiptFailures counts receipts whose numbers didn't add up (a changed format shows here).
 	ReceiptFailures int             `json:"receipt_failures"`
+	// PayLaterSkipped counts provider emails that are neither a bill nor a purchase (AOS-909).
+	PayLaterSkipped int `json:"pay_later_skipped"`
 	Receipts        []ReceiptRecord `json:"receipts,omitempty"`
 
 	// Enriched data for Persist. Transactions go to the common intake as events (AOS-205, D-21):
@@ -237,6 +239,11 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 	for _, email := range fetched.Emails {
 		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+
+		// Pay-later providers first (AOS-909): Flipkart and Amazon send both receipts and pay-later bills.
+		if h.processPayLater(p.UserID, email, result) {
+			continue
 		}
 
 		// A receipt is evidence about a payment, never a second spend: receipt senders never reach
@@ -462,10 +469,10 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 	for _, e := range r.Events {
 		tag, err := tx.Exec(ctx, `
 			INSERT INTO ingest_events (user_id, source, source_ref, occurred_at, direction, amount, currency,
-				merchant_raw, account_hint, status)
-			VALUES ($1, 'gmail', $2, $3, $4::ingest_direction, $5::numeric, 'INR', $6, $7, 'pending')
+				merchant_raw, account_hint, payment_method, metadata, status)
+			VALUES ($1, 'gmail', $2, $3, $4::ingest_direction, $5::numeric, 'INR', $6, $7, $8::payment_method, $9::jsonb, 'pending')
 			ON CONFLICT (user_id, source, source_ref) DO NOTHING`,
-			e.UserID, e.SourceRef, e.OccurredAt, e.Direction, e.Amount, e.MerchantRaw, e.AccountHint)
+			e.UserID, e.SourceRef, e.OccurredAt, e.Direction, e.Amount, e.MerchantRaw, e.AccountHint, e.PaymentMethod, e.Metadata)
 		if err != nil {
 			return fmt.Errorf("insert ingest event: %w", err)
 		}
@@ -480,12 +487,15 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 		return err
 	}
 
-	// Insert bills
+	// Insert bills. A pay-later bill already known for that provider and due date (its SMS, AOS-909) is not repeated.
 	for _, bill := range r.Bills {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO bills (id, user_id, bill_type, biller_name, amount, currency,
 				due_date, status, detection_source, account_ref, created_at, updated_at)
-			VALUES ($1, $2, $9::bill_type, $3, $4, $5, $6, $7, $8, $10, now(), now())`,
+			SELECT $1::uuid, $2::uuid, $9::bill_type, $3::text, $4::numeric, $5::text, $6::date, $7::bill_status, $8::source_type, $10::text, now(), now()
+			WHERE $9::text <> 'pay_later' OR NOT EXISTS (
+				SELECT 1 FROM bills b WHERE b.user_id = $2::uuid AND b.bill_type = 'pay_later'
+					AND lower(b.biller_name) = lower($3::text) AND b.due_date = $6::date AND b.status <> 'cancelled')`,
 			bill.ID, bill.UserID, bill.BillerName, bill.Amount, bill.Currency,
 			bill.DueDate, bill.Status, bill.SourceType, billTypeOrOther(bill.BillType), bill.AccountRef)
 		if err != nil {
@@ -576,6 +586,7 @@ var (
 	}
 
 	dueDatePatterns = []*regexp.Regexp{
+		regexp.MustCompile(`(?i)(?:due\s*(?:date|on|by)|pay\s*by|repay\s*by)[:\s]+(\d{1,2}-[A-Za-z]{3}-\d{4})`),
 		regexp.MustCompile(`(?i)due\s*(?:date|on|by)[:\s]+(\d{2}/\d{2}/\d{4})`),
 		regexp.MustCompile(`(?i)due\s*(?:date|on|by)[:\s]+(\d{4}-\d{2}-\d{2})`),
 		regexp.MustCompile(`(?i)due\s*(?:date|on|by)[:\s]+(\d{1,2}\s+\w+\s+\d{4})`),
@@ -800,7 +811,7 @@ func occurredAt(header, bodyDate string) time.Time {
 }
 
 // dueDateLayouts are the due-date forms bills use (dueDatePatterns). Numeric dates are Indian: day first.
-var dueDateLayouts = []string{"2006-01-02", "02/01/2006", "2/1/2006", "02-01-2006", "2-1-2006", "2 January 2006", "2 Jan 2006", "January 2, 2006", "Jan 2, 2006"}
+var dueDateLayouts = []string{"2-Jan-2006", "02-Jan-2006", "2006-01-02", "02/01/2006", "2/1/2006", "02-01-2006", "2-1-2006", "2 January 2006", "2 Jan 2006", "January 2, 2006", "Jan 2, 2006"}
 
 // normalizeDueDate turns an extracted due date into yyyy-mm-dd, or reports that it can't (AOS-503).
 // Postgres would read "05/11/2026" month-first, so dates are never passed through as written.
