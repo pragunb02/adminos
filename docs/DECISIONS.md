@@ -6,6 +6,7 @@
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
+| D-103 | Architecture | Redis always requires a password: REDIS_PASSWORD (hex) on the server's stdin, beside a credential-free REDIS_URL for clients (a host-run URL may carry it; both must agree); API and worker refuse to start without it and never log it | Accepted | AOS-634 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1285,3 +1286,9 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+### D-103 — Redis always requires a password
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-634 · Builds on D-91, D-99
+- Redis always requires a password (`REDIS_PASSWORD`, hex, required by compose). The server gets it on stdin, never as an argument.
+- Clients get it as `REDIS_PASSWORD` beside a credential-free `REDIS_URL` (no URL in the repo carries a password, which also keeps GitGuardian green); a host-run client may put it in the URL instead, and if both are set they must agree.
+- The API and the Go worker refuse to start without it and never log or echo the URL or the password. The worker supports only the default user (no user name in the URL).
+- The hardened-stack smoke test (D-99) sets a random password per run, never a literal.
