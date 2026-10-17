@@ -1,0 +1,12 @@
+From: Flipkart <noreply@flipkart.com>
+Subject: Your Order for Sample Shoes has been placed
+Date: Tue, 13 Oct 2026 20:15:00 +0530
+
+Order ID OD12345678901234567
+Qty: 1
+Price ₹1,049.00
+Delivery Charges FREE
+Platform Fee ₹3.00
+Secured Packaging Fee ₹19.00
+Total Amount ₹1,071.00
+Paid via Flipkart Pay Later

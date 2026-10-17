@@ -1,0 +1,11 @@
+From: Amazon.in <auto-confirm@amazon.in>
+Subject: Your Amazon.in order of "Sample Product" has been placed
+Date: Thu, 15 Oct 2026 18:20:00 +0530
+
+Order # 403-7654321-1234567
+Quantity: 1
+Item Subtotal: ₹999.00
+Shipping: FREE
+Order Total: ₹999.00
+Paid with Amazon Pay balance: ₹200.00
+Paid with UPI: ₹799.00

@@ -1,0 +1,16 @@
+From: "Swiggy" <noreply@swiggy.in>
+Subject: Your Swiggy order receipt
+Date: Sun, 18 Oct 2026 13:05:00 +0530
+
+Order ID: 187654329876
+2 items
+Item Total ₹420.00
+Delivery Fee
+₹40.00
+Delivery fee discount (Swiggy One)
+-₹40.00
+Platform Fee ₹10.00
+Taxes and charges ₹20.00
+Grand Total ₹450.00
+Paid using Swiggy Money ₹100.00
+Paid using UPI ₹350.00

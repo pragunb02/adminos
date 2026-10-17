@@ -54,3 +54,36 @@ func TestSenderAddressHandlesMalformedHeaders(t *testing.T) {
 		}
 	}
 }
+
+// AOS-903: receipt senders are read only for order-like subjects, so their promotions stay unread.
+func TestReceiptSendersAreReadOnlyForOrderSubjects(t *testing.T) {
+	cases := []struct {
+		from, subject string
+		want          bool
+	}{
+		{"Swiggy <noreply@swiggy.in>", "Your Swiggy order summary", true},
+		{"Zomato <noreply@zomato.com>", "Refund initiated for your order", true},
+		{"Amazon.in <auto-confirm@amazon.in>", "Your Amazon.in order #402-1234567-7654321", true},
+		{"blinkit <noreply@blinkit.com>", "Your Blinkit bill", true},
+		{"Zepto <noreply@zeptonow.com>", "Your order has been CANCELLED", true},
+		{"Flipkart <noreply@mailer.flipkart.com>", "Delivered: your package", true}, // subdomain
+		{"Swiggy <offers@swiggy.in>", "Craving biryani? 50% off tonight", false},
+		{"Amazon.in <store-news@amazon.in>", "Great Indian Festival starts now", false},
+		{"Zomato <noreply@zomato.com>", "Reorders are here", false}, // whole words only
+		{"Phisher <noreply@swiggy.in.evil.com>", "Your order", false},
+	}
+	for _, c := range cases {
+		if got := IsFinancial(c.from, c.subject); got != c.want {
+			t.Errorf("IsFinancial(%q, %q) = %v, want %v", c.from, c.subject, got, c.want)
+		}
+	}
+}
+
+func TestSearchQueryReadsReceiptSendersOnlyWithOrderSubjects(t *testing.T) {
+	q := SearchQuery(30)
+	want := "OR (from:(swiggy.in OR swiggy.com OR zomato.com OR zeptonow.com OR zepto.com OR blinkit.com OR grofers.com OR amazon.in OR flipkart.com) " +
+		"subject:(order OR delivered OR receipt OR invoice OR refund OR cancelled OR canceled OR bill)))"
+	if !strings.HasSuffix(q, want) {
+		t.Errorf("want the receipt clause at the end:\n%s", q)
+	}
+}

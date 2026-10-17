@@ -1,0 +1,13 @@
+From: Swiggy Instamart <no-reply@swiggy.in>
+Subject: Your Instamart order is delivered
+Date: Mon, 19 Oct 2026 08:12:00 +0530
+
+Swiggy Instamart
+Order #INS7766554433
+4 items delivered in 11 minutes
+Item total ₹125.00
+Handling fee ₹9.80
+Small cart fee ₹25.00
+Delivery fee ₹30.00
+Bill total ₹189.80
+Payment method: Credit Card ending 4521
