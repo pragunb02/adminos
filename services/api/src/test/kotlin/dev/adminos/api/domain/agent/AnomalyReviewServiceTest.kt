@@ -100,7 +100,7 @@ class AnomalyReviewServiceTest {
     }
 
     @Test
-    fun `a row from before V33 learns from its type and its transaction's merchant`() = runBlocking<Unit> {
+    fun `a row from before V44 learns from its type and its transaction's merchant`() = runBlocking<Unit> {
         val t = transactions.save(Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal("4800.00"),
             merchantName = "  Barbeque Nation ", category = TransactionCategory.FOOD, transactedAt = clock.now.minus(1, ChronoUnit.DAYS)))
         resolve(anomaly(rules = emptySet(), merchantKey = null, transactionId = t.id), AnomalyStatus.DISMISSED)

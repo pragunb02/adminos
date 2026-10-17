@@ -18,7 +18,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
 import java.util.UUID
 
-/** V33 `anomaly_tolerances` (AOS-713). */
+/** V44 `anomaly_tolerances` (AOS-713). */
 class ExposedAnomalyToleranceRepository : AnomalyToleranceRepository {
 
     override suspend fun find(userId: UUID, merchantKey: String, rule: TolerableRule): AnomalyTolerance? = dbQuery {

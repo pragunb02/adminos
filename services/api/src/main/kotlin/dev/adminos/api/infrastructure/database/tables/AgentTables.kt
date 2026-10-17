@@ -68,7 +68,7 @@ object AnomaliesTable : Table("anomalies") {
     val status = varchar("status", 20).default("open")
     val resolvedAt = timestamp("resolved_at").nullable()
     val resolvedBy = varchar("resolved_by", 20).nullable()
-    /** Comma-separated rule names (V33, AOS-713); null on older rows. */
+    /** Comma-separated rule names (V44, AOS-713); null on older rows. */
     val rulesFired = text("rules_fired").nullable()
     val merchantKey = varchar("merchant_key", 255).nullable()
     val createdAt = timestamp("created_at")
@@ -76,7 +76,7 @@ object AnomaliesTable : Table("anomalies") {
     override val primaryKey = PrimaryKey(id)
 }
 
-/** Per-(user, merchant, rule) alert tolerance (V33, AOS-713). */
+/** Per-(user, merchant, rule) alert tolerance (V44, AOS-713). */
 object AnomalyTolerancesTable : Table("anomaly_tolerances") {
     val userId = javaUUID("user_id").references(UsersTable.id)
     val merchantKey = varchar("merchant_key", 255)

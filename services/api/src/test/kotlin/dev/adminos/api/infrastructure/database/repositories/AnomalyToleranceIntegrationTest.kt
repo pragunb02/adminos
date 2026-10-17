@@ -28,7 +28,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-/** AOS-713 on Postgres: V33 tolerances and the anomaly columns that feed them. */
+/** AOS-713 on Postgres: V44 tolerances and the anomaly columns that feed them. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AnomalyToleranceIntegrationTest {

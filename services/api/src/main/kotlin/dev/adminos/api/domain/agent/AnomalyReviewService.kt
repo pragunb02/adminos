@@ -85,7 +85,7 @@ class AnomalyReviewService(
             AnomalyStatus.OPEN -> null
         }
 
-        /** The rules a user can relax among those that fired; rows from before V33 only know their type. */
+        /** The rules a user can relax among those that fired; rows from before V44 only know their type. */
         fun tolerableRules(anomaly: Anomaly): List<TolerableRule> {
             val fired = anomaly.rulesFired.ifEmpty { if (anomaly.type == AnomalyType.LARGE_AMOUNT) setOf(RobustAmountRule.NAME) else emptySet() }
             return fired.mapNotNull { TolerableRule.fromCode(it) }.distinct()

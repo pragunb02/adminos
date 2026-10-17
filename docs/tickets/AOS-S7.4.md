@@ -17,7 +17,7 @@
 **As** Pragun, **I want** alerts that know what's normal for each merchant, an honest month-end forecast, and one subscription per real service, **so that** I act on the few things that matter.
 
 ## Acceptance criteria
-- [ ] **Robust alerts (AOS-713):**
+- [x] **Robust alerts (AOS-713):**
   - large-amount alerts use a per-merchant median/MAD baseline (else per category) and fire at a modified z-score above 3.5;
   - the alert text shows the usual range;
   - a dismissal raises that merchant's tolerance (capped), and a confirmation lowers it.
@@ -34,7 +34,7 @@ See the research report §10–§12. Isolation Forest, Prophet and deep forecast
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ⬜ | 6h | |
+| [AOS-713](AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ✅ | 6h | 5h |
 | AOS-714 | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ⬜ | 8h | |
 | AOS-709 | Fuzzy merchant grouping for subscriptions (normalise + Jaro-Winkler), merges via Review | Claude | ⬜ | 5h | |
 | AOS-715 | Subscription price-rise alert | Claude | ⬜ | 2h | |
@@ -45,4 +45,5 @@ _Task tickets are created as files when this story is picked up._
 A synthetic spending stream with injected spikes alerts on the spikes, and otherwise at most twice a month. The backtest beats the naive pace.
 
 ## Activity log
+- 2026-10-18 — Claude (integration engineer): AOS-713 integrated onto main; D-73 recorded.
 - 2026-10-17 — Claude: story created (AOS-701).

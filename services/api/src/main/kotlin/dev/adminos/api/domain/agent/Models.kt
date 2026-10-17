@@ -31,7 +31,7 @@ data class Anomaly(
     val status: AnomalyStatus = AnomalyStatus.OPEN,
     val resolvedAt: Instant? = null,
     val resolvedBy: AnomalyResolver? = null,
-    /** The names of the rules that fired (AOS-713), so feedback knows what to relax; empty on rows from before V33. */
+    /** The names of the rules that fired (AOS-713), so feedback knows what to relax; empty on rows from before V44. */
     val rulesFired: Set<String> = emptySet(),
     /** The merchant it was judged at ([dev.adminos.api.domain.financial.MerchantKey]), fixed when detected so a later rename can't move feedback. */
     val merchantKey: String? = null,
