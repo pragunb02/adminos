@@ -105,6 +105,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-611](tickets/AOS-611.md) | Exact money everywhere (D-30): every API money field is a string; web `lib/money.ts` | Claude | ✅ | 1.5h | 1.5h |
 | └ [AOS-307](tickets/AOS-307.md) | Activity: search, filters in URL, edit sheet, re-categorize + undo; feed paging fix | Claude | ✅ | 3h | 2h |
 | └ [AOS-313](tickets/AOS-313.md) | Flaky Activity e2e: wait for the feed request | Claude | ✅ | 0.25h | 0.25h |
+| └ [AOS-631](tickets/AOS-631.md) | Date-dependent tests: fixed clocks, regression tests around India midnight | Claude (agent) | ✅ | 1h | 1h |
 | └ [AOS-309](tickets/AOS-309.md) | Review: confirm or reject duplicates / transfers / refunds, Undo before sending (D-45, D-49) | Claude | ✅ | 2h | 1.25h |
 
 ## 🟦 [AOS-E4](tickets/AOS-E4.md) — More sources · P1 · ETA 18h
