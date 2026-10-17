@@ -88,7 +88,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 13. ~~AOS-505 anomaly windows used "now"~~ fixed. ~~AOS-508 card bills never matched~~ fixed (also: Postgres bill update dropped metadata, fixed). ~~AOS-506 `AsynqPublisher` stringified payloads~~ fixed. (was: turns every payload value into a string.
 14. `GET /notifications` lists every channel's record, so one reminder appears up to 3 times; an inbox should list in-app only (with the inbox screen task).
 15. ~~Subscription detector issues (found by AOS-509) and the fake cancel~~ fixed in AOS-513; also yearly plans were undetectable (90-day window) and next dates drifted (+30 days).
-16. Flaky e2e (seen in AOS-403 and AOS-406, iphone-safari): `activity.spec.ts` "a Home period opens Activity with that date range" checks `api.calls` right after the filter appears, without waiting for the request; it passed 80/80 on repeat. Fix: wait with `expect.poll`.
+16. ~~Flaky Activity e2e~~ fixed in AOS-313 (waits for the feed request).
 17. `ConnectionRepository.update` writes every column: a connect/disconnect racing a worker sync can rewind `history_id` (found in AOS-405; new watch code writes only its own columns). Fix: narrow updates for connect/disconnect.
 18. Gmail push bursts aren't coalesced: the worker never marks a sync session `in_progress`, so "queued" may already be running. Fix: worker sets `in_progress`, then coalesce (found in AOS-405).
 19. Connect Gmail takes `redirectUri` from the client; Google only accepts registered URIs, so it isn't exploitable, but checking it against the app's own URL would add depth. If the session expires during consent, login drops the code (start again; a return-to on login would be nicer). Both from AOS-406.

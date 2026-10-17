@@ -23,6 +23,7 @@
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-307](AOS-307.md) | Activity: search, filters, edit, re-categorize | Claude | ✅ | 3h | 2h |
+| [AOS-313](AOS-313.md) | Flaky Activity e2e: wait for the feed request | Claude | ✅ | 0.25h | 0.25h |
 | [AOS-309](AOS-309.md) | Review suggested duplicates / transfers / refunds (confirm or reject) | Claude | ✅ | 2h | 1.25h |
 
 _Task tickets are created as files when this story is picked up._
@@ -31,5 +32,6 @@ _Task tickets are created as files when this story is picked up._
 Fix a wrong category
 
 ## Activity log
+- 2026-10-17 — Claude: AOS-313 (flaky e2e) fixed.
 - 2026-10-16 — Claude: story created (AOS-004).
 - 2026-10-16 — Claude: done (AOS-307, AOS-309).
