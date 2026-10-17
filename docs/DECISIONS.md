@@ -56,6 +56,7 @@
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 | D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
+| D-63 | Architecture | Gmail push: the API registers `users.watch` after connect, renews every 6 h (missing/expired/ending within 24 h), `users.stop` on disconnect; INBOX only; failures recorded, never disconnect; narrow watch column writes; every push is an incremental sync | Accepted | AOS-405 |
 | D-66 | Architecture | WhatsApp chat export import: only bank senders (by display name) are parsed, through the same SMS rules (`parseFromBank`); fingerprint of sender, time and text makes re-import idempotent; day/month order read from the file (default day first); user-zone times; text never kept (D-33) | Accepted | AOS-403 |
 | D-65 | Product | Subscription detection looks back 400 days, uses the user's dates and calendar steps, takes the catalogue's category, and marks a subscription ended (reversibly) after two cycles without a charge; "cancel" gives honest steps (via the AutoPay mandate when one pays it), never a fake "queued" | Accepted | AOS-513 |
 | D-60 | Architecture | Documents vault: user-chosen files stored in Cloudflare R2 (any S3), envelope-encrypted in the app (per-file AES-256-GCM key wrapped with the app key); owner-only access via the API; extends D-37 (imported statements are still never kept) | Accepted | AOS-507 |
@@ -701,3 +702,25 @@ Proposed
 - **Privacy:** the chat is used in memory only; nothing about it is stored or logged (D-33).
 - **Rejected:** parsing every sender (a friend's "I paid 500" would become a transaction); a separate WhatsApp rule set (drift); storing the file.
 
+### D-63 — Gmail push: the API registers and renews the watch
+2026-10-17 · Accepted (built by a background agent at Pragun's request, reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-405 · Extends D-59
+- **Who calls Gmail:** the API calls `users.watch` and `users.stop` itself, with its own token refresh. The Go worker stays the only Gmail *reader*.
+  - Why: `users.stop` must run before disconnect wipes the tokens, and renewal is a scheduled job (D-50) whose outcome the scheduler records.
+  - Tokens stay encrypted at rest: a refreshed access token is stored in the TokenEncryptor v2 format with the worker's context (D-59).
+- **When:**
+  - right after Gmail is connected, once the first sync is queued;
+  - by `gmail-watch-renewal` every 6 h, for every connected Gmail connection whose watch is missing, expired or ends within 24 h;
+  - `users.stop` on disconnect, best effort.
+- **What Gmail publishes:** INBOX changes only (`labelIds:["INBOX"]`, include). Every sync still reads all messages added since the stored history ID.
+- **Stored on the connection:** `watch_expires_at`, `watch_history_id` (informational), `watch_error`, `watch_checked_at`. Only these columns are written by watch updates, so they never clobber the worker's history ID.
+- **Failures:**
+  - a failed watch is recorded and retried by the next run; it never disconnects or fails the connect;
+  - Google's `invalid_grant` puts the connection in `error` (as the worker does), which stops renewals;
+  - a 401 from Gmail is retried once with a refreshed token.
+- **Off switch:** without `GOOGLE_GMAIL_PUBSUB_TOPIC` nothing is called (logged once); a malformed topic stops start-up.
+- **Push:** every verified push queues an `incremental` sync from the stored history ID; its completion is what lets the daily fallback skip (D-59).
+- **Rejected:**
+  - the worker calling `users.watch`/`stop` via new queue jobs (the tokens are gone by the time it would stop);
+  - an Asynq periodic task for renewal;
+  - a separate watches table;
+  - watching all mailbox changes.

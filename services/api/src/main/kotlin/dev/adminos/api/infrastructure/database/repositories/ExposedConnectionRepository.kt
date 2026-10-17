@@ -3,6 +3,7 @@ package dev.adminos.api.infrastructure.database.repositories
 import dev.adminos.api.domain.ingestion.connection.*
 import dev.adminos.api.infrastructure.database.tables.UserConnectionsTable
 import org.jetbrains.exposed.v1.core.*
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.jdbc.*
 import dev.adminos.api.infrastructure.database.dbQuery
 import java.time.Instant
@@ -54,7 +55,7 @@ class ExposedConnectionRepository : ConnectionRepository {
             it[tokenExpiresAt] = connection.tokenExpiresAt
             it[oauthScope] = connection.oauthScope?.joinToString(",")
             it[gmailAddress] = connection.gmailAddress
-            it[pubsubExpiry] = connection.pubsubExpiry
+            writeWatch(it, connection.watch)
             it[historyId] = connection.historyId
             it[lastSyncedAt] = connection.lastSyncedAt
             it[lastSyncStatus] = connection.lastSyncStatus
@@ -76,7 +77,7 @@ class ExposedConnectionRepository : ConnectionRepository {
             it[tokenExpiresAt] = connection.tokenExpiresAt
             it[oauthScope] = connection.oauthScope?.joinToString(",")
             it[gmailAddress] = connection.gmailAddress
-            it[pubsubExpiry] = connection.pubsubExpiry
+            writeWatch(it, connection.watch)
             it[historyId] = connection.historyId
             it[lastSyncedAt] = connection.lastSyncedAt
             it[lastSyncStatus] = connection.lastSyncStatus
@@ -86,6 +87,39 @@ class ExposedConnectionRepository : ConnectionRepository {
             it[updatedAt] = now
         }
         connection.copy(updatedAt = now)
+    }
+
+    override suspend fun updateWatch(id: UUID, watch: GmailWatch) = dbQuery {
+        UserConnectionsTable.update({ UserConnectionsTable.id eq id }) {
+            writeWatch(it, watch)
+            it[updatedAt] = Instant.now()
+        }
+        Unit
+    }
+
+    override suspend fun updateAccessToken(id: UUID, accessToken: String, expiresAt: Instant?) = dbQuery {
+        UserConnectionsTable.update({ UserConnectionsTable.id eq id }) {
+            it[UserConnectionsTable.accessToken] = accessToken
+            it[tokenExpiresAt] = expiresAt
+            it[updatedAt] = Instant.now()
+        }
+        Unit
+    }
+
+    override suspend fun markError(id: UUID, reason: String) = dbQuery {
+        UserConnectionsTable.update({ UserConnectionsTable.id eq id }) {
+            it[status] = ConnectionStatus.ERROR.name.lowercase()
+            it[lastError] = reason
+            it[updatedAt] = Instant.now()
+        }
+        Unit
+    }
+
+    private fun writeWatch(row: UpdateBuilder<*>, watch: GmailWatch) {
+        row[UserConnectionsTable.watchExpiresAt] = watch.expiresAt
+        row[UserConnectionsTable.watchHistoryId] = watch.historyId
+        row[UserConnectionsTable.watchError] = watch.error
+        row[UserConnectionsTable.watchCheckedAt] = watch.checkedAt
     }
 
     private fun ResultRow.toConnection() = UserConnection(
@@ -98,7 +132,12 @@ class ExposedConnectionRepository : ConnectionRepository {
         tokenExpiresAt = this[UserConnectionsTable.tokenExpiresAt],
         oauthScope = this[UserConnectionsTable.oauthScope]?.split(",")?.filter { it.isNotBlank() },
         gmailAddress = this[UserConnectionsTable.gmailAddress],
-        pubsubExpiry = this[UserConnectionsTable.pubsubExpiry],
+        watch = GmailWatch(
+            expiresAt = this[UserConnectionsTable.watchExpiresAt],
+            historyId = this[UserConnectionsTable.watchHistoryId],
+            error = this[UserConnectionsTable.watchError],
+            checkedAt = this[UserConnectionsTable.watchCheckedAt]
+        ),
         historyId = this[UserConnectionsTable.historyId],
         lastSyncedAt = this[UserConnectionsTable.lastSyncedAt],
         lastSyncStatus = this[UserConnectionsTable.lastSyncStatus],

@@ -1,6 +1,9 @@
 package dev.adminos.api.domain.identity
 
 import dev.adminos.api.config.AuthConfig
+import dev.adminos.api.domain.ingestion.connection.GmailAccessException
+import dev.adminos.api.domain.ingestion.connection.GmailTokenRefresher
+import dev.adminos.api.domain.ingestion.connection.RefreshedAccessToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -10,6 +13,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Clock
 
 @Serializable
 data class GoogleTokenResponse(
@@ -34,8 +38,9 @@ data class GoogleUserInfo(
 class GoogleOAuthClient(
     private val config: AuthConfig,
     private val tokenUrl: String = "https://oauth2.googleapis.com/token",
-    private val userInfoUrl: String = "https://www.googleapis.com/oauth2/v3/userinfo"
-) {
+    private val userInfoUrl: String = "https://www.googleapis.com/oauth2/v3/userinfo",
+    private val clock: Clock = Clock.systemUTC()
+) : GmailTokenRefresher {
 
     private val httpClient = HttpClient.newHttpClient()
     private val json = Json { ignoreUnknownKeys = true }
@@ -98,6 +103,42 @@ class GoogleOAuthClient(
             "prompt" to "consent",
             "include_granted_scopes" to "true"
         )
+    }
+
+    /**
+     * A new access token from a refresh token (AOS-405), for the API's own Gmail calls.
+     * Google's `invalid_grant` (revoked, or expired while the app is in testing) is [GmailAccessException.Revoked];
+     * anything else is [GmailAccessException.Unavailable]. Response bodies are never quoted.
+     */
+    override suspend fun refresh(refreshToken: String): RefreshedAccessToken = withContext(Dispatchers.IO) {
+        if (config.googleClientId.isBlank()) throw GmailAccessException.Unavailable()
+        val request = HttpRequest.newBuilder()
+            .uri(URI.create(tokenUrl))
+            .timeout(java.time.Duration.ofSeconds(10))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .POST(HttpRequest.BodyPublishers.ofString(formEncode(
+                "client_id" to config.googleClientId,
+                "client_secret" to config.googleClientSecret,
+                "refresh_token" to refreshToken,
+                "grant_type" to "refresh_token"
+            )))
+            .build()
+        val response = try {
+            httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+        } catch (e: java.io.IOException) {
+            throw GmailAccessException.Unavailable(e)
+        }
+        when (response.statusCode()) {
+            200 -> Unit
+            400, 401 -> if ("invalid_grant" in response.body()) throw GmailAccessException.Revoked() else throw GmailAccessException.Unavailable()
+            else -> throw GmailAccessException.Unavailable()
+        }
+        try {
+            val tokens = json.decodeFromString<GoogleTokenResponse>(response.body())
+            RefreshedAccessToken(tokens.accessToken, tokens.expiresIn?.let { clock.instant().plusSeconds(it.toLong()) })
+        } catch (e: IllegalArgumentException) { // unreadable JSON (SerializationException) or a blank token
+            throw GmailAccessException.Unavailable(e)
+        }
     }
 
     /**

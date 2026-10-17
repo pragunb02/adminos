@@ -11,6 +11,12 @@ import dev.adminos.api.domain.financial.*
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
+import dev.adminos.api.domain.ingestion.connection.GmailAccessTokens
+import dev.adminos.api.domain.ingestion.connection.GmailPushApi
+import dev.adminos.api.domain.ingestion.connection.GmailWatchRenewalJob
+import dev.adminos.api.domain.ingestion.connection.GmailWatchService
+import dev.adminos.api.domain.ingestion.connection.GmailWatchSettings
+import dev.adminos.api.infrastructure.google.HttpGmailPushApi
 import dev.adminos.api.domain.ingestion.connection.InMemoryConnectionRepository
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.IngestionService
@@ -189,7 +195,11 @@ internal fun buildAppModule(
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
     single { StatementImportService(get(), get()) }
-    single { ConnectionService(get(), get(), get(), get()) }
+    // Gmail push (AOS-405, D-63): the API calls users.watch/stop itself; off without GOOGLE_GMAIL_PUBSUB_TOPIC.
+    single<GmailPushApi> { HttpGmailPushApi() }
+    single { GmailAccessTokens(get(), get<GoogleOAuthClient>(), get()) }
+    single { GmailWatchService(get(), get(), get(), GmailWatchSettings(get<AppConfig>().google.gmailPubsubTopic)) }
+    single { ConnectionService(get(), get(), get(), get(), get()) }
     single { GmailCronService(get(), get(), get()) }
 
     // Financial Services
@@ -247,5 +257,6 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingJob(get(), get(), get()) } bind ScheduledJob::class
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { GmailWatchRenewalJob(get()) } bind ScheduledJob::class
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

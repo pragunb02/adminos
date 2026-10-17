@@ -25,7 +25,7 @@ Gmail, WhatsApp and SMS history are captured too, so nothing is missed.
 ## Stories
 | ID | Story | Status | ETA |
 |---|---|---|---|
-| [AOS-S4.1](AOS-S4.1.md) | Gmail import | ⬜ | 6h |
+| [AOS-S4.1](AOS-S4.1.md) | Gmail import | 🟦 | 6h |
 | [AOS-S4.2](AOS-S4.2.md) | WhatsApp capture | 🟦 | 9h |
 | [AOS-S4.3](AOS-S4.3.md) | SMS history backfill | ⬜ | 3h |
 
@@ -40,3 +40,4 @@ Gmail, WhatsApp and SMS history are captured too, so nothing is missed.
 - 2026-10-16 — Claude: epic created (AOS-004).
 - 2026-10-17 — Claude: AOS-401 merged (D-59).
 - 2026-10-17 — Claude: AOS-403 done (WhatsApp export import, D-66).
+- 2026-10-17 — Claude: AOS-405 merged (Gmail push watch, D-63).

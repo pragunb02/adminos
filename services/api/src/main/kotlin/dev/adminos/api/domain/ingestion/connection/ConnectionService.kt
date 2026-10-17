@@ -13,12 +13,14 @@ import java.util.UUID
 /**
  * Connections to data sources. [ingestion] queues Gmail syncs for the Go worker (AOS-401): the first
  * sync after connecting Gmail, and manual syncs. Without it (some tests) nothing is queued.
+ * [gmailWatch] registers Gmail push after connecting and stops it on disconnect (AOS-405).
  */
 class ConnectionService(
     private val connectionRepository: ConnectionRepository,
     private val syncSessionRepository: SyncSessionRepository,
     private val tokenEncryptor: TokenEncryptor? = null,
-    private val ingestion: IngestionService? = null
+    private val ingestion: IngestionService? = null,
+    private val gmailWatch: GmailWatchService? = null
 ) {
     private val logger = LoggerFactory.getLogger(ConnectionService::class.java)
 
@@ -41,7 +43,9 @@ class ConnectionService(
     /**
      * Connects Gmail from a Google OAuth grant (AOS-401). The grant must include read access to Gmail
      * and a refresh token (offline access), or the worker could not sync after the first hour.
-     * Tokens are stored encrypted with their expiry and scopes; the first (full) sync is queued.
+     * Tokens are stored encrypted with their expiry and scopes; the first (full) sync is queued, then
+     * Gmail push is registered (AOS-405). A failed registration is recorded and retried by the renewal
+     * job; it never fails the connect.
      */
     suspend fun connectGmail(userId: UUID, gmailAddress: String, grant: OAuthGrant): UserConnection {
         if (GMAIL_READONLY_SCOPE !in grant.scopes) throw GmailGrantException.ReadAccessMissing()
@@ -50,6 +54,10 @@ class ConnectionService(
         val connection = upsert(userId, SourceType.GMAIL, gmailAddress, grant)
         if (existing?.status != ConnectionStatus.CONNECTED) {
             ingestion?.enqueueGmailIngest(userId, connection.id, syncType = SyncType.HISTORICAL)
+            when (val outcome = gmailWatch?.register(connection)) {
+                is WatchOutcome.Registered -> return connection.copy(watch = outcome.watch)
+                else -> Unit
+            }
         }
         return connection
     }
@@ -65,7 +73,8 @@ class ConnectionService(
                 status = ConnectionStatus.CONNECTED,
                 gmailAddress = gmailAddress ?: existing.gmailAddress,
                 historyId = null,
-                lastError = null
+                lastError = null,
+                watch = GmailWatch.NONE
             ), grant)
             logger.info("Connection reactivated: user={}, source={}", userId, sourceType)
             return connectionRepository.update(reactivated)
@@ -99,10 +108,13 @@ class ConnectionService(
             throw ConnectionNotFoundException()
         }
 
+        // Stop Gmail push while the tokens still exist (best effort, AOS-405); then forget the watch.
+        gmailWatch?.stop(connection)
         val updated = connectionRepository.update(connection.copy(
             status = ConnectionStatus.DISCONNECTED,
             accessToken = null,
-            refreshToken = null
+            refreshToken = null,
+            watch = GmailWatch.NONE
         ))
 
         logger.info("Connection disconnected: user={}, source={}", userId, connection.sourceType)
@@ -164,12 +176,15 @@ class ConnectionService(
     }
 
     /** Where a token is stored: bound into its ciphertext so it can't be moved to another row or field (AOS-608). */
-    internal fun tokenContext(connectionId: UUID, field: String) = "user_connections:$connectionId:$field"
+    internal fun tokenContext(connectionId: UUID, field: String) = connectionTokenContext(connectionId, field)
 
     private fun encryptToken(token: String, context: String): String {
         return tokenEncryptor?.encrypt(token, context) ?: token
     }
 }
+
+/** The TokenEncryptor context of a stored token (AOS-608); the Go worker uses the same (D-59). */
+internal fun connectionTokenContext(connectionId: UUID, field: String) = "user_connections:$connectionId:$field"
 
 /** Google's read-only Gmail scope: the only Gmail access AdminOS asks for (AOS-401). */
 const val GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"

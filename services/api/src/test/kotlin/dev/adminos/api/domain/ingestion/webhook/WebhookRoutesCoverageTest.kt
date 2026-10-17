@@ -15,6 +15,7 @@ import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.IngestionService
+import dev.adminos.api.domain.ingestion.sync.SyncSessionStatus
 import dev.adminos.api.domain.ingestion.sync.SyncType
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.client.request.*
@@ -232,12 +233,27 @@ class WebhookRoutesCoverageTest {
     }
 
     @Test
-    fun `a notification without a history id queues a historical sync`() = webhookTest {
+    fun `a notification without a history id still queues an incremental sync (AOS-405)`() = webhookTest {
         gmail()
 
         deliver(push("""{"emailAddress":"pragun.b@gmail.com"}"""))
 
-        assertEquals(SyncType.HISTORICAL, syncSessions.findByUserId(userId).single().syncType)
+        // The worker starts from the history ID stored on the connection either way (D-59).
+        assertEquals(SyncType.INCREMENTAL, syncSessions.findByUserId(userId).single().syncType)
+    }
+
+    @Test
+    fun `a completed push sync makes the daily fallback skip the connection (AOS-405)`() = webhookTest {
+        val conn = gmail()
+        deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""))
+        val pushed = syncSessions.findByUserId(userId).single()
+        // The worker finishes the push sync.
+        syncSessions.update(pushed.copy(status = SyncSessionStatus.COMPLETED, completedAt = java.time.Instant.now()))
+
+        val result = GmailCronService(connections, ingestion, syncSessions).runDailyFallbackSync()
+
+        assertEquals(DailySyncResult(totalConnections = 1, enqueued = 0, skipped = 1, errors = 0), result)
+        assertEquals(listOf(pushed.id), syncSessions.findByUserId(userId).filter { it.connectionId == conn.id }.map { it.id })
     }
 
     // --- Wire formats ---
