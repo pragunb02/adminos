@@ -209,6 +209,94 @@ class FinancialSubscriptionDetectorCoverageTest {
         assertEquals(LocalDate.of(2026, 11, 11), sub.nextBillingDate)
     }
 
+    // ── AOS-516 ──
+
+    @Test
+    fun `a weekly grocery run, a monthly fuel top-up and a SIP are not subscriptions`() = runBlocking<Unit> {
+        listOf(28L, 21L, 14L, 7L, 0L).forEach { charge("Zepto", "499.00", it) }
+        listOf(90L, 60L, 30L, 0L).forEach { charge("Indian Oil", "2000.00", it) }
+        listOf(90L, 60L, 30L, 0L).forEach { charge("Zerodha", "5000.00", it) }
+        listOf(21L, 14L, 7L, 0L).zip(listOf("820.00", "1140.00", "760.00", "990.00")).forEach { (d, a) -> charge("Sharma General Store", a, d) }
+        assertTrue(detector.detectSubscriptions(userId).isEmpty())
+        assertTrue(subscriptions.findByUserId(userId).isEmpty())
+    }
+
+    @Test
+    fun `everyday shopping can come from the habit lenses too`() = runBlocking<Unit> {
+        listOf(28L, 21L, 14L, 7L, 0L).forEach { charge("Corner Mart", "450.00", it) }
+        assertEquals(1, detector.detectSubscriptions(userId).size, "an unknown merchant at the same price")
+        val withLens = SubscriptionDetectorService(transactions, InMemorySubscriptionRepository(), dev.adminos.api.domain.identity.UserCalendar(
+            dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)), everyday = { it.merchantName == "Corner Mart" })
+        assertTrue(withLens.detectSubscriptions(userId).isEmpty())
+    }
+
+    @Test
+    fun `a monthly plan turned yearly moves the same subscription to yearly and is not ended`() = runBlocking<Unit> {
+        val monthly = subscriptions.save(Subscription(userId = userId, name = "Google One", merchantName = "google one", amount = BigDecimal("130.00"),
+            billingCycle = BillingCycle.MONTHLY, lastBilledDate = LocalDate.of(2026, 4, 9),
+            metadata = mapOf("endedBy" to "detector", "endedReason" to "old", "note" to "kept")))
+        charge("Google One", "130.00", 250); charge("Google One", "130.00", 220); charge("Google One", "130.00", 190)
+        charge("Google One", "1300.00", 160)
+        val sub = detector.detectSubscriptions(userId).single()
+        assertEquals(monthly.id, sub.id, "the same subscription, not a new one")
+        assertEquals(BillingCycle.YEARLY, sub.billingCycle)
+        assertEquals(SubscriptionStatus.ACTIVE, sub.status)
+        assertEquals(0, BigDecimal("1300.00").compareTo(sub.amount))
+        assertEquals(sub.lastBilledDate!!.plusYears(1), sub.nextBillingDate)
+        assertFalse(sub.priceChanged, "a plan switch is not a price rise")
+        assertNull(sub.priceChangePct)
+        assertEquals(mapOf("note" to "kept", "planSwitchedFrom" to "monthly", "planSwitchedOn" to sub.lastBilledDate.toString()), sub.metadata)
+        assertEquals(1, subscriptions.countByUserId(userId))
+        detector.detectSubscriptions(userId)
+        assertEquals(SubscriptionStatus.ACTIVE, subscriptions.findById(monthly.id)!!.status, "months later it still isn't ended")
+    }
+
+    @Test
+    fun `a yearly plan turned monthly is monthly, and a first detection after a switch is saved on the new cycle`() = runBlocking<Unit> {
+        charge("Audible", "1990.00", 380); charge("Audible", "199.00", 45); charge("Audible", "199.00", 15)
+        val sub = detector.detectSubscriptions(userId).single()
+        assertEquals(BillingCycle.MONTHLY, sub.billingCycle)
+        assertEquals(mapOf("planSwitchedFrom" to "yearly", "planSwitchedOn" to sub.firstBilledDate!!.plusDays(335).toString()), sub.metadata)
+        assertFalse(sub.priceChanged)
+    }
+
+    @Test
+    fun `a switch needs the opposite cycle before it and a steady cycle after it`() {
+        fun t(daysAgo: Long, amount: String) = Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal(amount),
+            merchantName = "X", transactedAt = day(daysAgo))
+        val weeklyThenBig = listOf(t(28, "100"), t(21, "100"), t(14, "100"), t(7, "1000"))
+        val r = detector.readCycle(weeklyThenBig, ZoneOffset.UTC)
+        assertEquals(BillingCycle.WEEKLY, r?.cycle, "weekly before a 10x charge isn't a monthly plan: read as a whole")
+        assertNull(r?.switch)
+        assertNull(detector.readCycle(listOf(t(400, "1990"), t(60, "199"), t(51, "199"), t(2, "199")), ZoneOffset.UTC), "irregular after the switch")
+        val one = detector.readCycle(listOf(t(100, "1999"), t(70, "19990")), ZoneOffset.UTC)
+        assertEquals(BillingCycle.YEARLY, one?.cycle)
+        assertEquals(BillingCycle.MONTHLY, one?.previousCycle, "implied by the direction")
+        assertFailsWith<IllegalArgumentException> { CycleReading(BillingCycle.MONTHLY, emptyList(), emptyList(), null, null) }
+        assertFailsWith<IllegalArgumentException> { CycleReading(BillingCycle.MONTHLY, weeklyThenBig, emptyList(), null, BillingCycle.YEARLY) }
+    }
+
+    @Test
+    fun `charges that vary before a switch are not a subscription`() = runBlocking<Unit> {
+        charge("Iron Gym", "1500.00", 150); charge("Iron Gym", "900.00", 120); charge("Iron Gym", "1500.00", 90); charge("Iron Gym", "15000.00", 60)
+        assertTrue(detector.detectSubscriptions(userId).isEmpty())
+    }
+
+    @Test
+    fun `the lens view of everyday spending uses the quick-commerce and food-delivery lenses`() {
+        val lenses = dev.adminos.api.domain.coach.lenses.LensMatcher()
+        val everyday = dev.adminos.api.domain.coach.lenses.LensEverydaySpending(lenses)
+        fun t(m: String) = Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal.TEN, merchantName = m, transactedAt = now)
+        assertTrue(everyday.isEveryday(t("Zepto")))
+        assertTrue(everyday.isEveryday(t("Zomato")))
+        assertFalse(everyday.isEveryday(t("Netflix")))
+        assertFalse(everyday.isEveryday(t("Myntra")), "shopping is a habit lens, not everyday")
+        assertFailsWith<IllegalArgumentException> { dev.adminos.api.domain.coach.lenses.LensEverydaySpending(lenses, emptySet()) }
+        assertFailsWith<IllegalArgumentException> {
+            dev.adminos.api.domain.coach.lenses.LensEverydaySpending(lenses, setOf(dev.adminos.api.domain.coach.lenses.LensId("gambling")))
+        }
+    }
+
     @Test
     fun `month ends stay month ends`() {
         assertEquals(LocalDate.of(2027, 2, 28), SubscriptionDetectorService.nextCharge(LocalDate.of(2027, 1, 31), BillingCycle.MONTHLY))
