@@ -125,6 +125,8 @@ class CategorizationBakeOff(
                 is AiCategoryResult.Answered -> { asked.answers[q.merchant] = r.answer; asked.count("answered") }
                 is AiCategoryResult.Rejected -> asked.count("rejected")
                 is AiCategoryResult.Unavailable -> asked.count("unavailable")
+                // Never sent to the model (AOS-702 SafeName), so not a model answer: it doesn't count either way.
+                is AiCategoryResult.Withheld -> Unit
             }
         }
     }

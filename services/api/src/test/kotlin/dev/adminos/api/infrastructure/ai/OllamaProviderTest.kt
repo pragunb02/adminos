@@ -117,7 +117,8 @@ class OllamaProviderTest {
 
     @Test
     fun `a hostile server's negative counts and huge content can't break cost or parsing`() = runBlocking<Unit> {
-        val huge = "x".repeat(2_000_000)
+        // Large but under the reply cap (AOS-702); a reply over the cap is refused, tested separately.
+        val huge = "x".repeat(OllamaProvider.MAX_REPLY_BYTES / 2)
         replies += Reply(200, """{"message":{"content":"$huge"},"done_reason":"stop","prompt_eval_count":-5,"eval_count":-9}""")
         val result = provider().complete(request)
         assertEquals(AiCompletion.Completed(huge, AiUsage.NONE), result, "negative counts are zero, so cost can't go negative")
