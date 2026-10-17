@@ -7,6 +7,10 @@ import dev.adminos.api.domain.ingestion.events.IngestDirection
 
 /** Builds the transaction from the event. Debit/credit come straight from the source (AOS-205). */
 class ToTransactionStep : IngestStep {
+    private companion object {
+        val CARRIED_METADATA = setOf("mandate", "umn")
+    }
+
     override suspend fun apply(context: PipelineContext): StepResult {
         val e = context.event
         val txn = Transaction(
@@ -27,7 +31,9 @@ class ToTransactionStep : IngestStep {
             ingestEventId = e.id,
             category = e.category ?: dev.adminos.api.domain.financial.TransactionCategory.OTHER,
             categorySource = if (e.category != null) "user" else "rules",
-            transactedAt = e.occurredAt
+            transactedAt = e.occurredAt,
+            // Only the mandate markers travel to the transaction (AOS-502): they let its debit be matched.
+            metadata = e.metadata?.filterKeys { it in CARRIED_METADATA }?.takeIf { it.isNotEmpty() }
         )
         return StepResult.Continue(context.copy(transaction = txn))
     }

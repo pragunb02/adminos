@@ -6,6 +6,7 @@ import { errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { Subscription, SubscriptionSummary } from "@/lib/types";
 import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
+import Mandates from "@/components/Mandates";
 import StatusBadge from "@/components/StatusBadge";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorMessage from "@/components/ErrorMessage";
@@ -148,6 +149,9 @@ export default function SubscriptionsPage() {
             ))}
           </div>
         )}
+
+        {/* AutoPay & mandates (AOS-502) */}
+        <Mandates />
       </div>
 
       {/* Cancel draft modal */}

@@ -26,3 +26,12 @@ test.describe("Dues & renewals", () => {
     await expect(page.getByLabel("Totals")).toContainText("₹20,800");
   });
 });
+
+test.describe("AutoPay & mandates", () => {
+  test("Subscriptions lists mandates and flags an unused one", async ({ signedIn: page }) => {
+    await page.goto("/subscriptions");
+    const section = page.getByRole("region", { name: "AutoPay & mandates" });
+    await expect(section.getByRole("listitem", { name: "BAJAJ FINANCE LTD" })).toContainText("e-NACH · monthly · up to ₹5,400");
+    await expect(section.getByRole("listitem", { name: "Cult.fit" })).toContainText("still needed?");
+  });
+});

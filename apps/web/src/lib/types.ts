@@ -99,7 +99,7 @@ export interface SubscriptionSummary {
 
 /** One thing to pay on a day: a bill, or an expected subscription renewal (AOS-503, GET /api/v1/dues). */
 export interface DueItem {
-  kind: "bill" | "renewal";
+  kind: "bill" | "renewal" | "mandate";
   id: string;
   name: string;
   amount: string;
@@ -110,6 +110,24 @@ export interface DueItem {
   /** Bill type (credit_card…) or billing cycle (monthly…). */
   detail: string;
   trial: boolean;
+}
+
+/** A UPI AutoPay / e-NACH / card standing instruction, learnt from bank SMS (AOS-502, GET /api/v1/mandates). */
+export interface Mandate {
+  id: string;
+  payee: string;
+  rail: "upi_autopay" | "nach" | "card_si" | "unknown";
+  amount: string | null;
+  frequency: string;
+  status: "active" | "paused" | "revoked" | "expired" | "completed";
+  nextDebitOn: string | null;
+  nextDebitAmount: string | null;
+  lastDebitAt: string | null;
+  lastDebitAmount: string | null;
+  validUntil: string | null;
+  /** Active and periodic, but nothing taken for two cycles. */
+  dormant: boolean;
+  hasReference: boolean;
 }
 
 export interface DuesMonth {

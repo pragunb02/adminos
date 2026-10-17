@@ -53,7 +53,8 @@ class FinancialModuleWiringCoverageTest {
         single<InsightRepository> { InMemoryInsightRepository() }
         single { SuggestionService(InMemoryTransactionLinkRepository(), transactions) }
         single { AnalyticsService(InMemoryAnalyticsRepository(transactions)) }
-        single { DuesService(bills, subscriptions) }
+        single { dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), transactions) }
+        single { DuesService(bills, subscriptions, get()) }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {

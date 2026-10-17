@@ -26,7 +26,7 @@ data class RawSmsBatchRequest(val messages: List<RawSmsDto>)
 data class RawSmsResult(val index: Int, val status: String, val reason: String? = null)
 
 @Serializable
-data class RawSmsBatchResponse(val accepted: Int, val duplicates: Int, val ignored: Int, val results: List<RawSmsResult>)
+data class RawSmsBatchResponse(val accepted: Int, val duplicates: Int, val ignored: Int, val results: List<RawSmsResult>, val mandates: Int = 0)
 
 private const val MAX_MESSAGES = 100
 private const val MAX_TEXT = 2_000
@@ -60,12 +60,14 @@ fun Route.rawSmsRoutes(intake: SmsIntake) {
                     SmsIntakeResult.Accepted -> RawSmsResult(i, "accepted")
                     SmsIntakeResult.Duplicate -> RawSmsResult(i, "duplicate")
                     is SmsIntakeResult.Ignored -> RawSmsResult(i, "ignored", r.reason)
+                    SmsIntakeResult.Mandate -> RawSmsResult(i, "mandate")
                 }
             }
             call.respond(HttpStatusCode.Accepted, ApiResponse.success(
                 RawSmsBatchResponse(
                     accepted = results.count { it.status == "accepted" },
                     duplicates = results.count { it.status == "duplicate" },
+                    mandates = results.count { it.status == "mandate" },
                     ignored = results.count { it.status == "ignored" },
                     results = results
                 ), call.requestId))

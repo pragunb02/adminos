@@ -120,8 +120,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-501](tickets/AOS-501.md) | Scheduler: once per slot across instances, retries, timeouts; reminders, nudges, subscription detection (D-50) | Claude | ✅ | 3h | 2h |
 | └ [AOS-504](tickets/AOS-504.md) | Real notifications: channel plug-ins, SMTP email, quiet-hours hold, retries (D-51) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-510](tickets/AOS-510.md) | Web Push for iPhone (Home Screen app), Android, desktop: RFC 8291/8292, service worker, Settings (D-52) | Claude | ✅ | — | 3h |
-| **[AOS-S5.2](tickets/AOS-S5.2.md)** | **Recurring payments & dues** | | 🟦 | 8h | |
-| └ AOS-502 | Recurring / UPI AutoPay mandate tracker | Claude | ⬜ | 4h |  |
+| **[AOS-S5.2](tickets/AOS-S5.2.md)** | **Recurring payments & dues** | | ✅ | 8h | 6.5h |
+| └ [AOS-502](tickets/AOS-502.md) | Mandates from SMS: UPI AutoPay, e-NACH, card SI; debits matched and marked recurring; dormant flagged (D-56) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-503](tickets/AOS-503.md) | Dues & renewals calendar, renewal reminders; fixes: reminder days stored, user-zone dates, Gmail bills without a due date (D-55) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-508](tickets/AOS-508.md) | Bill-payment matching after each transaction + daily sweep, incl. card bills paid by transfer (D-54) | Claude | ✅ | — | 1.5h |
 | **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | 🟦 | 5h | |
