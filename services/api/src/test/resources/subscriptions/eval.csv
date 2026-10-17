@@ -1,0 +1,58 @@
+# AOS-516 subscription detection eval set. SYNTHETIC: every row is made up for testing; merchants are public brands or
+# invented local names, amounts and dates are invented. No real personal data.
+# Each row is one merchant's charge history for one user, replayed night by night up to "today" (2026-10-16).
+# Columns: id,merchant_raw,upi_vpa,payment_method,charges,expected,expected_cycle,tags
+#   charges: space-separated daysAgo:amount[:m] (m = paid by a mandate / AutoPay)
+#   expected: sub (a subscription, active today) or not (regular shopping, bills, transfers…)
+id,merchant_raw,upi_vpa,payment_method,charges,expected,expected_cycle,tags
+P01,NETFLIX COM,,CARD_CREDIT,125:649 95:649 65:649 35:649 5:649,sub,MONTHLY,streaming
+P02,SPOTIFY INDIA,,CARD_CREDIT,92:119 62:119 32:139 2:139,sub,MONTHLY,music price-rise
+P03,GOOGLE YOUTUBE PREMIUM,,CARD_CREDIT,40:0.00 10:129,sub,MONTHLY,streaming free-trial
+P04,CULTFIT,,CARD_DEBIT,29:199 22:199 15:199 8:199 1:199,sub,WEEKLY,fitness
+P05,HOTSTAR,,CARD_CREDIT,185:899 95:899 5:899,sub,QUARTERLY,streaming
+P06,AMAZON PRIME,,CARD_CREDIT,370:1499 5:1499,sub,YEARLY,streaming
+P07,GOOGLE ONE,,CARD_CREDIT,91:130 61:130 31:130 1:130,sub,MONTHLY,cloud
+P08,APPLE COM BILL,,CARD_CREDIT,100:99 70:99 40:99 10:99,sub,MONTHLY,apps
+P09,OPENAI CHATGPT,,CARD_CREDIT,75:1999 45:1999 15:1999,sub,MONTHLY,apps
+P10,AUDIBLE,,CARD_CREDIT,66:199 36:199 6:199,sub,MONTHLY,books
+P11,COURSERA,,CARD_CREDIT,70:4100 40:4100 10:4100,sub,MONTHLY,courses
+P12,UPI-TATA PLAY-tataplay@hdfcbank-HDFC0000001-428911500001-RECHARGE,tataplay@hdfcbank,UPI,88:350 58:350 28:350,sub,MONTHLY,tv plan
+P13,AIRTEL XSTREAM,,NETBANKING,95:999 65:999 35:999 5:999,sub,MONTHLY,broadband plan
+P14,UPI-JIO PREPAID-jio@sbi-SBIN0000001-428911500002-RECHARGE,jio@sbi,UPI,113:299 85:299 57:299 29:299 1:299,sub,MONTHLY,mobile plan
+P15,UPI-IRON PARADISE GYM-ironparadise.gym@okaxis-UTIB0000001-428911500003-FEES,ironparadise.gym@okaxis,UPI,92:1500 62:1500 32:1500 2:1500,sub,MONTHLY,unknown-merchant
+P16,THE HINDU EPAPER,,CARD_CREDIT,80:249 50:249 20:249,sub,MONTHLY,news unknown-merchant
+P17,TIMES PRIME AUTOPAY,,UPI,75:99:m 45:99:m 15:99:m,sub,MONTHLY,mandate unknown-merchant
+P18,SWIGGY ONE MEMBERSHIP AUTOPAY,,UPI,89:99:m 59:99:m 29:99:m,sub,MONTHLY,mandate everyday-brand
+P19,SONYLIV,,CARD_CREDIT,40:299 10:399,sub,MONTHLY,streaming price-rise
+P20,ZEE5,,CARD_CREDIT,372:699 7:699,sub,YEARLY,streaming
+P21,ANTHROPIC CLAUDE AI,,CARD_CREDIT,395:1999 365:1999 335:1999 305:19990,sub,YEARLY,plan-switch apps
+P22,SPOTIFY INDIA,,CARD_CREDIT,440:119 410:119 380:1189 15:1189,sub,YEARLY,plan-switch music
+P23,AUDIBLE,,CARD_CREDIT,745:1990 380:1990 45:199 15:199,sub,MONTHLY,plan-switch books yearly-to-monthly
+P24,OPENAI CHATGPT,,CARD_CREDIT,737:19990 372:19990 5:1999,sub,MONTHLY,plan-switch apps yearly-to-monthly
+P25,GOOGLE ONE,,CARD_CREDIT,459:130 429:130 399:130 369:1300 4:1300,sub,YEARLY,plan-switch cloud renewed
+P26,NETFLIX COM,,CARD_CREDIT,185:199 155:199 125:249 95:249 65:299 35:299 5:299,sub,MONTHLY,streaming price-rise two-rises hard
+P27,COUNTRY DELIGHT AUTOPAY,,UPI,28:420:m 21:420:m 14:420:m 7:420:m 0:420:m,sub,WEEKLY,mandate unknown-merchant milk
+N01,ZEPTO,,UPI,29:412 22:688 15:530 8:1240 1:376,not,,quick-commerce weekly
+N02,BLINKIT,,UPI,28:499 21:499 14:499 7:499 0:499,not,,quick-commerce weekly same-amount
+N03,BIGBASKET,,CARD_DEBIT,92:2380 62:2410 32:2395 2:2402,not,,groceries monthly
+N04,AVENUE SUPERMARTS DMART,,CARD_DEBIT,90:3120 60:3480 30:2950 0:3310,not,,groceries monthly
+N05,UPI/DR/428911500010/BUNDL TECHNOLOGIES/UTIB/bundl.swiggy@axisbank/Order,bundl.swiggy@axisbank,UPI,28:450 21:520 14:380 7:610 0:495,not,,food-delivery weekly
+N06,ZOMATO LTD,,UPI,60:310 30:300 0:305,not,,food-delivery monthly same-amount
+N07,SWIGGY INSTAMART,,UPI,21:650 14:820 7:540 0:710,not,,quick-commerce weekly
+N08,TATA STARBUCKS,,CARD_CREDIT,21:350 14:350 7:350 0:350,not,,cafe weekly same-amount
+N09,UBER INDIA,,UPI,21:240 14:310 7:265 0:288,not,,transport weekly
+N10,POS 512345XXXXXX4421 INDIAN OIL PETROL PUMP,,CARD_CREDIT,90:2000 60:2000 30:2000 0:2000,not,,fuel monthly same-amount
+N11,BESCOM,,NETBANKING,95:1420 65:1180 35:1655 5:1310,not,,electricity bill
+N12,LIC OF INDIA NACH,,NETBANKING,185:5200:m 95:5200:m 5:5200:m,not,,insurance mandate
+N13,ZERODHA SIP NACH,,NETBANKING,90:5000:m 60:5000:m 30:5000:m 0:5000:m,not,,investment mandate
+N14,AMAZON SELLER SERVICES,,CARD_CREDIT,90:1299 60:845 30:2199 0:640,not,,ecommerce monthly
+N15,MYNTRA DESIGNS,,CARD_CREDIT,95:1799 5:2499,not,,fashion
+N16,UPI-SHARMA GENERAL STORE-sharmastore@ybl-YESB0000001-428911500011-GROCERY,sharmastore@ybl,UPI,21:820 14:1140 7:760 0:990,not,,unknown-merchant weekly varying
+N17,APOLLO PHARMACY,,CARD_DEBIT,60:640 30:640 0:640,not,,pharmacy monthly same-amount
+N18,IRCTC ETICKETING,,NETBANKING,62:1450 32:980 2:1210,not,,rail monthly
+N19,SWIGGY,,UPI,80:350 61:350 12:350 9:350,not,,food-delivery irregular
+N20,NETFLIX COM,,CARD_CREDIT,20:649,not,,single-charge
+N21,UPI-RAMESH KUMAR-9800000021@ybl-YESB0000001-428911500021-RENT OCT,9800000021@ybl,UPI,92:25000 62:25000 32:25000 2:25000,not,,rent p2p same-amount hard
+N22,PRESTIGE SOCIETY MAINTENANCE,,NETBANKING,95:3500 65:3500 35:3500 5:3500,not,,bill unknown-merchant same-amount hard
+N23,BOOKMYSHOW,,CARD_CREDIT,90:500 60:500 30:500 0:500,not,,movies same-amount
+N24,GROWW SIP NACH,,NETBANKING,90:2000:m 60:2000:m 30:2000:m 0:2000:m,not,,investment mandate

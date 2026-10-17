@@ -1,0 +1,7 @@
+{
+    "cases": 51,
+    "precision": 0.931,
+    "recall": 1.0,
+    "f1": 0.9643,
+    "cycleAccuracy": 1.0
+}
