@@ -22,4 +22,6 @@ export const server = setupServer(
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
   http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Goals (AOS-907): none unless a test says otherwise.
+  http.get("/api/v1/coach/goals", () => ok([])),
 );

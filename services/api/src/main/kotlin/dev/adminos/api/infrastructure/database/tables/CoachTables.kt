@@ -64,3 +64,18 @@ object CoachDigestsSentTable : Table("coach_digests_sent") {
     val sentAt = timestamp("sent_at")
     override val primaryKey = PrimaryKey(userId, kind, day)
 }
+
+/** Maps to db/migration/V43__coach_goals.sql (AOS-907). */
+object CoachGoalsTable : Table("coach_goals") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val lensId = varchar("lens_id", 40)
+    val kind = varchar("kind", 15)
+    val value = decimal("value", 12, 2)
+    val period = varchar("period", 10)
+    val baseline = decimal("baseline", 12, 2).nullable()
+    val target = decimal("target", 12, 2)
+    val startedOn = date("started_on")
+    val createdAt = timestamp("created_at")
+    override val primaryKey = PrimaryKey(id)
+}

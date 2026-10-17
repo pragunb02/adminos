@@ -62,6 +62,7 @@ class CoachKit(val clock: MovableClock = MovableClock(LocalDateTime.of(2026, 11,
     val calendar = UserCalendar(users, clock)
     val alerts = LimitAlertService(limits, ledger, settings, notifications, calendar, clock)
     val analytics = dev.adminos.api.domain.analytics.AnalyticsService(dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(transactions), clock)
+    val goals = dev.adminos.api.domain.coach.goals.GoalService(dev.adminos.api.domain.coach.goals.InMemoryGoalRepository(), leaks, clock)
     val digestLedger = dev.adminos.api.domain.coach.digest.InMemoryDigestLedger()
     val digests = dev.adminos.api.domain.coach.digest.EveningDigestService(
         dev.adminos.api.domain.coach.digest.DigestSources(analytics, leaks, limits), settings, digestLedger, notifications, calendar, clock)
