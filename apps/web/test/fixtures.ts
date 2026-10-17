@@ -139,6 +139,14 @@ export const fx = {
     nextDebitOn: "2026-11-05", nextDebitAmount: "5400.00", lastDebitAt: "2026-10-05T04:00:00Z", lastDebitAmount: "5400.00",
     validUntil: "2030-03-05", dormant: false, hasReference: true, ...over,
   }),
+  /** A Splitwise entry (AOS-911): by default a ₹4,000 dinner the owner paid, matched to a card debit for Review. */
+  splitEntry: (over: Partial<import("@/lib/splitwise").SplitEntry> = {}): import("@/lib/splitwise").SplitEntry => ({
+    id: "sw-1", kind: "expense", effect: "adjust_debit", state: "suggested", date: "2026-10-03", description: "Dinner at Toit",
+    counterparty: null, category: "Dining out", cost: "4000.00", currency: "INR", ownerNet: "3000.00", ownerShare: "1000.00",
+    score: 6, reason: "same amount, 1 day(s) later",
+    transaction: fx.transaction({ id: "t-sw", merchantName: "TOIT BREWP", amount: "4000.00", sourceType: "statement", transactedAt: "2026-10-04T15:30:00Z" }),
+    ...over,
+  }),
   /** A document in the vault (AOS-507). */
   document: (over: Partial<import("@/lib/types").VaultDocument> = {}): import("@/lib/types").VaultDocument => ({
     id: "d-1", title: "Form 16 FY26", category: "tax", fileType: "pdf", mime: "application/pdf", sizeBytes: 245_760,
