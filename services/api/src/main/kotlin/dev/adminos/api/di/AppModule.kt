@@ -118,6 +118,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { ExposedOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -148,6 +149,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -274,6 +276,11 @@ internal fun buildAppModule(
     single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
     single { dev.adminos.api.domain.financial.mandates.MandateDebitListener(get()) } bind TransactionCreatedListener::class
     single { dev.adminos.api.domain.financial.receipts.ReceiptPaymentListener(get()) } bind TransactionCreatedListener::class
+    // Splitwise (AOS-911, D-111): imports, Review, and new bank records offered to entries still waiting for one.
+    single {
+        if (useDatabase) dev.adminos.api.domain.financial.splits.SplitService(get(), get(), get(), get()) { work -> dbQuery { work() } }
+        else dev.adminos.api.domain.financial.splits.SplitService(get(), get(), get(), get())
+    } bind TransactionCreatedListener::class
 
     // Notification Services
     // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.

@@ -14,8 +14,11 @@ enum class TransactionCategory {
     FOOD, TRANSPORT, SHOPPING, UTILITIES, EMI, SUBSCRIPTION,
     ENTERTAINMENT, HEALTH, EDUCATION, TRANSFER, OTHER
 }
-/** What a transaction is for the totals (D-39), independent of debit/credit. */
-enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL;
+/**
+ * What a transaction is for the totals (D-39), independent of debit/credit. A [SETTLEMENT] is money paid to or
+ * received from a friend to settle a shared bill (AOS-911, D-111): like a transfer, it is neither spending nor income.
+ */
+enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL, SETTLEMENT;
     companion object {
         fun defaultFor(type: TransactionType) = when (type) {
             TransactionType.CREDIT -> INCOME
@@ -84,8 +87,21 @@ data class Transaction(
     val ingestEventId: UUID? = null,
     val transactedAt: Instant,
     val createdAt: Instant = Instant.now(),
-    val updatedAt: Instant = Instant.now()
-)
+    val updatedAt: Instant = Instant.now(),
+    /**
+     * The owner's own part of a bill they paid for friends (AOS-911, D-111): what the totals count instead of
+     * [amount]; the rest is owed by friends. Null when the transaction isn't split. Written only through
+     * [TransactionRepository.setOwnShare], so a general update never clears it.
+     */
+    val ownShare: BigDecimal? = null
+) {
+    init {
+        require(ownShare == null || (ownShare.signum() >= 0 && ownShare <= amount)) { "a share is between 0 and the amount" }
+    }
+
+    /** What this transaction counts as in the totals: the owner's share when split, else the amount. */
+    val countedAmount: BigDecimal get() = ownShare ?: amount
+}
 
 data class Account(
     val id: UUID = UUID.randomUUID(),

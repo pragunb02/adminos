@@ -63,6 +63,10 @@ class FinancialModuleWiringCoverageTest {
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
         single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
         single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), transactions) }
+        single {
+            dev.adminos.api.domain.financial.splits.SplitService(dev.adminos.api.domain.financial.splits.InMemorySplitRepository(), transactions,
+                CategorizationService(), dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()))
+        }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -105,5 +109,6 @@ class FinancialModuleWiringCoverageTest {
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/transactions/suggestions").first)
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/analytics/categories").first)
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/categories/model").first, "learned categoriser status (AOS-707)")
+        assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/splitwise/summary").first, "Splitwise (AOS-911)")
     }
 }
