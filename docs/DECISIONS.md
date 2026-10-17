@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
 | D-94 | Architecture | Browser and sign-in hardening: nonce CSP (no unsafe-inline scripts) and security headers on web and API, CORS removed; one app-wide CSRF check (Fetch-Metadata/Origin, fail closed) on cookie mutations; Google sign-in with server-side single-use state + PKCE; sign-in backoff; X-Forwarded-For distrusted unless TRUST_FORWARDED_FOR (amends D-32); strict JWTs; generic errors | Accepted | AOS-618 |
 | D-93 | Process | Every route is authenticated unless on a reviewed allowlist, enforced by a route-inventory test over the real app; another user's resource is always 404 (same as missing); Playwright attack suite security.spec.ts; web guard matches public pages exactly | Accepted | AOS-619 |
@@ -1086,3 +1087,10 @@ P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claud
 - Sign-in alerts (new device, refused, reused key) go through a `SecurityNotifier` port to push, email and in-app as type `security`: always on, never held. They contain only our own facts: a fixed device vocabulary, a masked account, our time.
 - Settings → Security lists sessions and signs out one, every other, or all.
 - Rejected: shorter TTL as the only fix; raw user agents or IPs in alerts.
+
+P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-617
+- A session is full only after a passkey (user verification required) or a one-time recovery code; until then only the passkey step is reachable (`AUTH_010` elsewhere).
+- RP ID = `APP_URL` host, origin = `APP_URL` origin; Yubico java-webauthn-server verifies; no attestation.
+- First passkey: enrolled from the first pending session (alerted); later ones only from a confirmed session. Ten recovery codes (80-bit, SHA-256), regenerable from a confirmed session. Reset only server-side (runbook).
+- Five failed attempts end the session and alert.
+- Rejected: TOTP (phishable), SMS codes, optional second factor, hand-rolled WebAuthn.

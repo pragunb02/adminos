@@ -20,7 +20,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** AOS-617 on real Postgres (V62): passkeys, recovery codes (single use under concurrency), the session's second factor. */
+/** AOS-617 on real Postgres (V34): passkeys, recovery codes (single use under concurrency), the session's second factor. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PasskeyRepositoriesIntegrationTest {

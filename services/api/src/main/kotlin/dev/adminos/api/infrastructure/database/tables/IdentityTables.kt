@@ -38,11 +38,11 @@ object SessionsTable : Table("sessions") {
     val lastActiveAt = timestamp("last_active_at").nullable()
     val createdAt = timestamp("created_at")
     val revokedAt = timestamp("revoked_at").nullable()
-    val secondFactorAt = timestamp("second_factor_at").nullable() // V62, AOS-617
+    val secondFactorAt = timestamp("second_factor_at").nullable() // V34, AOS-617
     override val primaryKey = PrimaryKey(id)
 }
 
-/** Passkeys (V62, AOS-617): public keys only. */
+/** Passkeys (V34, AOS-617): public keys only. */
 object WebAuthnCredentialsTable : Table("webauthn_credentials") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)
@@ -56,7 +56,7 @@ object WebAuthnCredentialsTable : Table("webauthn_credentials") {
     override val primaryKey = PrimaryKey(id)
 }
 
-/** Recovery codes (V62, AOS-617): SHA-256 only. */
+/** Recovery codes (V34, AOS-617): SHA-256 only. */
 object RecoveryCodesTable : Table("recovery_codes") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)

@@ -1,4 +1,4 @@
--- V62 (tentative number; the integrator renumbers): passkeys as the second factor after Google (AOS-617).
+-- V34: passkeys as the second factor after Google (AOS-617).
 -- sessions.second_factor_at: when the session passed the passkey (or a recovery code). NULL = pending: only the
 -- passkey routes accept it.
 ALTER TABLE sessions ADD COLUMN second_factor_at TIMESTAMPTZ;

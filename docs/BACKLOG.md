@@ -153,7 +153,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-614](tickets/AOS-614.md) | Owner-only sign-in: one allowlisted Google email, pinned Google ID, fail closed (critical finding) | Claude | ✅ | 1.5h | 1.5h |
 | └ [AOS-615](tickets/AOS-615.md) | Threat model + red-team audit (ASVS 5.0 L2 / WSTG): 27 findings; fixed pre-auth body exhaustion and Jackson advisories; rest ticketed (D-92) | Claude (agent) | ✅ | 6h | 4h |
 | └ [AOS-616](tickets/AOS-616.md) | Private network only: Tailscale, webhook-only tunnel option for Gmail push, exposure check script (D-97) | Claude (agent) | ✅ | 3h | 3h |
-| └ AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
+| └ [AOS-617](tickets/AOS-617.md) | Passkey (WebAuthn) second factor after Google, recovery codes (D-96) | Claude (agent) | ✅ | — | — |
 | └ [AOS-618](tickets/AOS-618.md) | Hardening: nonce CSP + headers, app-wide CSRF check, sign-in state + PKCE, lockout, strict JWT, XFF distrusted (D-94) | Claude (agent) | ✅ | — | — |
 | └ [AOS-619](tickets/AOS-619.md) | Authorization attack tests: route inventory, IDOR 404s, Playwright attack suite; exact public paths (D-93) | Claude (agent) | ✅ | — | — |
 | └ [AOS-620](tickets/AOS-620.md) | Sign-in alerts, Security page, sign out everywhere; refresh rotation with reuse detection (also AOS-121) (D-95) | Claude (agent) | ✅ | — | — |

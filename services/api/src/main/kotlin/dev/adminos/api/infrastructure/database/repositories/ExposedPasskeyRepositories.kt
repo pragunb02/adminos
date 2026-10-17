@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.*
 import java.time.Instant
 import java.util.UUID
 
-/** Passkeys on Postgres (V62, AOS-617). */
+/** Passkeys on Postgres (V34, AOS-617). */
 class ExposedPasskeyRepository : PasskeyRepository {
 
     override suspend fun save(passkey: Passkey): Passkey = dbQuery {
@@ -54,7 +54,7 @@ class ExposedPasskeyRepository : PasskeyRepository {
     )
 }
 
-/** Recovery codes on Postgres (V62, AOS-617): hashes only; using one is a single conditional update. */
+/** Recovery codes on Postgres (V34, AOS-617): hashes only; using one is a single conditional update. */
 class ExposedRecoveryCodeRepository : RecoveryCodeRepository {
 
     override suspend fun replaceAll(userId: UUID, hashes: List<String>, at: Instant): Unit = dbQuery {
