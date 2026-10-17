@@ -1,5 +1,6 @@
 package dev.adminos.api.di
 
+import dev.adminos.api.domain.coach.digest.*
 import dev.adminos.api.domain.coach.leaks.LeakService
 import dev.adminos.api.domain.coach.lenses.InMemoryLensOverrideRepository
 import dev.adminos.api.domain.coach.lenses.LensMatcher
@@ -40,4 +41,10 @@ internal fun coachKoinModule(useDatabase: Boolean): Module = module {
     single { LimitAlertService(get(), get(), get(), get(), get()) }
     single { LimitAlertListener(get()) } bind TransactionCreatedListener::class
     single { LimitAlertsJob(get(), get()) } bind ScheduledJob::class
+
+    // Evening digest (AOS-905): polled every 15 minutes, once per user and day
+    single<DigestLedger> { if (useDatabase) ExposedDigestLedger() else InMemoryDigestLedger() }
+    single { DigestSources(get(), get(), get()) }
+    single { EveningDigestService(get(), get(), get(), get(), get()) }
+    single { EveningDigestJob(get(), get()) } bind ScheduledJob::class
 }

@@ -1,5 +1,7 @@
 package dev.adminos.api.infrastructure.database.repositories
 
+import dev.adminos.api.domain.coach.digest.DigestKind
+import dev.adminos.api.domain.coach.digest.DigestLedger
 import dev.adminos.api.domain.coach.lenses.LensId
 import dev.adminos.api.domain.coach.limits.DuplicateLimitException
 import dev.adminos.api.domain.coach.limits.LimitAlertLedger
@@ -14,6 +16,7 @@ import dev.adminos.api.domain.coach.settings.CoachSettings
 import dev.adminos.api.domain.coach.settings.CoachSettingsRepository
 import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.infrastructure.database.dbQuery
+import dev.adminos.api.infrastructure.database.tables.CoachDigestsSentTable
 import dev.adminos.api.infrastructure.database.tables.CoachSettingsTable
 import dev.adminos.api.infrastructure.database.tables.LimitAlertsTable
 import dev.adminos.api.infrastructure.database.tables.LimitSuggestionDismissalsTable
@@ -128,11 +131,16 @@ class ExposedCoachSettingsRepository : CoachSettingsRepository {
     private val t = CoachSettingsTable
 
     override suspend fun find(userId: UUID): CoachSettings? = dbQuery {
-        t.selectAll().where { t.userId eq userId }.singleOrNull()?.let { CoachSettings(it[t.userId], it[t.limitAlerts], it[t.updatedAt]) }
+        t.selectAll().where { t.userId eq userId }.singleOrNull()?.let {
+            CoachSettings(it[t.userId], it[t.limitAlerts], it[t.eveningDigest], it[t.digestTime], it[t.digestSkipZeroDay], it[t.updatedAt])
+        }
     }
 
     override suspend fun save(settings: CoachSettings): CoachSettings = dbQuery {
-        t.upsert(t.userId) { it[userId] = settings.userId; it[limitAlerts] = settings.limitAlerts; it[updatedAt] = settings.updatedAt }
+        t.upsert(t.userId) {
+            it[userId] = settings.userId; it[limitAlerts] = settings.limitAlerts; it[eveningDigest] = settings.eveningDigest
+            it[digestTime] = settings.digestTime; it[digestSkipZeroDay] = settings.digestSkipZeroDay; it[updatedAt] = settings.updatedAt
+        }
         settings
     }
 }
@@ -144,5 +152,13 @@ class ExposedSpendHistory : SpendHistory {
             "SELECT min(transacted_at) AS first FROM transactions WHERE user_id = ?::uuid AND nature IN ('spend', 'refund')",
             listOf(TextColumnType() to userId.toString())
         ) { rs -> if (rs.next()) rs.getObject("first", OffsetDateTime::class.java)?.toInstant() else null }
+    }
+}
+
+/** One digest per (user, kind, day): `INSERT … ON CONFLICT DO NOTHING` is the claim (AOS-905). */
+class ExposedDigestLedger : DigestLedger {
+    private val t = CoachDigestsSentTable
+    override suspend fun claim(userId: UUID, kind: DigestKind, day: LocalDate, at: Instant): Boolean = dbQuery {
+        t.insertIgnore { it[t.userId] = userId; it[t.kind] = kind.name.lowercase(); it[t.day] = day; it[sentAt] = at }.insertedCount == 1
     }
 }
