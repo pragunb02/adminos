@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-114 | Architecture | A verified Gmail push is folded into a queued, not-yet-started sync of the connection (or ignored when its history ID is already read); the worker marks a sync in_progress when it starts; at most one running and one waiting sync per connection (extends D-63) | Accepted | AOS-630 |
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
@@ -1285,3 +1286,10 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+
+### D-114 — Gmail pushes are folded into a waiting sync
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-630 · Extends D-63 · Builds on D-59, D-100
+- A verified Gmail push queues an incremental sync unless its history ID is at or before the stored one, or a Gmail sync of the connection is queued and not yet started (created within 10 minutes); then it is acknowledged (200, so Pub/Sub doesn't retry) and folded into that sync.
+- The worker marks a session `in_progress` when it starts.
+- At most one running and one waiting sync exist per connection, so a replayed push can't multiply syncs (AUD-27).
+- **Rejected:** a fixed time window (loses mail that arrives mid-sync); Asynq unique tasks.
