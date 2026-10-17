@@ -23,7 +23,6 @@ dependencies {
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.auth)
-    implementation(libs.ktor.server.auth.jwt)
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.status.pages)
@@ -32,7 +31,10 @@ dependencies {
     implementation(libs.ktor.server.call.id)
     implementation(libs.ktor.server.forwarded.header)
 
-    // Auth
+    // Jackson is only transitive; the BOM lifts every Jackson module to a patched release (AOS-615, AUD-02).
+    implementation(platform(libs.jackson.bom))
+
+    // Auth (JWTs are nimbus-jose-jwt; the unused ktor-server-auth-jwt, which pulled in another JWT library, was removed)
     implementation(libs.nimbus.jose.jwt)
     implementation(libs.google.auth)
 
