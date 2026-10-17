@@ -17,6 +17,7 @@ export const DESTINATIONS = [
 
 /** What lives under More (expanded in the desktop rail). */
 export const MORE_LINKS = [
+  { href: "/leaks", label: "Where it leaks" },
   { href: "/import", label: "Import statement" },
   { href: "/bills", label: "Bills" },
   { href: "/subscriptions", label: "Subscriptions" },

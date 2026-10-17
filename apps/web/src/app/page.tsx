@@ -15,6 +15,7 @@ import { cumulativeByDay } from "@/lib/cumulative";
 import { delta } from "@/lib/format";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantList from "@/components/console/MerchantList";
+import LeaksHomeCard from "@/components/leaks/LeaksHomeCard";
 import FeedRow from "@/components/console/FeedRow";
 import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
 import { browserZone } from "@/lib/format";
@@ -115,6 +116,8 @@ function HomeContent() {
           <Section title="Where it went" action={<Link href="/spending" className="text-xs text-accent">All ›</Link>} error={categories.error ? errorMessage(categories.error) : null} onRetry={() => categories.refetch()}>
             {categories.data ? (categories.data.categories.length ? <CategoryBars rows={categories.data.categories} limit={5} /> : <Quiet>Nothing spent in this period.</Quiet>) : <Skeleton />}
           </Section>
+
+          <LeaksHomeCard range={range} />
 
           <Section title="Top merchants" error={merchants.error ? errorMessage(merchants.error) : null} onRetry={() => merchants.refetch()}>
             {merchants.data ? (merchants.data.merchants.length ? <MerchantList rows={merchants.data.merchants} /> : <Quiet>No merchants in this period.</Quiet>) : <Skeleton />}

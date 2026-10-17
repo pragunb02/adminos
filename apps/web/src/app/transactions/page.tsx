@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/console/Section";
 import { FeedRowContent } from "@/components/console/FeedRow";
 import UndoToast from "@/components/console/UndoToast";
 import { categoryLabel } from "@/lib/analytics";
+import { leakTransactionsPath, WEEKDAY_LABEL, WEEKDAYS, type Weekday } from "@/lib/leaks";
 import { CATEGORIES } from "@/lib/consolePeriod";
 import { browserZone, relativeDate } from "@/lib/format";
 import { formatInr } from "@/lib/money";
@@ -24,8 +25,9 @@ const KINDS = [
   { value: "reversal", label: "Reversals" },
 ] as const;
 
-interface Filters { q: string; category: string; nature: string; from: string; to: string }
-const FILTER_KEYS = ["q", "category", "nature", "from", "to"] as const;
+interface Filters { q: string; category: string; nature: string; from: string; to: string; lens: string; merchant: string; late: string; weekday: string }
+const FILTER_KEYS = ["q", "category", "nature", "from", "to", "lens", "merchant", "late", "weekday"] as const;
+const LENS_ID = /^(all|[a-z][a-z0-9_]{1,39})$/;
 
 /** Filters come from the URL (D-47). A Home/Spending period (`p`/`d`) becomes a date range. */
 function readFilters(search: URLSearchParams, today: string): Filters {
@@ -35,7 +37,12 @@ function readFilters(search: URLSearchParams, today: string): Filters {
   if (!from && !to && search.get("p")) ({ from, to } = rangeOf(parsePeriod(search, today).period, today));
   const category = (CATEGORIES as readonly string[]).includes(get("category")) ? get("category") : "";
   const nature = KINDS.some((k) => k.value === get("nature")) ? get("nature") : "";
-  return { q: get("q"), category, nature, from, to };
+  // "Where it leaks" drill-downs (AOS-902): a lens, and within it a merchant, late night or a weekday.
+  const lens = LENS_ID.test(get("lens")) ? get("lens") : "";
+  const merchant = lens ? get("merchant").slice(0, 255) : "";
+  const late = lens && get("late") === "1" ? "1" : "";
+  const weekday = lens && (WEEKDAYS as readonly string[]).includes(get("weekday")) ? get("weekday") : "";
+  return { q: get("q"), category, nature, from, to, lens, merchant, late, weekday };
 }
 
 function query(filters: Filters, extra: Record<string, string> = {}) {
@@ -64,13 +71,16 @@ function ActivityContent() {
     return () => clearTimeout(t);
   }, [typed, filters, pathname, router]);
 
-  const apiQuery = query({ ...filters }, { limit: "30" });
+  const apiQuery = query({ ...filters, lens: "", merchant: "", late: "", weekday: "" }, { limit: "30" });
   apiQuery.delete("q");
   if (filters.q) apiQuery.set("merchant", filters.q);
+  // A lens drill-down lists the leaks' own transactions (one page, the same rules as the numbers).
+  const feedPath = filters.lens ? leakTransactionsPath({ ...filters, late: filters.late === "1" }) : `/api/v1/transactions?${apiQuery}`;
   const feed = useInfiniteQuery({
-    queryKey: ["transactions", "activity", apiQuery.toString()],
+    queryKey: ["transactions", "activity", feedPath],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => {
+      if (filters.lens) return getPage<Transaction>(feedPath);
       const q = new URLSearchParams(apiQuery);
       if (pageParam) q.set("cursor", pageParam);
       return getPage<Transaction>(`/api/v1/transactions?${q}`);
@@ -115,6 +125,10 @@ function ActivityContent() {
     });
 
   const active = [
+    filters.lens && { key: "lens", label: filters.lens === "all" ? "All leaks" : `Lens: ${lensLabel(filters.lens)}` },
+    filters.merchant && { key: "merchant", label: `Merchant: ${filters.merchant}` },
+    filters.late && { key: "late", label: "Late night" },
+    filters.weekday && { key: "weekday", label: WEEKDAY_LABEL[filters.weekday as Weekday] },
     filters.category && { key: "category", label: categoryLabel(filters.category) },
     filters.nature && { key: "nature", label: KINDS.find((k) => k.value === filters.nature)!.label },
     (filters.from || filters.to) && { key: "dates", label: `${filters.from || "…"} → ${filters.to || "…"}` },
@@ -140,7 +154,9 @@ function ActivityContent() {
               <button
                 type="button"
                 aria-label={`Remove filter ${a.label}`}
-                onClick={() => push(a.key === "dates" ? { ...filters, from: "", to: "" } : { ...filters, [a.key]: "" })}
+                onClick={() => push(a.key === "dates" ? { ...filters, from: "", to: "" }
+                  : a.key === "lens" ? { ...filters, lens: "", merchant: "", late: "", weekday: "" }
+                    : { ...filters, [a.key]: "" })}
                 className="min-h-8 rounded-full bg-blue-50 px-3 py-1 text-xs text-accent"
               >
                 {a.label} ×
@@ -187,6 +203,9 @@ function ActivityContent() {
 }
 
 const qs = (q: URLSearchParams) => (q.toString() ? `?${q}` : "");
+
+/** "quick_commerce" → "Quick commerce". */
+const lensLabel = (id: string) => id.charAt(0).toUpperCase() + id.slice(1).replaceAll("_", " ");
 
 /** Category / kind / dates, applied together (NN/g: batch filters on mobile; nothing jumps while choosing). */
 function FilterBar({ filters, onApply }: { filters: Filters; onApply: (f: Filters) => void }) {

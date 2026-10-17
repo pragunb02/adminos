@@ -209,6 +209,7 @@ class IdorTest {
             "/api/v1/connections", "/api/v1/device-tokens", "/api/v1/auth/sessions", "/api/v1/mandates", "/api/v1/notifications",
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
+            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
@@ -224,5 +225,12 @@ class IdorTest {
         val mine = client.get("/api/v1/subscriptions") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
         assertTrue(a.subscription.id.toString() in mine)
         assertFalse(a.subscription.id.toString() in client.asBob(HttpMethod.Get, "/api/v1/subscriptions", null).bodyAsText())
+        // The coach's leaks (AOS-902): an online-shopping order of Alice's shows for her, and nothing of it for Bob.
+        app.get<TransactionRepository>().save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("1299.00"),
+            merchantName = "Alice Leak Shop", category = TransactionCategory.SHOPPING, subcategory = "ecommerce", transactedAt = Instant.now()))
+        for (path in listOf("/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions")) {
+            assertTrue("Alice Leak Shop" in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
+            assertFalse("Alice" in client.asBob(HttpMethod.Get, path, null).bodyAsText(), path)
+        }
     }
 }
