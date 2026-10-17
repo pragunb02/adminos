@@ -46,7 +46,7 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | AOS-626 | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) | Claude | ⬜ | 2h |  |
 | AOS-627 | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude | ⬜ | 0.5h |  |
 | AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
-| AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
+| [AOS-629](AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
 | AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
 
 ## Demo / verification
