@@ -1,0 +1,46 @@
+# Nightly encrypted Postgres backups to a separate R2 bucket (AOS-621, proposed D-98). Set up first:
+# docs/guides/BACKUPS.md. Then run AdminOS with this overlay:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.backup.yml --profile full up -d
+#   docker compose -f docker-compose.yml -f docker-compose.backup.yml run --rm backup once   # a backup now
+#
+# The container holds only the age PUBLIC key: it can encrypt, never decrypt. Its R2 token is scoped to the
+# backup bucket, whose lock rules forbid deleting or overwriting backups. No port, no inbound connection.
+services:
+  backup:
+    build:
+      context: ./services/backup
+      dockerfile: Dockerfile
+    command: ["schedule"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: adminos
+      PGDATABASE: adminos
+      PGPASSWORD: ${DB_PASSWORD:?}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:?}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-auto}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:?}
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:?}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:?}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:?}
+      BACKUP_AT: ${BACKUP_AT:-02:30}
+      TZ: ${SCHEDULER_ZONE:-Asia/Kolkata}
+    volumes:
+      - backup_state:/state
+    read_only: true
+    tmpfs:
+      - /tmp        # the encrypted dump is staged here before upload; plaintext never touches disk
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/backup", "healthcheck"]
+      interval: 15m
+      timeout: 10s
+      retries: 1
+    restart: unless-stopped
+
+volumes:
+  backup_state:
