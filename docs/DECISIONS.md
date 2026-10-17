@@ -73,6 +73,7 @@
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
 | D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
+| D-101 | Process | Every PR gets two independent reviews (code, security) after its last push; each sets a commit status (`review/code`, `review/security`); `scripts/merge-pr.sh` merges only when both and every check pass on the head commit | Accepted | AOS-013 |
 | D-100 | Process | Every feature rolls out only through the security gate (ENGINEERING §4a): threat review in the ticket, unit + integration + Playwright attack tests, no new exposure, dependency checks, attacker review before merge; findings block the merge | Accepted | AOS-012, all tasks |
 | D-91 | Process / Architecture | Security is always P0: the site is owner-only (one allowlisted, pinned Google account, fail closed), private-network by default, defence in depth, and every security control has unit, integration and Playwright attack tests; we red-team our own site before go-live and on every security change | Accepted | AOS-614…623, S6.4 |
 | D-80 | Product | North star "spend less → save more → invest well", measured by the savings rate; Epic E9 Spending coach (leaks, limits, nudges, goals) goes before the E8 wealth build; the coach informs and never acts; nudges are few and configurable | Accepted | AOS-011, E9 |
@@ -923,4 +924,15 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
 - **Rejected:** Cloudflare Tunnel + Access for the whole site (public login page; Cloudflare sees plaintext);
   hand-run WireGuard (inbound port, manual keys and certs); a public port with the app login (D-91).
 - **Integration note:** the webhook tunnel sends `Content-Length` (`disableChunkedEncoding: true`) because the API refuses any `Transfer-Encoding` (D-92).
+
+### D-101 — Code and security review on every PR
+2026-10-18 · Accepted (Pragun: "add a review step (code and security reviewers) on every PR before merge") · Type: Process · Tasks: AOS-013 · Builds on D-91, D-100
+- **Who:** two reviewer agents that did not write the change: code (correctness, layers, coding rules, tests) and security (the D-100 gate and the threat model). They use `/code-review` and `/security-review` with the ticket and ENGINEERING.md.
+- **Verdict:** a PR comment with findings, and a commit status on the head SHA set with `scripts/review-status.sh`. Blocking: any correctness bug, any security finding, missing tests for an acceptance criterion, a broken layer rule.
+- **Enforced:**
+  - GitHub branch protection on `main` (admins included) requires GitGuardian and both review statuses on an up-to-date head.
+  - `scripts/merge-pr.sh`, always run from main's copy, also requires every check run, takes the newest status per context and only if the owner's account created it, and pins the merge to the reviewed SHA.
+  - A new push has no status, so it needs a fresh review.
+  - The statuses come from the owner's own token: they record that the process ran; they are not cryptographic proof.
+- **Rejected:** GitHub required approvals (the author can't approve their own PRs, and every PR comes from one account); a checklist-only review.
 

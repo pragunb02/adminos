@@ -12,5 +12,9 @@
 - [ ] Sensitive new data encrypted at rest, or justified
 - [ ] AI: off by default, minimum data, outputs validated (D-67)
 
+## Reviews (docs/ENGINEERING.md §4b, D-101)
+- [ ] `review/code` passed on the final commit
+- [ ] `review/security` passed on the final commit
+
 ## Verification
 <!-- Test counts: API unit/integration, Kover, web unit/coverage, Playwright -->

@@ -166,6 +166,7 @@ Layers 4 and 5 sit side by side under layer 3.
 - [ ] PROGRESS.md updated.
 - [ ] Commit message starts with the task ID: `AOS-xxx: …`.
 - [ ] **Security gate passed (§4a).** No feature ships without it (D-91, D-100).
+- [ ] **Code and security reviews passed (§4b)** on the final commit (D-101).
 
 ## 4a. Security gate (every feature, every time; D-100)
 
@@ -188,6 +189,25 @@ Security is P0 (D-91). A task that adds or changes behaviour is not done, and it
 - [ ] AI features: off by default, minimum data, outputs validated (D-67).
 
 **4. Review:** the reviewer (the integrator) re-reads the diff as an attacker before merging and runs the full Playwright suite, including `e2e/security.spec.ts`.
+
+## 4b. Review step (every PR, before merge; D-101)
+
+Every PR is reviewed by **two independent reviewers** after its last push and before merge: a **code reviewer** and a **security reviewer**. Each is a separate reviewer agent that did not write the change, working from the PR diff, the ticket and these standards.
+
+| Reviewer | Looks for | Tooling |
+|---|---|---|
+| **Code** | Correctness bugs and edge cases; layer rules (§1); coding rules (§2); tests that really test the acceptance criteria (§3); simpler or reused code | `/code-review` |
+| **Security** | The §4a gate: auth and ownership on every new route, injection, XSS, SSRF, upload abuse, secrets and PII, exposure, crypto misuse, dependency risk; attack tests present | `/security-review` + the threat model (`docs/security/THREAT-MODEL.md`) |
+
+- **Verdict:** each reviewer posts its findings as a PR comment and sets the commit status `review/code` or `review/security` **on the exact commit it reviewed**: `scripts/review-status.sh <pr> <kind> <success|failure> <reviewed-sha> <findings-file>`. The script refuses if the head has moved since.
+- **Comments are public:** findings never quote secrets, tokens, personal data or financial data. Describe them and point to file:line.
+- **Blocking:** any correctness bug, any security finding (D-91), missing tests for an acceptance criterion, or a broken layer rule. Any change to `scripts/` or `.github/` gets a line-by-line security review, because those files are the gate itself. Style nits don't block; they are listed.
+- **Fix and repeat:** fixes are pushed, and both reviews run again. A status belongs to one commit, so a new push always needs a fresh review.
+- **What enforces it:**
+  - **GitHub branch protection on `main`** (admins included) requires `GitGuardian Security Checks`, `review/code` and `review/security` on the head commit, an up-to-date branch, and no force-push.
+  - **`scripts/merge-pr.sh`**, run **from `main`'s copy** so a PR can't change its own gate: `git fetch origin && git show origin/main:scripts/merge-pr.sh | bash -s -- <pr>`. It also refuses unless every check run succeeded, the newest review status per context is `success` **and was created by the owner's account** (not an Actions workflow), and it pins the merge to the reviewed commit (`--match-head-commit`). Tested in `scripts/tests/merge-pr.test.sh` and `scripts/tests/review-status.test.sh`.
+  - **Honest limit:** the review statuses are set with the owner's own token, so they show that the process ran, not who reviewed. The control is the process plus these guards, not a cryptographic proof.
+- The integrator still runs the full gates and Playwright (§4, §4a) and reads the reviews before merging.
 
 ---
 
