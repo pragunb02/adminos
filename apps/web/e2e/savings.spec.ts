@@ -42,7 +42,8 @@ test.describe("Savings rate: attacks (D-100)", () => {
     api.on("GET /api/v1/coach/savings", () => ({ status: 500, error: { code: "SERVER_001", message: "<b>down</b>" } }));
     await page.goto("/");
     const card = page.getByRole("region", { name: "Savings rate" });
-    await expect(card.getByText("<b>down</b>", { exact: false })).toBeVisible();
+    // The API stays down: the error shows only after the app's own automatic retries, so allow for them.
+    await expect(card.getByText("<b>down</b>", { exact: false })).toBeVisible({ timeout: 15_000 });
     expect(await card.locator("b").count()).toBe(0);
   });
 });

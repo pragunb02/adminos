@@ -239,7 +239,7 @@ class IdorTest {
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/leaks/fees", "/api/v1/receipts",
-            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings", "/api/v1/coach/goals",
+            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings", "/api/v1/coach/goals", "/api/v1/coach/savings",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
