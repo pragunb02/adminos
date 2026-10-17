@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.coach.lenses
 
 import dev.adminos.api.config.AppConfig
+import dev.adminos.api.domain.coach.CoachRoutes.asTheApp
 import dev.adminos.api.domain.identity.JwtService
 import dev.adminos.api.domain.identity.User
 import dev.adminos.api.domain.identity.UserRole
@@ -32,7 +33,7 @@ class LensRoutesTest {
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
         application {
-            configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
+            configureSerialization(); configureRequestId(); configureErrorHandling(); configureRequestBodyLimit(); configureAuthentication(jwtService)
             routing { route("/api/v1") { lensRoutes(service) } }
         }
         block()
@@ -42,6 +43,7 @@ class LensRoutesTest {
         val res = client.request(path) {
             this.method = method
             cookie(ACCESS_TOKEN_COOKIE, jwtService.generateAccessToken(who))
+            asTheApp()
             if (body != null) { contentType(ContentType.Application.Json); setBody(body) }
         }
         return res.status to Json.parseToJsonElement(res.bodyAsText()).jsonObject
@@ -135,6 +137,14 @@ class LensRoutesTest {
             assertEquals(hostile.trim(), saved.data().str("merchant"))
         }
         assertEquals(5, repo.findByUser(user.id).size)
+    }
+
+    @Test
+    fun `an oversized body is refused before it is read`() = routeTest {
+        val huge = buildJsonObject { put("merchant", "x".repeat(2 * 1024 * 1024)); put("include", true) }.toString()
+        val status = call(HttpMethod.Put, "/api/v1/coach/lenses/travel/merchants", huge).first
+        assertEquals(HttpStatusCode.PayloadTooLarge, status)
+        assertEquals(0, repo.findByUser(user.id).size)
     }
 
     @Test
