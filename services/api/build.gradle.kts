@@ -110,6 +110,20 @@ kover {
     }
 }
 
+// Categorization evaluation (AOS-511, D-61): ./gradlew -q categorizationReport prints precision/recall/F1 on the
+// synthetic golden set and writes build/reports/categorization/report.json. Add -PwriteBaseline to deliberately
+// record the current numbers as the new floor (src/test/resources/categorization/baseline.json).
+tasks.register<JavaExec>("categorizationReport") {
+    group = "verification"
+    description = "Evaluate the categorizer on the golden set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.evaluation.CategorizationReportKt")
+    args(layout.buildDirectory.file("reports/categorization/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/categorization/baseline.json").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"

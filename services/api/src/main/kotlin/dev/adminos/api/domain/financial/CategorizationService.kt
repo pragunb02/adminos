@@ -44,8 +44,13 @@ class CategorizationService(
 
         // Whole words only: "ola" must not match "Motorola", nor "emi" match "premium".
         private val PATTERNS = listOf(
-            Pattern(words("zomato", "swiggy", "uber eats", "food", "restaurant", "cafe", "pizza", "burger"), TransactionCategory.FOOD, 0.9),
-            Pattern(words("uber", "ola", "rapido", "metro", "irctc", "railway", "cab", "taxi"), TransactionCategory.TRANSPORT, 0.9),
+            Pattern(words("zomato", "swiggy", "uber eats", "food", "foods", "restaurant", "cafe", "pizza", "burger", "bakery", "sweets"), TransactionCategory.FOOD, 0.9),
+            // Fuel, health and education words, and parking: gaps the AOS-511 golden set found.
+            Pattern(words("petrol", "diesel", "fuel", "fuels", "filling station", "petroleum"), TransactionCategory.TRANSPORT, 0.85, "fuel"),
+            Pattern(words("uber", "ola", "rapido", "metro", "irctc", "railway", "cab", "taxi", "parking"), TransactionCategory.TRANSPORT, 0.9),
+            Pattern(words("pharmacy", "medical", "medicals", "chemist", "chemists"), TransactionCategory.HEALTH, 0.85, "pharmacy"),
+            Pattern(words("hospital", "hospitals", "clinic", "dental", "diagnostics", "pathlabs", "gym"), TransactionCategory.HEALTH, 0.85),
+            Pattern(words("school", "university", "college", "tuition", "coaching"), TransactionCategory.EDUCATION, 0.85),
             Pattern(words("netflix", "hotstar", "spotify", "prime video", "youtube premium", "disney", "jiocinema"), TransactionCategory.SUBSCRIPTION, 0.9),
             Pattern(words("amazon", "flipkart", "myntra", "ajio", "meesho", "nykaa", "bigbasket"), TransactionCategory.SHOPPING, 0.85),
             Pattern(words("emi", "loan", "equated", "bajaj finserv"), TransactionCategory.EMI, 0.85),

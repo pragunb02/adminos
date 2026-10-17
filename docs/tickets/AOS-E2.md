@@ -41,3 +41,4 @@ My transactions arrive automatically from statements and iPhone SMS, plus cash q
 
 ## Activity log
 - 2026-10-16 — Claude: epic created (AOS-004).
+- 2026-10-17 — Claude: AOS-511 merged (categorization evaluation harness, D-61).
