@@ -2,10 +2,17 @@ package dev.adminos.api.domain.ingestion.fallback
 
 import dev.adminos.api.domain.ingestion.events.IngestEvent
 import dev.adminos.api.domain.ingestion.events.IngestEventService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.util.UUID
+
+/** Told when the user confirms an AI reading: the reading was right (template learning listens, AOS-706). */
+fun interface ProposalConfirmedListener {
+    suspend fun confirmed(proposal: MessageProposal)
+}
 
 /** The outcome of confirming a proposal. */
 sealed interface ConfirmOutcome {
@@ -27,8 +34,12 @@ sealed interface ConfirmOutcome {
 class MessageReviewService(
     private val proposals: MessageProposalRepository,
     private val intake: IngestEventService,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    /** Told about every confirmed reading (template learning, AOS-706). A failing listener never undoes a confirmation. */
+    private val listeners: List<ProposalConfirmedListener> = emptyList()
 ) {
+    private val logger = LoggerFactory.getLogger(MessageReviewService::class.java)
+
     suspend fun pending(userId: UUID): List<MessageProposal> = proposals.pending(userId, MAX_LIST)
 
     suspend fun confirm(userId: UUID, id: UUID): ConfirmOutcome {
@@ -56,6 +67,16 @@ class MessageReviewService(
         } catch (e: Exception) {
             withContext(NonCancellable) { proposals.reopen(userId, id) }
             throw e
+        }
+        val confirmed = p.copy(status = ProposalStatus.CONFIRMED, decidedAt = clock.instant(), ingestEventId = event.id)
+        for (l in listeners) {
+            try {
+                l.confirmed(confirmed)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.error("A listener failed after confirming proposal {} ({})", id, e.javaClass.simpleName)
+            }
         }
         return ConfirmOutcome.Confirmed(event.id, duplicate = accepted == 0)
     }

@@ -71,8 +71,9 @@ class SmsIntake(
             userId = userId, channel = MessageChannel.SMS, sourceRef = fingerprint(message), receivedAt = message.receivedAt,
             zone = zoneOf(userId), bankCode = sender?.let { parsers.bankFor(it.header) }, text = message.text
         )
-        return when (fallback.offer(unrecognised)) {
+        return when (val offer = fallback.offer(unrecognised)) {
             FallbackOffer.Queued -> SmsIntakeResult.Reading
+            is FallbackOffer.ReadByTemplate -> if (offer.duplicate) SmsIntakeResult.Duplicate else SmsIntakeResult.Accepted
             else -> SmsIntakeResult.Ignored(SmsParseResult.UNRECOGNISED)
         }
     }

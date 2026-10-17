@@ -15,6 +15,8 @@ import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.ingestEventRoutes
 import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
 import dev.adminos.api.domain.ingestion.fallback.messageReviewRoutes
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReviewService
+import dev.adminos.api.domain.ingestion.fallback.templates.templateReviewRoutes
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.domain.ingestion.sms.rawSmsRoutes
 import dev.adminos.api.domain.ingestion.sync.IngestionService
@@ -48,6 +50,7 @@ fun Application.ingestionModule(config: AppConfig) {
     val cashPhrases: CashPhraseParser by inject()
     val whatsAppImportService: WhatsAppImportService by inject()
     val messageReviewService: MessageReviewService by inject()
+    val templateReviewService: TemplateReviewService by inject()
 
     routing {
         route("/api/v1") {
@@ -61,6 +64,7 @@ fun Application.ingestionModule(config: AppConfig) {
             statementRoutes(statementImportService)
             whatsAppImportRoutes(whatsAppImportService)
             messageReviewRoutes(messageReviewService)
+            templateReviewRoutes(templateReviewService)
         }
     }
 }

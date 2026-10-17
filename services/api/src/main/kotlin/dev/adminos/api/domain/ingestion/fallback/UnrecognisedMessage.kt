@@ -45,6 +45,9 @@ sealed interface FallbackOffer {
     /** Kept in memory (redacted) until the reader's next run; its answer will wait in Review. */
     data object Queued : FallbackOffer
 
+    /** Read by an approved template (AOS-706) and sent to the intake; [duplicate] when it was already there. */
+    data class ReadByTemplate(val duplicate: Boolean) : FallbackOffer
+
     /** The feature is off on this server, or the user hasn't consented to it. */
     data object Off : FallbackOffer
 

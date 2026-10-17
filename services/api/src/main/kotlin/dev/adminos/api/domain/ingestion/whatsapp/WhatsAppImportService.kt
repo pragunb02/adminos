@@ -63,6 +63,8 @@ class WhatsAppImportService(
         var fromBanks = 0
         var mandateCount = 0
         var reading = 0
+        var templateAccepted = 0
+        var templateDuplicates = 0
 
         for (message in export.messages) {
             val bank = BankSenders.match(message.sender) ?: continue
@@ -73,8 +75,11 @@ class WhatsAppImportService(
             val bankCode = (bank as? BankSenders.Bank)?.code
             when (val result = parsers.parseFromBank(message.text, bankCode)) {
                 SmsParseResult.Unrecognised -> {
-                    val offer = fallback.offer(UnrecognisedMessage(userId, MessageChannel.WHATSAPP, ref, at, zone, bankCode, message.text))
-                    if (offer == FallbackOffer.Queued) reading++ else ignored.merge(SmsParseResult.UNRECOGNISED, 1, Int::plus)
+                    when (val offer = fallback.offer(UnrecognisedMessage(userId, MessageChannel.WHATSAPP, ref, at, zone, bankCode, message.text))) {
+                        FallbackOffer.Queued -> reading++
+                        is FallbackOffer.ReadByTemplate -> if (offer.duplicate) templateDuplicates++ else templateAccepted++ // AOS-706
+                        else -> ignored.merge(SmsParseResult.UNRECOGNISED, 1, Int::plus)
+                    }
                 }
                 is SmsParseResult.Ignored -> ignored.merge(result.reason, 1, Int::plus)
                 is SmsParseResult.Mandate -> { mandates.record(userId, result.notice, at, ref); mandateCount++ }
@@ -82,12 +87,12 @@ class WhatsAppImportService(
             }
         }
 
-        val accepted = events.chunked(CHUNK).sumOf { intake.ingest(it).accepted }
+        val accepted = events.chunked(CHUNK).sumOf { intake.ingest(it).accepted } + templateAccepted
         return WhatsAppImportResult(
             messages = export.messages.size,
             fromBanks = fromBanks,
             accepted = accepted,
-            duplicates = events.size - accepted,
+            duplicates = events.size + templateAccepted - accepted + templateDuplicates,
             mandates = mandateCount,
             reading = reading,
             ignored = ignored,

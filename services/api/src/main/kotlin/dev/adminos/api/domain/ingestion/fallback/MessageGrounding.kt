@@ -38,14 +38,19 @@ object MessageGrounding {
 
     fun mentionsMoney(text: String): Boolean = MONEY_WORD.containsMatchIn(text)
 
-    fun amounts(text: String): List<MoneyMention> {
-        val found = (MONEY_BEFORE.findAll(text) + MONEY_AFTER.findAll(text)).mapNotNull { m ->
-            val amount = m.groupValues[1].replace(",", "").toBigDecimalOrNull()?.takeIf { it.signum() > 0 } ?: return@mapNotNull null
+    /** A money figure and where its number is written. */
+    data class MoneySpan(val number: IntRange, val mention: MoneyMention)
+
+    fun amounts(text: String): List<MoneyMention> = moneySpans(text).map { it.mention }
+
+    /** Every money figure with the position of its number, in text order (AOS-706 builds shapes from these). */
+    fun moneySpans(text: String): List<MoneySpan> =
+        (MONEY_BEFORE.findAll(text) + MONEY_AFTER.findAll(text)).mapNotNull { m ->
+            val number = m.groups[1] ?: return@mapNotNull null
+            val amount = number.value.replace(",", "").toBigDecimalOrNull()?.takeIf { it.signum() > 0 } ?: return@mapNotNull null
             val before = text.substring(maxOf(0, m.range.first - BALANCE_WINDOW), m.range.first)
-            m.range.first to MoneyMention(amount.stripTrailingZeros(), BALANCE_WORDS.containsMatchIn(before))
-        }
-        return found.sortedBy { it.first }.map { it.second }.toList()
-    }
+            MoneySpan(number.range, MoneyMention(amount.stripTrailingZeros(), BALANCE_WORDS.containsMatchIn(before)))
+        }.distinctBy { it.number }.sortedBy { it.number.first }.toList()
 
     // ── Dates ──
 
@@ -57,13 +62,20 @@ object MessageGrounding {
     private val MON_DAY_YEAR = Regex("(?<![A-Za-z])$MON\\.? ([0-9]{1,2}),? ([0-9]{4})(?![0-9])", I)
 
     /** Every date written in [text]. Two-digit years are 20xx. Impossible dates (31/02) are not dates. */
-    fun dates(text: String): Set<LocalDate> {
-        val out = mutableSetOf<LocalDate>()
-        NUMERIC_DMY.findAll(text).forEach { m -> date(year(m.groupValues[3]), m.groupValues[2].toInt(), m.groupValues[1].toInt())?.let(out::add) }
-        ISO.findAll(text).forEach { m -> date(m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt())?.let(out::add) }
-        DAY_MON_YEAR.findAll(text).forEach { m -> month(m.groupValues[2])?.let { mo -> date(year(m.groupValues[3]), mo.value, m.groupValues[1].toInt())?.let(out::add) } }
-        MON_DAY_YEAR.findAll(text).forEach { m -> month(m.groupValues[1])?.let { mo -> date(m.groupValues[3].toInt(), mo.value, m.groupValues[2].toInt())?.let(out::add) } }
-        return out
+    fun dates(text: String): Set<LocalDate> = dateSpans(text).map { it.date }.toSet()
+
+    /** A date and where it is written. */
+    data class DateSpan(val range: IntRange, val date: LocalDate)
+
+    /** Every date with its position, in text order. */
+    fun dateSpans(text: String): List<DateSpan> {
+        val out = mutableListOf<DateSpan>()
+        fun add(m: MatchResult, d: LocalDate?) { if (d != null) out += DateSpan(m.range, d) }
+        NUMERIC_DMY.findAll(text).forEach { m -> add(m, date(year(m.groupValues[3]), m.groupValues[2].toInt(), m.groupValues[1].toInt())) }
+        ISO.findAll(text).forEach { m -> add(m, date(m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt())) }
+        DAY_MON_YEAR.findAll(text).forEach { m -> add(m, month(m.groupValues[2])?.let { mo -> date(year(m.groupValues[3]), mo.value, m.groupValues[1].toInt()) }) }
+        MON_DAY_YEAR.findAll(text).forEach { m -> add(m, month(m.groupValues[1])?.let { mo -> date(m.groupValues[3].toInt(), mo.value, m.groupValues[2].toInt()) }) }
+        return out.sortedBy { it.range.first }
     }
 
     private fun year(raw: String): Int = if (raw.length == 2) 2000 + raw.toInt() else raw.toInt()
@@ -86,7 +98,10 @@ object MessageGrounding {
         "(?:(?<![A-Za-z0-9])[Xx*]{1,12}[ -]?|\\b(?:a/?c|acct|account|card)\\b(?: no\\.?| number)?(?: ending(?: in| with)?)?[ :.#-]*[Xx*]*[ -]?)([0-9]{4})(?![0-9])", I
     )
 
-    fun lastFours(text: String): Set<String> = LAST_FOUR.findAll(text).map { it.groupValues[1] }.toSet()
+    fun lastFours(text: String): Set<String> = lastFourSpans(text).map { text.substring(it) }.toSet()
+
+    /** Where each account or card's last 4 digits are written, in text order. */
+    fun lastFourSpans(text: String): List<IntRange> = LAST_FOUR.findAll(text).mapNotNull { it.groups[1]?.range }.toList()
 
     // ── Direction (D-43, extended for SMS abbreviations) ──
 

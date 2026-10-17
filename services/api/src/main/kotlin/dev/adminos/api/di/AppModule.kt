@@ -38,6 +38,12 @@ import dev.adminos.api.domain.ingestion.fallback.MessageFallback
 import dev.adminos.api.domain.ingestion.fallback.MessageProposalRepository
 import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
 import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
+import dev.adminos.api.domain.ingestion.fallback.templates.InMemoryMessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateLearning
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReader
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReviewService
+import dev.adminos.api.infrastructure.database.repositories.ExposedMessageTemplateRepository
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.infrastructure.database.repositories.ExposedMessageProposalRepository
 import dev.adminos.api.domain.ingestion.statements.StatementImportService
@@ -235,13 +241,17 @@ internal fun buildAppModule(
     // SMS intake (AOS-203): device tokens + parser registry
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
-    // Unrecognised bank messages go to the AI fallback only when AI_MESSAGES_ENABLED (AOS-705); otherwise nowhere.
-    single<UnrecognisedMessageSink> { getOrNull<MessageFallback>() ?: UnrecognisedMessageSink.NONE }
+    // Unrecognised bank messages: approved templates first (AOS-706, even with AI off), then the AI fallback only when
+    // AI_MESSAGES_ENABLED (AOS-705), otherwise nowhere.
+    single<MessageTemplateRepository> { if (useDatabase) ExposedMessageTemplateRepository() else InMemoryMessageTemplateRepository() }
+    single { TemplateLearning(get()) }
+    single { TemplateReviewService(get()) }
+    single<UnrecognisedMessageSink> { TemplateReader(get(), get(), getOrNull<MessageFallback>() ?: UnrecognisedMessageSink.NONE) }
     single { SmsIntake(get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get(), fallback = get()) }
     // Review of AI-read messages: always present, so Review shows (and decides) what was read while it was on.
     single<MessageProposalRepository> { if (useDatabase) ExposedMessageProposalRepository() else InMemoryMessageProposalRepository() }
-    single { MessageReviewService(get(), get()) }
+    single { MessageReviewService(get(), get(), listeners = listOf(get<TemplateLearning>())) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
     // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
     // AiProvider exists, an AI CashPhraseParser plugs in as FallbackCashPhraseParser(rules, ai), behind its consent toggle and eval gate.

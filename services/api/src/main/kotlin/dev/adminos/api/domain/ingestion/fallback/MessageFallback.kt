@@ -3,6 +3,7 @@ package dev.adminos.api.domain.ingestion.fallback
 import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiGateway
 import dev.adminos.api.domain.ai.AiResult
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageShapes
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -158,7 +159,7 @@ class MessageFallback(
         userId = item.userId,
         channel = item.channel,
         sourceRef = item.sourceRef,
-        occurredAt = occurredAt(item, answer),
+        occurredAt = answer.occurredAt(item.receivedAt, item.question.receivedOn, item.zone),
         direction = answer.direction,
         amount = answer.amount,
         accountLast4 = answer.accountLast4,
@@ -166,17 +167,10 @@ class MessageFallback(
         bankCode = item.bankCode,
         model = model,
         promptVersion = ReadMessageTask.promptVersion,
-        createdAt = clock.instant()
+        createdAt = clock.instant(),
+        // The masked shape, for template learning once the user confirms it (AOS-706); never the text.
+        shape = (item.question.redacted as? RedactedMessage.Ready)?.let { MessageShapes.of(it.text, answer) }
     )
-
-    /**
-     * When the money moved: when the message arrived, unless it names an earlier day (then that day's start, as
-     * D-43). A message can't report money moving after it arrived, so a later date keeps the arrival time.
-     */
-    private fun occurredAt(item: Item, answer: MessageAnswer.Transaction): Instant {
-        val date = answer.date ?: return item.receivedAt
-        return if (date.isBefore(item.question.receivedOn)) date.atStartOfDay(item.zone).toInstant() else item.receivedAt
-    }
 
     companion object {
         const val DEFAULT_CAPACITY = 200
