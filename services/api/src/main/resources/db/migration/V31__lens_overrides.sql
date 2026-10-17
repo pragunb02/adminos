@@ -1,4 +1,4 @@
--- V40 (tentative number; the integrator renumbers): the owner's habit-lens overrides (AOS-901, D-80).
+-- V31: the owner's habit-lens overrides (AOS-901, D-80, D-81).
 -- One row per (user, lens, merchant): include = true adds the merchant to the lens, false takes it out.
 -- merchant_key is the merchant name trimmed and lower-cased; merchant keeps the name as shown.
 -- Lens ids come from resources/coach/lenses.json (data, not a table), so there is no foreign key for them.

@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** V40 lens_overrides on Postgres (AOS-901); the in-memory fake passes the same checks. */
+/** V31 lens_overrides on Postgres (AOS-901); the in-memory fake passes the same checks. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LensOverrideRepositoryIntegrationTest {

@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-81 | Product | Habit lenses are data (quick commerce, food delivery, nights out, shopping, pay-later, travel) with per-merchant overrides; person-to-person UPI (settle-ups) never counts as a leak | Accepted | AOS-901 |
 | D-1 | Architecture | Polyglot stack | Accepted | — |
 | D-2 | Architecture | On-device SMS parsing, self-hosted data | Accepted | AOS-203 |
 | D-3 | Architecture | Claude for agent features | Accepted | AOS-506 |
@@ -1039,3 +1040,12 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
 - **Consequence:**
   - the AI categoriser runs only for users who turn it on (Pragun must turn it on once);
   - every later AI feature gets consent, notice, the 409 rule, audit and spend for free, from its task.
+
+### D-81 — Habit lenses are data, and settle-ups are never a leak
+2026-10-17 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture / Product · Tasks: AOS-901, Epic E9 · Builds on D-39, D-41, D-44, D-61, D-80
+- **What a lens is:** a named group of spending (quick commerce, food delivery, nights out, shopping, pay-later, travel) defined in `resources/coach/lenses.json` by brands, categories, subcategories and whole-word keywords. Validated against the merchant catalogue at startup; a bad file refuses to start.
+- **Match order:** only spend and refund count (D-39); the owner's removal wins, then the owner's addition; a person-to-person UPI payment never counts; otherwise any rule matching puts it in. A refund nets off the lens it belongs to. Lenses may overlap; totals across lenses use the union.
+- **Person-to-person:** a UPI payee with a personal app handle or a mobile-number handle, not a catalogue brand and with no merchant hint in the handle. Bank handles are not judged (shops use them too). Rationale: splitting bills means the owner's real share comes from Splitwise later (AOS-911); counting the settle-up would double it.
+- **Overrides** are per merchant (trimmed, lower case) and per lens, stored in `lens_overrides`.
+- **Catalogue:** the brands lenses need are catalogue entries (D-44); the golden-set floor is not raised by this change.
+- **Rejected:** lenses as categories (an Instamart order is groceries *and* quick commerce; it would also churn the golden set); lenses in code (a new app would need a release); counting every Other-category UPI payment as person-to-person (hides small bars and kiosks).
