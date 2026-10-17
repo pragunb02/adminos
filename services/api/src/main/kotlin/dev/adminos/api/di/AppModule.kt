@@ -72,6 +72,8 @@ internal fun buildAppModule(
     useDatabase: Boolean = DatabaseFactory.isConfigured(),
     env: (String) -> String? = System::getenv
 ): Module = module {
+    // Spending coach (Epic E9): its own module, so its tasks don't edit this file.
+    includes(coachKoinModule(useDatabase))
     single { AppConfig.load() }
     single { TokenEncryptor(get<AppConfig>().security.tokenEncryptionKey) }
     single { JwtService(get<AppConfig>().auth) }

@@ -216,7 +216,7 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S9.1](tickets/AOS-S9.1.md)** | **Where it leaks** | | ⬜ | 18h | |
-| └ AOS-901 | Habit lenses: data-driven groups of merchants/categories (quick commerce, food delivery, nights out, shopping, pay-later, travel home), editable; catalogue additions | Claude | ⬜ | 4h |  |
+| └ [AOS-901](tickets/AOS-901.md) | Habit lenses as data, settle-ups excluded, per-merchant overrides; +37 catalogue brands (D-81) | Claude (agent) | ✅ | — | — |
 | └ AOS-902 | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ⬜ | 6h |  |
 | └ AOS-903 | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees (delivery, handling, small-cart, platform, surge) and item counts from Gmail; matched to the payment | Claude | ⬜ | 8h |  |
 | **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ⬜ | 12h | |
