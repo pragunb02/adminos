@@ -7,6 +7,7 @@ import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.domain.financial.TransactionNature
 import dev.adminos.api.domain.financial.TransactionRepository
 import java.time.Clock
+import java.util.UUID
 
 /** What the AI step did with one transaction (counted by the job; never logged with names or amounts). */
 enum class AiOutcome {
@@ -60,8 +61,9 @@ class AiCategorizationService(
         if (!isCandidate(t)) return AiOutcome.NOT_ELIGIBLE
         if (hasRule(t)) return AiOutcome.NOT_ELIGIBLE
         val question = AiPrivacyGate.question(t) ?: return AiOutcome.PRIVATE
-        val result = answerFor(question)
+        val result = answerFor(t.userId, question)
         if (result is AiCategoryResult.Unavailable) return AiOutcome.UNAVAILABLE
+        if (result is AiCategoryResult.Withheld) return AiOutcome.PRIVATE
 
         // The user may have corrected it while we waited: re-read, and only touch it if it is still ours to touch.
         val current = transactions.findById(t.id)?.takeIf { isCandidate(it) && !hasRule(it) } ?: return AiOutcome.NOT_ELIGIBLE
@@ -77,10 +79,10 @@ class AiCategorizationService(
         return rules.findFor(t.userId, vpa, merchant) != null
     }
 
-    private suspend fun answerFor(question: AiCategoryQuestion): AiCategoryResult {
+    private suspend fun answerFor(userId: UUID, question: AiCategoryQuestion): AiCategoryResult {
         val key = MerchantCatalogue.matchForm(question.merchant)
         cache.find(key)?.let { return it.toResult() }
-        val result = client.ask(question)
+        val result = client.ask(userId, question)
         CachedAiCategory.of(key, result, model, clock.instant())?.let { cache.put(it) }
         return result
     }
@@ -101,7 +103,7 @@ class AiCategorizationService(
                     else -> mark(t, record + ("status" to "suggested")) to AiOutcome.SUGGESTED
                 }
             }
-            is AiCategoryResult.Unavailable -> error("unavailable results are never applied")
+            is AiCategoryResult.Unavailable, is AiCategoryResult.Withheld -> error("unavailable and withheld results are never applied")
         }
     }
 

@@ -73,6 +73,7 @@
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
 | D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
+| D-68 | Architecture | One AI gateway over a thin `AiProvider` port (Anthropic SDK, Ollama, fake); features are tasks with their own redactor and validator; flag → redaction → breaker → cost reservation → call → settle → validate → audit (no content); monthly cap fails closed; committed eval records gate start-up; legacy Go Claude path removed | Accepted | AOS-702 |
 | D-101 | Process | Every PR gets two independent reviews (code, security) after its last push; each sets a commit status (`review/code`, `review/security`); `scripts/merge-pr.sh` merges only when both and every check pass on the head commit | Accepted | AOS-013 |
 | D-100 | Process | Every feature rolls out only through the security gate (ENGINEERING §4a): threat review in the ticket, unit + integration + Playwright attack tests, no new exposure, dependency checks, attacker review before merge; findings block the merge | Accepted | AOS-012, all tasks |
 | D-91 | Process / Architecture | Security is always P0: the site is owner-only (one allowlisted, pinned Google account, fail closed), private-network by default, defence in depth, and every security control has unit, integration and Playwright attack tests; we red-team our own site before go-live and on every security change | Accepted | AOS-614…623, S6.4 |
@@ -935,4 +936,50 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
   - A new push has no status, so it needs a fresh review.
   - The statuses come from the owner's own token: they record that the process ran; they are not cryptographic proof. Branch protection can't check who set a status, so merges go through the script (which does), never the web UI.
 - **Rejected:** GitHub required approvals (the author can't approve their own PRs, and every PR comes from one account); a checklist-only review.
+
+### D-68 — One AI gateway over a thin provider port; features are tasks; committed eval records gate start-up
+2026-10-18 · Accepted (Pragun: "start all with best decision long term"; built by the AI-foundation agent, reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-702, AOS-512, AOS-703, AOS-704 · Builds on D-61, D-62, D-67
+- **Port:** `AiProvider.complete(AiRequest) → AiCompletion` is the only vendor seam: text plus a JSON schema in, text plus token usage out. Failures are values with a code, never exceptions.
+  - `AnthropicProvider`: the official Java SDK, structured output, low effort, thinking off where the model allows it.
+  - `OllamaProvider`: `/api/chat`, schema in `format`, temperature 0, `think: false`.
+  - Tests use a fake.
+- **Features are tasks:** each `AiTask<I, O>` names its `AiFeature` and prompt version, and owns its redactor (`prompt` → send or withhold) and validator (`read` → valid, or invalid with a code).
+- **One gateway** (`AiGateway.run`) applies, in order:
+  1. flag/route;
+  2. redaction;
+  3. a circuit breaker per provider (3 failures → 15 minutes);
+  4. a cost reservation;
+  5. the call;
+  6. settling to the real cost;
+  7. validation;
+  8. an audit row per call.
+  Steps 1–4 make no call and write no row.
+- **Cost cap:**
+  - `AI_MONTHLY_CAP_USD` (default 2.00) per UTC month, in micro-dollars (never `Double`);
+  - each call reserves its worst case (input bounded by its UTF-8 bytes, plus `max_tokens`) under a row lock, then settles;
+  - an unknown cost (a provider that throws) is charged its worst case;
+  - local models cost 0;
+  - a model with no known price refuses start-up.
+- **Audit (`ai_calls`):** user, feature, provider, model, prompt version, tokens, cost, outcome (accepted/rejected/error), reason code (`[a-z0-9_]{1,48}`, so text can't fit), latency and time. No content.
+- **Flags:** `AI_<FEATURE>_ENABLED` (off by default), `_PROVIDER` (`anthropic` by default, or `ollama`) and `_MODEL` (`claude-haiku-5-5` by default on Anthropic; required on Ollama).
+  - Keys and URLs are needed only for the providers in use.
+  - A malformed setup refuses to start.
+- **Eval gate (generalises D-61):**
+  - `src/main/resources/ai/evals.json` holds one record per (feature, provider, model, prompt version): metrics, floor, and where the answers came from (`recorded-synthetic` / `recorded-real` / `live`);
+  - start-up refuses an enabled route without a passing record;
+  - the categorisation record is written by `categorizationReport -PwriteBaseline` and re-derived by a unit test;
+  - it adds `ruleDecidedUnchanged` (floor 1.0), so "never change a rule-decided row" is part of the gate.
+- **Redaction guard:** `PiiMasker` is shared. Cards and accounts become their last 4 digits; mobiles, emails, VPAs, Aadhaar-like numbers and PANs are masked. A categorisation name containing PII is withheld.
+- **Go:** the legacy `internal/claude` client and the briefing/anomaly-explain handlers were never enqueued, so they were removed along with `CLAUDE_*`. The API's port is the only path to a model.
+- **Rejected:**
+  - decorators per adapter (they need feature context, and their order becomes a hidden rule);
+  - running evals at start-up (needs a network, costs calls);
+  - a test-only gate (can't stop a deploy with a different model);
+  - summing the audit log for the cap (racy across calls and instances);
+  - a framework (D-67).
+- **Consequence:**
+  - a new AI feature is an `AiFeature` entry, one task class, an eval set and a record;
+  - a new vendor is one adapter with a price table;
+  - a model switch is configuration plus a committed record.
+- **Integration addition:** `OLLAMA_BASE_URL` allows plain http only for loopback or a compose service name; anything else must be https (prompts carry financial text, D-91).
 

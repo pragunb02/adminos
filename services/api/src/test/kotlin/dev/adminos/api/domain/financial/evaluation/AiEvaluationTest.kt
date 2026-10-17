@@ -55,7 +55,7 @@ class AiEvaluationTest {
 
     @Test
     fun `even a model that always says Food with full confidence cannot touch rule-decided rows or payments to people`() {
-        val reckless = AiCategoryClient { AiCategoryResult.Answered(AiCategoryAnswer(TransactionCategory.FOOD, 0.99, "always food"), "reckless") }
+        val reckless = AiCategoryClient { _, _ -> AiCategoryResult.Answered(AiCategoryAnswer(TransactionCategory.FOOD, 0.99, "always food"), "reckless") }
         val after = withAi(reckless)
         for ((id, r) in rules) {
             val a = after.getValue(id)

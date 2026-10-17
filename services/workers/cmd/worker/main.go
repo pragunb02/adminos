@@ -16,7 +16,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/adminos/adminos/workers/internal/claude"
 	"github.com/adminos/adminos/workers/internal/config"
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/handlers"
@@ -59,15 +58,6 @@ func main() {
 	// Create workflow router and register handlers
 	router := workflow.NewRouter()
 
-	// Initialize Claude client if API key is configured
-	var claudeClient *claude.Client
-	if cfg.ClaudeAPIKey != "" {
-		claudeClient = claude.NewClient(cfg.ClaudeAPIKey, cfg.ClaudeModel)
-		log.Printf("Claude API client initialized (model=%s)", cfg.ClaudeModel)
-	} else {
-		log.Println("Claude API key not configured — agent handlers will use stub responses")
-	}
-
 	// Initialize Gmail API client
 	gmailClient := gmail.NewClient()
 
@@ -79,7 +69,7 @@ func main() {
 		log.Fatalf("Refusing to start the Gmail worker: TOKEN_ENCRYPTION_KEY is not set (%s)", tokencrypt.KeyHelp)
 	}
 
-	registerHandlers(router, cfg.WorkerType, db, claudeClient, gmailClient, gmailCfg)
+	registerHandlers(router, cfg.WorkerType, db, gmailClient, gmailCfg)
 
 	// Create Asynq server
 	srv := asynq.NewServer(
@@ -126,8 +116,6 @@ func main() {
 	log.Println("Worker shut down gracefully")
 }
 
-// registerHandlers registers job handlers based on worker type.
-// SMS and statements are no longer processed here: the API's ingest pipeline owns them (D-34, D-37).
 // gmailConfig builds the Gmail handler's settings: nil when TOKEN_ENCRYPTION_KEY is unset (Gmail
 // ingestion is then off, and says so), an error when it is set but malformed.
 func gmailConfig(cfg *config.Config) (*handlers.GmailConfig, error) {
@@ -142,7 +130,12 @@ func gmailConfig(cfg *config.Config) (*handlers.GmailConfig, error) {
 	return &handlers.GmailConfig{ClientID: cfg.GoogleClientID, ClientSecret: cfg.GoogleClientSecret, Cipher: cipher}, nil
 }
 
-func registerHandlers(router *workflow.Router, workerType string, db *pgxpool.Pool, claudeClient *claude.Client, gmailClient *gmail.Client, gmailCfg *handlers.GmailConfig) {
+// registerHandlers registers job handlers based on worker type.
+// SMS and statements are no longer processed here: the API's ingest pipeline owns them (D-34, D-37).
+// No LLM handlers run here: the weekly briefing is built in the API (D-57), and every model call goes
+// through the API's AI port (AOS-702, D-67), so the old Claude client and its briefing/anomaly-explain
+// handlers were retired.
+func registerHandlers(router *workflow.Router, workerType string, db *pgxpool.Pool, gmailClient *gmail.Client, gmailCfg *handlers.GmailConfig) {
 	registerGmail := func() {
 		if gmailCfg != nil {
 			router.Register(handlers.NewGmailHandler(db, gmailClient, *gmailCfg))
@@ -152,13 +145,9 @@ func registerHandlers(router *workflow.Router, workerType string, db *pgxpool.Po
 	case "gmail":
 		registerGmail()
 	case "agent":
-		router.Register(handlers.NewBriefingHandler(db, claudeClient))
-		router.Register(handlers.NewAnomalyExplainHandler(db, claudeClient))
 		router.Register(handlers.NewWasteScoringHandler(db))
 	case "all":
 		registerGmail()
-		router.Register(handlers.NewBriefingHandler(db, claudeClient))
-		router.Register(handlers.NewAnomalyExplainHandler(db, claudeClient))
 		router.Register(handlers.NewWasteScoringHandler(db))
 	}
 }

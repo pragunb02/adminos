@@ -2,9 +2,7 @@ package dev.adminos.api.domain.financial.ai
 
 import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.TransactionCategory
-import dev.adminos.api.domain.scheduling.TestClock
 import kotlinx.coroutines.runBlocking
-import java.time.Duration
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,7 +12,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** AOS-512: what may be asked and answered, the cache form, and the circuit breaker. */
+/** AOS-512: what may be asked and answered, and the cache form (the circuit breaker is AiCircuitBreakerTest since AOS-702). */
 class AiCategoryClientTest {
 
     private val question = AiCategoryQuestion("Steam", PaymentMethod.CARD_CREDIT, AI_ALLOWED_CATEGORIES)
@@ -68,48 +66,5 @@ class AiCategoryClientTest {
         cache.put(CachedAiCategory("STEAM", "m1", answer, at))
         cache.put(CachedAiCategory("STEAM", "m2", null, at))
         assertEquals("m2", cache.find("STEAM")?.model)
-    }
-
-    // ── Circuit breaker ──
-
-    private class Scripted(vararg results: AiCategoryResult) : AiCategoryClient {
-        private val queue = ArrayDeque(results.toList())
-        var calls = 0
-        override suspend fun ask(question: AiCategoryQuestion): AiCategoryResult { calls++; return queue.removeFirst() }
-    }
-
-    private val down = AiCategoryResult.Unavailable("HTTP 503")
-
-    @Test
-    fun `three failures in a row stop asking for the open period, then it asks again`() = runBlocking<Unit> {
-        val clock = TestClock(Instant.parse("2026-10-17T10:00:00Z"))
-        val inner = Scripted(down, down, down, AiCategoryResult.Answered(answer, "m"))
-        val breaker = CircuitBreakingAiClient(inner, clock, failureThreshold = 3, openFor = Duration.ofMinutes(15))
-        repeat(3) { breaker.ask(question) }
-        assertTrue(breaker.isOpen)
-
-        assertEquals(AiCategoryResult.Unavailable("circuit open"), breaker.ask(question))
-        assertEquals(3, inner.calls, "no request while open")
-
-        clock.advance(Duration.ofMinutes(15))
-        assertFalse(breaker.isOpen)
-        assertIs<AiCategoryResult.Answered>(breaker.ask(question))
-        assertEquals(4, inner.calls)
-    }
-
-    @Test
-    fun `any real answer, even a rejected one, resets the failure count`() = runBlocking<Unit> {
-        val inner = Scripted(down, down, AiCategoryResult.Rejected("bad json"), down, down)
-        val breaker = CircuitBreakingAiClient(inner, TestClock(Instant.EPOCH), failureThreshold = 3)
-        repeat(5) { breaker.ask(question) }
-        assertFalse(breaker.isOpen)
-        assertEquals(5, inner.calls)
-    }
-
-    @Test
-    fun `the breaker validates its settings`() {
-        val inner = Scripted()
-        assertFailsWith<IllegalArgumentException> { CircuitBreakingAiClient(inner, failureThreshold = 0) }
-        assertFailsWith<IllegalArgumentException> { CircuitBreakingAiClient(inner, openFor = Duration.ZERO) }
     }
 }

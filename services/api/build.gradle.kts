@@ -127,6 +127,8 @@ tasks.register<JavaExec>("categorizationReport") {
     args(layout.buildDirectory.file("reports/categorization/report.json").get().asFile.path)
     if (project.hasProperty("writeBaseline")) {
         args("--write-baseline", file("src/test/resources/categorization").path)
+        // AOS-702: also refresh the categorisation record the start-up eval gate reads (D-67)
+        args("--eval-records", file("src/main/resources/ai/evals.json").path)
     }
     if (project.hasProperty("recordAi")) {
         args("--record-ai", file("src/test/resources/categorization/ai-recorded.csv").path)

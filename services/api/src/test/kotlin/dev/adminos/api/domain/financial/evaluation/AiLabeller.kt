@@ -23,7 +23,7 @@ class RecordedAiClient(private val answers: Map<String, AiCategoryAnswer>, priva
     val asked: MutableList<AiCategoryQuestion> = CopyOnWriteArrayList()
     val merchants: Set<String> get() = answers.keys
 
-    override suspend fun ask(question: AiCategoryQuestion): AiCategoryResult {
+    override suspend fun ask(userId: UUID, question: AiCategoryQuestion): AiCategoryResult {
         asked += question
         return answers[question.merchant]?.let { AiCategoryResult.Answered(it, model) } ?: AiCategoryResult.Unavailable("not recorded")
     }

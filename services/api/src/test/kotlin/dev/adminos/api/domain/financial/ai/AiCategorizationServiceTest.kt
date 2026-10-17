@@ -40,7 +40,7 @@ class AiCategorizationServiceTest {
     /** Answers from a table; unknown merchants are unavailable. Records every question. */
     private class FakeAi(private val answers: Map<String, AiCategoryResult>) : AiCategoryClient {
         val asked = mutableListOf<AiCategoryQuestion>()
-        override suspend fun ask(question: AiCategoryQuestion): AiCategoryResult {
+        override suspend fun ask(userId: UUID, question: AiCategoryQuestion): AiCategoryResult {
             asked += question
             return answers[question.merchant] ?: AiCategoryResult.Unavailable("not scripted")
         }
@@ -179,7 +179,7 @@ class AiCategorizationServiceTest {
     @Test
     fun `a correction made while the model was answering is never overwritten`() = runBlocking<Unit> {
         val t = saved("Steam")
-        val racing = AiCategorizationService(AiCategoryClient {
+        val racing = AiCategorizationService(AiCategoryClient { _, _ ->
             txns.update(t.copy(category = TransactionCategory.SHOPPING, categorySource = "user"))
             answered(TransactionCategory.ENTERTAINMENT, 0.95)
         }, cache, rules, txns, "m", clock = clock)
@@ -191,7 +191,7 @@ class AiCategorizationServiceTest {
     @Test
     fun `a transaction deleted while the model was answering is skipped`() = runBlocking<Unit> {
         val t = saved("Steam")
-        val racing = AiCategorizationService(AiCategoryClient { txns.delete(t.id); answered(TransactionCategory.ENTERTAINMENT, 0.95) },
+        val racing = AiCategorizationService(AiCategoryClient { _, _ -> txns.delete(t.id); answered(TransactionCategory.ENTERTAINMENT, 0.95) },
             cache, rules, txns, "m", clock = clock)
         assertEquals(AiOutcome.NOT_ELIGIBLE, racing.categorize(t))
     }
