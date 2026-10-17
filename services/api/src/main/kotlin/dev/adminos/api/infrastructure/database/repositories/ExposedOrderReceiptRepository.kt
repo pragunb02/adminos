@@ -11,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.*
 import java.time.Instant
 import java.util.UUID
 
-/** Postgres [OrderReceiptRepository] (AOS-903, V50). Enum values are mapped here, in one place; the V50 CHECKs keep them known. */
+/** Postgres [OrderReceiptRepository] (AOS-903, V38). Enum values are mapped here, in one place; the V38 CHECKs keep them known. */
 class ExposedOrderReceiptRepository : OrderReceiptRepository {
     override suspend fun save(receipt: OrderReceipt): OrderReceipt = dbQuery {
         T.insert {

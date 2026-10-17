@@ -12,6 +12,9 @@ import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.mandates.Mandate
 import dev.adminos.api.domain.financial.mandates.MandateRail
 import dev.adminos.api.domain.financial.mandates.MandateRepository
+import dev.adminos.api.domain.financial.receipts.OrderReceipt
+import dev.adminos.api.domain.financial.receipts.OrderReceiptRepository
+import dev.adminos.api.domain.financial.receipts.ReceiptFixtures
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
@@ -68,10 +71,11 @@ class IdorTest {
     private class AliceData(
         val txn: Transaction, val otherTxn: Transaction, val subscription: Subscription, val bill: Bill, val anomaly: Anomaly,
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
-        val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String
+        val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
+        val receipt: OrderReceipt
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id).map { it.toString() } + documentId
+            push.id, mandate.id, notification.id, receipt.id).map { it.toString() } + documentId
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -113,7 +117,10 @@ class IdorTest {
         assertEquals(HttpStatusCode.Created, upload.status, upload.bodyAsText())
         val documentId = Json.parseToJsonElement(upload.bodyAsText()).jsonObject["data"]?.jsonObject?.get("id")?.jsonPrimitive?.content
             ?: error("no document id in ${upload.bodyAsText()}")
-        return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId)
+        // An order receipt of Alice's (AOS-903), dated now so this month's receipts and fees would show it.
+        val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
+        return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
+            receipt)
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -150,6 +157,8 @@ class IdorTest {
             Attack(HttpMethod.Get, { "/api/v1/sync/$it" }, a.syncId.toString()),
             Attack(HttpMethod.Delete, { "/api/v1/device-tokens/$it" }, a.deviceTokenId.toString()),
             Attack(HttpMethod.Delete, { "/api/v1/auth/sessions/$it" }, a.sessionId.toString()),
+            Attack(HttpMethod.Post, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString(), """{"transactionId":"${a.txn.id}"}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
         )
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
@@ -210,6 +219,7 @@ class IdorTest {
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
+            "/api/v1/leaks/fees", "/api/v1/receipts",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
@@ -231,6 +241,10 @@ class IdorTest {
         for (path in listOf("/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions")) {
             assertTrue("Alice Leak Shop" in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
             assertFalse("Alice" in client.asBob(HttpMethod.Get, path, null).bodyAsText(), path)
+        }
+        // Order receipts and their fees (AOS-903) list Alice's receipt for her (Bob's lists were checked above).
+        for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
+            assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
     }
 }

@@ -9,6 +9,7 @@
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
+| D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-82 | Architecture / Product | Leaks are computed from the range's transactions with the lens matcher (not SQL), range capped at 3 × 366 days; spent = spend − refunds (unclipped), late night 22:00–05:00 local; every number has its drill-down through the same filter | Accepted | AOS-902 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
@@ -1213,3 +1214,22 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a step inside `CategorizationService` (per-user model state in the rule categoriser, and before transfers and links);
   - JSON storage (larger and slower).
 - **Consequence:** the Review queue (AOS-708) can ask about the model's and the AI's unsure guesses, and each answer becomes a correction the model learns from.
+
+### D-88 — Order receipts: parsed per sender in the worker, stored apart, matched to the payment
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-903, AOS-902 · Builds on D-33, D-38, D-54, D-59
+- **What a receipt is:** evidence about a payment, never a money event. Mail from a receipt sender never reaches the bank-email parser, so an order is never a second spend.
+- **Where it is read:** in the Go worker, one parser per sender (Strategy and Registry by sender domain). Receipt senders are read only for order-like subjects (order, delivered, receipt, invoice, refund, cancelled, bill), so promotions are never fetched in full. The filter and parser domain lists are kept equal by a test.
+- **What is kept (D-33):**
+  - app, vertical, order time, total, item count, fees by kind, payment mode, the bank-charged amount, and refunds;
+  - the order number only as SHA-256(app : number);
+  - no item names, no address, no text.
+- **One row per order:** every email about an order merges into it. Blanks are filled and values never overwritten, the earliest time wins, and a cancellation cancels whenever it comes. The same refund amount twice is one refund.
+- **Matching:** a reusable `PaymentMatcher` (D-38 ideas).
+  - Hard rules: same user, a spending debit, an exact amount, the window (−15 min…+3 h; date-only rows the same or next day, cards −1…+3), not cash, not taken, not rejected.
+  - Points: amount 4, time up to 3, payee evidence 4, the same method 1.
+  - Auto-link at ≥ 8 *with payee evidence* and a margin of 3. Everything else that passes the hard rules is a suggestion.
+  - One receipt per payment (a unique index).
+  - It runs in both directions: a post-commit listener, plus the `receipt-matching` job every 10 minutes (D-50).
+  - Wallet, pay-later and cash-on-delivery orders are `no_payment`. A split payment matches on its bank part.
+- **Fees:** `GET /api/v1/leaks/fees` per user month and app. Hidden fees exclude tips. Cancelled and fully refunded orders add none. Every figure lists its receipts and payments.
+- **Rejected:** receipts as ingest events (an unmatched receipt becomes a spend, or is lost); matching in Go (a second copy of the rules); storing order numbers or item lists.
