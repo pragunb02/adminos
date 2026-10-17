@@ -106,4 +106,17 @@ class RequestBodyLimitTest {
             server.stop(100, 1000)
         }
     }
+
+    @Test
+    fun `a chunked body with a small declared length is refused too, so the length can't be faked`() = runBlocking<Unit> {
+        val server = startServer(config.copy(app = config.app.copy(port = 0, bindHost = "127.0.0.1")), wait = false)
+        try {
+            val port = server.engine.resolvedConnectors().first().port
+            // Declares 2 bytes but streams chunks: without the rule, the server would read the chunked body and ignore the 2.
+            val status = raw(port, "POST /api/v1/auth/google HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\nTransfer-Encoding: chunked\r\n\r\n2\r\n{}\r\n0\r\n\r\n")
+            assertTrue(status.startsWith("HTTP/1.1 4"), status) // 411 here, or 400 if the server rejects the conflicting headers first
+        } finally {
+            server.stop(100, 1000)
+        }
+    }
 }

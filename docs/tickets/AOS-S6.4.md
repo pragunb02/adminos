@@ -23,7 +23,7 @@
 - [ ] Every route and resource is tested for authentication and ownership, including in Playwright (AOS-619)
 - [ ] The owner is alerted to every new or refused sign-in (AOS-620)
 - [ ] Data survives a lost laptop, encrypted (AOS-621)
-- [ ] A red-team audit and a pen-test find nothing open (AOS-615, AOS-623)
+- [ ] A red-team audit and a pen-test find nothing open (AOS-615 audit done: 27 findings, being fixed; AOS-623)
 
 ## Design
 Defence in depth, per D-91: network (private only) → identity (owner-only Google + passkey) → session (short, revocable, alerted) → authorization (tested per route and resource) → data (encrypted at rest and in backups) → supply chain → continuous attack tests. Details per task ticket.
@@ -32,7 +32,7 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-614](AOS-614.md) | Owner-only sign-in: one allowlisted Google email, pinned Google ID, fail closed (critical finding) | Claude | ✅ | 1.5h | 1.5h |
-| AOS-615 | Security research, threat model and red-team audit: attack our own site (OWASP ASVS L2 / WSTG), every finding ticketed | Claude | ⬜ | 6h |  |
+| [AOS-615](AOS-615.md) | Threat model + red-team audit: 27 findings; 2 fixed, rest ticketed (D-92) | Claude (agent) | ✅ | 6h | 4h |
 | AOS-616 | Private network only: Tailscale (no public listener); Cloudflare Tunnel + Access as the documented alternative | Claude | ⬜ | 3h |  |
 | AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
 | AOS-618 | Security headers (CSP, HSTS, frame-ancestors, Referrer/Permissions-Policy), CSRF review, auth rate limits and lockout | Claude | ⬜ | 3h |  |
@@ -41,9 +41,17 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | AOS-621 | Encrypted backups (client-side, separate R2 bucket, write-only token) + restore drill; key backup guide | Claude | ⬜ | 5h |  |
 | AOS-622 | Supply chain and runtime: dependency and container scanning in CI (OSV, npm audit, govulncheck), non-root read-only containers, pinned images | Claude | ⬜ | 4h |  |
 | AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
+| AOS-624 | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) | Claude | ⬜ | 3h |  |
+| AOS-625 | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude | ⬜ | 1h |  |
+| AOS-626 | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) | Claude | ⬜ | 2h |  |
+| AOS-627 | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude | ⬜ | 0.5h |  |
+| AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
+| AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
+| AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
 
 ## Demo / verification
 From a device outside the private network the site doesn't answer; a second Google account is refused; the audit report lists no open findings.
 
 ## Activity log
+- 2026-10-18 — Claude: AOS-615 merged; audit follow-ups AOS-624…630 added.
 - 2026-10-17 — Claude: story created after the critical sign-in finding (Pragun: "security is always a P0").

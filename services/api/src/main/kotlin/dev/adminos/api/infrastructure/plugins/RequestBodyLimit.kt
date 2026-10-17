@@ -47,9 +47,11 @@ object RequestBodyLimits {
 val RequestBodyLimit = createApplicationPlugin("RequestBodyLimit") {
     onCall { call ->
         val request = call.request
+        // Any Transfer-Encoding is refused, even alongside a Content-Length: the server then reads the chunked
+        // framing and ignores the declared size, which would bypass this cap (and is a request-smuggling shape).
         val chunked = request.headers[HttpHeaders.TransferEncoding] != null
         val declared = request.headers[HttpHeaders.ContentLength]?.trim()
-        if (chunked && declared == null) {
+        if (chunked) {
             call.response.header(HttpHeaders.Connection, "close")
             call.respond(HttpStatusCode.LengthRequired, ApiResponse.error(RequestBodyLimits.LENGTH_REQUIRED, call.requestId))
             return@onCall

@@ -150,7 +150,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-602 | ~~DPDP: consent records, export/delete, access logs~~ parked (personal use, D-78); export and backup move to E8 security | Claude | ⏸ | 8h |  |
 | **[AOS-S6.4](tickets/AOS-S6.4.md)** | **Owner-only fortress** (P0, D-91) | | 🟦 | 39.5h | 1.5h |
 | └ [AOS-614](tickets/AOS-614.md) | Owner-only sign-in: one allowlisted Google email, pinned Google ID, fail closed (critical finding) | Claude | ✅ | 1.5h | 1.5h |
-| └ AOS-615 | Security research, threat model and red-team audit: attack our own site (OWASP ASVS L2 / WSTG), every finding ticketed | Claude | ⬜ | 6h |  |
+| └ [AOS-615](tickets/AOS-615.md) | Threat model + red-team audit (ASVS 5.0 L2 / WSTG): 27 findings; fixed pre-auth body exhaustion and Jackson advisories; rest ticketed (D-92) | Claude (agent) | ✅ | 6h | 4h |
 | └ AOS-616 | Private network only: Tailscale (no public listener); Cloudflare Tunnel + Access as the documented alternative | Claude | ⬜ | 3h |  |
 | └ AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
 | └ AOS-618 | Security headers (CSP, HSTS, frame-ancestors, Referrer/Permissions-Policy), CSRF review, auth rate limits and lockout | Claude | ⬜ | 3h |  |
@@ -159,6 +159,13 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-621 | Encrypted backups (client-side, separate R2 bucket, write-only token) + restore drill; key backup guide | Claude | ⬜ | 5h |  |
 | └ AOS-622 | Supply chain and runtime: dependency and container scanning in CI (OSV, npm audit, govulncheck), non-root read-only containers, pinned images | Claude | ⬜ | 4h |  |
 | └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
+| └ AOS-624 | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) | Claude | ⬜ | 3h |  |
+| └ AOS-625 | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude | ⬜ | 1h |  |
+| └ AOS-626 | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) | Claude | ⬜ | 2h |  |
+| └ AOS-627 | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude | ⬜ | 0.5h |  |
+| └ AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
+| └ AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
+| └ AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
 | └ AOS-604 | Android app (SMS + notification listener) | Claude | ⏸ | 20h |  |
