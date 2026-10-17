@@ -73,6 +73,7 @@
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
+| D-98 | Architecture | Backups: nightly snapshot `pg_dump` piped into `age` (host holds only the public key), uploaded to a separate R2 bucket with bucket lock and lifecycle expiry; checksums + encrypted manifest; scripted monthly restore drill; keys offline | Accepted | AOS-621 |
 | D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
 | D-70 | Architecture / Product | Per-feature AI consent, off by default, stored per user and enforced in the AI gateway before redaction (no consent → nothing sent, nothing spent); Settings → AI features shows what each feature sends and never sends, local vs cloud, eval and spend; consent changes audited; same-origin guard on cookie mutations | Accepted | AOS-704 |
 | D-69 | Architecture / Product | Local models: an opt-in Ollama compose profile with no published port (private `ai` network with the API only), measured by a bake-off through the AI port (rules floor, no rule row changed, ≥90% valid answers); qwen3:4b recommended (89.9% on the golden set), Claude Haiku stays the default | Accepted | AOS-703 |
@@ -1049,3 +1050,16 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
 - **Overrides** are per merchant (trimmed, lower case) and per lens, stored in `lens_overrides`.
 - **Catalogue:** the brands lenses need are catalogue entries (D-44); the golden-set floor is not raised by this change.
 - **Rejected:** lenses as categories (an Instamart order is groceries *and* quick commerce; it would also churn the golden set); lenses in code (a new app would need a release); counting every Other-category UPI payment as person-to-person (hides small bars and kiosks).
+### D-98 — Backups: age on the host, separate locked R2 bucket, monthly drill
+2026-10-18 · Accepted (built by the infra-security agent under D-91; reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-621
+Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
+- Nightly `pg_dump` (custom format, one snapshot) piped into **age** for a public recipient; the secret key is
+  offline (password manager + paper). Restic/Kopia and GnuPG rejected (key on host / large legacy surface).
+- Stored in a **separate** R2 bucket: no public access; **bucket lock** 30 days (`daily/`) and 365 days
+  (`monthly/`); lifecycle deletes one day after; backup token Object Read & Write for that bucket only
+  (R2 has no write-only); restore token Object Read only, kept offline.
+- SHA-256 signed into each upload, stored beside it and inside the encrypted manifest (row counts per table).
+- **Restore drill** monthly and before go-live: `scripts/backup/restore-drill.sh` into a throwaway database;
+  any checksum, decrypt, restore or count mismatch fails.
+- `TOKEN_ENCRYPTION_KEY`, `JWT_SECRET`, the age key and the restore token are never in the repo or the bucket.
+
