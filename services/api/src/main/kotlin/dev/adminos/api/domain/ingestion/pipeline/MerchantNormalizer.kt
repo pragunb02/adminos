@@ -20,12 +20,18 @@ class MerchantNormalizer(catalogue: MerchantCatalogue = MerchantCatalogue.DEFAUL
 
     fun normalize(raw: String?, upiVpa: String? = null): String? {
         val handle = upiVpa?.substringBefore('@')?.takeIf { it.isNotBlank() }
-        for (text in listOfNotNull(raw, handle)) {
+        // A UPI ID inside the narration counts by its handle only: "annapoorna@paytm" is not Paytm (AOS-511).
+        for (text in listOfNotNull(raw?.replace(VPA_PROVIDER, ""), handle)) {
             val form = matchForm(text)
             matchers.firstOrNull { (re, _) -> re.containsMatchIn(form) }?.let { return it.second }
         }
         NarrationCleaner.clean(raw)?.let { return titleCase(it) }
         return handle?.let { h -> matchForm(h).replace(Regex("\\d+"), " ").trim().takeIf { it.length >= 2 }?.let(::titleCase) }
+    }
+
+    private companion object {
+        /** The "@provider" part of a UPI ID (same shape the parsers use): the bank's or app's name, not the payee's. */
+        val VPA_PROVIDER = Regex("(?<=[A-Za-z0-9._-]{2})@[A-Za-z]{2,}")
     }
 
     private fun titleCase(s: String): String =

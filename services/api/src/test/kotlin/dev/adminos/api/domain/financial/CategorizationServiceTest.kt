@@ -128,4 +128,23 @@ class CategorizationServiceTest {
         assertEquals(TransactionCategory.OTHER, result.category)
         assertEquals(0.3, result.confidence)
     }
+
+    @Test
+    fun `fuel stations health and education payees are recognised by their words`() {
+        // AOS-511: gaps found by the golden set.
+        assertEquals(TransactionCategory.TRANSPORT to "fuel", service.builtIn("Ganesh Petrol Pump").let { it.category to it.subcategory })
+        assertEquals(TransactionCategory.TRANSPORT to "fuel", service.builtIn("Sri Manjunatha Filling Station").let { it.category to it.subcategory })
+        assertEquals(TransactionCategory.TRANSPORT, service.builtIn("Mg Road Parking").category)
+        assertEquals(TransactionCategory.HEALTH to "pharmacy", service.builtIn("Sri Sai Medicals").let { it.category to it.subcategory })
+        assertEquals(TransactionCategory.HEALTH, service.builtIn("City Dental Care").category)
+        assertEquals(TransactionCategory.HEALTH, service.builtIn("Gold Gym Koramangala").category)
+        assertEquals(TransactionCategory.EDUCATION, service.builtIn("Delhi Public School").category)
+        assertEquals(TransactionCategory.FOOD, service.builtIn("Meghana Foods").category)
+    }
+
+    @Test
+    fun `the new words still match whole words only`() {
+        assertEquals(TransactionCategory.OTHER, service.builtIn("Gymkhana Club").category) // not "gym"
+        assertEquals(TransactionCategory.OTHER, service.builtIn("Schooler Traders").category) // not "school"
+    }
 }

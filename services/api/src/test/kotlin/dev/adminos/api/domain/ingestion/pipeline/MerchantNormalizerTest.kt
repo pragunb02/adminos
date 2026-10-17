@@ -32,6 +32,15 @@ class MerchantNormalizerTest {
     }
 
     @Test
+    fun `a UPI ID inside the narration is not read as the brand of its provider`() {
+        // AOS-511 regression: "annapoorna@paytm" made every Paytm-handle payee "Paytm" (a wallet, so Other).
+        assertEquals("Annapoorna Food Court",
+            n.normalize("UPI-ANNAPOORNA FOOD COURT-annapoorna@paytm-PYTM0123456-428911100024-PAY", upiVpa = "annapoorna@paytm"))
+        assertEquals("Swiggy", n.normalize("UPI-123456789-swiggy@paytm-PAY")) // a brand in the handle still counts
+        assertEquals("Paytm", n.normalize("UPI-PAYTM-paytmqr@paytm-PAY")) // and so does the brand in the narration
+    }
+
+    @Test
     fun `unknown merchants are title cased and blanks are null`() {
         assertEquals("Ram Tea Stall", n.normalize("RAM  TEA stall"))
         assertNull(n.normalize("  "))

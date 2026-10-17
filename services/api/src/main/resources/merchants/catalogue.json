@@ -42,6 +42,7 @@
     {"brand": "HP Petrol", "category": "transport", "subcategory": "fuel", "aliases": ["HPCL", "HINDUSTAN PETROLEUM"]},
     {"brand": "Bharat Petroleum", "category": "transport", "subcategory": "fuel", "aliases": ["BPCL", "BHARAT PETROLEUM"]},
     {"brand": "Shell", "category": "transport", "subcategory": "fuel", "aliases": ["SHELL INDIA", "SHELL PETROL"]},
+    {"brand": "Nayara Energy", "category": "transport", "subcategory": "fuel", "aliases": ["NAYARA ENERGY", "NAYARA"]},
     {"brand": "IndiGo", "category": "transport", "subcategory": "flights", "aliases": ["INDIGO", "INTERGLOBE AVIATION"]},
     {"brand": "Air India", "category": "transport", "subcategory": "flights", "aliases": ["AIR INDIA"]},
     {"brand": "Akasa Air", "category": "transport", "subcategory": "flights", "aliases": ["AKASA AIR", "SNV AVIATION"]},
