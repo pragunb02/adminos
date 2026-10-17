@@ -129,4 +129,19 @@ class CategorizeMerchantTaskTest {
         assertEquals(AiReading.Invalid(CategorizeMerchantTask.CATEGORY_NOT_ALLOWED), read("""{"category":"TRANSFER","confidence":0.99,"reason":"bank"}"""))
         assertEquals(AiReading.Invalid(CategorizeMerchantTask.CATEGORY_NOT_ALLOWED), read(good, allowed = listOf(TransactionCategory.FOOD, TransactionCategory.OTHER)))
     }
+
+    @Test
+    fun `a deeply nested or huge reply is rejected, never a StackOverflowError (AOS-635)`() {
+        val notJson = AiReading.Invalid(CategorizeMerchantTask.NOT_JSON_OBJECT)
+        assertEquals(notJson, read("[".repeat(10_000)))
+        assertEquals(notJson, read("""{"category":${"[".repeat(10_000)}"FOOD"${"]".repeat(10_000)},"confidence":0.9,"reason":"x"}"""))
+        assertEquals(notJson, read("""{"category":"FOOD","confidence":0.9,"reason":"${"x".repeat(100_000)}"}"""))
+        assertEquals(notJson, read("""{"category":{"x":1},"confidence":0.9,"reason":"x"}"""))
+    }
+
+    @Test
+    fun `brackets inside the reason are text, not nesting`() {
+        val answer = assertIs<AiReading.Valid<AiCategoryAnswer>>(read("""{"category":"FOOD","confidence":0.8,"reason":"cafe [chain] {x}"}"""))
+        assertEquals("cafe [chain] {x}", answer.value.reason)
+    }
 }

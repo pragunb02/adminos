@@ -149,6 +149,43 @@ class AiGatewayTest {
         assertEquals(AiGateway.INTERNAL, row.code)
     }
 
+    /** A task whose validator throws [failure]: a bug, or the parser giving up on a hostile reply. */
+    private class ThrowingReadTask(private val failure: () -> Throwable) : AiTask<String, String> by EchoTask {
+        override fun read(text: String, input: String): AiReading<String> = throw failure()
+    }
+
+    @Test
+    fun `a validator that throws an exception or overflows the stack rejects the answer and is audited (AOS-635)`() = runBlocking<Unit> {
+        val failures = listOf<() -> Throwable>({ StackOverflowError() }, { IllegalStateException("bug") })
+        for (failure in failures) {
+            assertEquals(AiResult.Rejected(AiGateway.READ_FAILED), gateway().run(ThrowingReadTask(failure), user, "Steam"))
+        }
+        assertEquals(List(2) { AiCallOutcome.REJECTED }, calls.all.map { it.outcome })
+        assertEquals(List(2) { AiGateway.READ_FAILED }, calls.all.map { it.code })
+        assertEquals(40, ledger.spent(YearMonth.of(2026, 10)), "each call is settled to its real cost")
+    }
+
+    @Test
+    fun `a fatal JVM error in a validator is not mistaken for a bad answer`() = runBlocking<Unit> {
+        assertFailsWith<OutOfMemoryError> { gateway().run(ThrowingReadTask { OutOfMemoryError("big") }, user, "Steam") }
+    }
+
+    @Test
+    fun `a hostile deeply nested reply to the real task is rejected, not a crash (AOS-635)`() = runBlocking<Unit> {
+        val provider = FakeAiProvider { AiCompletion.Completed("[".repeat(10_000), AiUsage(10, 5)) }
+        val question = dev.adminos.api.domain.financial.ai.AiCategoryQuestion(
+            "Steam", null, dev.adminos.api.domain.financial.ai.AI_ALLOWED_CATEGORIES)
+        val result = gateway(provider).run(dev.adminos.api.domain.financial.ai.CategorizeMerchantTask, user, question)
+        assertEquals(AiResult.Rejected(dev.adminos.api.domain.financial.ai.CategorizeMerchantTask.NOT_JSON_OBJECT), result)
+        assertEquals(AiCallOutcome.REJECTED, calls.all.single().outcome)
+    }
+
+    @Test
+    fun `cancellation thrown by a validator is never swallowed`() = runBlocking<Unit> {
+        val task = ThrowingReadTask { kotlinx.coroutines.CancellationException("cancelled") }
+        assertFailsWith<kotlinx.coroutines.CancellationException> { gateway().run(task, user, "Steam") }
+    }
+
     @Test
     fun `a cancelled call still settles its reservation and is never left reserved`() = runBlocking<Unit> {
         val g = gateway(FakeAiProvider { kotlinx.coroutines.awaitCancellation() })
