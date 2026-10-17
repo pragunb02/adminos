@@ -25,6 +25,7 @@ class SubscriptionDetectorService(
     private val transactionRepository: TransactionRepository,
     private val subscriptionRepository: SubscriptionRepository,
     private val calendar: dev.adminos.api.domain.identity.UserCalendar,
+    private val priceRises: PriceRiseRepository,
     private val catalogue: MerchantCatalogue = MerchantCatalogue.DEFAULT
 ) {
     private val logger = LoggerFactory.getLogger(SubscriptionDetectorService::class.java)
@@ -47,11 +48,11 @@ class SubscriptionDetectorService(
             if (intervals.isEmpty()) continue
             val cycle = determineBillingCycle(intervals.average(), stddev(intervals)) ?: continue
 
-            val amounts = sorted.map { it.amount }
-            val latest = amounts.last()
-            val previous = amounts[amounts.size - 2]
-            val priceChanged = previous > BigDecimal.ZERO && (latest - previous).abs().divide(previous, 6, RoundingMode.HALF_UP) > BigDecimal("0.05")
-            val priceChangePct = if (priceChanged) (latest - previous).multiply(BigDecimal(100)).divide(previous, 2, RoundingMode.HALF_UP) else null
+            val latest = sorted.last().amount
+            // One rule for the alert, the page's arrow and the waste score (AOS-715, D-74). A free month is not a charge.
+            val change = PriceChangeRule.evaluate(sorted.filter { it.amount.signum() > 0 }.map { Charge(it.id, it.amount, it.currency, it.transactedAt.atZone(zone).toLocalDate()) }, cycle)
+            val priceChanged = change != null
+            val priceChangePct = change?.pct
 
             val firstDate = sorted.first().transactedAt.atZone(zone).toLocalDate()
             val lastDate = sorted.last().transactedAt.atZone(zone).toLocalDate()
@@ -77,12 +78,20 @@ class SubscriptionDetectorService(
                     transactionIds = sorted.map { it.id }
                 ))
             }
+            change?.takeIf { it.isRise }?.let { recordRise(subscription, it) }
             detected += subscription
             logger.info("Detected subscription {} for user {} ({})", subscription.id, userId, cycle)
         }
 
         endStopped(userId, today, detected.map { it.id }.toSet())
         return detected
+    }
+
+    /** Records a rise once per (subscription, new price); [dev.adminos.api.domain.notifications.PriceRiseAlerts] tells the user. */
+    private suspend fun recordRise(subscription: Subscription, change: PriceChange) {
+        if (priceRises.recordIfNew(PriceRise.of(subscription.userId, subscription.id, change))) {
+            logger.info("Subscription {} price rose {}% at transaction {}", subscription.id, change.pct, change.transactionId)
+        }
     }
 
     /** Active subscriptions not charged for two cycles (+ a week) are marked ended, with the reason. */

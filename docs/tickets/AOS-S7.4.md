@@ -26,7 +26,7 @@
   - "money left until salary" when the salary and balance are known;
   - "not enough history" with less than 3 months of data.
 - [ ] **Merchant grouping (AOS-709):** uncatalogued merchant names that are the same service are proposed for merging in Review.
-- [ ] **Price-rise alert (AOS-715):** when a charge is at least max(5%, ₹20) above the median of the previous 3, once per new price.
+- [x] **Price-rise alert (AOS-715):** when a charge is at least max(5%, ₹20) above the median of the previous 3, once per new price.
 
 ## Design
 See the research report §10–§12. Isolation Forest, Prophet and deep forecasting are rejected for sparse personal data.
@@ -37,7 +37,7 @@ See the research report §10–§12. Isolation Forest, Prophet and deep forecast
 | AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ⬜ | 6h | |
 | AOS-714 | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ⬜ | 8h | |
 | AOS-709 | Fuzzy merchant grouping for subscriptions (normalise + Jaro-Winkler), merges via Review | Claude | ⬜ | 5h | |
-| AOS-715 | Subscription price-rise alert | Claude | ⬜ | 2h | |
+| [AOS-715](AOS-715.md) | Subscription price-rise alert | Claude | ✅ | 2h | 1.5h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -45,4 +45,5 @@ _Task tickets are created as files when this story is picked up._
 A synthetic spending stream with injected spikes alerts on the spikes, and otherwise at most twice a month. The backtest beats the naive pace.
 
 ## Activity log
+- 2026-10-18 — Claude (integration engineer): AOS-715 integrated onto main; D-74 recorded.
 - 2026-10-17 — Claude: story created (AOS-701).

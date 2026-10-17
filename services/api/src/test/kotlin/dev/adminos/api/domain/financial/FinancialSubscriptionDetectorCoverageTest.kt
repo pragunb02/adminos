@@ -16,8 +16,9 @@ class FinancialSubscriptionDetectorCoverageTest {
     private val now = Instant.parse("2026-10-16T06:30:00Z")
     private val transactions = InMemoryTransactionRepository()
     private val subscriptions = InMemorySubscriptionRepository()
+    private val rises = InMemoryPriceRiseRepository()
     private val detector = SubscriptionDetectorService(transactions, subscriptions,
-        dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)))
+        dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)), rises)
 
     private fun day(daysAgo: Long): Instant = now.minusSeconds(daysAgo * 86_400)
 
@@ -199,7 +200,7 @@ class FinancialSubscriptionDetectorCoverageTest {
     fun `dates are the user's own`() = runBlocking<Unit> {
         val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
         val owner = users.save(dev.adminos.api.domain.identity.User(email = "p@example.com", googleId = "g", timezone = "Pacific/Kiritimati"))
-        val d = SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC)))
+        val d = SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC)), rises)
         // 20:00Z is the next day in Kiritimati (UTC+14).
         listOf(Instant.parse("2026-08-10T20:00:00Z"), Instant.parse("2026-09-10T20:00:00Z"), Instant.parse("2026-10-10T20:00:00Z")).forEach {
             transactions.save(Transaction(userId = owner.id, type = TransactionType.DEBIT, amount = BigDecimal("199.00"), merchantName = "Hotstar", transactedAt = it))
