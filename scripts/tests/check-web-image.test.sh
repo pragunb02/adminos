@@ -16,7 +16,8 @@ run_case() {
   mkdir -p "$dir/public" "$dir/resp"
   printf 'self.addEventListener("push", () => {});\n' > "$dir/public/sw.js"
   printf 'png-192' > "$dir/public/icon-192.png"; printf 'png-512' > "$dir/public/icon-512.png"
-  local good="/sw.js=200 application/javascript $(sha "$dir/public/sw.js")|/manifest.webmanifest=200 application/manifest+json 00|/icon-192.png=200 image/png $(sha "$dir/public/icon-192.png")|/icon-512.png=200 image/png $(sha "$dir/public/icon-512.png")|/apple-icon.png=200 image/png 00"
+  local good
+  good="/sw.js=200 application/javascript $(sha "$dir/public/sw.js")|/manifest.webmanifest=200 application/manifest+json 00|/icon-192.png=200 image/png $(sha "$dir/public/icon-192.png")|/icon-512.png=200 image/png $(sha "$dir/public/icon-512.png")|/apple-icon.png=200 image/png 00"
   local entry all="$good"; [[ "$answers" != "-" ]] && all="$good|$answers"
   IFS='|' read -r -a entries <<<"$all"
   for entry in "${entries[@]}"; do
