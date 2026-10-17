@@ -12,6 +12,7 @@ import io.ktor.server.application.*
 fun Application.configurePlugins(config: AppConfig, jwtService: JwtService) {
     configureForwardedHeaders() // first: everything after sees the real client IP (D-32)
     configureRequestId()
+    configureRequestBodyLimit() // before anything reads a body, including unauthenticated routes (AOS-615)
     configureSerialization()
     configureHTTP(config.app.appUrl)
     configureLogging()

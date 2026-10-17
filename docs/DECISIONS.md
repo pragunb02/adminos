@@ -71,6 +71,7 @@
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
+| D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
 | D-100 | Process | Every feature rolls out only through the security gate (ENGINEERING §4a): threat review in the ticket, unit + integration + Playwright attack tests, no new exposure, dependency checks, attacker review before merge; findings block the merge | Accepted | AOS-012, all tasks |
 | D-91 | Process / Architecture | Security is always P0: the site is owner-only (one allowlisted, pinned Google account, fail closed), private-network by default, defence in depth, and every security control has unit, integration and Playwright attack tests; we red-team our own site before go-live and on every security change | Accepted | AOS-614…623, S6.4 |
 | D-80 | Product | North star "spend less → save more → invest well", measured by the savings rate; Epic E9 Spending coach (leaks, limits, nudges, goals) goes before the E8 wealth build; the coach informs and never acts; nudges are few and configurable | Accepted | AOS-011, E9 |
@@ -897,4 +898,12 @@ Proposed
   - the integrator re-reads the diff as an attacker and runs the full Playwright suite before merging.
 - **Enforced by:** the PR template; the route-inventory test (AOS-619), so an unprotected new route fails CI; CI dependency and image scans (AOS-622); GitGuardian on every commit; `scripts/merge-pr.sh` (merges only when every check is success).
 - **Applies to agents too:** every background agent's brief includes the gate, and PRs without it are sent back.
+
+### D-92 — Threat model and audit method
+2026-10-18 · Accepted (built by the red-team agent under D-91; reviewed and merged by Claude) · Type: Process / Architecture · Tasks: AOS-615
+- `docs/security/THREAT-MODEL.md` is the reference for every security-relevant change; the security gate (D-100) reviews a change against its attackers T1–T6 and boundaries TB1–TB11.
+- Audits use ASVS 5.0 L2 + WSTG, a CVSS 3.1 base score plus an environmental note, and a proof per finding (a failing-before test where possible). Findings are `AUD-nn` rows in a dated audit file; open ones stay general in the public repo until fixed.
+- **Every request body is size-capped before routing:** `Content-Length` required and any `Transfer-Encoding` refused (a chunked body would bypass the declared size), 1 MiB default, larger limits only for explicitly listed upload paths.
+- **Dependency advisories are fixed on discovery** even when the environmental risk is low; transitive libraries are pinned with a BOM when needed, and unused dependencies are removed.
+- Rejected: scanner-only audits; relying on the order "auth before body" for safety.
 

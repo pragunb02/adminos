@@ -19,12 +19,13 @@ angusMail = "2.0.5"
 awsSdk = "2.56.0"
 anthropic = "2.73.0"
 greenmail = "2.1.14"
+# Transitive (anthropic-java, google-auth): pinned above the 2026-09/10 advisories fixed in 2.22.3 (AOS-615, AUD-02).
+jackson = "2.22.3"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
-ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
@@ -56,6 +57,7 @@ angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awsSdk" }
 aws-url-connection-client = { module = "software.amazon.awssdk:url-connection-client", version.ref = "awsSdk" }
 anthropic-java = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
