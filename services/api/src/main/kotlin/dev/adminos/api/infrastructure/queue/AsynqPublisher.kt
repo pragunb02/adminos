@@ -1,5 +1,6 @@
 package dev.adminos.api.infrastructure.queue
 
+import dev.adminos.api.infrastructure.database.JsonColumns
 import io.lettuce.core.RedisClient
 import io.lettuce.core.api.StatefulRedisConnection
 import kotlinx.coroutines.future.await
@@ -37,7 +38,9 @@ class AsynqPublisher(private val redisClient: RedisClient) {
         val message = mapOf(
             "id" to taskId,
             "type" to jobType,
-            "payload" to json.encodeToString(payload.mapValues { (_, v) -> v?.toString() }),
+            // Typed JSON (AOS-506): numbers, booleans, lists and objects stay what they are; Go handlers
+            // unmarshal into typed structs, so stringifying every value (as before) broke them.
+            "payload" to JsonColumns.encode(payload),
             "queue" to queue,
             "retry" to DEFAULT_MAX_RETRY.toString(),
             "timeout" to DEFAULT_TIMEOUT_SECONDS.toString(),

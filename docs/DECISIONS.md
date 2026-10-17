@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-57 | Product | Weekly briefing is deterministic: made in the API from the console's analytics and dues, written by a template (no LLM for numbers); on the user's day/time/zone, once per week, catch-up within the week; queue payloads keep JSON types | Accepted | AOS-506 |
 | D-56 | Architecture | Mandates (UPI AutoPay, e-NACH, card SI) are their own model, learnt from bank SMS notices (never the text), identified by UMN or payee+rail, robust to late/duplicate messages; debits matched after commit and marked recurring; dormant mandates flagged; shown on Subscriptions and the dues calendar | Accepted | AOS-502 |
 | D-55 | Product | Dues calendar = bills by due date + renewals projected from next billing date (today on, ≤ 1 year, daily = next only, month-ends kept); renewal reminders on the bill-reminder days, once per date; every reminder and overdue judged on the user's own date | Accepted | AOS-503 |
 | D-54 | Product | Bill paid = a spend or card-bill transfer of the full amount (±5%) or minimum due (±1%), in the bill's window (period end or 40 days before due → 15 days after), with evidence (card/account number, biller name, or the only card bill); ties match nothing; daily sweep for payments seen first | Accepted | AOS-508 |
@@ -599,4 +600,11 @@ Proposed
 - **Robust to history:** the same message twice changes nothing; an older message never undoes a newer status; pre-debit dates only move forward.
 - **Debits:** matched after the commit (D-53's hook), by the UMN, or by payee + amount within the limit + (the mandate marker or the expected date ±3 days). Ties match nothing. A matched debit marks its transaction recurring.
 - **What the user sees:** status (including expired), the next debit, and dormant (nothing taken for two cycles: "revoke it in your UPI app or bank"). On the dues calendar a mandate replaces the same subscription's renewal. The UMN is never shown.
+
+### D-57 — The weekly briefing states facts, not prose from a model
+2026-10-17 · Accepted (Pragun: "ok"; concern about AI hallucination, 2026-10-16) · Type: Product · Tasks: AOS-506
+- **Source:** the briefing is made in the API from `AnalyticsService` and `DuesService` (the same numbers as the console) plus open anomalies, flagged subscriptions and dormant mandates. A template writes it, so every number is a fact.
+- **When:** the user's briefing day and time in their zone, about the 7 days before; catch-up within the week; one per (user, week); none for a week before sign-up.
+- **AI later:** an LLM may only rephrase the template's facts, after an evaluation harness exists (proposed AOS-511). The legacy Go + Claude handler is kept but not used.
+- **Queue:** payloads sent to the Go workers keep their JSON types, so typed Go structs can read them.
 

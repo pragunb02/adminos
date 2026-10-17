@@ -25,6 +25,8 @@ interface BriefingRepository {
     suspend fun save(briefing: Briefing): Briefing
     suspend fun findById(id: UUID): Briefing?
     suspend fun findLatestByUserId(userId: UUID): Briefing?
+    /** The briefing of [type] for the period starting [periodStart] (unique, uq_briefing), if made. */
+    suspend fun findByUserAndPeriod(userId: UUID, periodStart: java.time.LocalDate, type: BriefingType): Briefing?
     suspend fun findByUserId(
         userId: UUID,
         cursor: String? = null,

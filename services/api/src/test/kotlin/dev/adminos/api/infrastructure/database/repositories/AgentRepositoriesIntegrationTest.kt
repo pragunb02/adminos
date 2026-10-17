@@ -32,6 +32,21 @@ class AgentRepositoriesIntegrationTest {
         transactions.save(Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal("1.00"), transactedAt = Instant.now())).id
 
     @Test
+    fun `a briefing is found by its week, with its structured facts (AOS-506)`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val repo = ExposedBriefingRepository()
+        val week = java.time.LocalDate.of(2026, 10, 5)
+        val saved = repo.save(Briefing(userId = userId, periodStart = week, periodEnd = week.plusDays(6), content = "Last week…",
+            contentStructured = mapOf("spent" to "4100.50", "topCategories" to listOf(mapOf("category" to "food", "spent" to "2000.00"))),
+            totalSpent = java.math.BigDecimal("4100.50"), modelUsed = "deterministic", promptVersion = "weekly-v1", tokensUsed = 0))
+        val found = repo.findByUserAndPeriod(userId, week, BriefingType.WEEKLY)
+        assertEquals(saved.id, found?.id)
+        assertEquals("4100.50", found?.contentStructured?.get("spent"))
+        assertEquals(null, repo.findByUserAndPeriod(userId, week.plusWeeks(1), BriefingType.WEEKLY))
+        assertEquals(null, repo.findByUserAndPeriod(userId, week, BriefingType.MONTHLY))
+    }
+
+    @Test
     fun `anomaly round-trips every type, status and resolver`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
         for (type in AnomalyType.entries) {

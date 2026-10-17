@@ -53,6 +53,9 @@ class InMemoryAnomalyRepository : AnomalyRepository {
 class InMemoryBriefingRepository : BriefingRepository {
     private val store = ConcurrentHashMap<UUID, Briefing>()
 
+    override suspend fun findByUserAndPeriod(userId: UUID, periodStart: java.time.LocalDate, type: BriefingType): Briefing? =
+        store.values.firstOrNull { it.userId == userId && it.periodStart == periodStart && it.type == type }
+
     override suspend fun save(briefing: Briefing): Briefing {
         store[briefing.id] = briefing
         return briefing
