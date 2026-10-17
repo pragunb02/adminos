@@ -10,9 +10,14 @@
 #      age for the public key BACKUP_AGE_RECIPIENT. The plaintext dump never touches disk, and this host
 #      can't decrypt it (the secret key is offline).
 #   2. In the same snapshot, count the rows of every table: the manifest the restore drill checks against.
-#   3. SHA-256 of the ciphertext; upload dump, checksum and encrypted manifest with the hash signed (SigV4),
-#      under daily/… and, once a month, monthly/…. The bucket's lock rules forbid deleting or overwriting
-#      them until retention ends; its lifecycle rules delete them after (scripts/backup/setup-r2-bucket.sh).
+#   3. SHA-256 of the ciphertext; upload checksum, encrypted manifest, then the dump (last), each sent with its
+#      SHA-256 as the SigV4 payload hash so the store rejects a body that changed in transit (a checksum, not a
+#      signature), under daily/… and, once a month, monthly/…. The bucket's lock rules forbid deleting or
+#      overwriting them until retention ends; its lifecycle rules delete them after (setup-r2-bucket.sh).
+#
+# Settings: BACKUP_AT (02:30), BACKUP_RUN_ON_START (false: also run once when the container starts),
+# BACKUP_ATTEMPTS (3 attempts in total), BACKUP_RETRY_DELAY_SECONDS (600), BACKUP_MAX_AGE_HOURS (26: the
+# healthcheck turns unhealthy when the last success is older).
 set -euo pipefail
 here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # shellcheck source=lib.sh
@@ -74,9 +79,11 @@ run_once() {
 
   while read -r tier; do
     base="$(object_base "$tier" "$ts")"
-    s3_put "$work/dump.age" "$base.dump.age" "$sha"
+    # The dump goes last: restores look for *.dump.age, so an interrupted run never leaves a "latest" backup
+    # without its checksum and manifest.
     s3_put "$work/dump.age.sha256" "$base.dump.age.sha256" "$(sha256sum "$work/dump.age.sha256" | cut -d' ' -f1)"
     s3_put "$work/manifest.json.age" "$base.manifest.json.age" "$(sha256sum "$work/manifest.json.age" | cut -d' ' -f1)"
+    s3_put "$work/dump.age" "$base.dump.age" "$sha"
     log "uploaded $base.dump.age ($size bytes, $tables tables, sha256 $sha)"
     if [[ "$tier" == monthly ]]; then printf '%s\n' "$month" > "$STATE_DIR/last-monthly"; fi
   done < <(backup_tiers "$month" "$last_monthly")
@@ -91,7 +98,9 @@ schedule() {
   require_backup_config          # refuse to start misconfigured, rather than fail at night
   mkdir -p "$STATE_DIR"
   date -u +%s > "$STATE_DIR/started"
-  log "scheduled daily at $BACKUP_AT ${TZ:-UTC}"
+  # Compare this with the public key in your password manager (docs/guides/BACKUPS.md §2d): a swapped
+  # recipient would encrypt every backup to someone else.
+  log "scheduled daily at $BACKUP_AT ${TZ:-UTC}; encrypting to $BACKUP_AGE_RECIPIENT"
   if [[ "${BACKUP_RUN_ON_START:-false}" == "true" ]]; then run_with_retries || true; fi
   while :; do
     sleep "$(seconds_until "$BACKUP_AT" "$(date +%s)")"
@@ -99,11 +108,14 @@ schedule() {
   done
 }
 
-# Each attempt runs in a subshell, so a failure (die) is retried instead of stopping the scheduler.
+# Each attempt is its own process (`backup once`), so `set -e` holds for every step of the run. A subshell in
+# an `if` would run with errexit off and could record a success after a failed step (review finding, D-101).
 run_with_retries() {
   local attempt max="${BACKUP_ATTEMPTS:-3}" delay="${BACKUP_RETRY_DELAY_SECONDS:-600}"
+  [[ "$max" =~ ^[1-9][0-9]?$ ]] || die "BACKUP_ATTEMPTS must be 1..99"
+  [[ "$delay" =~ ^[0-9]+$ ]] || die "BACKUP_RETRY_DELAY_SECONDS must be a whole number"
   for (( attempt = 1; attempt <= max; attempt++ )); do
-    if ( run_once ); then return 0; fi
+    if "$here/backup.sh" once; then return 0; fi
     log "attempt $attempt of $max failed"
     (( attempt < max )) && sleep "$delay"
   done

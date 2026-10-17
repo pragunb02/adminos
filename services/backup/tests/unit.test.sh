@@ -40,7 +40,7 @@ not_ "2:30 is refused" is_hhmm "2:30"
 # require_backup_config fails closed (runs in a subshell: die exits).
 cfg_out() {
   env -i PATH="$PATH" BACKUP_S3_ENDPOINT=https://x.example BACKUP_S3_BUCKET=adminos-backups \
-    BACKUP_S3_ACCESS_KEY_ID=id BACKUP_S3_SECRET_ACCESS_KEY=s BACKUP_AGE_RECIPIENT="$recipient" \
+    BACKUP_S3_ACCESS_KEY_ID=placeholder-id BACKUP_S3_SECRET_ACCESS_KEY=placeholder-value BACKUP_AGE_RECIPIENT="$recipient" \
     PGHOST=db PGUSER=u PGDATABASE=d PGPASSWORD=p "$@" bash -c 'source /usr/local/lib/adminos-backup/lib.sh; require_backup_config' 2>&1
 }
 cfg() { cfg_out "$@" >/dev/null; }
@@ -53,6 +53,17 @@ if [[ "$out" == *"holds a secret key"* && "$out" != *"AGE-SECRET-KEY-1ABC"* ]]; 
 out="$(cfg_out BACKUP_S3_SECRET_ACCESS_KEY= || true)"
 if [[ "$out" == *"BACKUP_S3_SECRET_ACCESS_KEY is not set"* ]]; then ok "errors name the variable"; else no "error text: $out"; fi
 not_ "a zero retention is refused" cfg BACKUP_DAILY_KEEP_DAYS=0
+not_ "a daily retention above 10 years is refused" cfg BACKUP_DAILY_KEEP_DAYS=3651
+not_ "a monthly retention above 120 is refused" cfg BACKUP_MONTHLY_KEEP_MONTHS=121
+not_ "a non-numeric retention is refused" cfg BACKUP_DAILY_KEEP_DAYS=1e3
+not_ "a negative retention is refused" cfg BACKUP_MONTHLY_KEEP_MONTHS=-1
+yes_ "the largest allowed retention passes" cfg BACKUP_DAILY_KEEP_DAYS=3650 BACKUP_MONTHLY_KEEP_MONTHS=120
+yes_ "an R2-style credential is accepted" is_credential "0123456789abcdef0123456789abcdef"
+not_ "a credential with a double quote is refused (curl config injection)" is_credential 'abcdefgh"x'
+not_ "a credential with a backslash is refused" is_credential 'abcdefgh\x'
+not_ "a credential with a newline is refused" is_credential $'abcdefgh\nurl = "https://evil.example"'
+not_ "a credential with a space is refused" is_credential "abcd efgh"
+not_ "a credential with an unexpected character is refused by the config" cfg 'BACKUP_S3_SECRET_ACCESS_KEY=abcdefgh"x'
 not_ "an http endpoint is refused" cfg BACKUP_S3_ENDPOINT=http://x.example
 
 # ── retention selection ──
@@ -72,10 +83,35 @@ eq "daily expire one day after the lock" "$(expire_days daily)" "31"
 eq "monthly expire one day after the lock" "$(expire_days monthly)" "366"
 eq "retention follows the settings" "$(BACKUP_DAILY_KEEP_DAYS=7 retention_days daily)" "7"
 
-# ── latest key ──
-keys=$'daily/2026/09/adminos-20260930T210000Z.dump.age\ndaily/2026/10/adminos-20261002T210000Z.dump.age.sha256\ndaily/2026/10/adminos-20261002T210000Z.dump.age\ndaily/2026/10/adminos-20261001T210000Z.dump.age\ndaily/2026/10/adminos-20261001T210000Z.manifest.json.age\ndaily/2026/10/notes.txt'
-eq "latest dump key is the newest timestamp" "$(latest_dump_key <<<"$keys")" "daily/2026/10/adminos-20261002T210000Z.dump.age"
-eq "no dumps → empty" "$(latest_dump_key <<<"daily/x.txt" || true)" ""
+# ── choosing a backup (security review B1, D-101) ──
+eq "key timestamp to epoch" "$(key_epoch daily/2026/10/adminos-20261017T210000Z.dump.age)" "$(date -u -d '2026-10-17 21:00:00' +%s)"
+not_ "a key without a timestamp has no epoch" key_epoch daily/notes.txt
+now="$(date -u -d '2026-10-18 03:00:00' +%s)"
+k_ok="daily/2026/10/adminos-20261018T023000Z.dump.age"; lm_ok="$(date -u -d '2026-10-18 02:31:10' +%s)"
+yes_ "a key uploaded a minute after its timestamp is plausible" key_is_plausible "$k_ok" "$lm_ok" "$now"
+k_future="daily/2099/01/adminos-20990101T000000Z.dump.age"
+eq "a future-dated key is refused" "$(key_is_plausible "$k_future" "$now" "$now" || true)" "its timestamp is in the future"
+k_old="daily/2026/01/adminos-20260101T000000Z.dump.age"
+out="$(key_is_plausible "$k_old" "$now" "$now" || true)"
+if [[ "$out" == *"from when it was uploaded"* ]]; then ok "a key whose timestamp is far from its upload time is refused"; else no "drift: $out"; fi
+yes_ "a key a minute in the future is within clock skew" key_is_plausible "daily/2026/10/adminos-20261018T030100Z.dump.age" "$now" "$now"
+
+listing=$'daily/2026/10/adminos-20261017T023000Z.dump.age	2026-10-17T02:31:05.000Z
+daily/2026/10/adminos-20261017T023000Z.manifest.json.age	2026-10-17T02:31:04.000Z
+daily/2026/10/adminos-20261018T023000Z.dump.age	2026-10-18T02:31:10.000Z
+daily/2099/01/adminos-20990101T000000Z.dump.age	2026-10-18T02:50:00.000Z
+daily/2026/01/adminos-20260101T000000Z.dump.age	2026-10-18T02:55:00.000Z
+daily/2026/10/notes.txt	2026-10-18T02:59:00.000Z'
+eq "latest = newest plausible upload, not the biggest key" "$(select_latest_dump "$now" <<<"$listing" 2>/dev/null)" "$k_ok"
+out="$(select_latest_dump "$now" <<<"$listing" 2>&1 >/dev/null)"
+if [[ "$out" == *"skipped daily/2099/01/adminos-20990101T000000Z.dump.age: its timestamp is in the future"* && "$out" == *"skipped daily/2026/01/adminos-20260101T000000Z.dump.age"* ]]; then
+  ok "skipped keys are logged with the reason"; else no "skip log: $out"; fi
+eq "only implausible dumps → nothing chosen" "$(select_latest_dump "$now" <<<"$k_future"$'\t2026-10-18T02:50:00Z' 2>/dev/null || true)" ""
+eq "an unreadable LastModified is skipped" "$(select_latest_dump "$now" <<<"$k_ok"$'\tnot-a-date' 2>/dev/null || true)" ""
+
+xml='<?xml version="1.0"?><ListBucketResult><Name>b</Name><Contents><LastModified>2026-10-18T02:31:10.000Z</LastModified><Key>daily/2026/10/adminos-20261018T023000Z.dump.age</Key><Size>5</Size></Contents><Contents><Key>daily/2026/10/x.txt</Key><LastModified>2026-10-18T02:00:00.000Z</LastModified></Contents><IsTruncated>false</IsTruncated></ListBucketResult>'
+eq "a listing page parses in any field order" "$(parse_list_page <<<"$xml")" $'daily/2026/10/adminos-20261018T023000Z.dump.age\t2026-10-18T02:31:10.000Z\ndaily/2026/10/x.txt\t2026-10-18T02:00:00.000Z'
+eq "an empty listing parses to nothing" "$(parse_list_page <<<'<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>')" ""
 
 # ── scheduling ──
 # 2026-10-17 01:00 in Asia/Kolkata → 02:30 the same day is 90 minutes away.

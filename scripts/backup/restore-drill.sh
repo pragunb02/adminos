@@ -29,7 +29,10 @@ usage() { sed -n '3,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; 
 select_args=(); identity_file=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --latest) select_args=(--latest "${2:-daily}"); if [[ "${2:-}" == daily || "${2:-}" == monthly ]]; then shift; fi ;;
+    --latest)
+      # The tier is optional: only "daily" or "monthly" right after --latest is taken as one.
+      if [[ "${2:-}" == daily || "${2:-}" == monthly ]]; then select_args=(--latest "$2"); shift
+      else select_args=(--latest daily); fi ;;
     --key) [[ -n "${2:-}" ]] || usage; select_args=(--key "$2"); shift ;;
     --identity-file) [[ -n "${2:-}" ]] || usage; identity_file="$2"; shift ;;
     -h|--help) usage ;;
@@ -70,9 +73,11 @@ trap cleanup EXIT
 # Credentials reach containers by name only (-e NAME), never as values on a command line.
 export BACKUP_S3_ACCESS_KEY_ID="$BACKUP_RESTORE_ACCESS_KEY_ID" BACKUP_S3_SECRET_ACCESS_KEY="$BACKUP_RESTORE_SECRET_ACCESS_KEY"
 export BACKUP_S3_REGION="${BACKUP_S3_REGION:-auto}"
+# Two throwaway passwords: the scratch server's superuser (setup only) and the non-superuser the restore runs as.
+POSTGRES_PASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
 PGPASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
-export PGPASSWORD POSTGRES_PASSWORD="$PGPASSWORD"
-hardening=(--read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true --user "$(id -u):$(id -g)")
+export POSTGRES_PASSWORD PGPASSWORD
+hardening=(--read-only --tmpfs /tmp:size=64m --cap-drop ALL --security-opt no-new-privileges:true --user "$(id -u):$(id -g)")
 
 echo "1/4 downloading ${select_args[*]}"
 docker run --rm --network "${BACKUP_DRILL_NETWORK:-bridge}" "${hardening[@]}" -v "$work:/work" \
@@ -82,20 +87,24 @@ key="$(cat "$work/key")"
 
 echo "2/4 starting a throwaway Postgres (internal network, no published port)"
 docker network create --internal "$net" >/dev/null
-docker run -d --name "$db" --network "$net" --tmpfs /var/lib/postgresql --security-opt no-new-privileges:true \
-  -e POSTGRES_PASSWORD -e POSTGRES_DB=drill "$postgres_image" >/dev/null
+docker run -d --name "$db" --network "$net" --tmpfs /var/lib/postgresql:size=4g --security-opt no-new-privileges:true \
+  -e POSTGRES_PASSWORD "$postgres_image" >/dev/null
 # Over TCP: during init the image runs a temporary server on the Unix socket only, so this sees the final one.
 for _ in $(seq 1 90); do
-  if docker exec "$db" pg_isready -q -h 127.0.0.1 -U postgres -d drill 2>/dev/null; then break; fi
+  if docker exec "$db" pg_isready -q -h 127.0.0.1 -U postgres 2>/dev/null; then break; fi
   sleep 1
 done
-docker exec "$db" pg_isready -q -h 127.0.0.1 -U postgres -d drill || die "scratch Postgres did not start"
+docker exec "$db" pg_isready -q -h 127.0.0.1 -U postgres || die "scratch Postgres did not start"
+# The dump is SQL that pg_restore runs, so it runs as a non-superuser that owns only an empty database.
+# (SQL on stdin, so the password is never on a command line.)
+printf "CREATE ROLE drill_restorer LOGIN PASSWORD '%s';\nCREATE DATABASE drill OWNER drill_restorer;\n" "$PGPASSWORD" |
+  docker exec -i "$db" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres >/dev/null || die "could not prepare the scratch database"
 
 echo "3/4 verifying, decrypting and restoring $key"
 identity_src=/dev/stdin
 [[ -n "$identity_file" ]] && identity_src="$identity_file"
 docker run -i --rm --network "$net" "${hardening[@]}" -v "$work:/work:ro" \
-  -e PGHOST="$db" -e PGUSER=postgres -e PGDATABASE=drill -e PGPASSWORD \
+  -e PGHOST="$db" -e PGUSER=drill_restorer -e PGDATABASE=drill -e PGPASSWORD \
   --entrypoint /usr/local/bin/restore "$image" check < "$identity_src"
 
 echo "4/4 RESTORE DRILL PASSED: $key"

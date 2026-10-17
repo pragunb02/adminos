@@ -6,12 +6,17 @@
 #
 # The container holds only the age PUBLIC key: it can encrypt, never decrypt. Its R2 token is scoped to the
 # backup bucket, whose lock rules forbid deleting or overwriting backups. No port, no inbound connection.
+# Its own network: it can reach Postgres (which joins `backup` too) and the internet (R2), nothing else.
 services:
+  postgres:
+    networks: [default, backup]
+
   backup:
     build:
       context: ./services/backup
       dockerfile: Dockerfile
     command: ["schedule"]
+    networks: [backup]
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,7 +37,7 @@ services:
       - backup_state:/state
     read_only: true
     tmpfs:
-      - /tmp        # the encrypted dump is staged here before upload; plaintext never touches disk
+      - /tmp:size=2g,mode=1777   # the encrypted dump is staged here before upload; plaintext never touches disk
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
@@ -44,3 +49,6 @@ services:
 
 volumes:
   backup_state:
+
+networks:
+  backup:

@@ -31,12 +31,28 @@ is_allowed_endpoint() {
 # is_hhmm <value>: 00:00..23:59
 is_hhmm() { [[ "$1" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; }
 
+# is_credential <value>: what R2/S3 keys look like. Anything with quotes, backslashes, spaces or newlines is
+# refused, so a value can never break out of the curl config line it is written into (_curl_s3).
+is_credential() { [[ "$1" =~ ^[A-Za-z0-9+/=_.-]{8,255}$ ]]; }
+
+# require_retention: whole numbers within sane bounds (the setup script and the job share these).
+require_retention() {
+  if ! [[ "$BACKUP_DAILY_KEEP_DAYS" =~ ^[1-9][0-9]{0,3}$ ]] || (( BACKUP_DAILY_KEEP_DAYS > 3650 )); then
+    die "BACKUP_DAILY_KEEP_DAYS must be a whole number from 1 to 3650"
+  fi
+  if ! [[ "$BACKUP_MONTHLY_KEEP_MONTHS" =~ ^[1-9][0-9]{0,2}$ ]] || (( BACKUP_MONTHLY_KEEP_MONTHS > 120 )); then
+    die "BACKUP_MONTHLY_KEEP_MONTHS must be a whole number from 1 to 120"
+  fi
+}
+
 # require_s3_config: endpoint, bucket and credentials are present and well-formed.
 require_s3_config() {
   local v
   for v in BACKUP_S3_ENDPOINT BACKUP_S3_BUCKET BACKUP_S3_ACCESS_KEY_ID BACKUP_S3_SECRET_ACCESS_KEY; do
     [[ -n "${!v:-}" ]] || die "$v is not set"
   done
+  is_credential "$BACKUP_S3_ACCESS_KEY_ID" || die "BACKUP_S3_ACCESS_KEY_ID has unexpected characters"
+  is_credential "$BACKUP_S3_SECRET_ACCESS_KEY" || die "BACKUP_S3_SECRET_ACCESS_KEY has unexpected characters"
   is_allowed_endpoint "$BACKUP_S3_ENDPOINT" || die "BACKUP_S3_ENDPOINT must be https://<host> (got a non-https or malformed URL)"
   is_bucket_name "$BACKUP_S3_BUCKET" || die "BACKUP_S3_BUCKET is not a valid bucket name"
   : "${BACKUP_S3_REGION:=auto}"
@@ -51,8 +67,7 @@ require_backup_config() {
     die "BACKUP_AGE_RECIPIENT holds a secret key. Put only the PUBLIC key (age1…) here and keep the secret key offline"
   fi
   is_age_recipient "$BACKUP_AGE_RECIPIENT" || die "BACKUP_AGE_RECIPIENT is not an age public key (age1…)"
-  [[ "$BACKUP_DAILY_KEEP_DAYS" =~ ^[1-9][0-9]*$ ]] || die "BACKUP_DAILY_KEEP_DAYS must be a positive integer"
-  [[ "$BACKUP_MONTHLY_KEEP_MONTHS" =~ ^[1-9][0-9]*$ ]] || die "BACKUP_MONTHLY_KEEP_MONTHS must be a positive integer"
+  require_retention
   local v
   for v in PGHOST PGUSER PGDATABASE PGPASSWORD; do [[ -n "${!v:-}" ]] || die "$v is not set"; done
 }
@@ -134,7 +149,8 @@ _curl_s3() {
       --aws-sigv4 "aws:amz:${BACKUP_S3_REGION:-auto}:s3" "$@"
 }
 
-# s3_put <file> <key> <sha256 hex>: upload with the payload hash signed, so the store rejects a corrupted body.
+# s3_put <file> <key> <sha256 hex>: upload with the SHA-256 as the SigV4 payload hash, so the store rejects a body
+# that changed in transit (a checksum, not a signature).
 s3_put() {
   local file="$1" key="$2" sha="$3"
   _curl_s3 -o /dev/null -T "$file" \
@@ -145,14 +161,15 @@ s3_put() {
 # s3_get <key> <out file>
 s3_get() { _curl_s3 -o "$2" "$(_s3_url "$1")" || die "download failed for $1"; }
 
-# s3_list_keys <prefix>: every key under prefix (ListObjectsV2, paginated).
-s3_list_keys() {
+# s3_list_objects <prefix>: "key<TAB>LastModified" for every object under prefix (ListObjectsV2, paginated).
+# LastModified is set by the store when the object is written; the uploader can't choose it.
+s3_list_objects() {
   local prefix="$1" token="" page q
   while :; do
     q="list-type=2&prefix=$(jq -rn --arg p "$prefix" '$p|@uri')"
     [[ -n "$token" ]] && q+="&continuation-token=$(jq -rn --arg t "$token" '$t|@uri')"
     page="$(_curl_s3 "${BACKUP_S3_ENDPOINT%/}/$BACKUP_S3_BUCKET?$q")" || die "listing $prefix failed"
-    grep -o '<Key>[^<]*</Key>' <<<"$page" | sed 's/<Key>//; s/<\/Key>//' || true
+    parse_list_page <<<"$page"
     if grep -q '<IsTruncated>true</IsTruncated>' <<<"$page"; then
       token="$(grep -o '<NextContinuationToken>[^<]*</NextContinuationToken>' <<<"$page" | sed 's/<[^>]*>//g')"
       [[ -n "$token" ]] || die "listing $prefix: truncated without a continuation token"
@@ -162,9 +179,61 @@ s3_list_keys() {
   done
 }
 
-# latest_dump_key <keys on stdin>: the newest *.dump.age (keys sort by their UTC timestamp).
-latest_dump_key() {
-  grep -E '/adminos-[0-9]{8}T[0-9]{6}Z\.dump\.age$' | awk -F'/adminos-' '{print $2 "\t" $0}' | sort | tail -n 1 | cut -f2
+# parse_list_page: a ListObjectsV2 XML page on stdin → "key<TAB>LastModified" per <Contents> (any field order).
+parse_list_page() {
+  tr -d '\r\n' | sed 's#<Contents>#\n<Contents>#g; s#</Contents>#</Contents>\n#g' | grep '^<Contents>' |
+    while IFS= read -r entry; do
+      local k m
+      k="$(grep -o '<Key>[^<]*</Key>' <<<"$entry" | sed 's/<[^>]*>//g')"
+      m="$(grep -o '<LastModified>[^<]*</LastModified>' <<<"$entry" | sed 's/<[^>]*>//g')"
+      if [[ -n "$k" && -n "$m" ]]; then printf '%s\t%s\n' "$k" "$m"; fi
+    done
+}
+
+# s3_last_modified <key>: the store's Last-Modified for one object, as epoch seconds.
+s3_last_modified() {
+  local headers lm
+  headers="$(_curl_s3 -o /dev/null -D - -I "$(_s3_url "$1")")" || die "cannot read $1"
+  lm="$(grep -i '^last-modified:' <<<"$headers" | head -n 1 | cut -d' ' -f2- | tr -d '\r')"
+  [[ -n "$lm" ]] || die "$1 has no Last-Modified"
+  date -u -d "$lm" +%s || die "unreadable Last-Modified on $1"
+}
+
+# key_epoch <key>: epoch seconds of the UTC timestamp in a backup key (…/adminos-YYYYMMDDTHHMMSSZ.…).
+key_epoch() {
+  [[ "$1" =~ adminos-([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2})Z ]] || return 1
+  date -u -d "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-${BASH_REMATCH[3]} ${BASH_REMATCH[4]}:${BASH_REMATCH[5]}:${BASH_REMATCH[6]}" +%s
+}
+
+# How far a key's timestamp may be in the future (clock skew), and how far from the moment the store says the
+# object was written (a dump takes minutes, not hours). Seconds.
+: "${BACKUP_MAX_CLOCK_SKEW_SECONDS:=300}"
+: "${BACKUP_MAX_KEY_DRIFT_SECONDS:=3600}"
+
+# key_is_plausible <key> <LastModified epoch> <now epoch>: 0 when the key's timestamp isn't in the future and
+# matches when the object was really written; otherwise prints why and returns 1.
+key_is_plausible() {
+  local key="$1" lm="$2" now="$3" kt drift
+  kt="$(key_epoch "$key")" || { echo "no timestamp in the key"; return 1; }
+  if (( kt > now + BACKUP_MAX_CLOCK_SKEW_SECONDS )); then echo "its timestamp is in the future"; return 1; fi
+  if (( lm > kt )); then drift=$(( lm - kt )); else drift=$(( kt - lm )); fi
+  if (( drift > BACKUP_MAX_KEY_DRIFT_SECONDS )); then echo "its timestamp is ${drift}s from when it was uploaded"; return 1; fi
+}
+
+# select_latest_dump <now epoch>: reads "key<TAB>LastModified" lines; prints the newest plausible *.dump.age,
+# ordered by the store's LastModified, not by the key's own timestamp (which the uploader controls).
+# Logs every dump it skips and why.
+select_latest_dump() {
+  local now="$1" key lm lm_epoch why best="" best_lm=0
+  while IFS=$'\t' read -r key lm; do
+    [[ "$key" =~ /adminos-[0-9]{8}T[0-9]{6}Z\.dump\.age$ ]] || continue
+    if ! lm_epoch="$(date -u -d "$lm" +%s 2>/dev/null)"; then log "skipped $key: unreadable LastModified"; continue; fi
+    if ! why="$(key_is_plausible "$key" "$lm_epoch" "$now")"; then log "skipped $key: $why"; continue; fi
+    if (( lm_epoch > best_lm )) || [[ $lm_epoch -eq $best_lm && "$key" > "$best" ]]; then
+      best="$key"; best_lm="$lm_epoch"
+    fi
+  done
+  if [[ -n "$best" ]]; then printf '%s\n' "$best"; fi
 }
 
 # ── Postgres ──

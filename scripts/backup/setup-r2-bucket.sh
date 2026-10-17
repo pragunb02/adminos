@@ -28,6 +28,7 @@ run() {
   if [[ "$dry_run" == false ]]; then npx -y "wrangler@$wrangler_version" "$@"; fi
 }
 
+require_retention   # whole numbers within bounds, same rules as the backup job
 daily_lock="$(retention_days daily)"; monthly_lock="$(retention_days monthly)"
 daily_expire="$(expire_days daily)"; monthly_expire="$(expire_days monthly)"
 

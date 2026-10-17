@@ -23,6 +23,10 @@ has "restore token is read-only" '"Object Read only"'
 out="$(BACKUP_DAILY_KEEP_DAYS=7 "$setup" --dry-run adminos-backups)"
 has "retention follows the shared setting" "lock-daily daily/ --retention-days 7"
 
+for bad in BACKUP_DAILY_KEEP_DAYS=0 BACKUP_DAILY_KEEP_DAYS=99999 BACKUP_MONTHLY_KEEP_MONTHS=abc; do
+  rc=0; env "$bad" "$setup" --dry-run adminos-backups >/dev/null 2>&1 || rc=$?
+  if [[ $rc -ne 0 ]]; then pass=$((pass + 1)); echo "ok   - $bad is refused"; else fail=$((fail + 1)); echo "FAIL - $bad accepted"; fi
+done
 rc=0; "$setup" --dry-run 'Bad/Name' >/dev/null 2>&1 || rc=$?
 if [[ $rc -ne 0 ]]; then pass=$((pass + 1)); echo "ok   - an invalid bucket name is refused"; else fail=$((fail + 1)); echo "FAIL - invalid bucket accepted"; fi
 rc=0; "$setup" --dry-run >/dev/null 2>&1 || rc=$?
