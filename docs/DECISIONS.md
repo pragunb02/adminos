@@ -5,6 +5,8 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
+| D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-82 | Architecture / Product | Leaks are computed from the range's transactions with the lens matcher (not SQL), range capped at 3 × 366 days; spent = spend − refunds (unclipped), late night 22:00–05:00 local; every number has its drill-down through the same filter | Accepted | AOS-902 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
@@ -1106,3 +1108,17 @@ Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
 - **Definitions:** spent = spend − refunds, not clipped (a lens can be negative); orders = spend transactions; average order = orders' total before refunds ÷ orders; late night = 22:00–05:00 local (data file), share over orders with a known time (statement rows excluded); previous = same number of days before; total across lenses = union.
 - **Drill-down:** `/api/v1/coach/leaks/transactions` uses the same filter object as the numbers; Activity shows it via `lens`, `merchant`, `late`, `weekday` URL filters.
 - **Rejected:** analytics SQL with hour/handle columns (would duplicate lens rules in SQL); a materialised lens-spend table (a second source of truth to keep in step with corrections and overrides).
+
+### D-120 — Promised credits are not transactions, removed one clause at a time
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Business logic · Tasks: AOS-213
+- a promised or future credit is not a transaction; only
+the clause that promises is removed, so a real debit or credit in the same message is still read, without the
+promised amount. Rejected: dropping the whole message (loses real debits beside a cashback promise).
+
+### D-119 — SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Business logic · Tasks: AOS-215, builds on D-43
+- SMS and WhatsApp direction comes from
+account-anchored phrases and Dr/Cr markers first, then one-sided verbs; when the deciding signals disagree, the message
+is skipped with reason `direction unclear, needs review`, never guessed. This replaces "the earliest verb wins".
+Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debited from A/c X and credited to A/c Y").
+
