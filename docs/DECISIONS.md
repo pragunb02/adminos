@@ -69,6 +69,7 @@
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
+| D-67 | Architecture / Product | AI ground rules: AI never invents a number shown as fact; outputs validated against input or DB; each feature off by default with minimum data; local-first where good enough; one provider port; per-feature eval gate | Proposed (awaiting Pragun) | AOS-701, E7 (AOS-702…719) |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
 entry that supersedes it.
@@ -739,3 +740,40 @@ Proposed
   - an HMAC-signed state (still needs storage for single use);
   - a double-submit cookie (single use depends on the browser);
   - no PKCE.
+
+### D-67 — AI ground rules for every smart feature
+2026-10-17 · Proposed (Claude, AOS-701; awaiting Pragun) · Type: Architecture / Product · Tasks: AOS-701, Epic E7 (AOS-702…719) · Builds on D-3, D-33, D-57, D-61, D-62
+- **AI never invents numbers shown as fact.**
+  - Money, counts, dates and totals shown to the user come from deterministic code (the pipeline, analytics, forecasts).
+  - A model may extract a number that is present in its input, choose a query or tool, classify or rephrase, but it never computes a figure the app presents as true.
+- **Outputs are validated.**
+  - Every model output uses a JSON schema (structured outputs or strict tools) and is checked against its source:
+    - extracted amount, last 4 digits and date must appear in the text;
+    - evidence spans must be exact substrings;
+    - every number in generated prose must be in the facts given;
+    - every number in an "Ask" answer must come from a tool result.
+  - A failed check rejects the output, logs the reason (IDs and counts only), and falls back to the rule or template, or leaves the item in Review. No silent fallback.
+- **Off by default, minimum data.**
+  - Each AI feature is its own purpose with its own toggle (consent) and notice line.
+  - A per-feature redactor sends only the fields needed: account and card numbers become last 4 digits, and phone numbers, emails and people's names are masked or dropped.
+  - Raw message text is still never stored (D-33). Identity documents (passport, Aadhaar, PAN) never go to a cloud model.
+- **Local-first where feasible.**
+  - Classical models run in the API (JVM, e.g. Tribuo) and OCR runs in the Python service.
+  - Features that read raw messages, documents, receipts or voice default to a local model (Ollama).
+  - A cloud model (Claude: `claude-haiku-5-5` for extraction, `claude-sonnet-5-5` for tool use, `claude-opus-5-5` only if an eval needs it) is opt-in per feature.
+- **One provider port.**
+  - All model calls go through one `AiProvider` port with adapters (Anthropic, Ollama, a test fake). Model IDs live in configuration.
+  - The port enforces a monthly cost cap that fails closed, and writes an audit row per call: feature, provider, model, prompt version, tokens, cost, outcome, latency. Never content.
+  - AI features get no outbound tools (no sending, paying or cancelling). "Ask" tools are read-only, and the server scopes them to the signed-in user.
+- **Per-feature eval gate.**
+  - Each feature has a synthetic golden set and a committed baseline (generalising D-61).
+  - A feature can't be turned on unless its eval meets the baseline, and a model-assisted variant may never lower a rule's precision or change a row the rules decided.
+- **Rejected:**
+  - letting models compute totals or write SQL (text-to-SQL benchmark error rates; it would re-implement D-39/D-46);
+  - a third-party LLM framework (dependency weight, harder to audit what's sent);
+  - cloud by default (privacy, DPDP minimisation for public users).
+- **Consequences:**
+  - New AI features are an `AiFeature` entry, a redactor, a validator, an eval set and a baseline.
+  - AOS-702 refactors AOS-512's call path into the port.
+  - The legacy Go `internal/claude` client is retired or routed through it.
+  - Evidence and options: `docs/research/AI-ML-RESEARCH.md`.
