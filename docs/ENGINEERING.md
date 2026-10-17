@@ -166,6 +166,7 @@ Layers 4 and 5 sit side by side under layer 3.
 - [ ] PROGRESS.md updated.
 - [ ] Commit message starts with the task ID: `AOS-xxx: …`.
 - [ ] **Security gate passed (§4a).** No feature ships without it (D-91, D-100).
+- [ ] **Code and security reviews passed (§4b)** on the final commit (D-101).
 
 ## 4a. Security gate (every feature, every time; D-100)
 
@@ -188,6 +189,21 @@ Security is P0 (D-91). A task that adds or changes behaviour is not done, and it
 - [ ] AI features: off by default, minimum data, outputs validated (D-67).
 
 **4. Review:** the reviewer (the integrator) re-reads the diff as an attacker before merging and runs the full Playwright suite, including `e2e/security.spec.ts`.
+
+## 4b. Review step (every PR, before merge; D-101)
+
+Every PR is reviewed by **two independent reviewers** after its last push and before merge: a **code reviewer** and a **security reviewer**. Each is a separate reviewer agent that did not write the change, working from the PR diff, the ticket and these standards.
+
+| Reviewer | Looks for | Tooling |
+|---|---|---|
+| **Code** | Correctness bugs and edge cases; layer rules (§1); coding rules (§2); tests that really test the acceptance criteria (§3); simpler or reused code | `/code-review` |
+| **Security** | The §4a gate: auth and ownership on every new route, injection, XSS, SSRF, upload abuse, secrets and PII, exposure, crypto misuse, dependency risk; attack tests present | `/security-review` + the threat model (`docs/security/THREAT-MODEL.md`) |
+
+- **Verdict:** each reviewer posts its findings as a PR comment and sets the commit status `review/code` or `review/security` with `scripts/review-status.sh` (success, or failure with blocking findings).
+- **Blocking:** any correctness bug, any security finding (D-91), missing tests for an acceptance criterion, or a broken layer rule. Style nits don't block; they are listed.
+- **Fix and repeat:** fixes are pushed, and both reviews run again. A status belongs to one commit, so a new push always needs a fresh review.
+- **Enforced:** `scripts/merge-pr.sh` merges only when every check run **and** both `review/*` statuses are `success` on the head commit (tested in `scripts/tests/merge-pr.test.sh`).
+- The integrator still runs the full gates and Playwright (§4, §4a) and reads the reviews before merging.
 
 ---
 

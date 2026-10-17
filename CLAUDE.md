@@ -36,6 +36,9 @@ architecture clean and extensible, but build nothing for other users.
   - unit, integration and Playwright attack tests;
   - no new public exposure.
   A security finding blocks the merge.
+- **Every PR gets a code review and a security review before merge (`docs/ENGINEERING.md` §4b, D-101):**
+  - two independent reviewer agents, each setting `review/code` / `review/security` on the head commit with `scripts/review-status.sh`;
+  - `scripts/merge-pr.sh` refuses to merge without both, and a new push needs a fresh review.
 - If you find a bug, report it and mention it in PROGRESS.md; don't silently fix things outside the agreed step.
 
 ## Stack
