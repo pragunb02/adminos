@@ -87,7 +87,7 @@ class SplitwiseRowsElsewhereTest {
     @Test
     fun `the AI fallback never asks about a Splitwise row`() {
         val ai = AiCategorizationService({ _, _ -> AiCategoryResult.Unavailable("never called") }, InMemoryAiCategoryCacheRepository(),
-            InMemoryCategoryRuleRepository(), InMemoryTransactionRepository(), "test-model")
+            InMemoryCategoryRuleRepository(), InMemoryTransactionRepository(), dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT, "test-model")
         assertFalse(ai.isCandidate(share(merchant = "Asha birthday dinner")))
         assertTrue(ai.isCandidate(bankDebit().copy(merchantName = "Asha Bakery", category = TransactionCategory.OTHER)), "a bank row with the same shape is")
     }

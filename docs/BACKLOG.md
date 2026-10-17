@@ -234,6 +234,7 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
 | └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
 | └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+| └ [AOS-911](tickets/AOS-911.md) | Splitwise import: count only my share of shared bills; settle-ups are neither spending nor income (D-111) | Claude (agent) | 🟦 | 8h | 8h |
 
 ## 🟦 [AOS-E8](tickets/AOS-E8.md) — Wealth · P1 · ETA 128h
 

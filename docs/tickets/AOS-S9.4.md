@@ -28,6 +28,7 @@ Per task ticket (≥2 options each).
 |---|---|---|---|---|---|
 | AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
 | AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+| [AOS-911](AOS-911.md) | Splitwise import: count only my share of shared bills; settle-ups are neither spending nor income (D-111) | Claude (agent) | 🟦 | 8h | 8h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -36,3 +37,4 @@ On real data after go-live (AOS-111, AOS-211/212).
 
 ## Activity log
 - 2026-10-17 — Claude: story created (AOS-011 plan, D-80).
+- 2026-10-18 — Claude: AOS-911 added (Splitwise import; D-111); API integrated, web next.

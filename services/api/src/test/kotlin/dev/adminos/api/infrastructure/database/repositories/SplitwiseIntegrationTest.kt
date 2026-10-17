@@ -44,7 +44,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** AOS-911 on Postgres: V90, encryption at rest, the one-entry-per-transaction index, and totals that match in-memory. */
+/** AOS-911 on Postgres: V41, encryption at rest, the one-entry-per-transaction index, and totals that match in-memory. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SplitwiseIntegrationTest {

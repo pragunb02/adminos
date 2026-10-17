@@ -39,7 +39,7 @@ object TransactionsTable : Table("transactions") {
     val rawEmailId = varchar("raw_email_id", 255).nullable()
     val metadata = text("metadata").nullable() // JSONB stored as text
     val ingestEventId = javaUUID("ingest_event_id").nullable()
-    /** The owner's share of a split bill (V90, AOS-911); totals count it instead of [amount]. */
+    /** The owner's share of a split bill (V41, AOS-911); totals count it instead of [amount]. */
     val ownShare = decimal("own_share", 12, 2).nullable()
     val transactedAt = timestamp("transacted_at")
     val createdAt = timestamp("created_at")

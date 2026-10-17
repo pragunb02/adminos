@@ -81,7 +81,7 @@ data class PriorState(
     val categorySource: String
 )
 
-/** A stored entry and its state (V90). [description] and [counterparty] are encrypted at rest by the repository. */
+/** A stored entry and its state (V41). [description] and [counterparty] are encrypted at rest by the repository. */
 data class SplitEntry(
     val id: UUID = UUID.randomUUID(),
     val userId: UUID,

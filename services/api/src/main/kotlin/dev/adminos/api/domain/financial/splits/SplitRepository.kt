@@ -6,7 +6,7 @@ import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/** Stored Splitwise imports and entries (V90). The Exposed implementation encrypts descriptions and names at rest. */
+/** Stored Splitwise imports and entries (V41). The Exposed implementation encrypts descriptions and names at rest. */
 interface SplitRepository {
     suspend fun saveImport(import: SplitImport): SplitImport
     suspend fun findImport(id: UUID): SplitImport?

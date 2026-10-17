@@ -1,4 +1,4 @@
--- V90 (tentative number): Splitwise import (AOS-911, proposed D-111).
+-- V41 (AOS-911, D-111): Splitwise import.
 -- settlement: money paid to or received from a friend to settle a shared bill; neither spending nor income.
 -- (ADD VALUE runs inside Flyway's transaction on Postgres 12+; nothing in this migration uses the new value.)
 ALTER TYPE transaction_nature ADD VALUE IF NOT EXISTS 'settlement';
