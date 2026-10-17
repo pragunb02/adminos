@@ -17,6 +17,8 @@ interface SessionRepository {
     /** Revokes every active session of [userId]; returns how many. */
     suspend fun revokeAllForUser(userId: UUID): Int
     suspend fun updateLastActive(sessionId: UUID)
+    /** The session passed the second factor at [at] (AOS-617). */
+    suspend fun markSecondFactor(sessionId: UUID, at: Instant)
 
     /**
      * Replaces the session's refresh token [oldHash] by [newHash] and remembers [oldHash] as rotated, atomically.

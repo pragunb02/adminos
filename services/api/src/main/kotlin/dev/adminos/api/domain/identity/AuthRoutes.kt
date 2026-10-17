@@ -39,7 +39,9 @@ data class GoogleLoginStartResponse(val url: String)
 class LoginOAuth(
     val google: GoogleOAuthClient,
     val states: dev.adminos.api.domain.ingestion.connection.OAuthStateService,
-    val guard: SignInGuard = SignInGuard()
+    val guard: SignInGuard = SignInGuard(),
+    /** The second-factor step a new session leads to (AOS-617); the session itself is pending either way. */
+    val secondFactorStep: suspend (UUID) -> SecondFactorStep = { SecondFactorStep.VERIFY }
 )
 
 /**
@@ -49,7 +51,9 @@ class LoginOAuth(
 @Serializable
 data class AuthTokenResponse(
     val expiresIn: Long,
-    val user: UserResponse
+    val user: UserResponse,
+    /** What this new session must do before it can use the app (AOS-617): `enrol` a first passkey, or `verify` one. */
+    val secondFactor: String = "verify"
 )
 
 @Serializable
@@ -153,7 +157,8 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     ApiResponse.success(
                         AuthTokenResponse(
                             expiresIn = result.expiresIn,
-                            user = UserResponse.from(result.user)
+                            user = UserResponse.from(result.user),
+                            secondFactor = login.secondFactorStep(result.user.id).name.lowercase()
                         ),
                         call.requestId
                     )

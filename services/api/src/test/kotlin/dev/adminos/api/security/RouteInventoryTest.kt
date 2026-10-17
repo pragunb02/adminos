@@ -4,6 +4,7 @@ import dev.adminos.api.domain.identity.DEVICE_INGEST_SMS
 import dev.adminos.api.domain.identity.DeviceTokenService
 import dev.adminos.api.domain.identity.Scopes
 import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
+import dev.adminos.api.infrastructure.plugins.AUTH_PENDING
 import dev.adminos.api.security.SecurityTestKit.newUser
 import dev.adminos.api.security.SecurityTestKit.realApp
 import dev.adminos.api.security.SecurityTestKit.tokenFor
@@ -53,7 +54,16 @@ class RouteInventoryTest {
         /** Authenticated, but not by a browser session: the provider each must use. */
         val OTHER_AUTH: Map<Endpoint, String> = mapOf(
             Endpoint(HttpMethod.Post, "/api/v1/ingest/sms/raw") to DEVICE_INGEST_SMS, // device token, header only, scope ingest:sms (D-36)
-        )
+        ) + listOf(
+            // The passkey step (AOS-617): a live Google session that hasn't passed its passkey yet may only do this.
+            Endpoint(HttpMethod.Get, "/api/v1/auth/passkey/status"),
+            Endpoint(HttpMethod.Post, "/api/v1/auth/passkey/register/options"),
+            Endpoint(HttpMethod.Post, "/api/v1/auth/passkey/register"),
+            Endpoint(HttpMethod.Post, "/api/v1/auth/passkey/authenticate/options"),
+            Endpoint(HttpMethod.Post, "/api/v1/auth/passkey/authenticate"),
+            Endpoint(HttpMethod.Post, "/api/v1/auth/passkey/recover"),
+            Endpoint(HttpMethod.Post, "/api/v1/auth/passkey/recovery-codes"),
+        ).associateWith { AUTH_PENDING }
 
         const val SESSION = "auth-jwt"
 
@@ -119,7 +129,7 @@ class RouteInventoryTest {
     @Test
     fun `a device token never opens a session route, in the header or as the cookie`() = realApp { app ->
         val device = app.get<DeviceTokenService>().issue(UUID.randomUUID(), "attacker Mac", setOf(Scopes.INGEST_SMS)).token
-        val sessionRoutes = inventory(app).filter { it.providers == listOf(SESSION) }
+        val sessionRoutes = inventory(app).filter { it.providers == listOf(SESSION) || it.providers == listOf(AUTH_PENDING) }
         val wrong = sessionRoutes.flatMap { r ->
             listOf(
                 client.request(concrete(r.endpoint.path)) { method = r.endpoint.method; bearerAuth(device) },

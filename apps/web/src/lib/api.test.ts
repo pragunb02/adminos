@@ -12,6 +12,26 @@ function atPath(path: string) {
 afterEach(() => assign.mockReset());
 
 describe("api client (AOS-109/308)", () => {
+  it("a session waiting for its passkey goes to the passkey step, without refreshing (AOS-617)", async () => {
+    atPath("/transactions");
+    let refreshed = false;
+    server.use(
+      http.get("/api/v1/transactions", () => fail(401, "AUTH_010", "Confirm it's you with your passkey")),
+      http.post("/api/v1/auth/refresh", () => { refreshed = true; return ok({}); }),
+    );
+    const res = await api.get("/api/v1/transactions");
+    expect(res.error?.code).toBe("AUTH_010");
+    expect(assign).toHaveBeenCalledWith("/auth/passkey");
+    expect(refreshed).toBe(false);
+  });
+
+  it("already on the passkey step, it doesn't reload itself", async () => {
+    atPath("/auth/passkey");
+    server.use(http.get("/api/v1/x", () => fail(401, "AUTH_010", "Confirm it's you with your passkey")));
+    await api.get("/api/v1/x");
+    expect(assign).not.toHaveBeenCalled();
+  });
+
   it("returns the envelope on success and sends JSON same-origin", async () => {
     let seen: Request | undefined;
     server.use(http.post("/api/v1/things", async ({ request }) => { seen = request; return ok({ id: "1" }); }));

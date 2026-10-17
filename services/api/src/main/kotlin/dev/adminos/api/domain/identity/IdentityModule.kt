@@ -16,12 +16,14 @@ fun Application.identityModule(config: AppConfig) {
     val deviceTokenService: DeviceTokenService by inject()
     val google: GoogleOAuthClient by inject()
     val states: dev.adminos.api.domain.ingestion.connection.OAuthStateService by inject()
-    val login = LoginOAuth(google, states)
+    val passkeys: PasskeyService by inject()
+    val login = LoginOAuth(google, states, secondFactorStep = { passkeys.stepAfterSignIn(it) })
 
     routing {
         route("/api/v1") {
             authRoutes(authService, config.auth.accessTokenTtlSeconds, config, auditService, login)
             deviceTokenRoutes(deviceTokenService)
+            passkeyRoutes(passkeys, config)
         }
     }
 }

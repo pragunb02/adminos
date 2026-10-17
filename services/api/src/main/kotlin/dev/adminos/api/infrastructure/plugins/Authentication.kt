@@ -3,6 +3,7 @@ package dev.adminos.api.infrastructure.plugins
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.identity.JwtService
+import dev.adminos.api.domain.identity.SessionAccess
 import io.ktor.http.*
 import io.ktor.http.auth.AuthScheme
 import io.ktor.http.auth.HttpAuthHeader
@@ -35,11 +36,20 @@ data class UserPrincipal(
  */
 class SessionGate(
     private val requireSession: Boolean,
-    private val isActive: suspend (userId: UUID, sessionId: UUID) -> Boolean
+    private val lookup: suspend (userId: UUID, sessionId: UUID) -> SessionAccess
 ) {
-    suspend fun allows(userId: UUID, sessionId: UUID?): Boolean =
-        if (sessionId == null) !requireSession else isActive(userId, sessionId)
+    suspend fun access(userId: UUID, sessionId: UUID?): SessionAccess =
+        if (sessionId == null) (if (requireSession) SessionAccess.DENIED else SessionAccess.FULL) else lookup(userId, sessionId)
 }
+
+/** Provider for the passkey step itself: a live session that hasn't passed the second factor yet is enough (AOS-617). */
+const val AUTH_PENDING = "auth-pending"
+
+/** Set when a request was refused only because its session still needs the passkey (→ `AUTH_010`). */
+internal val SecondFactorPending = io.ktor.util.AttributeKey<Boolean>("SecondFactorPending")
+
+/** 401 for a signed-in session that still needs its passkey: the web app sends the user to that step (AOS-617). */
+val SECOND_FACTOR_REQUIRED = ApiError("AUTH_010", "Confirm it's you with your passkey")
 
 /** HttpOnly cookie the web app receives at login (see AuthRoutes). */
 const val ACCESS_TOKEN_COOKIE = "access_token"
@@ -53,27 +63,39 @@ const val ACCESS_TOKEN_COOKIE = "access_token"
  *    CSRF is mitigated by the cookie's `SameSite=Strict`.
  */
 fun Application.configureAuthentication(jwtService: JwtService, sessions: SessionGate? = null) {
+    fun principal(claims: dev.adminos.api.domain.identity.JwtClaims) = UserPrincipal(
+        userId = claims.userId,
+        email = claims.email,
+        role = claims.role,
+        zone = claims.timezone?.let { java.time.ZoneId.of(it) } ?: DEFAULT_ZONE,
+        sessionId = claims.sessionId
+    )
+    suspend fun access(claims: dev.adminos.api.domain.identity.JwtClaims) = sessions?.access(claims.userId, claims.sessionId) ?: SessionAccess.FULL
+    val tokenSource: (ApplicationCall) -> HttpAuthHeader? = { call ->
+        call.request.parseAuthorizationHeader()
+            ?: call.request.cookies[ACCESS_TOKEN_COOKIE]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { HttpAuthHeader.Single(AuthScheme.Bearer, it) }
+    }
     install(Authentication) {
+        // Every app route: a valid token whose session is live and has passed the second factor (AOS-617).
         bearer("auth-jwt") {
-            authHeader { call ->
-                call.request.parseAuthorizationHeader()
-                    ?: call.request.cookies[ACCESS_TOKEN_COOKIE]
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { HttpAuthHeader.Single(AuthScheme.Bearer, it) }
-            }
+            authHeader(tokenSource)
             authenticate { tokenCredential ->
-                val claims = jwtService.verifyAccessToken(tokenCredential.token)
-                if (claims != null && (sessions == null || sessions.allows(claims.userId, claims.sessionId))) {
-                    UserPrincipal(
-                        userId = claims.userId,
-                        email = claims.email,
-                        role = claims.role,
-                        zone = claims.timezone?.let { java.time.ZoneId.of(it) } ?: DEFAULT_ZONE,
-                        sessionId = claims.sessionId
-                    )
-                } else {
-                    null
+                val claims = jwtService.verifyAccessToken(tokenCredential.token) ?: return@authenticate null
+                when (access(claims)) {
+                    SessionAccess.FULL -> principal(claims)
+                    SessionAccess.PENDING_SECOND_FACTOR -> { attributes.put(SecondFactorPending, true); null }
+                    SessionAccess.DENIED -> null
                 }
+            }
+        }
+        // The passkey step: the same, but a session still waiting for its passkey is let in.
+        bearer(AUTH_PENDING) {
+            authHeader(tokenSource)
+            authenticate { tokenCredential ->
+                val claims = jwtService.verifyAccessToken(tokenCredential.token) ?: return@authenticate null
+                if (access(claims) == SessionAccess.DENIED) null else principal(claims)
             }
         }
     }

@@ -40,7 +40,7 @@ class InfraAppDatabaseIntegrationTest {
         val session = runBlocking {
             dev.adminos.api.infrastructure.database.repositories.ExposedSessionRepository().save(dev.adminos.api.domain.identity.Session(
                 userId = user.id, tokenHash = dev.adminos.api.domain.identity.JwtService.hashToken(UUID.randomUUID().toString()),
-                expiresAt = java.time.Instant.now().plusSeconds(3600)))
+                expiresAt = java.time.Instant.now().plusSeconds(3600), secondFactorAt = java.time.Instant.now())) // passed its passkey (AOS-617)
         }
         testApplication {
             environment { this.config = MapApplicationConfig() }

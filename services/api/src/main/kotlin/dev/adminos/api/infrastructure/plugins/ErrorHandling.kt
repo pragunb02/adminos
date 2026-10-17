@@ -62,7 +62,8 @@ fun Application.configureErrorHandling() {
         }
         // Auth challenges (missing/invalid JWT) carry no body by default; clients always get the envelope.
         status(HttpStatusCode.Unauthorized) { call, status ->
-            call.respond(status, ApiResponse.error(ApiError.TOKEN_INVALID, call.requestId))
+            val error = if (call.attributes.getOrNull(SecondFactorPending) == true) SECOND_FACTOR_REQUIRED else ApiError.TOKEN_INVALID
+            call.respond(status, ApiResponse.error(error, call.requestId))
         }
         // An upload over the route's formFieldLimit (statements, documents): Ktor's multipart parser fails the
         // call with an IOException. That's the client's file being too large, not a server error (AOS-507).

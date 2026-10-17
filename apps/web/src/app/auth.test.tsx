@@ -101,6 +101,13 @@ describe("OAuth callback", () => {
     expect(body).toEqual({ code: "abc", state: "s1", redirectUri: "http://localhost:3000/auth/callback" });
   });
 
+  it.each(["enrol", "verify"])("a sign-in that still needs its passkey (%s) goes to the passkey step (AOS-617)", async (step) => {
+    const { nav, Callback: Page } = await fresh("client-123", { code: "abc", state: "s1" });
+    server.use(http.post("/api/v1/auth/google", () => ok({ expiresIn: 3600, secondFactor: step, user: { id: "u", email: "e", name: "n", role: "owner", onboardingStatus: "completed" } })));
+    render(<Page />);
+    await waitFor(() => expect(nav.router.replace).toHaveBeenCalledWith("/auth/passkey"));
+  });
+
   it("a rejected code shows the failure and returns to login", async () => {
     const { nav, Callback: Page } = await fresh("client-123", { code: "bad", state: "s1" });
     server.use(http.post("/api/v1/auth/google", () => fail(401, "AUTH_002", "bad code")));

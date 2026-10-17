@@ -84,6 +84,8 @@ internal fun buildAppModule(
         // Identity
         single<UserRepository> { ExposedUserRepository() }
         single<SessionRepository> { ExposedSessionRepository() }
+        single<PasskeyRepository> { ExposedPasskeyRepository() }
+        single<RecoveryCodeRepository> { ExposedRecoveryCodeRepository() }
         single<DeviceRepository> { ExposedDeviceRepository() }
         // Ingestion
         single<ConnectionRepository> { ExposedConnectionRepository() }
@@ -117,6 +119,8 @@ internal fun buildAppModule(
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
         single<SessionRepository> { InMemorySessionRepository() }
+        single<PasskeyRepository> { InMemoryPasskeyRepository() }
+        single<RecoveryCodeRepository> { InMemoryRecoveryCodeRepository() }
         single<DeviceRepository> { InMemoryDeviceRepository() }
         single<ConnectionRepository> { InMemoryConnectionRepository() }
         single<OAuthStateRepository> { InMemoryOAuthStateRepository() }
@@ -152,6 +156,9 @@ internal fun buildAppModule(
         })
     }
     single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth, alerts = get()) }
+    // Passkeys, the second factor (AOS-617): RP ID and origin come from APP_URL.
+    single<WebAuthnCeremonies> { dev.adminos.api.infrastructure.webauthn.YubicoWebAuthn(get<AppConfig>().app.appUrl) }
+    single { PasskeyService(get(), get(), get(), get(), get(), alerts = get()) }
 
     // Redis queue publisher — only if REDIS_URL is configured and not default
     val redisUrl = env("REDIS_URL") ?: ""

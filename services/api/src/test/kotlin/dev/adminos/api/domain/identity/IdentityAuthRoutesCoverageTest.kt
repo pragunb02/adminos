@@ -390,7 +390,8 @@ class IdentityAuthRoutesCoverageTest {
     fun `the identity module mounts auth and device-token routes under api v1`() = testApplication {
         environment { config = MapApplicationConfig() }
         application {
-            install(Koin) { modules(testAppModule, module { single { DeviceTokenService(InMemoryDeviceTokenRepository(), get()) }; single { OAuthStateService(InMemoryOAuthStateRepository(), null) } }) }
+            install(Koin) { modules(testAppModule, module { single { DeviceTokenService(InMemoryDeviceTokenRepository(), get()) }; single { OAuthStateService(InMemoryOAuthStateRepository(), null) }
+                single { PasskeyService(InMemoryPasskeyRepository(), InMemoryRecoveryCodeRepository(), get(), get(), dev.adminos.api.infrastructure.webauthn.YubicoWebAuthn(baseConfig.app.appUrl)) } }) }
             configureForwardedHeaders(); configureSerialization(); configureRequestId(); configureErrorHandling()
             configureAuthentication(JwtService(baseConfig.auth))
             identityModule(baseConfig)

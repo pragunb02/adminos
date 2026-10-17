@@ -38,6 +38,31 @@ object SessionsTable : Table("sessions") {
     val lastActiveAt = timestamp("last_active_at").nullable()
     val createdAt = timestamp("created_at")
     val revokedAt = timestamp("revoked_at").nullable()
+    val secondFactorAt = timestamp("second_factor_at").nullable() // V34, AOS-617
+    override val primaryKey = PrimaryKey(id)
+}
+
+/** Passkeys (V34, AOS-617): public keys only. */
+object WebAuthnCredentialsTable : Table("webauthn_credentials") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val credentialId = varchar("credential_id", 1400)
+    val publicKeyCose = text("public_key_cose")
+    val signatureCount = long("signature_count")
+    val name = varchar("name", 60)
+    val transports = text("transports")
+    val createdAt = timestamp("created_at")
+    val lastUsedAt = timestamp("last_used_at").nullable()
+    override val primaryKey = PrimaryKey(id)
+}
+
+/** Recovery codes (V34, AOS-617): SHA-256 only. */
+object RecoveryCodesTable : Table("recovery_codes") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val codeHash = varchar("code_hash", 64)
+    val createdAt = timestamp("created_at")
+    val usedAt = timestamp("used_at").nullable()
     override val primaryKey = PrimaryKey(id)
 }
 

@@ -62,6 +62,21 @@ sealed interface SecurityAlert {
         }
     }
 
+    data class PasskeyAdded(val name: String) : SecurityAlert {
+        override val title = "A passkey was added to AdminOS"
+        override val body = "A passkey was added. If this wasn't you, sign out everywhere in Settings → Security."
+    }
+
+    data class RecoveryCodeUsed(val left: Int) : SecurityAlert {
+        override val title = "A recovery code was used"
+        override val body = "Someone signed in to AdminOS with a recovery code; $left left. If this wasn't you, sign out everywhere in Settings → Security."
+    }
+
+    data object SecondFactorFailed : SecurityAlert {
+        override val title = "Passkey check failed"
+        override val body = "Several passkey or recovery-code attempts failed after a Google sign-in, so that session was signed out."
+    }
+
     data class SessionKeyReused(val device: String) : SecurityAlert {
         override val title = "A copied sign-in was blocked"
         override val body = "An old session key from $device was used again, so that session was signed out. " +
@@ -97,6 +112,12 @@ class SignInAlerts(
     suspend fun newSignIn(ownerId: UUID, device: String) = send(ownerId, SecurityAlert.NewSignIn(device, at(clock.instant())))
 
     suspend fun sessionKeyReused(ownerId: UUID, device: String) = send(ownerId, SecurityAlert.SessionKeyReused(device))
+
+    suspend fun passkeyAdded(ownerId: UUID, name: String) = send(ownerId, SecurityAlert.PasskeyAdded(name))
+
+    suspend fun recoveryCodeUsed(ownerId: UUID, left: Int) = send(ownerId, SecurityAlert.RecoveryCodeUsed(left))
+
+    suspend fun secondFactorFailed(ownerId: UUID) = send(ownerId, SecurityAlert.SecondFactorFailed)
 
     /** A refused sign-in. [ownerId] is null before the owner's first sign-in (nobody to tell yet). */
     suspend fun refused(ownerId: UUID?, email: String?) {

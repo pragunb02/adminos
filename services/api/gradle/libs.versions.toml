@@ -21,6 +21,8 @@ anthropic = "2.73.0"
 greenmail = "2.1.14"
 # Transitive (anthropic-java, google-auth): pinned above the 2026-09/10 advisories fixed in 2.22.3 (AOS-615, AUD-02).
 jackson = "2.22.3"
+# Passkeys (AOS-617): Yubico java-webauthn-server, BSD-2-Clause, released 2026-10-09.
+webauthn = "2.10.1"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -56,6 +58,7 @@ angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awsSdk" }
 aws-url-connection-client = { module = "software.amazon.awssdk:url-connection-client", version.ref = "awsSdk" }
 anthropic-java = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
+webauthn-server-core = { module = "com.yubico:webauthn-server-core", version.ref = "webauthn" }
 jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 

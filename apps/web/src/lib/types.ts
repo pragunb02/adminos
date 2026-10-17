@@ -287,4 +287,6 @@ export interface AuthResponse {
     onboardingStatus: string;
     role: string;
   };
+  /** The passkey step this new session must take (AOS-617). */
+  secondFactor?: "enrol" | "verify" | "done";
 }
