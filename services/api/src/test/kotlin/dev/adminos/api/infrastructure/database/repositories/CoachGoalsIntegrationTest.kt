@@ -22,7 +22,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** V43 coach_goals on Postgres (AOS-907); the fake passes the same contract. */
+/** V37 coach_goals on Postgres (AOS-907); the fake passes the same contract. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CoachGoalsIntegrationTest {

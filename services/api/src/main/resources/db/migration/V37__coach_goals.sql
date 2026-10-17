@@ -1,4 +1,4 @@
--- V43 (tentative number; the integrator renumbers): goals on habit lenses (AOS-907).
+-- V37: goals on habit lenses (AOS-907, D-86).
 -- One goal per (user, lens). A cut goal stores its frozen baseline (spend per period over the 3 months before it began).
 CREATE TABLE coach_goals (
   id          UUID          PRIMARY KEY,
