@@ -29,7 +29,7 @@ data class AiRoute(val feature: AiFeature, val provider: AiProvider, val model: 
  * 3. **circuit breaker** per provider → [AiResult.Unavailable] while open;
  * 4. **cost cap**: reserve the worst case, or [AiRefusal.CAP_REACHED] (fails closed);
  * 5. **the provider call**, timed; the reservation is settled to the real cost (or kept whole if it threw);
- * 6. **validation** by the task; only a valid answer is returned as [AiResult.Answered];
+ * 6. **validation** by the task; only a valid answer is returned as [AiResult.Answered] (a validator that throws rejects it, AOS-635);
  * 7. **audit**: one [AiCallRecord] per provider call, with codes and counts only, never content.
  * Steps 1–4 make no call, so they write no audit row. A failed consent check fails closed (it throws).
  */
@@ -100,13 +100,27 @@ class AiGateway(
 
     private fun <I, O> judge(task: AiTask<I, O>, input: I, completion: AiCompletion, model: String): Pair<AiResult<O>, AiCallOutcome> =
         when (completion) {
-            is AiCompletion.Completed -> when (val reading = task.read(completion.text, input)) {
+            is AiCompletion.Completed -> when (val reading = read(task, completion.text, input)) {
                 is AiReading.Valid -> AiResult.Answered(reading.value, model) to AiCallOutcome.ACCEPTED
                 is AiReading.Invalid -> AiResult.Rejected(reading.code) to AiCallOutcome.REJECTED
             }
             is AiCompletion.Refused -> AiResult.Rejected(REFUSED) to AiCallOutcome.REJECTED
             is AiCompletion.Truncated -> AiResult.Rejected(TRUNCATED) to AiCallOutcome.REJECTED
             is AiCompletion.Failed -> AiResult.Unavailable(completion.code) to AiCallOutcome.ERROR
+        }
+
+    /**
+     * The task's validator, which must never take the job down with it (AOS-635): anything it throws, even an
+     * `Error` such as `StackOverflowError` on a hostile reply, rejects the answer as [READ_FAILED] and is audited.
+     * Cancellation is re-thrown.
+     */
+    private fun <I, O> read(task: AiTask<I, O>, text: String, input: I): AiReading<O> =
+        try {
+            task.read(text, input)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            AiReading.Invalid(READ_FAILED)
         }
 
     private fun codeOf(result: AiResult<*>): AiReasonCode? = when (result) {
@@ -121,6 +135,8 @@ class AiGateway(
         val REFUSED = AiReasonCode("refused")
         val TRUNCATED = AiReasonCode("truncated")
         val INTERNAL = AiReasonCode("internal")
+        /** The task's validator threw on the reply (AOS-635); the answer is rejected, never trusted. */
+        val READ_FAILED = AiReasonCode("read_failed")
         private const val NANOS_PER_MILLI = 1_000_000L
     }
 }

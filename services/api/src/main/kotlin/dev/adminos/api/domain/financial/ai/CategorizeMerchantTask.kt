@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.financial.ai
 
 import dev.adminos.api.domain.ai.AiFeature
+import dev.adminos.api.domain.ai.AiJson
 import dev.adminos.api.domain.ai.AiNotice
 import dev.adminos.api.domain.ai.AiPrompt
 import dev.adminos.api.domain.ai.AiReading
@@ -8,8 +9,6 @@ import dev.adminos.api.domain.ai.AiReasonCode
 import dev.adminos.api.domain.ai.AiTask
 import dev.adminos.api.domain.ai.SafeName
 import dev.adminos.api.domain.financial.TransactionCategory
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -106,11 +105,8 @@ object CategorizeMerchantTask : AiTask<AiCategoryQuestion, AiCategoryAnswer> {
 
     /** Strict reading of the model's JSON: anything but exactly the three valid fields is rejected. */
     override fun read(text: String, input: AiCategoryQuestion): AiReading<AiCategoryAnswer> {
-        val obj = try {
-            Json.parseToJsonElement(text.trim()) as? JsonObject
-        } catch (e: SerializationException) {
-            null
-        } ?: return AiReading.Invalid(NOT_JSON_OBJECT)
+        // The answer is one flat object; a huge or deeply nested reply is refused before parsing (AOS-635).
+        val obj = AiJson.parseObject(text, maxDepth = 1) ?: return AiReading.Invalid(NOT_JSON_OBJECT)
         if (obj.keys != FIELDS) return AiReading.Invalid(UNEXPECTED_FIELDS)
         val name = (obj["category"] as? JsonPrimitive)?.takeIf { it.isString }?.content
         val category = input.allowed.firstOrNull { it.name == name } ?: return AiReading.Invalid(CATEGORY_NOT_ALLOWED)
