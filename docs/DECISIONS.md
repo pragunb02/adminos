@@ -72,6 +72,7 @@
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
+| D-98 | Architecture | Backups: nightly snapshot `pg_dump` piped into `age` (host holds only the public key), uploaded to a separate R2 bucket with bucket lock and lifecycle expiry; checksums + encrypted manifest; scripted monthly restore drill; keys offline | Accepted | AOS-621 |
 | D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
 | D-68 | Architecture | One AI gateway over a thin `AiProvider` port (Anthropic SDK, Ollama, fake); features are tasks with their own redactor and validator; flag → redaction → breaker → cost reservation → call → settle → validate → audit (no content); monthly cap fails closed; committed eval records gate start-up; legacy Go Claude path removed | Accepted | AOS-702 |
 | D-101 | Process | Every PR gets two independent reviews (code, security) after its last push; each sets a commit status (`review/code`, `review/security`); `scripts/merge-pr.sh` merges only when both and every check pass on the head commit | Accepted | AOS-013 |
@@ -982,4 +983,17 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
   - a new vendor is one adapter with a price table;
   - a model switch is configuration plus a committed record.
 - **Integration addition:** `OLLAMA_BASE_URL` allows plain http only for loopback or a compose service name; anything else must be https (prompts carry financial text, D-91).
+
+### D-98 — Backups: age on the host, separate locked R2 bucket, monthly drill
+2026-10-18 · Accepted (built by the infra-security agent under D-91; reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-621
+Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
+- Nightly `pg_dump` (custom format, one snapshot) piped into **age** for a public recipient; the secret key is
+  offline (password manager + paper). Restic/Kopia and GnuPG rejected (key on host / large legacy surface).
+- Stored in a **separate** R2 bucket: no public access; **bucket lock** 30 days (`daily/`) and 365 days
+  (`monthly/`); lifecycle deletes one day after; backup token Object Read & Write for that bucket only
+  (R2 has no write-only); restore token Object Read only, kept offline.
+- SHA-256 signed into each upload, stored beside it and inside the encrypted manifest (row counts per table).
+- **Restore drill** monthly and before go-live: `scripts/backup/restore-drill.sh` into a throwaway database;
+  any checksum, decrypt, restore or count mismatch fails.
+- `TOKEN_ENCRYPTION_KEY`, `JWT_SECRET`, the age key and the restore token are never in the repo or the bucket.
 
