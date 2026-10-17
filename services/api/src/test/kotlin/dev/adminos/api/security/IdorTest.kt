@@ -46,6 +46,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.koin.ktor.ext.get
@@ -76,10 +77,10 @@ class IdorTest {
         val txn: Transaction, val otherTxn: Transaction, val subscription: Subscription, val bill: Bill, val anomaly: Anomaly,
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
         val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
-        val receipt: OrderReceipt, val limit: SpendingLimit
+        val receipt: OrderReceipt, val limit: SpendingLimit, val splitImportId: String, val splitEntryIds: List<String>
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id, receipt.id, limit.id).map { it.toString() } + documentId
+            push.id, mandate.id, notification.id, receipt.id, limit.id).map { it.toString() } + documentId + splitImportId + splitEntryIds
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -125,8 +126,21 @@ class IdorTest {
         val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
         val limit = app.get<SpendingLimitRepository>().save(SpendingLimit(userId = alice.id, scope = LimitScope.Merchant("Alice Secret Merchant"),
             label = "Alice Secret Merchant", period = LimitPeriod.MONTHLY, amount = BigDecimal("3000"), createdAt = Instant.now(), updatedAt = Instant.now()))
+        // A Splitwise import of Alice's (AOS-911), through its route like the owner would: a dinner she paid and a cab a friend paid.
+        val csv = "Date,Description,Category,Cost,Currency,Alice Q.,Asha R.\n" +
+            "${LocalDate.now()},Alice dinner,Dining out,4000.00,INR,2000.00,-2000.00\n${LocalDate.now()},Alice cab,Taxi,900.00,INR,-450.00,450.00\n"
+        val split = client.submitFormWithBinaryData("/api/v1/imports/splitwise", formData {
+            append("file", csv.toByteArray(), Headers.build { append(HttpHeaders.ContentDisposition, "filename=\"export.csv\"") })
+            append("me", "Alice Q.")
+        }) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)); header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) }
+        assertEquals(HttpStatusCode.OK, split.status, split.bodyAsText())
+        val splitImportId = Json.parseToJsonElement(split.bodyAsText()).jsonObject["data"]?.jsonObject?.get("importId")?.jsonPrimitive?.content
+            ?: error("no import id in ${split.bodyAsText()}")
+        val entries = client.get("/api/v1/splitwise/entries") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
+        val splitEntryIds = Json.parseToJsonElement(entries).jsonObject["data"]?.jsonArray?.map { it.jsonObject.getValue("id").jsonPrimitive.content }
+            ?.takeIf { it.size == 2 } ?: error("expected Alice's two Splitwise entries in $entries")
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
-            receipt, limit)
+            receipt, limit, splitImportId, splitEntryIds)
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -167,7 +181,10 @@ class IdorTest {
             Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
             Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
-        )
+            Attack(HttpMethod.Delete, { "/api/v1/splitwise/imports/$it" }, a.splitImportId),
+        ) + a.splitEntryIds.flatMap { entry -> // Splitwise Review actions (AOS-911) on each of Alice's entries
+            listOf("confirm", "reject", "ignore", "undo").map { action -> Attack(HttpMethod.Post, { "/api/v1/splitwise/entries/$it/$action" }, entry) }
+        }
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
             val fake = client.asBob(atk.method, atk.path(UUID.randomUUID().toString()), atk.body)
@@ -211,6 +228,14 @@ class IdorTest {
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
         assertEquals(HttpStatusCode.OK, client.get("/api/v1/documents/${a.documentId}/file") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.status)
+        // Alice's Splitwise import and entries (AOS-911) keep their states when Bob undoes, ignores or rejects them.
+        suspend fun splitStates() = Json.parseToJsonElement(client.get("/api/v1/splitwise/entries") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+            .jsonObject.getValue("data").jsonArray.associate { it.jsonObject.getValue("id").jsonPrimitive.content to it.jsonObject.getValue("state").jsonPrimitive.content }
+        val before = splitStates()
+        client.asBob(HttpMethod.Delete, "/api/v1/splitwise/imports/${a.splitImportId}", null)
+        a.splitEntryIds.forEach { id -> listOf("undo", "ignore", "reject").forEach { client.asBob(HttpMethod.Post, "/api/v1/splitwise/entries/$id/$it", null) } }
+        assertEquals(before, splitStates(), "Alice's Splitwise entries are unchanged")
+        assertEquals(a.splitEntryIds.toSet(), before.keys)
     }
 
     @Test
@@ -230,7 +255,7 @@ class IdorTest {
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
-            "/api/v1/leaks/fees", "/api/v1/receipts",
+            "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/splitwise/entries", "/api/v1/splitwise/summary", "/api/v1/splitwise/imports",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
         )
         val leaks = lists.mapNotNull { path ->

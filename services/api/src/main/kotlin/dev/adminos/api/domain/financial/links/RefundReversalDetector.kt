@@ -37,7 +37,11 @@ class RefundReversalDetector(private val zone: ZoneId = ZoneId.of("Asia/Kolkata"
      */
     fun decide(incoming: Transaction, candidates: List<Transaction>, refundedSoFar: Map<java.util.UUID, BigDecimal> = emptyMap()): RefundDecision {
         if (incoming.nature !in setOf(TransactionNature.SPEND, TransactionNature.INCOME)) return RefundDecision.None
-        val options = candidates.filter { it.userId == incoming.userId && it.id != incoming.id && it.nature in setOf(TransactionNature.SPEND, TransactionNature.INCOME) }
+        // A Splitwise share was never paid to a merchant, so nothing refunds it (AOS-911); friends settle it instead.
+        val options = candidates.filter {
+            it.userId == incoming.userId && it.id != incoming.id && it.nature in setOf(TransactionNature.SPEND, TransactionNature.INCOME) &&
+                it.sourceType != dev.adminos.api.domain.financial.splits.SplitMatcher.SPLITWISE_SOURCE
+        }
             .mapNotNull { other ->
                 val (debit, credit) = when {
                     incoming.type == TransactionType.CREDIT && other.type == TransactionType.DEBIT -> other to incoming

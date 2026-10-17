@@ -34,7 +34,9 @@ class SubscriptionDetectorService(
         val zone = calendar.zoneOf(userId)
         val today = calendar.today(userId)
         val since = today.minusDays(LOOKBACK_DAYS).atStartOfDay(zone).toInstant()
+        // A friend's bill share from Splitwise isn't a charge from a merchant (AOS-911).
         val debits = transactionRepository.findDebitsByUserIdSince(userId, since)
+            .filter { it.sourceType != dev.adminos.api.domain.financial.splits.SplitMatcher.SPLITWISE_SOURCE }
 
         val groups = debits.mapNotNull { t -> t.merchantName?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let { it to t } }
             .groupBy({ it.first }, { it.second })

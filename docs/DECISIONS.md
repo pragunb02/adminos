@@ -6,6 +6,7 @@
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
+| D-111 | Architecture / Product | Splitwise: import the owner's CSV export (no credentials); every total counts the owner's share (`own_share`); settle-ups are the new nature `settlement` (neither spending nor income); `split-v1` matcher with Review and undo; names encrypted at rest | Accepted | AOS-911 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1285,3 +1286,21 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+
+### D-111 — Splitwise: import the CSV export; count the owner's share; settle-ups are settlements
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-911 · Builds on D-38, D-39, D-46, D-64, D-78, D-80
+- **Source:** the owner's Splitwise "Export as spreadsheet" CSV, uploaded with "which column is me". No credentials. The Splitwise API (OAuth 2, no read-only scope, full-access tokens) is a later adapter behind the same port (`SharedEntry`), only if manual exports prove tedious.
+- **Share rule:** from the owner's net change `n` on a row of cost `C`: `n > 0` → they paid it all, share `C − n`; `n < 0` → a friend paid, share `−n`; `n = 0` → no effect. Rows that don't balance are skipped.
+- **Effects:**
+  - a bill the owner paid sets `transactions.own_share` on its bank debit, and every total counts `COALESCE(own_share, amount)` (the bank amount is never changed);
+  - a friend-paid share becomes a `splitwise` spend with no personal data;
+  - a settle-up turns its UPI transfer into the new nature `settlement` (neither spending nor income).
+- **Matching `split-v1`:** exact amount; bills from 1 day before to 3 days after, settle-ups ±2 days; points with apply/suggest bands and an ambiguity margin of 3; a settle-up is applied only with the friend's name or UPI handle on the bank record; one transaction per entry; later bank records are offered to waiting entries.
+- **Review and undo:** confirm, pick another transaction, reject (remembered), ignore, undo one entry or a whole import.
+- **Privacy:** descriptions and counterparties are encrypted at rest (TokenEncryptor, row-bound), never logged, and never sent to a model. Splitwise rows are never deduplicated, refunded, bill-matched, detected as subscriptions, or AI-categorised.
+- **Measured:** a seeded synthetic eval set with a committed floor (`splits/baseline.json`, enforced by `SplitEvalTest`). On it: 1.00 precision for automatic matches, 0.73 automatic and 0.93 with-Review recall, spend error from ₹30,470 to ₹1,523.
+- **Rejected:**
+  - the API first (full-access token for a read need);
+  - a pasted personal API key;
+  - a synthetic "owed by friends" refund row;
+  - reusing `transfer` for settle-ups (D-39 means own accounts).
