@@ -63,6 +63,10 @@ export class MockApi {
       .on("POST /api/v1/coach/limits/suggestions/:lens/dismiss", () => ({ data: { dismissed: true } }))
       .on("PATCH /api/v1/coach/limits/:id", () => ({ data: cx.limit() }))
       .on("DELETE /api/v1/coach/limits/:id", () => ({ data: { deleted: true } }))
+      // Goals (AOS-907)
+      .on("GET /api/v1/coach/goals", () => ({ data: [cx.goal()] }))
+      .on("POST /api/v1/coach/goals", () => ({ status: 201, data: cx.goal({ id: "goal-2", lens: "travel", label: "Travel", kind: "cap_amount", value: "5000", target: "5000.00", baseline: null }) }))
+      .on("DELETE /api/v1/coach/goals/:id", () => ({ data: { deleted: true } }))
       .on("GET /api/v1/coach/settings", () => ({ data: { limitAlerts: true, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false } }))
       .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false } }))
       .on("GET /api/v1/documents", (_r, u) => {

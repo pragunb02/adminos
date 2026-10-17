@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.coach
 
+import dev.adminos.api.domain.coach.goals.goalRoutes
 import dev.adminos.api.domain.coach.leaks.LeakService
 import dev.adminos.api.domain.coach.leaks.leakRoutes
 import dev.adminos.api.domain.coach.lenses.LensService
@@ -18,12 +19,14 @@ fun Application.coachModule() {
     val leaks: LeakService by inject()
     val limits: LimitService by inject()
     val settings: CoachSettingsService by inject()
+    val goals: dev.adminos.api.domain.coach.goals.GoalService by inject()
     routing {
         route("/api/v1") {
             lensRoutes(lenses)
             leakRoutes(leaks)
             limitRoutes(limits)
             coachSettingsRoutes(settings)
+            goalRoutes(goals)
         }
     }
 }

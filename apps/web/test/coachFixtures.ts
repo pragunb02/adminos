@@ -1,6 +1,7 @@
 import type { LeakNumbers, LeaksData, LensDefinition, LensesData, WeekdayNumbers } from "@/lib/leaks";
 import { WEEKDAYS } from "@/lib/leaks";
 import type { Limit, LimitsData } from "@/lib/limits";
+import type { Goal } from "@/lib/goals";
 
 /** Canned spending-coach data (Epic E9) for unit tests and Playwright mocks. Synthetic; India time. */
 
@@ -67,6 +68,17 @@ export const cx = {
         { from: "2026-09-28", to: "2026-10-04", spent: "1000.00" }, { from: "2026-10-05", to: "2026-10-11", spent: "1000.00" },
       ],
     }],
+  }),
+  /** A cut goal set on Mon 28 Sep, two weeks met, one over, this week so far. */
+  goal: (over: Partial<Goal> = {}): Goal => ({
+    id: "goal-1", lens: "quick_commerce", label: "Quick commerce", kind: "cut_percent", value: "30", period: "weekly",
+    baseline: "684.78", target: "479.00", startedOn: "2026-09-28",
+    periods: [
+      { from: "2026-09-28", to: "2026-10-04", spent: "400.00", target: "479.00", met: true, current: false },
+      { from: "2026-10-05", to: "2026-10-11", spent: "1100.00", target: "479.00", met: false, current: false },
+      { from: "2026-10-12", to: "2026-10-18", spent: "300.00", target: "479.00", met: true, current: true },
+    ],
+    metCount: 1, completedCount: 2, streak: 3, bestStreak: 7, ...over,
   }),
   lens: (over: Partial<LensDefinition> = {}): LensDefinition => ({
     id: "quick_commerce", label: "Quick commerce", description: "10-minute delivery apps", brands: ["Blinkit", "Zepto"], categories: [],

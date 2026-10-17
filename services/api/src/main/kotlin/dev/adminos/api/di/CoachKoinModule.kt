@@ -48,6 +48,10 @@ internal fun coachKoinModule(useDatabase: Boolean): Module = module {
     single { EveningDigestService(get(), get(), get(), get(), get()) }
     single { EveningDigestJob(get(), get()) } bind ScheduledJob::class
 
+    // Goals (AOS-907)
+    single<dev.adminos.api.domain.coach.goals.GoalRepository> { if (useDatabase) ExposedGoalRepository() else dev.adminos.api.domain.coach.goals.InMemoryGoalRepository() }
+    single { dev.adminos.api.domain.coach.goals.GoalService(get(), get()) }
+
     // Report card (AOS-906): a section of the weekly briefing, not a second weekly push
     single { dev.adminos.api.domain.coach.report.ReportCard(get(), get(), get()) } bind dev.adminos.api.domain.agent.briefing.BriefingSection::class
 }
