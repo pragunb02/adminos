@@ -2,10 +2,7 @@ package dev.adminos.api.domain.financial.ai
 
 import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.TransactionCategory
-import org.slf4j.LoggerFactory
-import java.time.Clock
-import java.time.Duration
-import java.time.Instant
+import java.util.UUID
 
 /**
  * Everything that leaves AdminOS for one AI categorization question (AOS-512, D-62, D-33). Nothing else is sent:
@@ -50,52 +47,11 @@ sealed interface AiCategoryResult {
     data class Unavailable(val why: String) : AiCategoryResult
 }
 
-/** Asks a model for a category. Implementations: the Claude client, the circuit breaker, and test fakes. */
-fun interface AiCategoryClient {
-    suspend fun ask(question: AiCategoryQuestion): AiCategoryResult
-}
-
 /**
- * Stops asking for [openFor] after [failureThreshold] answers in a row were [AiCategoryResult.Unavailable]
- * (circuit breaker, ENGINEERING §6). Any real answer, even a rejected one, closes it again. The SDK below
- * already retries 429/5xx with backoff, so a failure here is a request that failed after its retries.
+ * Asks a model for a category on behalf of [userId] (whose transaction raised the question; for the audit
+ * log and, from AOS-704, consent). Implementations: [PortAiCategoryClient] (production, through the AI
+ * gateway) and test fakes such as the recorded answers of the evaluation harness.
  */
-class CircuitBreakingAiClient(
-    private val delegate: AiCategoryClient,
-    private val clock: Clock = Clock.systemUTC(),
-    private val failureThreshold: Int = 3,
-    private val openFor: Duration = Duration.ofMinutes(15)
-) : AiCategoryClient {
-    private val logger = LoggerFactory.getLogger(CircuitBreakingAiClient::class.java)
-    private var consecutiveFailures = 0
-    private var openUntil: Instant? = null
-
-    init {
-        require(failureThreshold >= 1) { "The failure threshold is at least 1" }
-        require(!openFor.isNegative && !openFor.isZero) { "The open period is positive" }
-    }
-
-    val isOpen: Boolean @Synchronized get() = openUntil?.let { clock.instant() < it } ?: false
-
-    override suspend fun ask(question: AiCategoryQuestion): AiCategoryResult {
-        if (isOpen) return AiCategoryResult.Unavailable("circuit open")
-        val result = delegate.ask(question)
-        record(result)
-        return result
-    }
-
-    @Synchronized
-    private fun record(result: AiCategoryResult) {
-        if (result !is AiCategoryResult.Unavailable) {
-            consecutiveFailures = 0
-            openUntil = null
-            return
-        }
-        consecutiveFailures++
-        if (consecutiveFailures >= failureThreshold) {
-            openUntil = clock.instant().plus(openFor)
-            consecutiveFailures = 0
-            logger.warn("AI categorization paused for {} after {} failed requests in a row ({})", openFor, failureThreshold, result.why)
-        }
-    }
+fun interface AiCategoryClient {
+    suspend fun ask(userId: UUID, question: AiCategoryQuestion): AiCategoryResult
 }

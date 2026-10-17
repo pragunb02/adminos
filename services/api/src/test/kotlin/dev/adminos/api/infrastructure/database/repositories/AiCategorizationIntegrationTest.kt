@@ -61,7 +61,7 @@ class AiCategorizationIntegrationTest {
         val t = txns.save(Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal("899.00"), merchantName = merchant,
             merchantRaw = merchant.uppercase(), paymentMethod = PaymentMethod.CARD_CREDIT, transactedAt = at.truncatedTo(ChronoUnit.MILLIS),
             metadata = mapOf("mandate" to "umn-1")))
-        val client = AiCategoryClient { AiCategoryResult.Answered(AiCategoryAnswer(TransactionCategory.ENTERTAINMENT, 0.91, "PC game store"), "claude-haiku-5-5") }
+        val client = AiCategoryClient { _, _ -> AiCategoryResult.Answered(AiCategoryAnswer(TransactionCategory.ENTERTAINMENT, 0.91, "PC game store"), "claude-haiku-5-5") }
         val service = AiCategorizationService(client, ExposedAiCategoryCacheRepository(), ExposedCategoryRuleRepository(), txns, "claude-haiku-5-5")
 
         assertEquals(AiOutcome.APPLIED, service.categorize(t))

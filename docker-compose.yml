@@ -68,8 +68,13 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
-      AI_CATEGORIZATION_ENABLED: ${AI_CATEGORIZATION_ENABLED:-false}
+      # AI layer (AOS-702, D-67): every feature off by default; the only path to a model.
+      AI_MONTHLY_CAP_USD: ${AI_MONTHLY_CAP_USD:-2.00}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
+      AI_CATEGORIZATION_ENABLED: ${AI_CATEGORIZATION_ENABLED:-false}
+      AI_CATEGORIZATION_PROVIDER: ${AI_CATEGORIZATION_PROVIDER:-anthropic}
       AI_CATEGORIZATION_MODEL: ${AI_CATEGORIZATION_MODEL:-claude-haiku-5-5}
       DOCS_S3_ENDPOINT: ${DOCS_S3_ENDPOINT:-}
       DOCS_S3_REGION: ${DOCS_S3_REGION:-auto}
@@ -97,8 +102,6 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # The API's key: the worker reads and writes the encrypted Gmail tokens (AOS-401, D-59).
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
-      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
 
   agent-runner:
     profiles: ["full"]
@@ -116,8 +119,6 @@ services:
       DATABASE_URL: postgresql://adminos@postgres:5432/adminos
       PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
-      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
-      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-20250514}
 
   pdf-parser:
     # Statement parser (D-37): stateless, internal network only (no published port). The API calls it.

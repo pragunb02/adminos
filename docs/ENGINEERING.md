@@ -19,7 +19,7 @@ say why in the ticket.
 | 2 | **Domain logic** | `domain/<x>/*Service.kt` | service structs/functions | Business rules: categorization, dedup, transfers, refunds, detection | Touch the DB, HTTP, queue or DTOs directly |
 | 3 | **Domain data** | repository/accessor interfaces in `domain/<x>` | store interfaces | Provide domain objects regardless of source (DB, cache, external); aggregate sources | Make business decisions |
 | 4 | **Persistence** | `infrastructure/database/repositories/Exposed*` + `tables/*` | `pgx` store implementations | CRUD on data we own; row ↔ domain mapping | Leak rows/Table types upward |
-| 5 | **Dependencies** | `infrastructure/*` clients (Google, R2, queue, Claude) | `internal/claude`, `internal/gmail` | Talk to external services | Leak external request/response models upward |
+| 5 | **Dependencies** | `infrastructure/*` clients (Google, R2, queue, AI providers) | `internal/gmail` | Talk to external services | Leak external request/response models upward |
 
 Layers 4 and 5 sit side by side under layer 3.
 
