@@ -1,0 +1,39 @@
+# OPTIONAL, off by default: Gmail push through a webhook-only Cloudflare Tunnel (AOS-616, D-97).
+# The recommended default is no push at all: Gmail is synced by the daily fallback and "Sync now" (D-59),
+# and nothing about AdminOS is reachable from the internet. Read docs/guides/PRIVATE-ACCESS.md §5 first.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gmail-push.yml --profile full up -d
+#
+# cloudflared makes an outbound-only connection to Cloudflare (no listener, no published port). Its ingress
+# (deploy/cloudflared/config.yml) routes exactly one path, /api/v1/webhooks/gmail, to the API and answers
+# 404 for everything else, so the web app, sign-in and every other API route stay private. The API accepts
+# a push only with a valid Google-signed OIDC token for GOOGLE_PUBSUB_AUDIENCE and GOOGLE_PUBSUB_SERVICE_ACCOUNT.
+#
+# CLOUDFLARED_TUNNEL_ID:          the id from `cloudflared tunnel create adminos-gmail-push`
+# CLOUDFLARED_CREDENTIALS_FILE:   absolute path on this machine to that tunnel's credentials JSON
+#                                 (outside the repo; a secret. cloudflared runs as uid 65532:
+#                                 on Linux, chown 65532 and chmod 400 it)
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.1@sha256:a15a3b50b8dabd57ac2090e9484c0247dba9dfa1f0df4d298d4317f9d69eb2d5
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --config
+      - /etc/cloudflared/config.yml
+      - --credentials-file
+      - /etc/cloudflared/credentials.json
+      - --metrics
+      - 127.0.0.1:20241                # the container's own loopback only
+      - run
+      - ${CLOUDFLARED_TUNNEL_ID:?}
+    volumes:
+      - ./deploy/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ${CLOUDFLARED_CREDENTIALS_FILE:?}:/etc/cloudflared/credentials.json:ro
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      api-server:
+        condition: service_healthy
+    restart: unless-stopped

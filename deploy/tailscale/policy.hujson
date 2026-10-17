@@ -1,0 +1,42 @@
+// Tailnet policy for AdminOS (AOS-616, D-97). Paste into Tailscale admin console → Access controls,
+// replacing the default "allow everything" policy. Replace owner@example.com with your Tailscale login
+// in the tests below. See docs/guides/PRIVATE-ACCESS.md §3.
+//
+// Default deny: anything not accepted below is refused, so:
+//   - only the tailnet owner's own (untagged) devices reach AdminOS, and only on HTTPS (443);
+//   - the AdminOS host (tag:adminos) can't open connections to any of your devices;
+//   - no SSH, no other ports (Postgres, Redis, the API and the web app's 3000 are not reachable at all);
+//   - no "funnel" node attribute, so Tailscale Funnel (public internet) can't be switched on.
+{
+  "tagOwners": {
+    "tag:adminos": ["autogroup:owner"],
+  },
+
+  "acls": [
+    {
+      "action": "accept",
+      "src":    ["autogroup:owner"],
+      "proto":  "tcp",
+      "dst":    ["tag:adminos:443"],
+    },
+  ],
+
+  "ssh": [],
+
+  // Deliberately empty: the default policy grants "funnel" to members; without it Funnel is refused.
+  "nodeAttrs": [],
+
+  // Checked by Tailscale on every policy save; a failing test rejects the change.
+  "tests": [
+    {
+      "src":    "owner@example.com",
+      "proto":  "tcp",
+      "accept": ["tag:adminos:443"],
+      "deny":   ["tag:adminos:22", "tag:adminos:80", "tag:adminos:3000", "tag:adminos:5432", "tag:adminos:6379", "tag:adminos:8080"],
+    },
+    {
+      "src":  "tag:adminos",
+      "deny": ["owner@example.com:22", "owner@example.com:443"],
+    },
+  ],
+}

@@ -1,0 +1,17 @@
+# Cloudflare Tunnel ingress for Gmail push ONLY (AOS-616, D-97). Optional; off unless you start the
+# docker-compose.gmail-push.yml overlay. See docs/guides/PRIVATE-ACCESS.md §5.
+#
+# Exactly one path is routed: Pub/Sub's POST to the Gmail webhook, straight to the API (which verifies the
+# Google-signed OIDC token, fails closed, AOS-609). Every other path, on every hostname, gets 404 from
+# Cloudflare's edge and never reaches this machine. scripts/tests/cloudflared-ingress.test.sh checks it.
+#
+# The tunnel id and its credentials file are given on the command line (docker-compose.gmail-push.yml);
+# neither is in the repo.
+ingress:
+  - path: ^/api/v1/webhooks/gmail$
+    service: http://api-server:8080
+    originRequest:
+      connectTimeout: 10s
+      noHappyEyeballs: true
+      disableChunkedEncoding: false
+  - service: http_status:404
