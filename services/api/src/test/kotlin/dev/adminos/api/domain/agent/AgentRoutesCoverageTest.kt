@@ -363,6 +363,19 @@ class AgentRoutesCoverageTest {
     }
 
     @Test
+    fun `keeping a subscription remembers the waste factors the user saw (AOS-509)`() = routeTest {
+        val sub = subscriptions.save(subscription().copy(wasteReasons = listOf(
+            dev.adminos.api.domain.financial.WasteReason(dev.adminos.api.domain.financial.WasteFactor.PRICE_INCREASED, 30, "Price went up 25% at the last charge"),
+            dev.adminos.api.domain.financial.WasteReason(dev.adminos.api.domain.financial.WasteFactor.MARKED_UNUSED, 40, "Marked as not used"))))
+
+        val (status, _) = call(HttpMethod.Patch, "/api/v1/subscriptions/${sub.id}/dismiss", "{}")
+
+        assertEquals(HttpStatusCode.OK, status)
+        assertEquals(setOf(dev.adminos.api.domain.financial.WasteFactor.PRICE_INCREASED, dev.adminos.api.domain.financial.WasteFactor.MARKED_UNUSED),
+            subscriptions.findById(sub.id)!!.wasteFactorsDismissed)
+    }
+
+    @Test
     fun `dismissing a subscription with a non-uuid id is a 400`() = routeTest {
         val (status, body) = call(HttpMethod.Patch, "/api/v1/subscriptions/nope/dismiss", "{}")
         assertEquals(HttpStatusCode.BadRequest, status)

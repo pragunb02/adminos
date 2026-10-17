@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). Done: AOS-501, 504, 510, 505, 508, 503, 502, 506 (stories S5.1–S5.3 ✅). In parallel (background agents, PRs to review and merge): AOS-509 waste score, AOS-401 Gmail sync. Then AOS-507 documents vault (needs a storage decision). Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys and SMTP settings in `.env`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
+**Next step:** Epic E5 (plan in `docs/tickets/AOS-E5.md`). Done: AOS-501, 504, 510, 505, 508, 503, 502, 506 (stories S5.1–S5.3 ✅). ~~AOS-509~~ waste score merged; AOS-401 Gmail sync in progress (background agent). Then AOS-507 documents vault (needs a storage decision). Proposed (awaiting Pragun): AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other". Pragun: VAPID keys and SMTP settings in `.env`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -60,7 +60,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Categorization, Kotlin (`CategorizationService.kt`, AOS-210, D-41) | The only categorizer for pipeline sources. Order: your remembered rule (UPI ID, else merchant), then 22 known merchants, then 7 whole-word patterns, else Other. It never guesses Transfer (TransferStep does). Corrections re-label past spend/refunds except hand-set ones | Live |
 | Dedup (`normalizer.go:47`) | SHA256(user, amount, merchant, date-to-hour, last4) in `ingestion_fingerprints` | Live |
 | Subscription detection (`SubscriptionDetectorService.kt`) | 90 days of debits per merchant, ≥2 charges. Day-gap mean/sd: weekly 6–8, monthly 25–35, quarterly 85–95, yearly 355–375. Price change >5% | Scheduled nightly 04:00 IST for active users (AOS-501) |
-| Waste score (Go) | +0.4 no logins & no usage emails; +0.3 paid 3+ months with no logins; +0.1 if 6+; +0.2 no usage emails. >0.7 = unused | Never triggered |
+| Waste score | Kotlin `WasteScorer`: named factors (price rise, duplicate service, cost share, long-running, dormant AutoPay, trial ending, marked unused); ≥ 0.70 flags with reasons (D-58) | Live nightly 05:00 (AOS-509); Go handler superseded |
 | Anomalies (`AnomalyRules.kt`) | >3× the 30 days before (≥3 spends, from ₹2,000); non-INR; 01:00–04:59 user time; ₹1–2 (card testing); same merchant+amount within 24h | Live on every new spend (AOS-505); alert if confidence ≥ 0.7 and recent (D-53) |
 | Bill detection, Gmail | 12 keywords in the email; ISO due date (day-first), type, card last 4; no due date → skipped | Live (AOS-503) |
 | Bill payment matching | Full (±5%) or minimum due (±1%), in the bill window, with evidence (card number / name / only card bill); ties match nothing (D-54) | Live on every new transaction + daily sweep (AOS-508) |
@@ -87,6 +87,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 12. ~~AOS-503 reminder days not stored, server dates, Gmail bills without a due date~~ fixed (also: the look-ahead stopped at 7 days though preferences allow 30; subscription metadata dropped on update).
 13. ~~AOS-505 anomaly windows used "now"~~ fixed. ~~AOS-508 card bills never matched~~ fixed (also: Postgres bill update dropped metadata, fixed). ~~AOS-506 `AsynqPublisher` stringified payloads~~ fixed. (was: turns every payload value into a string.
 14. `GET /notifications` lists every channel's record, so one reminder appears up to 3 times; an inbox should list in-app only (with the inbox screen task).
+15. Subscription detector (found by AOS-509): category always OTHER; stopped subscriptions never end; `merchantName!!`; UTC dates. `SubscriptionAgentRoutes` bypasses the service layer; cancel is a stub.
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
@@ -106,6 +107,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-17:**
+  - AOS-509 (background agent, reviewed + merged): waste score (D-58), V24; follow-ups reported: detector always saves category OTHER, never ends stopped subscriptions, uses `!!` and UTC dates; SubscriptionAgentRoutes calls the repository from a route; cancel route still a stub.
   - AOS-506: weekly briefing (D-57): deterministic, from analytics + dues + anomalies + flagged subs + dormant mandates; user's day/time/zone; once per week with catch-up; BRIEFING notification; `formatInr()`; queue payloads typed. API unit 1,229 / integration 108.
   - AOS-502: mandates (D-56): UPI AutoPay / e-NACH / card SI notices from SMS (set-up, pre-debit, pause, resume, revoke), robust to late and repeated messages; debits matched after commit and marked recurring (fills `is_recurring`); dormant flagged; `GET /api/v1/mandates`; Subscriptions section; dues calendar AutoPay items. **Found by tests:** lenient dates (31/02 → 28 Feb), stop-word payees, UMN trailing dot. V22. API unit 1,222 / integration 106; web 318, Playwright 232 + 7 skips.
   - AOS-503: dues & renewals (D-55): `GET /api/v1/dues` (bills + projected renewals + overdue, totals), web `/bills` month view (URL `?m=`); renewal reminders; reminders on the user's own date (`UserCalendar`); reminder days stored (V21); look-ahead 30 days; Gmail bills: ISO day-first dates, skipped without one, type + card last 4. API unit 1,195 / integration 105; Go unit + integration (throwaway Postgres); web 314 unit, Playwright 229 + 7 skips.

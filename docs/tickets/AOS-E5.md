@@ -11,7 +11,7 @@
 | **Target date** | TBD (AOS-005) |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **BRD reference** | §5.3, §5.4, §6 M5 |
-| **Decisions** | D-3, D-48, D-50, D-51, D-52, D-53, D-54, D-55, D-56, D-57 |
+| **Decisions** | D-3, D-48, D-50, D-51, D-52, D-53, D-54, D-55, D-56, D-57, D-58 |
 | **Depends on** | AOS-E3 |
 
 ## Goal
@@ -55,3 +55,4 @@ Legacy bugs found by the E5 survey, each fixed in its task:
 - 2026-10-17 — Claude: AOS-503 done.
 - 2026-10-17 — Claude: AOS-502 done; S5.1 and S5.2 complete.
 - 2026-10-17 — Claude: AOS-506 done; S5.3 complete. AOS-509 and AOS-401 running in parallel (background).
+- 2026-10-17 — Claude: AOS-509 merged (D-58).

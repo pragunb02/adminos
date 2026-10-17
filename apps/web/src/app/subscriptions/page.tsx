@@ -20,6 +20,11 @@ const TAB_QUERY: Record<Tab, string> = {
   cancelled: "status=cancelled",
 };
 
+/** The waste score's reasons (AOS-509), or the older one-line reason when it hasn't been scored. */
+function whyFlagged(sub: Subscription): string | null {
+  return sub.wasteReasons.length > 0 ? sub.wasteReasons.join("; ") : sub.flaggedReason;
+}
+
 export default function SubscriptionsPage() {
   const [tab, setTab] = useState<Tab>("active");
   const [cancelDraft, setCancelDraft] = useState<Subscription | null>(null);
@@ -118,8 +123,10 @@ export default function SubscriptionsPage() {
                       {formatInr(sub.amount)} / {sub.billingCycle}
                       {sub.nextBillingDate && ` · Next: ${sub.nextBillingDate}`}
                     </p>
-                    {sub.isFlagged && sub.flaggedReason && (
-                      <p className="text-xs text-orange-700 mt-1">{sub.flaggedReason}</p>
+                    {sub.isFlagged && whyFlagged(sub) && (
+                      <p className="text-xs text-orange-700 mt-1">
+                        <span className="font-medium">Why flagged:</span> {whyFlagged(sub)}
+                      </p>
                     )}
                   </div>
                   <p className="font-semibold text-gray-900 whitespace-nowrap">

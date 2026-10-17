@@ -62,7 +62,7 @@ fun Route.subscriptionRoutes(subscriptionRepository: SubscriptionRepository) {
 
                 val activeSubs = allSubs.filter { it.status == SubscriptionStatus.ACTIVE }
                 val totalMonthlyCost = activeSubs.fold(BigDecimal.ZERO) { acc, sub ->
-                    acc + toMonthlyCost(sub.amount, sub.billingCycle)
+                    acc + sub.billingCycle.monthlyCost(sub.amount)
                 }
 
                 val byCategory = activeSubs.groupBy { it.category }
@@ -70,7 +70,7 @@ fun Route.subscriptionRoutes(subscriptionRepository: SubscriptionRepository) {
                     .mapValues { (_, subs) ->
                         CategoryBreakdown(
                             count = subs.size,
-                            monthly = subs.map { toMonthlyCost(it.amount, it.billingCycle) }.sumMoney().toMoney()
+                            monthly = subs.map { it.billingCycle.monthlyCost(it.amount) }.sumMoney().toMoney()
                         )
                     }
 
@@ -109,12 +109,4 @@ fun Route.subscriptionRoutes(subscriptionRepository: SubscriptionRepository) {
             }
         }
     }
-}
-
-private fun toMonthlyCost(amount: BigDecimal, cycle: BillingCycle): BigDecimal = when (cycle) {
-    BillingCycle.DAILY -> amount.multiply(BigDecimal(30))
-    BillingCycle.WEEKLY -> amount.multiply(BigDecimal("4.33"))
-    BillingCycle.MONTHLY -> amount
-    BillingCycle.QUARTERLY -> amount.divide(BigDecimal(3), 2, java.math.RoundingMode.HALF_UP)
-    BillingCycle.YEARLY -> amount.divide(BigDecimal(12), 2, java.math.RoundingMode.HALF_UP)
 }

@@ -91,6 +91,8 @@ object SubscriptionsTable : Table("subscriptions") {
     val cancellationDraftGeneratedAt = timestamp("cancellation_draft_generated_at").nullable()
     val renewalRemindedFor = date("renewal_reminded_for").nullable() // V21
     val renewalReminderDaysSent = text("renewal_reminder_days_sent").nullable()
+    val wasteReasons = text("waste_reasons").nullable() // V24, JSON array
+    val wasteFactorsDismissed = text("waste_factors_dismissed").nullable() // V24, comma-separated codes
     val metadata = text("metadata").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
