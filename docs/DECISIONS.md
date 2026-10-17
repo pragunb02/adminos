@@ -11,6 +11,7 @@
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
 | D-83 | Product / Architecture | Limits: no limits during a 30-day learning month; per-lens suggested weekly limits (median of 4 weeks − 10%, rounded down to ₹50) that only push once accepted; lens, merchant or category, weekly or monthly; one push per (limit, period, threshold) at 50/80/100% via a claim ledger | Accepted | AOS-904 |
+| D-99 | Architecture / Process | Supply chain and runtime: CI, OSV-Scanner, npm audit, govulncheck, Trivy and CodeQL on every PR as required checks (fail CVSS ≥ 7 or unscored, CRITICAL images or secrets); images by digest, Gradle locked + SHA-256 verified, Python hash-locked, Actions by SHA, Dependabot; containers non-root, read-only, no capabilities, limits, segmented networks; merge-pr.sh waits for every required check | Accepted | AOS-622 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-82 | Architecture / Product | Leaks are computed from the range's transactions with the lens matcher (not SQL), range capped at 3 × 366 days; spent = spend − refunds (unclipped), late night 22:00–05:00 local; every number has its drill-down through the same filter | Accepted | AOS-902 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
@@ -1242,3 +1243,16 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Limits:** scope = lens, merchant or category; weekly (Mon–Sun) or monthly, in the user's zone; one per scope and period. Person-to-person UPI never counts for lenses or categories (D-81); a merchant limit counts that merchant exactly.
 - **Alerts:** 50/80/100%. A ledger row per (limit, period start, threshold), primary key = the claim; claim then send (at most once). Several thresholds at once → one push for the highest. Thresholds already passed when a limit is set or changed are recorded silently. A refund that drops spending below a threshold does not re-arm it in that period. Alerts off → thresholds still recorded silently (no backlog when switched on). Checked after each new payment and every 10 minutes. Coach pushes are `NotificationType.COACH`, gated by `coach_settings`, quiet hours as usual.
 - **Rejected:** flags on the limit reset per period (a reset job to keep right); looking for earlier notifications (per channel, prunable); a listener only (misses re-categorisation and lens edits); pushing suggestions (the owner hasn't agreed to them).
+### D-99 — Supply chain and runtime: scan everything, pin everything, run least-privileged
+2026-10-18 · Accepted · Type: Architecture / Process · Tasks: AOS-622 · Builds on D-91, D-100, D-101
+- **Every PR** runs CI (all stacks), Security (OSV-Scanner, npm audit, govulncheck, Trivy + hardened-stack smoke)
+  and CodeQL; Security and CodeQL also weekly. All are **required checks** (`.github/required-checks.txt` = branch protection).
+- **Policies:** dependencies fail at CVSS ≥ 7 or unscored; images fail on any CRITICAL or secret; HIGH is
+  reported. Exceptions only with a reason and an expiry (`osv-scanner.toml`, `.trivyignore.yaml`).
+- **Pinning:** images by digest; Gradle locked + SHA-256 verified; Python hash-locked (pip-tools); npm/Go lock
+  files; Actions by SHA. Dependabot proposes every update weekly, grouped.
+- **Runtime:** every container non-root, read-only root, all capabilities dropped, no-new-privileges, memory/CPU/PID
+  limits, healthchecks; no package manager at run time; networks `backend` / `edge` / internal `parser`.
+- **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
+- **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
+  base-image findings); Dependabot alerts as the only gate.

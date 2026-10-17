@@ -1,0 +1,65 @@
+# Dependency and image updates, weekly and grouped (AOS-622, proposed D-99). Security updates are separate,
+# immediate PRs (enable "Dependabot security updates" in Settings → Code security). Each PR runs the full
+# CI, Security and CodeQL checks and is merged with scripts/merge-pr.sh like any other.
+# After a Gradle update, regenerate the lock and verification metadata (see services/api/build.gradle.kts);
+# the API check fails until then, by design.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /services/api
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      gradle-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      npm-production:
+        dependency-type: production
+        update-types: [minor, patch]
+      npm-development:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directories: [/services/workers, /tools/sms-reader]
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+
+  # pip-tools layout: Dependabot edits requirements*.in and recompiles the hash-locked requirements*.txt.
+  - package-ecosystem: pip
+    directory: /services/pdf-parser
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      pip-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Base images are pinned by tag@digest; Dependabot moves both.
+  - package-ecosystem: docker
+    directories: [/services/api, /services/workers, /services/pdf-parser, /services/backup, /apps/web]
+    schedule: { interval: weekly, day: monday }
+    groups:
+      base-images:
+        patterns: ["*"]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      compose-images:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ["*"]

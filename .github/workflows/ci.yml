@@ -1,0 +1,131 @@
+# Build and test every part on every PR (AOS-622, proposed D-99). Job names are required checks
+# (.github/required-checks.txt, scripts/merge-pr.sh): rename one only together with that file and the
+# branch protection rule.
+#
+# Security: no secrets are used or exposed; the token is read-only; actions are pinned by commit SHA;
+# `pull_request` (not pull_request_target), so a PR's code never runs with write access.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: api
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      # Locked versions and SHA-256 verification metadata are enforced on every resolution.
+      - name: Unit, integration (Testcontainers) and coverage gate
+        run: ./gradlew --no-daemon test integrationTest koverVerify
+
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:coverage
+      - run: npx --no-install next build
+
+  go:
+    name: go (${{ matrix.module }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [services/workers, tools/sms-reader]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # The latest 1.27 patch, like the pinned golang:1.27 builder image (go.mod's "go 1.27.0" would install 1.27.0,
+          # which has standard-library vulnerabilities fixed in later patches).
+          go-version: "1.27.x"
+          check-latest: true
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: Build, vet, test
+        working-directory: ${{ matrix.module }}
+        run: |
+          go mod verify
+          go build ./...
+          go vet ./...
+          go test ./...
+
+  pdf-parser:
+    name: pdf-parser
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/pdf-parser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - run: pip install --require-hashes -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  shell:
+    name: shell
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck
+        run: |
+          mapfile -t files < <(git ls-files '*.sh')
+          shellcheck -S warning -x "${files[@]}"
+      - name: Compose exposure check (AOS-616)
+        run: scripts/tests/check-compose-exposure.test.sh
+      - name: Compose and Dockerfile hardening check (AOS-622)
+        run: scripts/tests/check-compose-hardening.test.sh
+      - name: Gmail-push tunnel routes only the webhook (AOS-616)
+        run: scripts/tests/cloudflared-ingress.test.sh
+      - name: Backup bucket setup (AOS-621)
+        run: scripts/tests/setup-r2-bucket.test.sh
+      - name: Backups and restore drill, end to end (AOS-621)
+        run: services/backup/tests/run.sh
