@@ -39,7 +39,7 @@ describe("Login", () => {
     });
   });
 
-  it.each([["auth_failed", "Authentication failed. Please try again."], ["other", "Something went wrong. Please try again."]])(
+  it.each([["auth_failed", "Authentication failed. Please try again."], ["private", "This AdminOS is private. Only its owner can sign in."], ["other", "Something went wrong. Please try again."]])(
     "error=%s is explained", async (error, text) => {
       const { Login } = await fresh("client-123", { error });
       render(<Login />);
@@ -71,6 +71,14 @@ describe("OAuth callback", () => {
     render(<Page />);
     expect(await screen.findByText("Authentication failed. Redirecting...")).toBeInTheDocument();
     expect(nav.router.replace).toHaveBeenCalledWith("/login?error=auth_failed");
+  });
+
+  it("someone other than the owner is told the AdminOS is private (AOS-614)", async () => {
+    const { nav, Callback: Page } = await fresh("client-123", { code: "abc" });
+    const { api } = await import("@/lib/api");
+    vi.spyOn(api, "post").mockResolvedValue({ success: false, data: null, error: { code: "USER_003", message: "This AdminOS is private" } } as never);
+    render(<Page />);
+    await waitFor(() => expect(nav.router.replace).toHaveBeenCalledWith("/login?error=private"));
   });
 
   it("a network failure also returns to login", async () => {

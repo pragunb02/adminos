@@ -35,7 +35,8 @@ function CallbackContent() {
           }
         } else {
           setStatus("error");
-          router.replace("/login?error=auth_failed");
+          // Only the owner's Google account may sign in (AOS-614).
+          router.replace(res.error?.code === "USER_003" ? "/login?error=private" : "/login?error=auth_failed");
         }
       } catch {
         setStatus("error");

@@ -108,6 +108,8 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                 )
             } catch (e: UserInactiveException) {
                 throw ApiException(HttpStatusCode.Forbidden, ApiError.USER_INACTIVE)
+            } catch (e: NotOwnerException) {
+                throw ApiException(HttpStatusCode.Forbidden, ApiError.NOT_OWNER)
             } catch (e: RuntimeException) {
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError.OAUTH_FAILED)
             }
@@ -132,6 +134,9 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
             } catch (e: UserInactiveException) {
                 cookies.clear(call)
                 throw ApiException(HttpStatusCode.Forbidden, ApiError.USER_INACTIVE)
+            } catch (e: NotOwnerException) {
+                cookies.clear(call)
+                throw ApiException(HttpStatusCode.Forbidden, ApiError.NOT_OWNER)
             }
         }
 

@@ -71,6 +71,7 @@
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
+| D-91 | Process / Architecture | Security is always P0: the site is owner-only (one allowlisted, pinned Google account, fail closed), private-network by default, defence in depth, and every security control has unit, integration and Playwright attack tests; we red-team our own site before go-live and on every security change | Accepted | AOS-614…623, S6.4 |
 | D-80 | Product | North star "spend less → save more → invest well", measured by the savings rate; Epic E9 Spending coach (leaks, limits, nudges, goals) goes before the E8 wealth build; the coach informs and never acts; nudges are few and configurable | Accepted | AOS-011, E9 |
 | D-78 | Scope | AdminOS is always personal and single-user, self-hosted and secured end to end; wealth (all holdings, net worth, policy-based guidance with AI explanations) is in scope; public-user work (E6 public ingestion, onboarding, DPDP consent records) is parked | Accepted | AOS-010, AOS-801, E6, E8 |
 | D-67 | Architecture / Product | AI ground rules: AI never invents a number shown as fact; outputs validated against input or DB; each feature off by default with minimum data; local-first where good enough; one provider port; per-feature eval gate | Accepted | AOS-701, E7 (AOS-702…719) |
@@ -869,4 +870,19 @@ Proposed
   - it informs and never acts (no blocking apps or payments).
 - **Habit lenses** are data (editable groups of merchants and categories), so a new app or habit is one entry.
 - **Rejected:** gamification beyond streaks (noise); AI-written nudges (D-67: numbers from code; a later option for wording only).
+
+### D-91 — Security is always P0; owner-only, defence in depth, attack-tested
+2026-10-17 · Accepted (Pragun: "nobody is able to access it except me … security is always a P0 … we should be hackers of our website") · Type: Process / Architecture · Tasks: AOS-614…623, story S6.4 · Builds on D-32, D-60, D-67, D-78
+- **Priority:** security work outranks features. A security finding blocks go-live and merges until fixed or explicitly accepted by Pragun.
+- **Owner-only:** exactly one Google account can sign in: `OWNER_EMAIL`, verified, pinned to its Google ID after the first sign-in. No sign-up path. Fail closed: no owner configured, nobody gets in; with a database, start-up stops (AOS-614).
+- **Defence in depth** (each layer assumes the one before failed):
+  1. **Network:** not on the public internet by default; reachable only over a private network (Tailscale), and the DB, Redis and services stay on loopback or the compose network (AOS-616).
+  2. **Identity:** Google plus a passkey (WebAuthn) as a second factor (AOS-617).
+  3. **Session:** short access tokens, HttpOnly/Secure/SameSite cookies, rotation with reuse detection (AOS-121), alerts on every new or refused sign-in, revoke-all (AOS-620).
+  4. **Authorization:** every route authenticated unless allowlisted; every resource scoped to its owner, tested per route (AOS-619).
+  5. **Data:** secrets never in the repo; encryption at rest for tokens, documents and holdings (D-60, D-79); encrypted backups (AOS-621).
+  6. **Supply chain and runtime:** dependency and container scanning, non-root read-only containers (AOS-622); GitGuardian on every commit.
+- **Attack tests, always:** each control ships with unit, integration and Playwright attack specs (a stranger's account, a forged or replayed token, another user's IDs, missing CSRF, oversized uploads, path tricks). A red-team audit (OWASP ASVS L2 and WSTG) runs before go-live (AOS-615, AOS-623) and again on every security-relevant change.
+- **Honesty:** "unhackable" isn't a property anyone can promise. The aim is no reachable attack surface from the internet, and every layer tested as if the others had failed.
+- **Rejected:** relying on Google's "Testing" consent mode as the control (sensitive-scope refresh tokens expire every 7 days); a public URL protected only by the app's login.
 

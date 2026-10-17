@@ -27,10 +27,13 @@ import java.util.UUID
 import kotlin.test.*
 
 /** AOS-312: /auth routes end to end: Google login, refresh errors, logout audit, session management. */
+/** The fake Google user's email (FakeGoogleServer), configured as the owner (AOS-614). */
+private const val OWNER = "pragun.b@gmail.com"
+
 class IdentityAuthRoutesCoverageTest {
 
     private val google = FakeGoogleServer()
-    private val baseConfig = AppConfig.load()
+    private val baseConfig = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = OWNER)) }
     private val users = InMemoryUserRepository()
     private val sessions = InMemorySessionRepository()
     private val audit = RecordingAuditRepository()
@@ -73,7 +76,7 @@ class IdentityAuthRoutesCoverageTest {
     private suspend fun HttpResponse.errorCode() =
         Json.parseToJsonElement(bodyAsText()).jsonObject["error"]?.jsonObject?.get("code")?.jsonPrimitive?.content
 
-    private fun newUser(): User = runBlocking { users.save(User(email = "me-${UUID.randomUUID()}@example.com", googleId = "g-${UUID.randomUUID()}")) }
+    private fun newUser(): User = runBlocking { users.save(User(email = OWNER, googleId = "g-${UUID.randomUUID()}")) }
 
     private fun newSession(userId: UUID, lastActiveAt: Instant? = null, revokedAt: Instant? = null): Pair<Session, String> = runBlocking {
         val refresh = "refresh-${UUID.randomUUID()}"
@@ -106,6 +109,19 @@ class IdentityAuthRoutesCoverageTest {
         assertFalse("ya29" in body || "refreshToken" in body || "accessToken" in body, "tokens must never be in the body")
         assertNotNull(res.setCookie(ACCESS_TOKEN_COOKIE))
         assertNotNull(res.setCookie(REFRESH_TOKEN_COOKIE))
+    }
+
+    @Test
+    fun `a google account that isn't the owner gets 403 private, no cookies, and the owner is never named (AOS-614)`() = routesTest {
+        google.userInfoBody = FakeGoogleServer.userInfo(sub = "stranger-9", email = "stranger@example.com")
+        val res = postJson("/api/v1/auth/google", loginBody())
+
+        assertEquals(HttpStatusCode.Forbidden, res.status)
+        val body = res.bodyAsText()
+        assertTrue("USER_003" in body, body)
+        assertFalse(OWNER in body, "the owner's email must never be revealed")
+        assertEquals(null, res.setCookie(ACCESS_TOKEN_COOKIE))
+        assertEquals(null, res.setCookie(REFRESH_TOKEN_COOKIE))
     }
 
     @Test

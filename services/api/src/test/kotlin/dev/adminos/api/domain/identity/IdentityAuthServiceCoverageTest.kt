@@ -109,7 +109,7 @@ class IdentityAuthServiceCoverageTest {
 
     @Test
     fun `refresh records the session as recently active`() = runBlocking<Unit> {
-        val user = users.save(User(email = "me@example.com", googleId = "g-refresh"))
+        val user = users.save(User(email = "pragun.b@gmail.com", googleId = "g-refresh"))
         val (session, refresh) = storedSession(user.id)
 
         service.refreshToken(refresh)

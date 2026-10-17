@@ -34,7 +34,9 @@ function LoginContent() {
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error === "auth_failed"
               ? "Authentication failed. Please try again."
-              : "Something went wrong. Please try again."}
+              : error === "private"
+                ? "This AdminOS is private. Only its owner can sign in."
+                : "Something went wrong. Please try again."}
           </div>
         )}
 

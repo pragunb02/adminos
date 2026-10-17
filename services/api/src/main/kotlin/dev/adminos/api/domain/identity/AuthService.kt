@@ -18,7 +18,8 @@ class AuthService(
     private val sessionRepository: SessionRepository,
     private val jwtService: JwtService,
     private val googleOAuthClient: GoogleOAuthClient,
-    private val config: AuthConfig
+    private val config: AuthConfig,
+    private val owner: OwnerPolicy = OwnerPolicy(config.ownerEmail)
 ) {
 
     suspend fun loginWithGoogle(
@@ -35,8 +36,10 @@ class AuthService(
             throw UnverifiedEmailException()
         }
 
-        // Find or create user
+        // Only the owner's Google account, and only the one first pinned for that email (AOS-614, D-91).
+        if (!owner.isOwnerEmail(googleUser.email)) throw NotOwnerException()
         val existingUser = userRepository.findByGoogleId(googleUser.sub)
+        if (existingUser == null && userRepository.findByEmail(googleUser.email) != null) throw NotOwnerException()
         val isNewUser = existingUser == null
 
         // A deactivated or deleted account can't sign back in (AOS-610).
@@ -98,6 +101,11 @@ class AuthService(
         if (!user.canSignIn()) {
             sessionRepository.revoke(session.id)
             throw UserInactiveException()
+        }
+        // So does anyone who isn't the owner, e.g. after OWNER_EMAIL changed (AOS-614).
+        if (!owner.isOwnerEmail(user.email)) {
+            sessionRepository.revoke(session.id)
+            throw NotOwnerException()
         }
 
         // Update last active

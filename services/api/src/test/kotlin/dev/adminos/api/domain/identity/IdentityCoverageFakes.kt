@@ -12,7 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
 /** AOS-312: an auth config for unit tests (no env vars). */
 internal fun identityTestAuthConfig(
     jwtSecret: String = "test-secret-that-is-at-least-32-bytes-long!",
-    issuer: String = "adminos-test"
+    issuer: String = "adminos-test",
+    ownerEmail: String = "pragun.b@gmail.com" // the fake Google user's email (FakeGoogleServer)
 ) = AuthConfig(
     jwtSecret = jwtSecret,
     jwtIssuer = issuer,
@@ -20,7 +21,8 @@ internal fun identityTestAuthConfig(
     refreshTokenTtlDays = 30,
     googleClientId = "test-client-id.apps.googleusercontent.com",
     googleClientSecret = "test-client-secret",
-    googlePubsubAudience = ""
+    googlePubsubAudience = "",
+    ownerEmail = ownerEmail
 )
 
 /** A unique client IP per test, so the process-wide auth rate limiter never couples tests. */
