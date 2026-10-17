@@ -22,4 +22,6 @@ export const server = setupServer(
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
   http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Home → Month-end forecast (AOS-714): too little history unless a test says otherwise.
+  http.get("/api/v1/forecast", () => ok({ status: "not_enough_history", today: "2026-10-16", history: { days: 40, neededDays: 90, readyOn: "2026-11-25" }, monthEnd: null, salary: null })),
 );

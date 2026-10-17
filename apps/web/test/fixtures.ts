@@ -144,4 +144,33 @@ export const fx = {
     id: "d-1", title: "Form 16 FY26", category: "tax", fileType: "pdf", mime: "application/pdf", sizeBytes: 245_760,
     originalName: "Form16.pdf", expiresOn: null, notes: null, createdAt: "2026-10-16T06:00:00Z", ...over,
   }),
+  /** A ready month-end forecast (AOS-714): today 16 Oct 2026; parts add up to the total. */
+  forecast: (over: Partial<import("@/lib/forecast").ForecastData> = {}): import("@/lib/forecast").ForecastData => ({
+    status: "ready",
+    today: "2026-10-16",
+    history: null,
+    monthEnd: {
+      month: "2026-10", spentSoFar: "48250.00", total: "61540.50", daysLeft: 15,
+      parts: [
+        { kind: "bills", amount: "2350.50", items: [{ name: "Tata Power", date: "2026-10-25", amount: "2350.50", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+        { kind: "renewals", amount: "649.00", items: [{ name: "Netflix", date: "2026-10-25", amount: "649.00", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+        { kind: "mandates", amount: "0.00", items: [], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+        { kind: "everyday", amount: "10291.00", items: [], weekdayRate: "550.00", weekendRate: "1060.25", weekdays: 11, weekendDays: 4, split: true, method: "weekly_median", learntFrom: "2026-08-22", learntTo: "2026-10-16" },
+      ],
+      range: { low: "57200.00", high: "66900.00", level: 80, months: 7 },
+      rangeMonthsNeeded: 0,
+    },
+    salary: {
+      status: "expected", reason: null, payer: "ACME TECHNOLOGIES", expectedOn: "2026-10-30", typicalAmount: "100000.00",
+      lastAmount: "100000.00", lastReceivedOn: "2026-09-30", credits: 6,
+      untilSalary: {
+        from: "2026-10-17", to: "2026-10-29", spentSince: "52100.00", expected: "10481.25", left: "37418.75", leftLow: "33000.00", leftHigh: "41100.00",
+        parts: [
+          { kind: "bills", amount: "2350.50", items: [{ name: "Tata Power", date: "2026-10-25", amount: "2350.50", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+          { kind: "everyday", amount: "8130.75", items: [], weekdayRate: "550.00", weekendRate: "1060.25", weekdays: 9, weekendDays: 3, split: true, method: "weekly_median", learntFrom: "2026-08-22", learntTo: "2026-10-16" },
+        ],
+      },
+    },
+    ...over,
+  }),
 };
