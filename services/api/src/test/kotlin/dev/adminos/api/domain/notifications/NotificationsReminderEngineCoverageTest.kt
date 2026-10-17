@@ -7,24 +7,40 @@ import dev.adminos.api.domain.notifications.NotificationsFixtures.prefs
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Disabled
 import java.math.BigDecimal
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** ReminderEngine (AOS-312): overdue marking, reminder days, de-duplication and error isolation. */
+/**
+ * ReminderEngine (AOS-312): overdue marking, reminder days, de-duplication and error isolation.
+ *
+ * Every date comes from one fixed clock (AOS-631). It is set to 18:45 UTC, when the UTC date is
+ * still the 16th but India (the engine's zone for a user without one) is already on the 17th,
+ * so a test that read the wall clock or the JVM's zone would disagree with the engine here.
+ * The bill repository reads the server's UTC date, like the API in its container.
+ */
 class NotificationsReminderEngineCoverageTest {
 
     private val userId = UUID.randomUUID()
-    private val bills = InMemoryBillRepository()
+    private val clock = clockAt("2026-10-16T18:45:00Z")
+    private val bills = InMemoryBillRepository(clock)
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()
     private val notifications = notificationService(prefsRepo, notifRepo)
-    private val calendar = dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository())
+    private val calendar = dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), clock)
     private val engine = ReminderEngine(bills, prefsRepo, notifications, calendar)
     private val today = LocalDate.of(2026, 10, 16)
+
+    /** The user's date (India for a user without a zone) at [clock]. */
+    private val userToday = LocalDate.now(clock.withZone(dev.adminos.api.domain.identity.UserCalendar.DEFAULT_ZONE))
+
+    private fun clockAt(instant: String): Clock = Clock.fixed(Instant.parse(instant), ZoneOffset.UTC)
 
     private fun bill(dueDate: LocalDate, user: UUID = userId, status: BillStatus = BillStatus.UPCOMING, sent: Set<Int>? = null,
                      sent3d: Boolean = false, sent1d: Boolean = false) =
@@ -147,7 +163,7 @@ class NotificationsReminderEngineCoverageTest {
     @Test
     fun `markOverdueBills flips past-due bills to overdue and notifies`() = runBlocking<Unit> {
         prefsRepo.save(prefs(userId))
-        val past = bills.save(bill(LocalDate.now().minusDays(2)))
+        val past = bills.save(bill(userToday.minusDays(2)))
 
         engine.markOverdueBills()
 
@@ -160,7 +176,7 @@ class NotificationsReminderEngineCoverageTest {
     @Test
     fun `runReminders marks overdue bills and sends due reminders`() = runBlocking<Unit> {
         prefsRepo.save(prefs(userId))
-        val now = LocalDate.now()
+        val now = userToday
         val overdue = bills.save(bill(now.minusDays(1)))
         val dueIn3 = bills.save(bill(now.plusDays(3)))
         val paid = bills.save(bill(now.plusDays(1), status = BillStatus.PAID))
@@ -181,8 +197,8 @@ class NotificationsReminderEngineCoverageTest {
         val svc = notificationService(failingPrefs, notifRepo)
         val eng = ReminderEngine(bills, failingPrefs, svc, calendar)
         failingPrefs.save(prefs(userId))
-        bills.save(bill(LocalDate.now().plusDays(3), user = brokenUser))
-        val ok = bills.save(bill(LocalDate.now().plusDays(3)))
+        bills.save(bill(userToday.plusDays(3), user = brokenUser))
+        val ok = bills.save(bill(userToday.plusDays(3)))
 
         val summary = eng.runReminders()
 
@@ -252,5 +268,60 @@ class NotificationsReminderEngineCoverageTest {
         engine.processReminder(bills.save(bill(today.plusDays(3))), today)
 
         assertEquals(1, reminders().size)
+    }
+
+    // ── AOS-631: the user's midnight, not the server's ──
+
+    private fun engineAt(instant: String): Pair<ReminderEngine, InMemoryBillRepository> {
+        val at = clockAt(instant)
+        val repo = InMemoryBillRepository(at)
+        val cal = dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), at)
+        return ReminderEngine(repo, prefsRepo, notifications, cal) to repo
+    }
+
+    @Test
+    fun `a bill due on the 16th is not overdue at 23 59 India time`() = runBlocking<Unit> {
+        val (eng, repo) = engineAt("2026-10-16T18:29:00Z")
+        val due = repo.save(bill(LocalDate.of(2026, 10, 16)))
+
+        eng.markOverdueBills()
+
+        assertEquals(BillStatus.UPCOMING, repo.findById(due.id)!!.status)
+    }
+
+    @Test
+    fun `a bill due on the 16th is overdue at 00 01 India time while UTC is still on the 16th`() = runBlocking<Unit> {
+        val (eng, repo) = engineAt("2026-10-16T18:31:00Z")
+        val due = repo.save(bill(LocalDate.of(2026, 10, 16)))
+
+        eng.markOverdueBills()
+
+        assertEquals(BillStatus.OVERDUE, repo.findById(due.id)!!.status)
+    }
+
+    @Test
+    fun `the 3-day reminder follows the India date just after its midnight`() = runBlocking<Unit> {
+        prefsRepo.save(prefs(userId))
+        val (eng, repo) = engineAt("2026-10-16T18:31:00Z")
+        val dueOn20th = repo.save(bill(LocalDate.of(2026, 10, 20)))
+        val dueOn19th = repo.save(bill(LocalDate.of(2026, 10, 19)))
+
+        eng.runReminders()
+
+        assertEquals(setOf(3), repo.findById(dueOn20th.id)!!.sentReminderDays)
+        assertEquals(null, repo.findById(dueOn19th.id)!!.sentReminderDays)
+    }
+
+    @Test
+    fun `the 3-day reminder follows the India date just before its midnight`() = runBlocking<Unit> {
+        prefsRepo.save(prefs(userId))
+        val (eng, repo) = engineAt("2026-10-16T18:29:00Z")
+        val dueOn20th = repo.save(bill(LocalDate.of(2026, 10, 20)))
+        val dueOn19th = repo.save(bill(LocalDate.of(2026, 10, 19)))
+
+        eng.runReminders()
+
+        assertEquals(null, repo.findById(dueOn20th.id)!!.sentReminderDays)
+        assertEquals(setOf(3), repo.findById(dueOn19th.id)!!.sentReminderDays)
     }
 }

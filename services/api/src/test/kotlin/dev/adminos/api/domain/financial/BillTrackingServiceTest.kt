@@ -2,8 +2,10 @@ package dev.adminos.api.domain.financial
 
 import kotlinx.coroutines.runBlocking
 import java.math.BigDecimal
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +19,10 @@ import kotlin.test.assertNull
  */
 class BillTrackingServiceTest {
 
-    private val billRepo = InMemoryBillRepository()
+    /** One fixed clock (AOS-631): 18:45 UTC, when India is already on the next day. */
+    private val clock = Clock.fixed(Instant.parse("2026-10-16T18:45:00Z"), ZoneOffset.UTC)
+    private val today = LocalDate.now(clock)
+    private val billRepo = InMemoryBillRepository(clock)
     private val txnRepo = InMemoryTransactionRepository()
     private val service = BillTrackingService(billRepo, txnRepo)
 
@@ -78,7 +83,7 @@ class BillTrackingServiceTest {
             userId = userId,
             billerName = "Netflix",
             amount = BigDecimal("499.00"),
-            dueDate = LocalDate.now().plusDays(3),
+            dueDate = today.plusDays(3),
             status = BillStatus.UPCOMING,
             detectionSource = "gmail"
         )
@@ -89,7 +94,7 @@ class BillTrackingServiceTest {
             type = TransactionType.DEBIT,
             amount = BigDecimal("499.00"),
             merchantName = "Netflix Subscription",
-            transactedAt = Instant.now()
+            transactedAt = clock.instant()
         )
 
         val matched = service.matchPayment(txn)
@@ -108,7 +113,7 @@ class BillTrackingServiceTest {
             type = TransactionType.DEBIT,
             amount = BigDecimal("999.00"),
             merchantName = "Random Store",
-            transactedAt = Instant.now()
+            transactedAt = clock.instant()
         )
 
         val matched = service.matchPayment(txn)
@@ -122,7 +127,7 @@ class BillTrackingServiceTest {
             userId = userId,
             billerName = "HDFC Credit Card",
             amount = BigDecimal("10000.00"),
-            dueDate = LocalDate.now().plusDays(3),
+            dueDate = today.plusDays(3),
             status = BillStatus.DUE,
             detectionSource = "gmail"
         )
@@ -133,7 +138,7 @@ class BillTrackingServiceTest {
             type = TransactionType.DEBIT,
             amount = BigDecimal("5000.00"),
             merchantName = "HDFC Credit Card Payment",
-            transactedAt = Instant.now()
+            transactedAt = clock.instant()
         )
 
         val matched = service.matchPayment(txn)
@@ -149,7 +154,7 @@ class BillTrackingServiceTest {
             userId = userId,
             billerName = "Electricity Board",
             amount = BigDecimal("2500.00"),
-            dueDate = LocalDate.now().minusDays(2),
+            dueDate = today.minusDays(2),
             status = BillStatus.DUE,
             detectionSource = "gmail"
         )
@@ -168,7 +173,7 @@ class BillTrackingServiceTest {
             userId = userId,
             billerName = "Internet Bill",
             amount = BigDecimal("999.00"),
-            dueDate = LocalDate.now().minusDays(1),
+            dueDate = today.minusDays(1),
             status = BillStatus.PAID,
             detectionSource = "gmail"
         )
