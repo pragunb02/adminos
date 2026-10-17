@@ -6,6 +6,7 @@
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
+| D-82 | Architecture / Product | Leaks are computed from the range's transactions with the lens matcher (not SQL), range capped at 3 × 366 days; spent = spend − refunds (unclipped), late night 22:00–05:00 local; every number has its drill-down through the same filter | Accepted | AOS-902 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
 | D-94 | Architecture | Browser and sign-in hardening: nonce CSP (no unsafe-inline scripts) and security headers on web and API, CORS removed; one app-wide CSRF check (Fetch-Metadata/Origin, fail closed) on cookie mutations; Google sign-in with server-side single-use state + PKCE; sign-in backoff; X-Forwarded-For distrusted unless TRUST_FORWARDED_FOR (amends D-32); strict JWTs; generic errors | Accepted | AOS-618 |
 | D-93 | Process | Every route is authenticated unless on a reviewed allowlist, enforced by a route-inventory test over the real app; another user's resource is always 404 (same as missing); Playwright attack suite security.spec.ts; web guard matches public pages exactly | Accepted | AOS-619 |
@@ -1098,3 +1099,10 @@ Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
 - First passkey: enrolled from the first pending session (alerted); later ones only from a confirmed session. Ten recovery codes (80-bit, SHA-256), regenerable from a confirmed session. Reset only server-side (runbook).
 - Five failed attempts end the session and alert.
 - Rejected: TOTP (phishable), SMS codes, optional second factor, hand-rolled WebAuthn.
+
+### D-82 — Leaks are computed from transactions with the lens matcher; every number has its drill-down
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture / Product · Tasks: AOS-902 · Builds on D-39, D-45, D-46, D-49, D-81
+- **Where:** the leaks read the range's spend and refunds and match lenses in Kotlin (AOS-901 matcher with overrides), not in SQL; range capped at 3 × 366 days. Limits, digest, report card and goals reuse `LeakService.facts`, so every coach number agrees.
+- **Definitions:** spent = spend − refunds, not clipped (a lens can be negative); orders = spend transactions; average order = orders' total before refunds ÷ orders; late night = 22:00–05:00 local (data file), share over orders with a known time (statement rows excluded); previous = same number of days before; total across lenses = union.
+- **Drill-down:** `/api/v1/coach/leaks/transactions` uses the same filter object as the numbers; Activity shows it via `lens`, `merchant`, `late`, `weekday` URL filters.
+- **Rejected:** analytics SQL with hour/handle columns (would duplicate lens rules in SQL); a materialised lens-spend table (a second source of truth to keep in step with corrections and overrides).
