@@ -19,11 +19,12 @@ case "\$*" in
   "pr view"*) echo "$sha" ;;
   *"/commits/$sha/check-runs?per_page=100") cat "$dir/runs.json" ;;
   *"/commits/$sha/statuses?per_page=100") cat "$dir/status.json" ;;
-  "pr merge 7 -R pragunb02/adminos --merge --delete-branch --match-head-commit $sha") touch "$dir/merged" ;;
+  "pr merge 7 -R pragunb02/adminos --merge --delete-branch --match-head-commit $sha") [[ -f "$dir/refuse-merge" ]] && exit 1; touch "$dir/merged" ;;
   *) echo "unexpected gh \$*" >&2; exit 9 ;;
 esac
 FAKE
   chmod +x "$dir/gh"
+  if [[ "$name" == *"GitHub refuses"* ]]; then touch "$dir/refuse-merge"; fi
   set +e; PATH="$dir:$PATH" bash "$script" 7 "$timeout" > "$dir/out" 2>&1; code=$?; set -e
   local merged=no; [[ -f "$dir/merged" ]] && merged=yes
   local want_merged=no; [[ "$want_code" -eq 0 ]] && want_merged=yes
@@ -60,6 +61,7 @@ run_case "security review pending: refused" "$ok_runs" "$sec_pending" 1 "review/
 run_case "a failed check with passing reviews: refused" "$bad_runs" "$both" 1 "0 of 1 checks succeeded"
 run_case "a check still running at the deadline: refused on timeout" "$pending_runs" "$both" 1 "checks still pending after 1s" 1
 run_case "no check runs at all: refused on timeout" '{"total_count":0,"check_runs":[]}' "$both" 1 "checks still pending after 1s" 1
+run_case "GitHub refuses the merge (the head moved during the wait): not merged" "$ok_runs" "$both" 1 "GitHub refused the merge of $sha"
 run_case "more check runs than one page: refused" "$(runs 101 "$(check GitGuardian completed '"success"')")" "$both" 1 "more than one page"
 
 # Bad arguments never reach gh.
