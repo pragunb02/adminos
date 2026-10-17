@@ -1,12 +1,11 @@
 package dev.adminos.api.domain.ask
 
+import dev.adminos.api.domain.ai.AiJson
 import dev.adminos.api.domain.ai.AiReading
 import dev.adminos.api.domain.ai.AiReasonCode
 import dev.adminos.api.domain.ai.SafeName
 import dev.adminos.api.domain.analytics.Bucket
 import dev.adminos.api.domain.financial.TransactionCategory
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -32,6 +31,9 @@ import java.util.Locale
 object AskPlanWire {
     /** A plan is a few hundred bytes; anything much larger is not a plan. */
     const val MAX_TEXT = 8 * 1024
+
+    /** A plan object, its calls array, a call and its period: the deepest a valid plan nests. */
+    const val MAX_DEPTH = 4
 
     val PLAN_FIELDS = setOf("action", "reason", "calls")
     val CALL_FIELDS = setOf("tool", "period", "category", "merchant", "bucket", "limit")
@@ -62,11 +64,8 @@ object AskPlanWire {
 
     fun read(text: String): AiReading<AskPlan> {
         if (text.length > MAX_TEXT) return AiReading.Invalid(TOO_LONG)
-        val root = try {
-            Json.parseToJsonElement(text.trim()) as? JsonObject
-        } catch (e: SerializationException) {
-            null
-        } ?: return AiReading.Invalid(NOT_JSON_OBJECT)
+        // Size and nesting are checked before parsing (AOS-635): a plan is at most 4 levels deep (plan, calls, call, period).
+        val root = AiJson.parseObject(text, maxDepth = MAX_DEPTH, maxChars = MAX_TEXT) ?: return AiReading.Invalid(NOT_JSON_OBJECT)
         return try {
             AiReading.Valid(plan(root))
         } catch (e: Invalid) {

@@ -58,7 +58,7 @@ class AiRoutesTest {
 
     private fun service(on: Boolean) = AiFeaturesService(
         AiGateway(if (on) listOf(AiRoute.of(AiFeature.CATEGORIZATION, FakeAiProvider(), FakeAiProvider.MODEL)) else emptyList(), costs, calls, AiConsents(consents)),
-        mapOf(AiFeature.CATEGORIZATION to EchoTask), consents, calls, AiEvalRecords(listOf(record)), costs,
+        mapOf(AiFeature.CATEGORIZATION to EchoTask, AiFeature.ASK to dev.adminos.api.domain.ask.AskNotBuiltTask), consents, calls, AiEvalRecords(listOf(record)), costs,
         AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined))
     )
 
@@ -100,7 +100,7 @@ class AiRoutesTest {
         assertEquals(HttpStatusCode.OK, r.status)
         val data = r.body!!.getValue("data").jsonObject
         assertEquals("2.00", data["monthlyCapUsd"]?.jsonPrimitive?.content)
-        val f = data.getValue("features").jsonArray.single().jsonObject
+        val f = data.getValue("features").jsonArray.map { it.jsonObject }.single { it["key"]?.jsonPrimitive?.content == "categorization" }
         assertEquals("categorization", f["key"]?.jsonPrimitive?.content)
         assertEquals(false, f["enabled"]?.jsonPrimitive?.boolean)
         assertEquals(true, f["available"]?.jsonPrimitive?.boolean)
@@ -120,7 +120,7 @@ class AiRoutesTest {
         assertTrue(runBlocking { AiConsents(consents).allows(pragun.id, AiFeature.CATEGORIZATION) })
 
         val othersView = call(HttpMethod.Get, "/ai/features", token = jwtService.generateAccessToken(other))
-        assertEquals(false, othersView.body!!.getValue("data").jsonObject.getValue("features").jsonArray.single().jsonObject["enabled"]?.jsonPrimitive?.boolean,
+        assertEquals(false, othersView.body!!.getValue("data").jsonObject.getValue("features").jsonArray.map { it.jsonObject }.single { it["key"]?.jsonPrimitive?.content == "categorization" }["enabled"]?.jsonPrimitive?.boolean,
             "another user's consent is never shown or applied")
 
         val off = call(HttpMethod.Patch, "/ai/features/categorization", """{"enabled":false}""")

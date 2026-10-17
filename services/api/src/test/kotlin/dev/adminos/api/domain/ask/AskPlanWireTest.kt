@@ -133,6 +133,9 @@ class AskPlanWireTest {
         assertEquals(AskPlanWire.TOO_LONG, code(" ".repeat(AskPlanWire.MAX_TEXT + 1)))
         assertEquals(AskPlanWire.TOO_LONG, code("[".repeat(10_000)))
         assertEquals(AskPlanWire.NOT_JSON_OBJECT, code("[".repeat(4_000)))
+        // The deepest reply that still fits under the size cap never reaches the parser (AOS-635).
+        assertEquals(AskPlanWire.NOT_JSON_OBJECT, code("[".repeat(AskPlanWire.MAX_TEXT)))
+        assertEquals(AskPlanWire.NOT_JSON_OBJECT, code("""{"action":"tools","reason":null,"calls":[[[[]]]]}"""))
     }
 
     @Test
