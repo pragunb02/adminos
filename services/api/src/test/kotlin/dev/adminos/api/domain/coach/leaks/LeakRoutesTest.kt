@@ -39,7 +39,7 @@ class LeakRoutesTest {
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
         application {
-            configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
+            configureSerialization(); configureRequestId(); configureErrorHandling(); configureRequestBodyLimit(); configureAuthentication(jwtService)
             routing { route("/api/v1") { leakRoutes(service) } }
         }
         block()
