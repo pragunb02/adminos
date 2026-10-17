@@ -72,3 +72,23 @@ object InvestmentTransactionsTable : Table("investment_transactions") {
     val createdAt = timestamp("created_at")
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Maps to db/migration/V71__wealth_holding_checks.sql (AOS-805). */
+object WealthHoldingChecksTable : Table("wealth_holding_checks") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val batchId = javaUUID("batch_id").references(WealthImportBatchesTable.id)
+    val accountId = javaUUID("account_id").references(InvestmentAccountsTable.id)
+    val instrumentId = javaUUID("instrument_id").references(InstrumentsTable.id).nullable()
+    val schemeName = varchar("scheme_name", 255)
+    val statementFrom = date("statement_from").nullable()
+    val statementTo = date("statement_to")
+    val openingUnits = decimal("opening_units", 38, 18)
+    val closingUnits = decimal("closing_units", 38, 18)
+    val valuationDate = date("valuation_date").nullable()
+    val valuationNav = decimal("valuation_nav", 30, 10).nullable()
+    val valuationValue = decimal("valuation_value", 18, 2).nullable()
+    val issue = varchar("issue", 20).nullable()
+    val createdAt = timestamp("created_at")
+    override val primaryKey = PrimaryKey(id)
+}

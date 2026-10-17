@@ -76,10 +76,10 @@ class IdorTest {
         val txn: Transaction, val otherTxn: Transaction, val subscription: Subscription, val bill: Bill, val anomaly: Anomaly,
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
         val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
-        val receipt: OrderReceipt, val limit: SpendingLimit
+        val receipt: OrderReceipt, val limit: SpendingLimit, val wealthBatch: dev.adminos.api.domain.wealth.ImportBatch
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id, receipt.id, limit.id).map { it.toString() } + documentId
+            push.id, mandate.id, notification.id, receipt.id, limit.id, wealthBatch.id).map { it.toString() } + documentId
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -125,8 +125,28 @@ class IdorTest {
         val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
         val limit = app.get<SpendingLimitRepository>().save(SpendingLimit(userId = alice.id, scope = LimitScope.Merchant("Alice Secret Merchant"),
             label = "Alice Secret Merchant", period = LimitPeriod.MONTHLY, amount = BigDecimal("3000"), createdAt = Instant.now(), updatedAt = Instant.now()))
+        // A mutual fund import of Alice's (AOS-805): a folio, a scheme and the batch, with its reconciliation.
+        val wealthBatch = seedWealthImport(app)
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
-            receipt, limit)
+            receipt, limit, wealthBatch)
+    }
+
+    private suspend fun seedWealthImport(app: Application): dev.adminos.api.domain.wealth.ImportBatch {
+        val accountId = UUID.randomUUID()
+        val account = app.get<dev.adminos.api.domain.wealth.InvestmentAccountRepository>().findOrCreate(dev.adminos.api.domain.wealth.InvestmentAccount(
+            id = accountId, userId = alice.id, kind = dev.adminos.api.domain.wealth.InvestmentAccountKind.MF_FOLIO, institution = "Alice Fund House",
+            identifier = app.get<dev.adminos.api.infrastructure.crypto.WealthIdentifiers>().protect(
+                dev.adminos.api.infrastructure.crypto.IdentifierKind.FOLIO, "77001234", "investment_accounts:$accountId:identifier")))
+        val fund = app.get<dev.adminos.api.domain.wealth.InstrumentRepository>().findOrCreate(dev.adminos.api.domain.wealth.Instrument(
+            name = "Alice Secret Fund", assetClass = dev.adminos.api.domain.wealth.AssetClass.EQUITY_IN, isin = "INFZZ9770010"))
+        val batch = dev.adminos.api.domain.wealth.ImportBatch(userId = alice.id, readerId = "casparser", readerVersion = "test",
+            statementFrom = null, statementTo = LocalDate.now(), events = 0, added = 0, duplicates = 0)
+        app.get<dev.adminos.api.domain.wealth.InvestmentLedger>().record(batch, emptyList())
+        app.get<dev.adminos.api.domain.wealth.imports.HoldingCheckRepository>().saveAll(listOf(dev.adminos.api.domain.wealth.imports.HoldingCheck(
+            userId = alice.id, batchId = batch.id, accountId = account.id, instrumentId = fund.id, schemeName = "Alice Secret Fund", statementFrom = null,
+            statementTo = LocalDate.now(), openingUnits = dev.adminos.api.domain.wealth.Quantity.ZERO, closingUnits = dev.adminos.api.domain.wealth.Quantity.parse("10"),
+            valuationDate = null, valuationNav = null, valuationValue = null, issue = null)))
+        return batch
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -167,6 +187,7 @@ class IdorTest {
             Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
             Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
+            Attack(HttpMethod.Post, { "/api/v1/wealth/imports/$it/undo" }, a.wealthBatch.id.toString()),
         )
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
@@ -207,6 +228,9 @@ class IdorTest {
         assertTrue(app.get<SessionRepository>().findActiveByUserId(alice.id).any { it.id == a.sessionId }, "Alice's session is still active")
         assertTrue(app.get<PushSubscriptionRepository>().findByUserId(alice.id).any { it.id == a.push.id }, "Alice still has push")
         assertEquals(BigDecimal("3000"), app.get<SpendingLimitRepository>().findById(alice.id, a.limit.id)?.amount, "Alice's limit is unchanged")
+        client.asBob(HttpMethod.Post, "/api/v1/wealth/imports/${a.wealthBatch.id}/undo", null)
+        assertEquals(dev.adminos.api.domain.wealth.ImportStatus.APPLIED,
+            app.get<dev.adminos.api.domain.wealth.InvestmentLedger>().findBatch(alice.id, a.wealthBatch.id)?.status, "Alice's import is not undone")
         val doc = client.get("/api/v1/documents/${a.documentId}") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
@@ -232,6 +256,7 @@ class IdorTest {
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
             "/api/v1/leaks/fees", "/api/v1/receipts",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
+            "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
@@ -258,5 +283,8 @@ class IdorTest {
         for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
             assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
+        // Mutual fund imports (AOS-805) show Alice her own import and holding.
+        assertTrue(a.wealthBatch.id.toString() in client.get("/api/v1/wealth/imports") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        assertTrue("Alice Secret Fund" in client.get("/api/v1/wealth/reconciliation") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
     }
 }

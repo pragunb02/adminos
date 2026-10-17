@@ -8,10 +8,17 @@ import dev.adminos.api.domain.wealth.InstrumentRepository
 import dev.adminos.api.domain.wealth.InvestmentAccountRepository
 import dev.adminos.api.domain.wealth.InvestmentLedger
 import dev.adminos.api.domain.wealth.WealthAudit
+import dev.adminos.api.domain.wealth.imports.CasImportService
+import dev.adminos.api.domain.wealth.imports.CasReader
+import dev.adminos.api.domain.wealth.imports.HoldingCheckRepository
+import dev.adminos.api.domain.wealth.imports.InMemoryHoldingCheckRepository
+import dev.adminos.api.domain.wealth.imports.ReconciliationService
 import dev.adminos.api.infrastructure.crypto.WealthIdentifiers
+import dev.adminos.api.infrastructure.database.repositories.ExposedHoldingCheckRepository
 import dev.adminos.api.infrastructure.database.repositories.ExposedInstrumentRepository
 import dev.adminos.api.infrastructure.database.repositories.ExposedInvestmentAccountRepository
 import dev.adminos.api.infrastructure.database.repositories.ExposedInvestmentLedger
+import dev.adminos.api.infrastructure.statements.HttpCasReader
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -28,4 +35,10 @@ internal fun wealthKoinModule(useDatabase: Boolean): Module = module {
     single<InvestmentAccountRepository> { if (useDatabase) ExposedInvestmentAccountRepository() else InMemoryInvestmentAccountRepository() }
     single<InstrumentRepository> { if (useDatabase) ExposedInstrumentRepository() else InMemoryInstrumentRepository() }
     single<InvestmentLedger> { if (useDatabase) ExposedInvestmentLedger() else InMemoryInvestmentLedger() }
+    single<HoldingCheckRepository> { if (useDatabase) ExposedHoldingCheckRepository() else InMemoryHoldingCheckRepository(get()) }
+
+    // CAS import (AOS-805): the parser service reads the file in memory (D-37); the API reconciles and records.
+    single<CasReader> { HttpCasReader(get<AppConfig>().statementParser.url) }
+    single { ReconciliationService(get(), get()) }
+    single { CasImportService(get(), get(), get(), get(), get(), get(), get(), get()) }
 }

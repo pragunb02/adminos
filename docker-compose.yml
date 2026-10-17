@@ -83,7 +83,7 @@ services:
       DOCS_S3_BUCKET: ${DOCS_S3_BUCKET:-}
       DOCS_S3_ACCESS_KEY_ID: ${DOCS_S3_ACCESS_KEY_ID:-}
       DOCS_S3_SECRET_ACCESS_KEY: ${DOCS_S3_SECRET_ACCESS_KEY:-}
-    networks: [default, ai]   # ai: reaches only the optional ollama service (AOS-703)
+    networks: [default, ai, parser]   # ai: only the optional ollama service (AOS-703); parser: only pdf-parser (AOS-805)
 
   gmail-worker:
     profiles: ["full"]
@@ -128,6 +128,13 @@ services:
     build:
       context: ./services/pdf-parser
       dockerfile: Dockerfile
+    # No outbound network at all (AOS-805, D-79): its only network is internal, shared with the API alone, so a
+    # compromised parser library can't send a statement anywhere. Read-only, no capabilities (it writes nothing).
+    networks: [parser]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 10s
@@ -179,3 +186,6 @@ networks:
   default: {}
   # The optional local-model network: only api-server and ollama are on it (AOS-703, D-69).
   ai: {}
+  # The statement parser's network: internal (no route out of the host), only api-server and pdf-parser (AOS-805).
+  parser:
+    internal: true
