@@ -1,5 +1,6 @@
 package dev.adminos.api.infrastructure.ai
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import com.sun.net.httpserver.HttpServer
 import dev.adminos.api.domain.ai.AiCallOutcome
 import dev.adminos.api.domain.ai.AiCompletion
@@ -209,7 +210,7 @@ class AnthropicProviderTest {
     private val calls = InMemoryAiCallLogRepository()
     private fun categoriser() = PortAiCategoryClient(AiGateway(
         listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider(), "claude-haiku-5-5")),
-        AiCostGuard(InMemoryAiSpendLedger(), 2_000_000), calls
+        AiCostGuard(InMemoryAiSpendLedger(), 2_000_000), calls, ALLOW_ALL_CONSENT
     ))
     private val user = UUID(0, 702)
 

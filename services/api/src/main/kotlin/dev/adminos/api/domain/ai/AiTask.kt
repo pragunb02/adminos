@@ -9,14 +9,28 @@ import kotlinx.serialization.json.JsonObject
  * - [read] is the feature's **validator**: the model's text becomes a typed value only if it passes every
  *   check (schema again, closed lists, grounding in the input); anything else is rejected with a code.
  * - [promptVersion] names the prompt and schema; changing either needs a new version and a new eval record.
+ * - [notice] says, in plain words, exactly what the redactor sends; it lives here so the two change together
+ *   (the consent notice in Settings, AOS-704, DPDP s.5).
  */
 interface AiTask<I, O> {
     val feature: AiFeature
     val promptVersion: String
+    val notice: AiNotice
 
     fun prompt(input: I): AiPrompt
 
     fun read(text: String, input: I): AiReading<O>
+}
+
+/**
+ * The plain-language notice for one AI feature (AOS-704): what it is for, exactly what leaves AdminOS, and
+ * what never does. Where it goes depends on the provider the server is configured with ([AiProviderKind]).
+ */
+data class AiNotice(val title: String, val purpose: String, val sends: List<String>, val neverSends: List<String>) {
+    init {
+        require(title.isNotBlank() && purpose.isNotBlank()) { "A notice has a title and a purpose" }
+        require(sends.isNotEmpty() && neverSends.isNotEmpty()) { "A notice lists what is sent and what never is" }
+    }
 }
 
 /** What a task's redactor decided. */
@@ -46,7 +60,10 @@ enum class AiRefusal(val code: AiReasonCode) {
     WITHHELD(AiReasonCode("withheld")),
 
     /** This month's spend would pass the cap (fails closed). */
-    CAP_REACHED(AiReasonCode("cap_reached"))
+    CAP_REACHED(AiReasonCode("cap_reached")),
+
+    /** The user hasn't turned this feature on in Settings (AOS-704; off by default). */
+    NO_CONSENT(AiReasonCode("no_consent"))
 }
 
 /** What [AiGateway.run] gives a feature. Only [Answered] carries a value. */

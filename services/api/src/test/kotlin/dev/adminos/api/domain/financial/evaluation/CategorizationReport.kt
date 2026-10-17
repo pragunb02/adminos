@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.evaluation
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.config.AiConfig
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
@@ -108,7 +109,7 @@ private fun record(target: File) = runBlocking {
     val config = AiConfig.from(mapOf("AI_CATEGORIZATION_ENABLED" to "true", "ANTHROPIC_API_KEY" to key, "AI_CATEGORIZATION_MODEL" to model,
         "AI_MONTHLY_CAP_USD" to (env["AI_MONTHLY_CAP_USD"] ?: AiConfig.DEFAULT_CAP_USD))::get)
     val route = AiRoute.of(AiFeature.CATEGORIZATION, AnthropicProvider.create(key), model)
-    val real = PortAiCategoryClient(AiGateway(listOf(route), AiCostGuard(InMemoryAiSpendLedger(), config.monthlyCapMicros), InMemoryAiCallLogRepository()))
+    val real = PortAiCategoryClient(AiGateway(listOf(route), AiCostGuard(InMemoryAiSpendLedger(), config.monthlyCapMicros), InMemoryAiCallLogRepository(), ALLOW_ALL_CONSENT))
     val rows = mutableListOf<String>()
     val recorder = AiCategoryClient { user, q ->
         real.ask(user, q).also { r ->

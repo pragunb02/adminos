@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.ai
 
+import dev.adminos.api.domain.ai.AiConsentCheck
 import dev.adminos.api.domain.ai.AiCompletion
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
@@ -20,11 +21,13 @@ import kotlin.test.assertEquals
 class PortAiCategoryClientTest {
 
     private val user = UUID(0, 9)
+    private var allowed = true
+    private val consent = AiConsentCheck { _, _ -> allowed }
     private val question = AiCategoryQuestion("Steam", PaymentMethod.CARD_CREDIT, AI_ALLOWED_CATEGORIES)
     private val provider = FakeAiProvider { AiCompletion.Completed("""{"category":"ENTERTAINMENT","confidence":0.9,"reason":"PC game store"}""", AiUsage(100, 20)) }
 
     private fun client(cap: Long = 1_000_000, routes: List<AiRoute> = listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, FakeAiProvider.MODEL))) =
-        PortAiCategoryClient(AiGateway(routes, AiCostGuard(InMemoryAiSpendLedger(), cap), InMemoryAiCallLogRepository()))
+        PortAiCategoryClient(AiGateway(routes, AiCostGuard(InMemoryAiSpendLedger(), cap), InMemoryAiCallLogRepository(), consent))
 
     @Test
     fun `an answer is answered with its model`() = runBlocking<Unit> {
@@ -43,6 +46,13 @@ class PortAiCategoryClientTest {
     fun `feature off and cap reached are unavailable, so they are asked again later`() = runBlocking<Unit> {
         assertEquals(AiCategoryResult.Unavailable("feature_off"), client(routes = emptyList()).ask(user, question))
         assertEquals(AiCategoryResult.Unavailable("cap_reached"), client(cap = 0).ask(user, question))
+        assertEquals(emptyList(), provider.requests)
+    }
+
+    @Test
+    fun `no consent is unavailable, so nothing is cached and it is asked again once turned on`() = runBlocking<Unit> {
+        allowed = false
+        assertEquals(AiCategoryResult.Unavailable("no_consent"), client().ask(user, question))
         assertEquals(emptyList(), provider.requests)
     }
 }

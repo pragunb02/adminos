@@ -1,5 +1,6 @@
 package dev.adminos.api.infrastructure.database.repositories
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.Transaction
 import dev.adminos.api.domain.financial.TransactionCategory
@@ -62,7 +63,7 @@ class AiCategorizationIntegrationTest {
             merchantRaw = merchant.uppercase(), paymentMethod = PaymentMethod.CARD_CREDIT, transactedAt = at.truncatedTo(ChronoUnit.MILLIS),
             metadata = mapOf("mandate" to "umn-1")))
         val client = AiCategoryClient { _, _ -> AiCategoryResult.Answered(AiCategoryAnswer(TransactionCategory.ENTERTAINMENT, 0.91, "PC game store"), "claude-haiku-5-5") }
-        val service = AiCategorizationService(client, ExposedAiCategoryCacheRepository(), ExposedCategoryRuleRepository(), txns, "claude-haiku-5-5")
+        val service = AiCategorizationService(client, ExposedAiCategoryCacheRepository(), ExposedCategoryRuleRepository(), txns, ALLOW_ALL_CONSENT, "claude-haiku-5-5")
 
         assertEquals(AiOutcome.APPLIED, service.categorize(t))
         val stored = txns.findById(t.id)!!

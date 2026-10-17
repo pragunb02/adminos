@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.evaluation
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.financial.CategorizationService
 import dev.adminos.api.domain.financial.CategoryRuleRepository
 import dev.adminos.api.domain.financial.InMemoryCategoryRuleRepository
@@ -64,7 +65,7 @@ class AiLabeller(
 ) {
     private val txns = InMemoryTransactionRepository()
     private val pipeline = PipelineLabeller(CategorizationService(rules), userId = userId)
-    private val ai = AiCategorizationService(client, InMemoryAiCategoryCacheRepository(), rules, txns, RecordedAiClient.MODEL)
+    private val ai = AiCategorizationService(client, InMemoryAiCategoryCacheRepository(), rules, txns, ALLOW_ALL_CONSENT, RecordedAiClient.MODEL)
 
     suspend fun label(case: LabelledCase): Outcome {
         val stored = txns.save(pipeline.transactionFor(case))

@@ -24,7 +24,7 @@ class AiAuditPropertyTest {
         val calls = InMemoryAiCallLogRepository()
         val provider = FakeAiProvider { AiCompletion.Completed(answer, AiUsage(12, 3)) }
         val gateway = AiGateway(listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, FakeAiProvider.MODEL)),
-            AiCostGuard(InMemoryAiSpendLedger(), 1_000_000), calls, AiCircuitBreaker(), Clock.systemUTC())
+            AiCostGuard(InMemoryAiSpendLedger(), 1_000_000), calls, ALLOW_ALL_CONSENT, AiCircuitBreaker(), Clock.systemUTC())
         runBlocking { gateway.run(EchoTask, UUID.randomUUID(), input) }
         val row = calls.all.single()
         // The row's only strings; ids, counts and times can't hold text. Inputs always have a character no id can.

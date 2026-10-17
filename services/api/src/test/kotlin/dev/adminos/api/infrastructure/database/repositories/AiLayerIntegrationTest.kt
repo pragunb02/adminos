@@ -1,5 +1,12 @@
 package dev.adminos.api.infrastructure.database.repositories
 
+import org.jetbrains.exposed.v1.jdbc.insert
+import dev.adminos.api.infrastructure.database.tables.AiConsentsTable
+import dev.adminos.api.infrastructure.database.dbQuery
+import dev.adminos.api.domain.ai.InMemoryAiConsentRepository
+import dev.adminos.api.domain.ai.AiConsentRepository
+import dev.adminos.api.domain.ai.AiConsent
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCallLogRepository
 import dev.adminos.api.domain.ai.AiCallOutcome
 import dev.adminos.api.domain.ai.AiCallRecord
@@ -100,9 +107,40 @@ class AiLayerIntegrationTest {
         val provider = FakeAiProvider { AiCompletion.Completed("ok", AiUsage(10, 5)) }
         val guard = AiCostGuard(ExposedAiSpendLedger(), capMicros = 1_000_000_000)
         val before = guard.spentThisMonth()
-        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, FakeAiProvider.MODEL)), guard, log)
+        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, FakeAiProvider.MODEL)), guard, log, ALLOW_ALL_CONSENT)
         assertEquals(AiResult.Answered("ok:Steam", FakeAiProvider.MODEL), gateway.run(EchoTask, user, "Steam"))
         assertEquals(before + 20, guard.spentThisMonth())
         assertEquals(20, log.spentMicros(user, AiFeature.CATEGORIZATION, guard.currentMonth()))
+    }
+
+    private suspend fun consentContract(repo: AiConsentRepository, user: UUID, other: UUID) {
+        val at = Instant.parse("2026-10-17T10:00:00Z")
+        assertEquals(null, repo.find(user, AiFeature.CATEGORIZATION))
+        assertEquals(emptyList(), repo.findAll(user))
+        repo.save(AiConsent(user, AiFeature.CATEGORIZATION, true, at))
+        repo.save(AiConsent(user, AiFeature.CATEGORIZATION, false, at.plusSeconds(60)))
+        assertEquals(AiConsent(user, AiFeature.CATEGORIZATION, false, at.plusSeconds(60)), repo.find(user, AiFeature.CATEGORIZATION), "the latest choice replaces the old one")
+        assertEquals(null, repo.find(other, AiFeature.CATEGORIZATION), "per user")
+        assertEquals(1, repo.findAll(user).size)
+    }
+
+    @Test
+    fun `AI consents round-trip per user and feature like the in-memory store (AOS-704)`() = runBlocking<Unit> {
+        consentContract(ExposedAiConsentRepository(), PostgresTestDatabase.newUser(), PostgresTestDatabase.newUser())
+        consentContract(InMemoryAiConsentRepository(), UUID.randomUUID(), UUID.randomUUID())
+    }
+
+    @Test
+    fun `a consent row for a feature this build doesn't know is never read as on`() = runBlocking<Unit> {
+        val user = PostgresTestDatabase.newUser()
+        dbQuery {
+            AiConsentsTable.insert {
+                it[userId] = user
+                it[feature] = "retired-feature"
+                it[enabled] = true
+                it[updatedAt] = Instant.parse("2026-10-17T10:00:00Z")
+            }
+        }
+        assertEquals(emptyList(), ExposedAiConsentRepository().findAll(user))
     }
 }

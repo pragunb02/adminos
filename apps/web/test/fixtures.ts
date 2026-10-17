@@ -1,8 +1,19 @@
+import type { AiFeature } from "@/lib/ai";
 import type { SeriesPoint } from "@/lib/analytics";
 import type { Anomaly, Bill, Briefing, DashboardHome, NotificationPreferences, Session, Subscription, SubscriptionSummary, Transaction, UserConnection } from "@/lib/types";
 
 /** Canned API data for unit tests and Playwright mocks (AOS-310/311). Dates are fixed, IST-friendly. */
 export const fx = {
+  /** Settings → AI features (AOS-704): the categoriser, set up on the server (cloud) and off for the user. */
+  aiFeature: (over: Partial<AiFeature> = {}): AiFeature => ({
+    key: "categorization", title: "Categorise unknown shops",
+    purpose: "When the built-in rules leave a payment as Other, ask a model which category the shop belongs to.",
+    sends: ["The shop's cleaned business name (for example \"Steam\"), only when it is clearly a business", "How you paid (UPI, card, net banking)", "The list of categories to choose from"],
+    neverSends: ["Amounts, dates, account or card numbers, UPI IDs", "Message, email or statement text", "Payments to people, or anyone's name", "Who you are"],
+    enabled: false, available: true, provider: "anthropic", locality: "cloud", model: "claude-haiku-5-5",
+    destination: "Anthropic's Claude API: a cloud service outside India, over HTTPS",
+    evaluation: { answers: "recorded-synthetic", evaluatedOn: "2026-10-17", goldenRows: 288 }, spentThisMonthUsd: "0.00", ...over,
+  }),
   home: (over: Partial<DashboardHome> = {}): DashboardHome => ({
     greeting: "Good morning, Pragun",
     summary: { totalSpentThisWeek: "12500", activeSubscriptions: 4, flaggedSubscriptions: 1, upcomingBills: 2, openAnomalies: 1 },

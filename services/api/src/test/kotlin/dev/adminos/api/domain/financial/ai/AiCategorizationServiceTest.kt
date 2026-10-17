@@ -1,5 +1,10 @@
 package dev.adminos.api.domain.financial.ai
 
+import dev.adminos.api.domain.financial.MerchantCatalogue
+import dev.adminos.api.domain.ai.InMemoryAiConsentRepository
+import dev.adminos.api.domain.ai.AiFeature
+import dev.adminos.api.domain.ai.AiConsents
+import dev.adminos.api.domain.ai.AiConsent
 import dev.adminos.api.domain.financial.CategoryRule
 import dev.adminos.api.domain.financial.InMemoryCategoryRuleRepository
 import dev.adminos.api.domain.financial.InMemoryTransactionRepository
@@ -36,6 +41,8 @@ class AiCategorizationServiceTest {
     private val rules = InMemoryCategoryRuleRepository()
     private val txns = InMemoryTransactionRepository()
     private val cache = InMemoryAiCategoryCacheRepository()
+    private val consentRepo = InMemoryAiConsentRepository().also { runBlocking { it.save(AiConsent(user, AiFeature.CATEGORIZATION, true, now)) } }
+    private val consent = AiConsents(consentRepo)
 
     /** Answers from a table; unknown merchants are unavailable. Records every question. */
     private class FakeAi(private val answers: Map<String, AiCategoryResult>) : AiCategoryClient {
@@ -57,7 +64,7 @@ class AiCategorizationServiceTest {
         "Broken Labs" to AiCategoryResult.Rejected("not JSON"),
         "Transfer Labs" to answered(TransactionCategory.TRANSFER, 0.99)
     ))
-    private val service = AiCategorizationService(ai, cache, rules, txns, "claude-haiku-5-5", clock = clock)
+    private val service = AiCategorizationService(ai, cache, rules, txns, consent, "claude-haiku-5-5", clock = clock)
 
     private suspend fun saved(
         name: String?, method: PaymentMethod? = PaymentMethod.CARD_CREDIT, vpa: String? = null,
@@ -182,7 +189,7 @@ class AiCategorizationServiceTest {
         val racing = AiCategorizationService(AiCategoryClient { _, _ ->
             txns.update(t.copy(category = TransactionCategory.SHOPPING, categorySource = "user"))
             answered(TransactionCategory.ENTERTAINMENT, 0.95)
-        }, cache, rules, txns, "m", clock = clock)
+        }, cache, rules, txns, consent, "m", clock = clock)
         assertEquals(AiOutcome.NOT_ELIGIBLE, racing.categorize(t))
         assertEquals(TransactionCategory.SHOPPING, txns.findById(t.id)!!.category)
         assertEquals("user", txns.findById(t.id)!!.categorySource)
@@ -192,14 +199,14 @@ class AiCategorizationServiceTest {
     fun `a transaction deleted while the model was answering is skipped`() = runBlocking<Unit> {
         val t = saved("Steam")
         val racing = AiCategorizationService(AiCategoryClient { _, _ -> txns.delete(t.id); answered(TransactionCategory.ENTERTAINMENT, 0.95) },
-            cache, rules, txns, "m", clock = clock)
+            cache, rules, txns, consent, "m", clock = clock)
         assertEquals(AiOutcome.NOT_ELIGIBLE, racing.categorize(t))
     }
 
     @Test
     fun `the service validates its settings`() {
-        assertFailsWith<IllegalArgumentException> { AiCategorizationService(ai, cache, rules, txns, "m", minConfidence = 1.5) }
-        assertFailsWith<IllegalArgumentException> { AiCategorizationService(ai, cache, rules, txns, " ") }
+        assertFailsWith<IllegalArgumentException> { AiCategorizationService(ai, cache, rules, txns, consent, "m", minConfidence = 1.5) }
+        assertFailsWith<IllegalArgumentException> { AiCategorizationService(ai, cache, rules, txns, consent, " ") }
     }
 
     // ── Job ──
@@ -215,7 +222,7 @@ class AiCategorizationServiceTest {
         saved("Netflix", category = TransactionCategory.SUBSCRIPTION) // not Other: not even read as a candidate
         val old = txns.save(applied.copy(id = UUID.randomUUID(), merchantName = "Steam Old", transactedAt = now.minus(Duration.ofDays(45))))
 
-        val job = AiCategorizationJob(users, txns, service, clock)
+        val job = AiCategorizationJob(users, txns, service, consent, clock)
         assertEquals(JobName("ai-categorization"), job.name)
         assertEquals(Schedule.Every(Duration.ofMinutes(15)), job.schedule)
         assertEquals(1, job.retry.maxAttempts)
@@ -235,6 +242,7 @@ class AiCategorizationServiceTest {
     fun `one user's failure is isolated and counted`() = runBlocking<Unit> {
         val users = InMemoryUserRepository()
         val broken = users.save(User(email = "broken@example.in", googleId = "g-ai-3"))
+        consentRepo.save(AiConsent(broken.id, AiFeature.CATEGORIZATION, true, now))
         users.save(User(id = user, email = "pragun@example.in", googleId = "g-ai-4"))
         saved("Steam")
         val failing = object : TransactionRepository by txns {
@@ -244,7 +252,38 @@ class AiCategorizationServiceTest {
             ): List<Transaction> = if (userId == broken.id) throw IOException("read timed out")
                 else txns.findByUserId(userId, from, to, category, type, accountId, isRecurring, merchantSearch, cursor, limit, nature)
         }
-        val counts = AiCategorizationJob(users, failing, service, clock).run().counts
+        val counts = AiCategorizationJob(users, failing, service, consent, clock).run().counts
         assertEquals(2, counts["users"]); assertEquals(1, counts["failedUsers"]); assertEquals(1, counts["applied"])
+    }
+
+    // ── Consent (AOS-704) ──
+
+    @Test
+    fun `without consent nothing is asked and no cached answer is used`() = runBlocking<Unit> {
+        cache.put(CachedAiCategory(MerchantCatalogue.matchForm("Steam"), "claude-haiku-5-5", AiCategoryAnswer(TransactionCategory.ENTERTAINMENT, 0.9, "PC game store"), now))
+        consentRepo.save(AiConsent(user, AiFeature.CATEGORIZATION, false, now))
+        val t = saved("Steam")
+        assertEquals(AiOutcome.NO_CONSENT, service.categorize(t))
+        assertEquals(emptyList(), ai.asked)
+        val after = txns.findById(t.id)!!
+        assertEquals(TransactionCategory.OTHER, after.category)
+        assertNull(after.metadata?.get("ai"), "nothing recorded, so it is considered again once turned on")
+    }
+
+    @Test
+    fun `the job skips users who haven't turned it on without reading their transactions`() = runBlocking<Unit> {
+        val users = InMemoryUserRepository()
+        val stranger = users.save(User(email = "other@example.in", googleId = "g-ai-5"))
+        val read = mutableListOf<UUID>()
+        val watching = object : TransactionRepository by txns {
+            override suspend fun findByUserId(
+                userId: UUID, from: Instant?, to: Instant?, category: TransactionCategory?, type: TransactionType?, accountId: UUID?,
+                isRecurring: Boolean?, merchantSearch: String?, cursor: String?, limit: Int, nature: TransactionNature?
+            ): List<Transaction> = txns.findByUserId(userId, from, to, category, type, accountId, isRecurring, merchantSearch, cursor, limit, nature)
+                .also { read += userId }
+        }
+        val counts = AiCategorizationJob(users, watching, service, consent, clock).run().counts
+        assertEquals(1, counts["no_consent"])
+        assertEquals(emptyList(), read, "a user without consent: ${stranger.id}")
     }
 }

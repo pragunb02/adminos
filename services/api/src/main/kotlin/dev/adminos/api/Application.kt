@@ -13,6 +13,7 @@ import dev.adminos.api.domain.ingestion.pipeline.IngestProcessor
 import dev.adminos.api.domain.notifications.notificationModule
 import dev.adminos.api.domain.scheduling.JobScheduler
 import dev.adminos.api.domain.documents.documentsModule
+import dev.adminos.api.domain.ai.aiModule
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.server.application.*
@@ -69,6 +70,7 @@ fun Application.module(
     agentModule()
     notificationModule()
     documentsModule()
+    aiModule()
 
     // Health check
     configureHealthRoutes()
