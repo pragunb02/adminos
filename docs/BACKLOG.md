@@ -157,31 +157,31 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 
 ## 🟦 [AOS-E7](tickets/AOS-E7.md) — Smart features (AI/ML) · P2 · ETA 115h
 
-Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARCH.md). Ground rules: D-67. Builds on AOS-511/512 (in flight).
+Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARCH.md). Ground rules: D-67 (accepted). Builds on AOS-511/512 (merged). Wave 1 started 2026-10-17 in four background agents (702–704, 707–708, 713/715/709, 714/718); wave 2 (705, 706, 710–712, 716, 717, 719) after AOS-702.
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S7.1](tickets/AOS-S7.1.md)** | **AI foundation** | | 🟦 | 19h | 3h |
 | └ [AOS-701](tickets/AOS-701.md) | Research: where AI/ML helps AdminOS; Epic E7; AI ground rules (D-67) | Claude | ✅ | 3h | 3h |
-| └ AOS-702 | AI layer: provider port, Anthropic + Ollama adapters, redaction, cost cap, audit log, flags, eval gate (extends AOS-512) | Claude | ⬜ | 10h |  |
-| └ AOS-703 | Ollama compose profile + local model bake-off on the golden sets | Claude | ⬜ | 3h |  |
-| └ AOS-704 | AI consent and notice per feature; Settings "AI features" | Claude | ⬜ | 3h |  |
-| **[AOS-S7.2](tickets/AOS-S7.2.md)** | **Smarter data in** | | ⬜ | 30h | |
+| └ AOS-702 | AI layer: provider port, Anthropic + Ollama adapters, redaction, cost cap, audit log, flags, eval gate (extends AOS-512) | Claude (agent) | 🟦 | 10h |  |
+| └ AOS-703 | Ollama compose profile + local model bake-off on the golden sets | Claude (agent) | 🟦 | 3h |  |
+| └ AOS-704 | AI consent and notice per feature; Settings "AI features" | Claude (agent) | 🟦 | 3h |  |
+| **[AOS-S7.2](tickets/AOS-S7.2.md)** | **Smarter data in** | | 🟦 | 30h | |
 | └ AOS-705 | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ⬜ | 8h |  |
 | └ AOS-706 | Template learning from repeated message shapes, human-approved | Claude | ⬜ | 8h |  |
-| └ AOS-707 | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude | ⬜ | 8h |  |
-| └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude | ⬜ | 6h |  |
+| └ AOS-707 | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | 🟦 | 8h |  |
+| └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | 🟦 | 6h |  |
 | **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ⬜ | 18h | |
 | └ AOS-712 | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ⬜ | 4h |  |
 | └ AOS-710 | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ⬜ | 10h |  |
 | └ AOS-711 | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ⬜ | 4h |  |
-| **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | ⬜ | 21h | |
-| └ AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ⬜ | 6h |  |
-| └ AOS-714 | Month-end forecast + money left until salary | Claude | ⬜ | 8h |  |
-| └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude | ⬜ | 5h |  |
-| └ AOS-715 | Subscription price-rise alert | Claude | ⬜ | 2h |  |
-| **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | ⬜ | 27h | |
+| **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
+| └ AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | 🟦 | 6h |  |
+| └ AOS-714 | Month-end forecast + money left until salary | Claude (agent) | 🟦 | 8h |  |
+| └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | 🟦 | 5h |  |
+| └ AOS-715 | Subscription price-rise alert | Claude (agent) | 🟦 | 2h |  |
+| **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
-| └ AOS-718 | Cash quick-add from free text or dictation | Claude | ⬜ | 5h |  |
+| └ AOS-718 | Cash quick-add from free text or dictation | Claude (agent) | 🟦 | 5h |  |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
