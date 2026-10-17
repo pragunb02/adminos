@@ -205,7 +205,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ AOS-711 | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ⬜ | 4h |  |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
 | └ AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | 🟦 | 6h |  |
-| └ AOS-714 | Month-end forecast + money left until salary | Claude (agent) | 🟦 | 8h |  |
+| └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
 | └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | 🟦 | 5h |  |
 | └ AOS-715 | Subscription price-rise alert | Claude (agent) | 🟦 | 2h |  |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
