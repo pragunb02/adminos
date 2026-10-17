@@ -110,8 +110,8 @@ class AiGateway(
         }
 
     /**
-     * The task's validator, which must never take the job down with it (AOS-635): anything it throws, even an
-     * `Error` such as `StackOverflowError` on a hostile reply, rejects the answer as [READ_FAILED] and is audited.
+     * The task's validator, which must never take the job down with it (AOS-635): any exception it throws, or a
+     * `StackOverflowError` on a hostile reply, rejects the answer as [READ_FAILED] and is audited.
      * Cancellation is re-thrown.
      */
     private fun <I, O> read(task: AiTask<I, O>, text: String, input: I): AiReading<O> =
@@ -119,7 +119,11 @@ class AiGateway(
             task.read(text, input)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
+            AiReading.Invalid(READ_FAILED)
+        } catch (_: StackOverflowError) {
+            // A deeply nested hostile reply; the stack unwinds safely. Other Errors (OutOfMemoryError…) mean the JVM
+            // itself is in trouble, so they propagate rather than being mistaken for a bad answer.
             AiReading.Invalid(READ_FAILED)
         }
 

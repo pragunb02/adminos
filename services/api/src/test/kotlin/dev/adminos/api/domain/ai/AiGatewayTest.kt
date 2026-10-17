@@ -155,14 +155,19 @@ class AiGatewayTest {
     }
 
     @Test
-    fun `a validator that throws, even an Error, rejects the answer and is audited (AOS-635)`() = runBlocking<Unit> {
-        val failures = listOf<() -> Throwable>({ StackOverflowError() }, { IllegalStateException("bug") }, { OutOfMemoryError("big") })
+    fun `a validator that throws an exception or overflows the stack rejects the answer and is audited (AOS-635)`() = runBlocking<Unit> {
+        val failures = listOf<() -> Throwable>({ StackOverflowError() }, { IllegalStateException("bug") })
         for (failure in failures) {
             assertEquals(AiResult.Rejected(AiGateway.READ_FAILED), gateway().run(ThrowingReadTask(failure), user, "Steam"))
         }
-        assertEquals(List(3) { AiCallOutcome.REJECTED }, calls.all.map { it.outcome })
-        assertEquals(List(3) { AiGateway.READ_FAILED }, calls.all.map { it.code })
-        assertEquals(60, ledger.spent(YearMonth.of(2026, 10)), "each call is settled to its real cost")
+        assertEquals(List(2) { AiCallOutcome.REJECTED }, calls.all.map { it.outcome })
+        assertEquals(List(2) { AiGateway.READ_FAILED }, calls.all.map { it.code })
+        assertEquals(40, ledger.spent(YearMonth.of(2026, 10)), "each call is settled to its real cost")
+    }
+
+    @Test
+    fun `a fatal JVM error in a validator is not mistaken for a bad answer`() = runBlocking<Unit> {
+        assertFailsWith<OutOfMemoryError> { gateway().run(ThrowingReadTask { OutOfMemoryError("big") }, user, "Steam") }
     }
 
     @Test
