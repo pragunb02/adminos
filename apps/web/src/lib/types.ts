@@ -116,6 +116,46 @@ export interface DueItem {
   trial: boolean;
 }
 
+// ── Trips (AOS-910, GET /api/v1/trips) ──
+
+export interface TripLeg {
+  date: string;
+  brand: string;
+  mode: "flight" | "train" | "bus" | null;
+  transactionId: string | null;
+}
+
+export interface TripSummary {
+  id: string;
+  name: string;
+  /** The user named it (otherwise the name is made from the dates). */
+  named: boolean;
+  start: string;
+  end: string;
+  total: string;
+  transactionCount: number;
+  modes: ("flight" | "train" | "bus")[];
+  legs: TripLeg[];
+}
+
+export interface TripYear {
+  year: number;
+  total: string;
+  currency: string;
+  trips: TripSummary[];
+}
+
+export interface TripMember {
+  role: "booking" | "spend" | "added";
+  refunded: string;
+  transaction: Transaction;
+}
+
+export interface TripDetail {
+  trip: TripSummary;
+  members: TripMember[];
+}
+
 /** A pay-later bill next to the purchases recorded for it (AOS-909). */
 export interface PayLaterGap {
   billId: string;

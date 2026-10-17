@@ -38,7 +38,7 @@ class PayLaterIntegrationTest {
     fun `purchase, bill and repayment SMS end to end`() = runBlocking<Unit> {
         val user = PostgresTestDatabase.newUser()
         val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events),
-            dev.adminos.api.domain.financial.mandates.MandateService(ExposedMandateRepository(), txns), PayLaterBills(bills, billing))
+            dev.adminos.api.domain.financial.mandates.MandateService(ExposedMandateRepository(), txns), PayLaterBills(bills, billing), dev.adminos.api.domain.financial.trips.TravelBookings(ExposedTravelBookingRepository()))
         val processor = IngestProcessor(events,
             IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService(ExposedCategoryRuleRepository())),
                 TransferStep(RepositoryMatchCandidates(txns, links), TransferDetector()))),

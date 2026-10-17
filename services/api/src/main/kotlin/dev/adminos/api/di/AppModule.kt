@@ -118,6 +118,8 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { ExposedOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { ExposedTravelBookingRepository() }
+        single<dev.adminos.api.domain.financial.trips.TripEditRepository> { ExposedTripEditRepository() }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -148,6 +150,8 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository() }
+        single<dev.adminos.api.domain.financial.trips.TripEditRepository> { dev.adminos.api.domain.financial.trips.InMemoryTripEditRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -229,7 +233,7 @@ internal fun buildAppModule(
     // SMS intake (AOS-203): device tokens + parser registry
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
-    single { SmsIntake(get(), get(), get(), get()) }
+    single { SmsIntake(get(), get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
     // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
@@ -265,6 +269,9 @@ internal fun buildAppModule(
     // Pay-later (AOS-909, D-89): provider bills into dues; repayments are transfers that pay them.
     single { dev.adminos.api.domain.financial.paylater.PayLaterBills(get(), get()) }
     single { dev.adminos.api.domain.financial.paylater.PayLaterService(get(), get()) }
+    // Trips (AOS-910, D-90): computed on read from transactions, refunds, bookings and the user's edits.
+    single { dev.adminos.api.domain.financial.trips.TravelBookings(get()) }
+    single { dev.adminos.api.domain.financial.trips.TripService(get(), get(), get(), get()) }
     // Order receipts and hidden fees (AOS-903, D-88): matched to payments in both directions.
     single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }

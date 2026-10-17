@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adminos/adminos/workers/internal/bookings"
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/jobs"
 	"github.com/adminos/adminos/workers/internal/normalizer"
@@ -86,10 +87,13 @@ type GmailResult struct {
 	// NotReceipts counts mail from receipt senders that isn't a receipt (promotions, status updates).
 	NotReceipts int `json:"not_receipts"`
 	// ReceiptFailures counts receipts whose numbers didn't add up (a changed format shows here).
-	ReceiptFailures int             `json:"receipt_failures"`
+	ReceiptFailures int `json:"receipt_failures"`
 	// PayLaterSkipped counts provider emails that are neither a bill nor a purchase (AOS-909).
-	PayLaterSkipped int `json:"pay_later_skipped"`
+	PayLaterSkipped int             `json:"pay_later_skipped"`
 	Receipts        []ReceiptRecord `json:"receipts,omitempty"`
+	// Travel bookings (AOS-910): the journey date and amount, tied to the payment by the API.
+	BookingsFound int             `json:"bookings_found"`
+	Bookings      []BookingRecord `json:"bookings,omitempty"`
 
 	// Enriched data for Persist. Transactions go to the common intake as events (AOS-205, D-21):
 	// the API's pipeline does dedup, transfers, refunds and categories.
@@ -128,6 +132,7 @@ type GmailHandler struct {
 	clientSecret string
 	now          func() time.Time
 	receipts     *receipts.Registry
+	bookings     *bookings.Registry
 	mu           sync.Mutex
 	fingerprints map[string]bool
 }
@@ -151,6 +156,7 @@ func newGmailHandler(db *pgxpool.Pool, conns gmailConnectionStore, gmailClient *
 	}
 	return &GmailHandler{
 		receipts:     registry,
+		bookings:     bookings.Default(),
 		db:           db,
 		conns:        conns,
 		gmailClient:  gmailClient,
@@ -243,6 +249,12 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 
 		// Pay-later providers first (AOS-909): Flipkart and Amazon send both receipts and pay-later bills.
 		if h.processPayLater(p.UserID, email, result) {
+			continue
+		}
+
+		// A travel booking is evidence about a payment too, with the journey date (AOS-910).
+		if parser := h.bookings.ParserFor(email.From); parser != nil {
+			processBooking(p.UserID, parser, email, result)
 			continue
 		}
 
@@ -486,6 +498,9 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 	if err := persistReceipts(ctx, tx, r); err != nil {
 		return err
 	}
+	if err := persistBookings(ctx, tx, r); err != nil {
+		return err
+	}
 
 	// Insert bills. A pay-later bill already known for that provider and due date (its SMS, AOS-909) is not repeated.
 	for _, bill := range r.Bills {
@@ -541,7 +556,7 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 			status = 'completed', processed_items = $2, failed_items = $3,
 			duplicate_items = $4, net_new_items = $5, completed_at = now(), updated_at = now()
 		WHERE id = $1`,
-		r.SyncSessionID, r.TransactionsFound+r.BillsFound+r.ReceiptsFound, r.FailedItems,
+		r.SyncSessionID, r.TransactionsFound+r.BillsFound+r.ReceiptsFound+r.BookingsFound, r.FailedItems,
 		r.DuplicateItems, r.NetNewItems)
 	if err != nil {
 		return fmt.Errorf("update sync session: %w", err)

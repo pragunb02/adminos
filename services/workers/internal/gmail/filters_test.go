@@ -82,8 +82,15 @@ func TestReceiptSendersAreReadOnlyForOrderSubjects(t *testing.T) {
 func TestSearchQueryReadsReceiptSendersOnlyWithOrderSubjects(t *testing.T) {
 	q := SearchQuery(30)
 	want := "OR (from:(swiggy.in OR swiggy.com OR zomato.com OR zeptonow.com OR zepto.com OR blinkit.com OR grofers.com OR amazon.in OR flipkart.com) " +
-		"subject:(order OR delivered OR receipt OR invoice OR refund OR cancelled OR canceled OR bill)))"
-	if !strings.HasSuffix(q, want) {
-		t.Errorf("want the receipt clause at the end:\n%s", q)
+		"subject:(order OR delivered OR receipt OR invoice OR refund OR cancelled OR canceled OR bill)) OR "
+	if !strings.Contains(q, want) {
+		t.Errorf("want the receipt clause:\n%s", q)
+	}
+	if !strings.HasSuffix(q, "OR (from:(goindigo.in OR airindia.com OR airindia.in OR akasaair.com OR irctc.co.in OR redbus.in) "+
+		"subject:(booking OR booked OR ticket OR itinerary OR pnr OR confirmed OR confirmation OR cancelled OR cancellation)))") {
+		t.Errorf("want the booking clause at the end:\n%s", q)
+	}
+	if !IsFinancial("IndiGo <noreply@goindigo.in>", "Your booking is confirmed") || IsFinancial("IndiGo <noreply@goindigo.in>", "Fly more this festive season") {
+		t.Error("booking senders are read only for booking subjects")
 	}
 }
