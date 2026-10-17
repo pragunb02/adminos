@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-89 | Product / Architecture | Pay-later is counted like a card: purchases are spends at the merchant (`paymentMethod = pay_later`), the bank repayment is a transfer that pays the provider's bill (a `pay_later` bill in dues); providers are data; a bill larger than the recorded purchases shows the gap, never a guess | Accepted | AOS-909, AOS-901, AOS-902 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
@@ -1118,3 +1119,21 @@ Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
   - Wallet, pay-later and cash-on-delivery orders are `no_payment`. A split payment matches on its bank part.
 - **Fees:** `GET /api/v1/leaks/fees` per user month and app. Hidden fees exclude tips. Cancelled and fully refunded orders add none. Every figure lists its receipts and payments.
 - **Rejected:** receipts as ingest events (an unmatched receipt becomes a spend, or is lost); matching in Go (a second copy of the rules); storing order numbers or item lists.
+
+### D-89 — Pay-later is counted like a card; gaps are shown, not guessed
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-909, AOS-901, AOS-902 · Builds on D-39, D-54, D-55, D-59
+- **Counting:**
+  - A pay-later purchase is a spend at the merchant, with `paymentMethod = pay_later` and `metadata.payLater = <provider>`.
+  - The bank repayment to the provider is a **transfer** (`subcategory = pay_later_bill`), as card bills are (D-39), and it pays the provider's bill (D-54, both directions).
+- **Bills:**
+  - A provider's bill (SMS or email) is a bill of type `pay_later` with the provider as biller, so dues and reminders apply (D-55).
+  - The same provider and due date (or within 2 days with the same amount) is one bill, across reminders and channels.
+- **Providers are data** on both sides: LazyPay, Simpl, Amazon Pay Later, Flipkart Pay Later, ICICI PayLater, Paytm Postpaid, MobiKwik ZIP.
+  - Provider SMS are read before the drop rules, and only when the text names a provider and isn't a bank account alert or a mandate notice.
+  - Provider email is decided by the sender's domain; shared domains (Amazon, Flipkart, Paytm) also need the provider's name in the subject.
+- **The gap is visible:** a bill larger than the purchases recorded for its period shows the difference in `GET /api/v1/pay-later` and in Review. It is never filled in by guessing.
+- **Debt outstanding** = unpaid pay-later bills + pay-later purchases since the provider's latest bill.
+- **Rejected:**
+  - the cash model (category and timing lost);
+  - a separate debt ledger (a second source of truth);
+  - recognising provider SMS by sender header only (headers vary and aren't public).

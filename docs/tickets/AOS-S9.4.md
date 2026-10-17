@@ -26,7 +26,7 @@ Per task ticket (≥2 options each).
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
+| [AOS-909](AOS-909.md) | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders; repayments are transfers that pay the bill; gaps in Review (D-89) | Claude (agent) | ✅ | 3h | — |
 | AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
 
 _Task tickets are created as files when this story is picked up._
@@ -36,3 +36,4 @@ On real data after go-live (AOS-111, AOS-211/212).
 
 ## Activity log
 - 2026-10-17 — Claude: story created (AOS-011 plan, D-80).
+- 2026-10-18 — Claude: AOS-909 done (pay-later bills, debt and gaps; D-89).

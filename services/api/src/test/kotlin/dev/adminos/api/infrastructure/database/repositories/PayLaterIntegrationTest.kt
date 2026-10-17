@@ -21,7 +21,7 @@ import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.assertEquals
 
-/** AOS-909 on Postgres (V51): pay-later purchases and bills persist, and the bank repayment pays the bill. */
+/** AOS-909 on Postgres (V39): pay-later purchases and bills persist, and the bank repayment pays the bill. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PayLaterIntegrationTest {
