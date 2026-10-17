@@ -137,6 +137,13 @@
     {"brand": "Snapmint", "category": "emi", "subcategory": "pay_later", "aliases": ["SNAPMINT"]},
     {"brand": "Paytm", "category": "other", "subcategory": "wallet", "aliases": ["PAYTM", "ONE97 COMMUNICATIONS"]},
     {"brand": "PhonePe", "category": "other", "subcategory": "wallet", "aliases": ["PHONEPE"]},
-    {"brand": "Google Pay", "category": "other", "subcategory": "wallet", "aliases": ["GPAY", "GOOGLE PAY", "GOOGLEPAY"]}
+    {"brand": "Google Pay", "category": "other", "subcategory": "wallet", "aliases": ["GPAY", "GOOGLE PAY", "GOOGLEPAY"]},
+    {"brand": "LazyPay", "category": "other", "subcategory": "pay_later", "aliases": ["LAZYPAY", "LAZY PAY"]},
+    {"brand": "Simpl", "category": "other", "subcategory": "pay_later", "aliases": ["SIMPL", "GETSIMPL", "GET SIMPL"]},
+    {"brand": "Amazon Pay Later", "category": "other", "subcategory": "pay_later", "aliases": ["AMAZON PAY LATER", "AMAZONPAYLATER", "APAYLATER"]},
+    {"brand": "Flipkart Pay Later", "category": "other", "subcategory": "pay_later", "aliases": ["FLIPKART PAY LATER", "FKPAYLATER"]},
+    {"brand": "ICICI PayLater", "category": "other", "subcategory": "pay_later", "aliases": ["ICICI PAYLATER", "ICICI PAY LATER"]},
+    {"brand": "Paytm Postpaid", "category": "other", "subcategory": "pay_later", "aliases": ["PAYTM POSTPAID"]},
+    {"brand": "MobiKwik ZIP", "category": "other", "subcategory": "pay_later", "aliases": ["MOBIKWIK ZIP"]}
   ]
 }

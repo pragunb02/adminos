@@ -8,7 +8,8 @@ import dev.adminos.api.domain.ingestion.events.IngestDirection
 /** Builds the transaction from the event. Debit/credit come straight from the source (AOS-205). */
 class ToTransactionStep : IngestStep {
     private companion object {
-        val CARRIED_METADATA = setOf("mandate", "umn")
+        /** Markers that travel to the transaction: the mandate ones (AOS-502) and the pay-later provider (AOS-909). */
+        val CARRIED_METADATA = setOf("mandate", "umn", dev.adminos.api.domain.ingestion.sms.PayLaterSmsParser.PAY_LATER_MARKER)
     }
 
     override suspend fun apply(context: PipelineContext): StepResult {
@@ -96,6 +97,9 @@ class TransferStep(
         val t = context.txn
         if (detector.isCardBillPayment(t)) {
             return StepResult.Continue(context.copy(transaction = asTransfer(t, "credit_card_bill")))
+        }
+        if (detector.isPayLaterRepayment(t)) { // the purchases were the spending (D-39, AOS-909)
+            return StepResult.Continue(context.copy(transaction = asTransfer(t, dev.adminos.api.domain.financial.BillPaymentMatcher.PAY_LATER_BILL_TRANSFER)))
         }
         if (detector.isCashWithdrawal(t)) { // money moved to your cash (D-42); logged cash spends are the spending
             return StepResult.Continue(context.copy(transaction = asTransfer(t, "cash")))

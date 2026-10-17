@@ -61,6 +61,7 @@ fun Route.rawSmsRoutes(intake: SmsIntake) {
                     SmsIntakeResult.Duplicate -> RawSmsResult(i, "duplicate")
                     is SmsIntakeResult.Ignored -> RawSmsResult(i, "ignored", r.reason)
                     SmsIntakeResult.Mandate -> RawSmsResult(i, "mandate")
+                    SmsIntakeResult.Bill -> RawSmsResult(i, "bill")
                 }
             }
             call.respond(HttpStatusCode.Accepted, ApiResponse.success(

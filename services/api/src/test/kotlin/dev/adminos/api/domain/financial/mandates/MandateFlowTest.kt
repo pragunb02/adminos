@@ -36,7 +36,7 @@ class MandateFlowTest {
     private val transactions = InMemoryTransactionRepository()
     private val mandates = InMemoryMandateRepository()
     private val service = MandateService(mandates, transactions)
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), service)
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), service, dev.adminos.api.domain.financial.paylater.testPayLaterBills())
     private val processor = IngestProcessor(
         events,
         IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService()))),

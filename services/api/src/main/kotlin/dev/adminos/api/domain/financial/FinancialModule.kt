@@ -10,6 +10,7 @@ import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import dev.adminos.api.domain.financial.mandates.mandateRoutes
 import dev.adminos.api.domain.financial.receipts.receiptRoutes
+import dev.adminos.api.domain.financial.paylater.payLaterRoutes
 import org.koin.ktor.ext.inject
 
 /**
@@ -31,6 +32,7 @@ fun Application.financialModule() {
     val duesService: DuesService by inject()
     val mandateService: dev.adminos.api.domain.financial.mandates.MandateService by inject()
     val hiddenFees: dev.adminos.api.domain.financial.receipts.HiddenFeesService by inject()
+    val payLater: dev.adminos.api.domain.financial.paylater.PayLaterService by inject()
     val receiptMatching: dev.adminos.api.domain.financial.receipts.ReceiptMatchingService by inject()
 
     routing {
@@ -44,6 +46,7 @@ fun Application.financialModule() {
             duesRoutes(duesService)
             mandateRoutes(mandateService)
             receiptRoutes(hiddenFees, receiptMatching)
+            payLaterRoutes(payLater)
             dashboardRoutes(
                 transactionRepository,
                 subscriptionRepository,

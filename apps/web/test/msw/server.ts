@@ -15,4 +15,6 @@ export const server = setupServer(
   http.get("/api/v1/ai/features", () => ok({ features: [fx.aiFeature({ available: false, provider: null, locality: null, model: null, destination: null, evaluation: null })], monthlyCapUsd: "2.00" })),
   // Subscriptions → AutoPay & mandates (AOS-502): none unless a test says otherwise.
   http.get("/api/v1/mandates", () => ok([])),
+  // Review → pay-later gaps (AOS-909): nothing owed unless a test says otherwise.
+  http.get("/api/v1/pay-later", () => ok({ outstanding: "0.00", currency: "INR", providers: [] })),
 );
