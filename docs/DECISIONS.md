@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-110 | Product / Architecture | Ask is a page at /ask (from Home and More) whose answers you can trace ("How I got this": each tool, dates, numbers, a link to the same payments); thumbs up/down by answer id (recent answers kept 1 h, another user's id is 404), stored masked and encrypted | Accepted | AOS-711 |
 | D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
 | D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
@@ -1282,3 +1283,15 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Errors:** `ASK_001–007` and `RATE_001`, as 400/409/429/503. Fixed messages; the question is never echoed.
 - **Defaults:** off (`AI_ASK_ENABLED=false`); `claude-sonnet-5-5` on Anthropic with an eval record; 2,000 output tokens per step.
 - **Rejected:** native tool use through a wider port; one combined plan-and-answer call; ignoring unknown plan fields.
+
+### D-110 — Ask is a page at `/ask` with answers you can trace, and feedback by answer id, encrypted
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-711 · Builds on D-47, D-49, D-67, D-108, D-109
+- **Where:** `/ask`, linked from Home and More. There is no 6th tab (D-49) and no sheet for now. The question is never put in the URL.
+- **What it shows:**
+  - the answer, labelled as worded by AI (numbers checked) or straight from the data, with the notice on a templated answer;
+  - "How I got this": each tool, its dates and numbers, and a link to the same payments in Activity (`/transactions?from&to&category&q`).
+- **Feedback:**
+  - 👍/👎 sends `{askId, helpful}` only;
+  - the server keeps each answer's masked question and plan for 1 hour (at most 20 per user) and stores them only on a vote, in `ask_feedback`, AES-GCM encrypted and bound to the row;
+  - another user's or an expired id gets 404.
+- **Rejected:** a Home sheet (focus trap, not linkable); putting the question in the URL (personal details in history); a client-sent question and plan (could poison the eval set).

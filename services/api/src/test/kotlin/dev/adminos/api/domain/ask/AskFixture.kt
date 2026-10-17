@@ -46,7 +46,10 @@ class AskFixture(
         if (enabled) listOf(AiRoute.of(AiFeature.ASK, provider, FakeAiProvider.MODEL)) else emptyList(),
         AiCostGuard(InMemoryAiSpendLedger(), Micros.ofUsd(capUsd), AskSeed.CLOCK), calls, gatewayConsent, clock = AskSeed.CLOCK
     )
-    val service = AskService(gateway, runner, quota, AskSeed.CLOCK, consent)
+    val recent = RecentAsks(AskSeed.CLOCK)
+    val service = AskService(gateway, runner, quota, AskSeed.CLOCK, consent, recent)
+    val feedbackRepository = InMemoryAskFeedbackRepository()
+    val feedback = AskFeedbackService(recent, feedbackRepository, AskSeed.CLOCK)
 
     fun ask(question: String, user: java.util.UUID = AskSeed.OWNER) = runBlocking { service.ask(user, AskSeed.ZONE, question) }
 

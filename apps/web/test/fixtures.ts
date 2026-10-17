@@ -144,4 +144,20 @@ export const fx = {
     id: "d-1", title: "Form 16 FY26", category: "tax", fileType: "pdf", mime: "application/pdf", sizeBytes: 245_760,
     originalName: "Form16.pdf", expiresOn: null, notes: null, createdAt: "2026-10-16T06:00:00Z", ...over,
   }),
+  /** An "Ask your money" answer (AOS-711): Zepto this month vs last month, with the server's comparison. */
+  askAnswer: (over: Partial<import("@/lib/ask").AskAnswer> = {}): import("@/lib/ask").AskAnswer => ({
+    askId: "7b0c2a7e-0d8e-4c1a-9a52-000000000711",
+    answer: "You spent ₹1,440 at Zepto this month, ₹2,352 less than last month's ₹3,792.",
+    source: "model",
+    notice: null,
+    declineReason: null,
+    steps: [
+      { id: "t1", tool: "merchant_spend", period: { from: "2026-10-01", to: "2026-10-16" }, category: null, merchant: "Zepto", bucket: null, limit: null,
+        result: { spent: null, received: null, payments: null, total: "1440.00", rows: [{ label: "Zepto", spent: "1440.00", payments: 4, category: "shopping" }], points: [] }, skipped: null },
+      { id: "t2", tool: "merchant_spend", period: { from: "2026-09-01", to: "2026-09-30" }, category: null, merchant: "Zepto", bucket: null, limit: null,
+        result: { spent: null, received: null, payments: null, total: "3792.00", rows: [{ label: "Zepto", spent: "3792.00", payments: 8, category: "shopping" }], points: [] }, skipped: null },
+    ],
+    comparisons: [{ later: "t1", earlier: "t2", difference: "-2352.00", changePct: "-62.0" }],
+    ...over,
+  }),
 };
