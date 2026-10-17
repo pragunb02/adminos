@@ -210,6 +210,14 @@ class AuthService(
     suspend fun isActiveSession(userId: UUID, sessionId: UUID): Boolean =
         sessionRepository.findById(sessionId)?.let { it.userId == userId && it.isActive } == true
 
+    /** What the session may do: live and passkey-verified → everything; live but not yet verified → only the passkey step (AOS-617). */
+    suspend fun sessionAccess(userId: UUID, sessionId: UUID): SessionAccess {
+        val s = sessionRepository.findById(sessionId)?.takeIf { it.userId == userId && it.isActive }
+            ?: return SessionAccess.DENIED
+        return if (s.secondFactorAt != null) SessionAccess.FULL
+        else SessionAccess.PENDING_SECOND_FACTOR
+    }
+
     companion object {
         /** Two tabs refreshing at the same moment both present the same token; the slower one gets this long. */
         val REUSE_GRACE: Duration = Duration.ofSeconds(30)

@@ -51,7 +51,7 @@ class SessionSecurityTest {
         environment { this.config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureHTTP(origin)
-            configureAuthentication(jwt, SessionGate(requireSession) { u, s -> auth.isActiveSession(u, s) })
+            configureAuthentication(jwt, SessionGate(requireSession) { u, s -> auth.sessionAccess(u, s) })
             routing {
                 route("/api/v1") {
                     authRoutes(auth, config.auth.accessTokenTtlSeconds, config, AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined)),
@@ -68,8 +68,11 @@ class SessionSecurityTest {
 
     private data class Signed(val access: String, val refresh: String)
 
-    /** A real sign-in through the routes (start → Google → callback), from [userAgent]. */
-    private suspend fun ApplicationTestBuilder.signIn(userAgent: String = mac): Signed {
+    /**
+     * A real sign-in through the routes (start → Google → callback), from [userAgent]. With [passkey] the session is then
+     * marked as having passed the second factor (what the passkey step does, AOS-617), so it can use the app.
+     */
+    private suspend fun ApplicationTestBuilder.signIn(userAgent: String = mac, passkey: Boolean = true): Signed {
         val start = client.get("/api/v1/auth/google/start")
         val state = assertNotNull(start.cookieValue(LOGIN_STATE_COOKIE))
         val res = client.post("/api/v1/auth/google") {
@@ -78,7 +81,20 @@ class SessionSecurityTest {
             setBody("""{"code":"4/0AbCdEf","redirectUri":"${config.app.appUrl}/auth/callback","state":"$state"}""")
         }
         assertEquals(HttpStatusCode.OK, res.status, res.bodyAsText())
-        return Signed(assertNotNull(res.cookieValue(ACCESS_TOKEN_COOKIE)), assertNotNull(res.cookieValue(REFRESH_TOKEN_COOKIE)))
+        val signed = Signed(assertNotNull(res.cookieValue(ACCESS_TOKEN_COOKIE)), assertNotNull(res.cookieValue(REFRESH_TOKEN_COOKIE)))
+        if (passkey) sessions.markSecondFactor(assertNotNull(jwt.verifyAccessToken(signed.access)?.sessionId), Instant.now())
+        return signed
+    }
+
+    @Test
+    fun `a session that hasn't passed its passkey can't use the app, and is told why`() = app {
+        val s = signIn(passkey = false)
+        val res = me(s.access)
+        assertEquals(HttpStatusCode.Unauthorized, res.status)
+        assertEquals("AUTH_010", res.code())
+        // Refreshing doesn't get around it: the new token belongs to the same pending session.
+        val refreshed = assertNotNull(refresh(s.refresh).cookieValue(ACCESS_TOKEN_COOKIE))
+        assertEquals("AUTH_010", me(refreshed).code())
     }
 
     private suspend fun ApplicationTestBuilder.refresh(token: String) = client.post("/api/v1/auth/refresh") {

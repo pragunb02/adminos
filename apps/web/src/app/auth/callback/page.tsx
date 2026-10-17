@@ -30,7 +30,10 @@ function CallbackContent() {
 
         if (res.success && res.data) {
           const { onboardingStatus } = res.data.user;
-          if (onboardingStatus === "completed" || onboardingStatus === "first_sync_done") {
+          // Google is only the first step: the passkey comes next (AOS-617).
+          if (res.data.secondFactor === "enrol" || res.data.secondFactor === "verify") {
+            router.replace("/auth/passkey");
+          } else if (onboardingStatus === "completed" || onboardingStatus === "first_sync_done") {
             router.replace("/");
           } else {
             router.replace("/onboarding");

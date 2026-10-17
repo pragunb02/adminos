@@ -10,6 +10,11 @@
 
 import type { ApiResponse } from "./types";
 
+/** The API's answer for a session that still needs its passkey (AOS-617). */
+export const SECOND_FACTOR_REQUIRED = "AUTH_010";
+/** Where the passkey step lives. */
+export const PASSKEY_PAGE = "/auth/passkey";
+
 
 class ApiClient {
   private baseUrl: string;
@@ -27,6 +32,14 @@ class ApiClient {
    */
   async request<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const first = await this.send<T>(path, options);
+    // Signed in with Google but the passkey step isn't done yet (AOS-617): finish it first, no refresh can help.
+    if (first.status === 401 && first.body.error?.code === SECOND_FACTOR_REQUIRED) {
+      if (typeof window !== "undefined" && window.location.pathname !== PASSKEY_PAGE) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full reload drops all cached data
+        window.location.assign(PASSKEY_PAGE);
+      }
+      return first.body;
+    }
     if (first.status !== 401 || path.startsWith("/api/v1/auth/")) return first.body;
 
     if (await this.refreshSession()) {

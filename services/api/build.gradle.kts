@@ -36,6 +36,7 @@ dependencies {
     // Auth (JWTs are nimbus-jose-jwt; the unused ktor-server-auth-jwt, which pulled in another JWT library, was removed)
     implementation(libs.nimbus.jose.jwt)
     implementation(libs.google.auth)
+    implementation(libs.webauthn.server.core) // passkeys, the second factor after Google (AOS-617)
 
     // Database
     implementation(libs.exposed.core)

@@ -54,6 +54,10 @@ class ExposedSessionRepository : SessionRepository {
         }
     }
 
+    override suspend fun markSecondFactor(sessionId: UUID, at: Instant): Unit = dbQuery {
+        SessionsTable.update({ SessionsTable.id eq sessionId }) { it[secondFactorAt] = at }
+    }
+
     override suspend fun findActiveByUserId(userId: UUID): List<Session> = dbQuery {
         SessionsTable.selectAll().where {
             (SessionsTable.userId eq userId) and
@@ -74,6 +78,7 @@ class ExposedSessionRepository : SessionRepository {
             it[lastActiveAt] = session.lastActiveAt
             it[createdAt] = session.createdAt
             it[revokedAt] = session.revokedAt
+            it[secondFactorAt] = session.secondFactorAt
         }
         session
     }
@@ -100,6 +105,7 @@ class ExposedSessionRepository : SessionRepository {
         expiresAt = this[SessionsTable.expiresAt],
         lastActiveAt = this[SessionsTable.lastActiveAt],
         createdAt = this[SessionsTable.createdAt],
-        revokedAt = this[SessionsTable.revokedAt]
+        revokedAt = this[SessionsTable.revokedAt],
+        secondFactorAt = this[SessionsTable.secondFactorAt]
     )
 }

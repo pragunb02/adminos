@@ -62,7 +62,7 @@ fun Application.module(
     val jwtService: JwtService by inject()
     val authService: dev.adminos.api.domain.identity.AuthService by inject()
     // Every access token must belong to a live session; with real data (a database) there are no exceptions (AOS-620).
-    configurePlugins(config, jwtService, SessionGate(requireSession = useDatabase) { user, session -> authService.isActiveSession(user, session) })
+    configurePlugins(config, jwtService, SessionGate(requireSession = useDatabase) { user, session -> authService.sessionAccess(user, session) })
     val deviceTokenService: DeviceTokenService by inject()
     configureDeviceAuthentication(deviceTokenService)
 

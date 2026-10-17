@@ -68,6 +68,10 @@ class InMemorySessionRepository : SessionRepository {
 
     override suspend fun findRotated(tokenHash: String): RotatedToken? = rotated[tokenHash]
 
+    override suspend fun markSecondFactor(sessionId: UUID, at: Instant) {
+        sessions.computeIfPresent(sessionId) { _, s -> s.copy(secondFactorAt = at) }
+    }
+
     override suspend fun findActiveByUserId(userId: UUID): List<Session> =
         sessions.values.filter { it.userId == userId && it.isActive }
 
