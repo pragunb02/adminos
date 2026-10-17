@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
 | D-94 | Architecture | Browser and sign-in hardening: nonce CSP (no unsafe-inline scripts) and security headers on web and API, CORS removed; one app-wide CSRF check (Fetch-Metadata/Origin, fail closed) on cookie mutations; Google sign-in with server-side single-use state + PKCE; sign-in backoff; X-Forwarded-For distrusted unless TRUST_FORWARDED_FOR (amends D-32); strict JWTs; generic errors | Accepted | AOS-618 |
 | D-93 | Process | Every route is authenticated unless on a reviewed allowlist, enforced by a route-inventory test over the real app; another user's resource is always 404 (same as missing); Playwright attack suite security.spec.ts; web guard matches public pages exactly | Accepted | AOS-619 |
 | D-81 | Product | Habit lenses are data (quick commerce, food delivery, nights out, shopping, pay-later, travel) with per-merchant overrides; person-to-person UPI (settle-ups) never counts as a leak | Accepted | AOS-901 |
@@ -1078,3 +1079,10 @@ P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claud
 - Refused sign-ins back off exponentially per client (5 free per 15 min, 1 min → 1 h).
 - **Amends D-32:** the API trusts `X-Forwarded-For` only with `TRUST_FORWARDED_FOR=true`, which a deployment sets only behind an edge proxy that appends the real peer.
 - JWTs: exactly HS256, `exp` required. Client errors never echo library text.
+
+P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture · Tasks: AOS-620
+- Refresh tokens rotate on every use; rotated hashes are kept per session; reuse after a 30 s grace revokes the session and alerts the owner (AOS-121 done).
+- Access tokens carry `sid`; each request requires a live session of the token's user. With a database, tokens without `sid` are refused.
+- Sign-in alerts (new device, refused, reused key) go through a `SecurityNotifier` port to push, email and in-app as type `security`: always on, never held. They contain only our own facts: a fixed device vocabulary, a masked account, our time.
+- Settings → Security lists sessions and signs out one, every other, or all.
+- Rejected: shorter TTL as the only fix; raw user agents or IPs in alerts.

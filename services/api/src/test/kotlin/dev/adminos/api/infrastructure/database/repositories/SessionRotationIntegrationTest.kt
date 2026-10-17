@@ -21,7 +21,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** AOS-620 on real Postgres (V61): refresh-token rotation, its history, revoke-all, and the `security` notification type. */
+/** AOS-620 on real Postgres (V33): refresh-token rotation, its history, revoke-all, and the `security` notification type. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SessionRotationIntegrationTest {

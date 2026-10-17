@@ -146,7 +146,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S6.1](tickets/AOS-S6.1.md)** | **Security & DPDP compliance** | | ⬜ | 11h | |
-| └ [AOS-121](tickets/AOS-121.md) | Refresh-token rotation with reuse detection | Claude | ⬜ | 2h |  |
+| └ [AOS-121](tickets/AOS-121.md) | Refresh-token rotation with reuse detection | Claude | ✅ | 2h |  |
 | └ AOS-601 | Encrypt tokens at rest; refuse default secrets; require Pub/Sub audience | Claude | ⬜ | 3h |  |
 | └ AOS-602 | ~~DPDP: consent records, export/delete, access logs~~ parked (personal use, D-78); export and backup move to E8 security | Claude | ⏸ | 8h |  |
 | **[AOS-S6.4](tickets/AOS-S6.4.md)** | **Owner-only fortress** (P0, D-91) | | 🟦 | 39.5h | 1.5h |
@@ -156,7 +156,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
 | └ [AOS-618](tickets/AOS-618.md) | Hardening: nonce CSP + headers, app-wide CSRF check, sign-in state + PKCE, lockout, strict JWT, XFF distrusted (D-94) | Claude (agent) | ✅ | — | — |
 | └ [AOS-619](tickets/AOS-619.md) | Authorization attack tests: route inventory, IDOR 404s, Playwright attack suite; exact public paths (D-93) | Claude (agent) | ✅ | — | — |
-| └ AOS-620 | New-sign-in and refused-sign-in alerts (push + email); sessions list and revoke-all | Claude | ⬜ | 3h |  |
+| └ [AOS-620](tickets/AOS-620.md) | Sign-in alerts, Security page, sign out everywhere; refresh rotation with reuse detection (also AOS-121) (D-95) | Claude (agent) | ✅ | — | — |
 | └ [AOS-621](tickets/AOS-621.md) | Encrypted backups: age-encrypted pg_dump to a locked R2 bucket, restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | └ AOS-622 | Supply chain and runtime: dependency and container scanning in CI (OSV, npm audit, govulncheck), non-root read-only containers, pinned images | Claude | ⬜ | 4h |  |
 | └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |

@@ -41,7 +41,7 @@ object SessionsTable : Table("sessions") {
     override val primaryKey = PrimaryKey(id)
 }
 
-/** Refresh tokens a session has rotated out (V61, AOS-620): seeing one again means it was stolen. */
+/** Refresh tokens a session has rotated out (V33, AOS-620): seeing one again means it was stolen. */
 object SessionRotatedTokensTable : Table("session_rotated_tokens") {
     val tokenHash = varchar("token_hash", 64)
     val sessionId = javaUUID("session_id").references(SessionsTable.id)
