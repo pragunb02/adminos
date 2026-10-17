@@ -186,7 +186,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 |---|---|---|---|---|---|
 | **[AOS-S7.1](tickets/AOS-S7.1.md)** | **AI foundation** | | 🟦 | 19h | 3h |
 | └ [AOS-701](tickets/AOS-701.md) | Research: where AI/ML helps AdminOS; Epic E7; AI ground rules (D-67) | Claude | ✅ | 3h | 3h |
-| └ AOS-702 | AI layer: provider port, Anthropic + Ollama adapters, redaction, cost cap, audit log, flags, eval gate (extends AOS-512) | Claude (agent) | 🟦 | 10h |  |
+| └ [AOS-702](tickets/AOS-702.md) | AI layer: one gateway over a provider port (Anthropic, Ollama, fake), redaction, cost cap, audit, flags, eval gate; AOS-512 on the port; Go Claude path removed (D-68) | Claude (agent) | ✅ | 10h | 5h |
 | └ AOS-703 | Ollama compose profile + local model bake-off on the golden sets | Claude (agent) | 🟦 | 3h |  |
 | └ AOS-704 | AI consent and notice per feature; Settings "AI features" | Claude (agent) | 🟦 | 3h |  |
 | **[AOS-S7.2](tickets/AOS-S7.2.md)** | **Smarter data in** | | 🟦 | 30h | |
