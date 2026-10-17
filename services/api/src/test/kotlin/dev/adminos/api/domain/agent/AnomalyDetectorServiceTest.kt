@@ -14,38 +14,7 @@ import kotlin.test.assertTrue
 
 class AnomalyDetectorServiceTest {
 
-    // ── Rule 1: Large Amount ──
-
-    @Test
-    fun `LargeAmountRule fires when amount exceeds 3x category average`() {
-        val averages = mapOf("food" to BigDecimal(500))
-        val rule = LargeAmountRule(averages)
-        val txn = testTransaction(amount = BigDecimal(1600), category = "food")
-
-        val result = rule.evaluate(txn)
-        assertNotNull(result)
-        assertEquals("large_amount", result.ruleName)
-        assertEquals(0.7, result.confidence)
-    }
-
-    @Test
-    fun `LargeAmountRule does not fire when amount is below threshold`() {
-        val averages = mapOf("food" to BigDecimal(500))
-        val rule = LargeAmountRule(averages)
-        val txn = testTransaction(amount = BigDecimal(1400), category = "food")
-
-        val result = rule.evaluate(txn)
-        assertNull(result)
-    }
-
-    @Test
-    fun `LargeAmountRule does not fire when no category average exists`() {
-        val rule = LargeAmountRule(emptyMap())
-        val txn = testTransaction(amount = BigDecimal(10000), category = "food")
-
-        val result = rule.evaluate(txn)
-        assertNull(result)
-    }
+    // ── Rule 1 (large amount) is RobustAmountRule since AOS-713: see RobustAmountRuleTest ──
 
     // ── Rule 2: Foreign Currency ──
 

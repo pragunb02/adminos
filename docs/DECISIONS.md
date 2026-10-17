@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-73 | Architecture / Product | Unusual amounts are judged against the merchant's own robust baseline (median/MAD on log amounts, a measured fallback chain down to the AOS-505 rule); 'this is normal' / 'unexpected' tune a capped per-merchant tolerance; crisp rules never relaxed; synthetic eval set with a floor | Accepted | AOS-713 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1184,6 +1185,7 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - A new pipeline step (`InvestmentFlowStep`) changes spending totals for investment debits, so the D-61 golden set gains investment rows.
   - Tax rules need a yearly verification commit.
   - Evidence and options: `docs/research/WEALTH-RESEARCH.md`.
+
 ### D-71 — A local learned categoriser fills in Other from your corrections: hand-written, calibrated, never over a rule
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-707, AOS-708 · Builds on D-41, D-50, D-61, D-62, D-67
 - **What:**
@@ -1216,7 +1218,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a step inside `CategorizationService` (per-user model state in the rule categoriser, and before transfers and links);
   - JSON storage (larger and slower).
 - **Consequence:** the Review queue (AOS-708) can ask about the model's and the AI's unsure guesses, and each answer becomes a correction the model learns from.
-
 ### D-88 — Order receipts: parsed per sender in the worker, stored apart, matched to the payment
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-903, AOS-902 · Builds on D-33, D-38, D-54, D-59
 - **What a receipt is:** evidence about a payment, never a money event. Mail from a receipt sender never reaches the bank-email parser, so an order is never a second spend.
@@ -1256,3 +1257,21 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
+
+### D-73 — Unusual amounts are judged against the merchant's own robust baseline, and answers tune it
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-713 · Builds on D-53, D-61
+- **Context:** The AOS-505 rule (over 3× the 30-day category mean) alerted 2.2 times a month per person on synthetic streams with 10% precision: averages are pulled up by outliers, categories mix chai with dinners and flights with cab rides, and a dismissal taught nothing.
+- **Decision:**
+  - **Baselines:** a `BaselineModel` port with two models (robust median/MAD; the old 3× mean). An amount is unusual when the modified z-score on **log amounts** is above 3.5, it is at least ₹2,000, and it is above the median. Spread: MAD, else 1.2533 × mean absolute deviation, never below 10% of the median.
+  - **Fallback chain**, the first tier with enough history decides, in the user's days:
+    1. the merchant's last 180 days, 5+ payments;
+    2. 1–4 payments at the merchant: over 3× their mean;
+    3. a first payment: the typical amount of each other place in the category, 5+ places;
+    4. the AOS-505 rule (3× the 30-day category mean, 3+ spends).
+  - **History:** same-currency spends only; refunds, reversals, transfers and the spend itself never count.
+  - **Text:** the alert shows the usual range (25th–75th percentile) and the count it rests on.
+  - **Answers teach:** "this is normal" raises the (user, merchant, rule) tolerance one step, "unexpected" lowers it one, within 0..3 (z 3.5 → 6.5); only the first answer per anomaly counts. Crisp rules (duplicate, card testing, foreign currency, odd hours) are never relaxed.
+  - **Duplicates under ₹100** are recorded but not pushed (confidence 0.5); everything else in D-53 is unchanged.
+  - **Measured (D-61 style):** `anomalies/streams.csv` (synthetic, seeded, committed) and `anomalies/baseline.json`; `./gradlew -q anomalyReport` prints old vs new; a gate test fails on a drop. On the set: false alerts per month 2.18 → 0.36, precision 10.3% → 43.5%, recall 90% → 100%.
+- **Alternatives rejected:** median/MAD on rupees (flags ordinary big orders), a category baseline over all spends (frequent small merchants outvote the rest), dropping the old rule (new expensive merchants missed), precomputed nightly baselines (stale, second source of truth), muting a merchant on dismissal (hides fraud), Beta-Bernoulli per merchant (needs many labels; the upgrade path).
+- **Consequences:** new models or scopes are one class or one tier; thresholds are constants to revisit on real answers; AOS-709's merchant aliases should feed the merchant key.

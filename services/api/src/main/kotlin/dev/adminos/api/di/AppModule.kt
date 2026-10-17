@@ -105,6 +105,7 @@ internal fun buildAppModule(
         single<BillRepository> { ExposedBillRepository() }
         // Agent
         single<AnomalyRepository> { ExposedAnomalyRepository() }
+        single<AnomalyToleranceRepository> { ExposedAnomalyToleranceRepository() }
         single<BriefingRepository> { ExposedBriefingRepository() }
         single<InsightRepository> { ExposedInsightRepository() }
         // Notifications
@@ -138,6 +139,7 @@ internal fun buildAppModule(
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
         single<BillRepository> { InMemoryBillRepository() }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
+        single<AnomalyToleranceRepository> { InMemoryAnomalyToleranceRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
         single<InsightRepository> { InMemoryInsightRepository() }
         single<NotificationPreferencesRepository> { InMemoryNotificationPreferencesRepository() }
@@ -263,7 +265,12 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
 
     // Agent Services
-    single { AnomalyDetectorService(get(), get(), get()) }
+    // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)
+    single { AnomalyDetectorService(get(), get(), get(), get()) }
+    single {
+        if (useDatabase) AnomalyReviewService(get(), get(), get(), get(), java.time.Clock.systemUTC()) { work -> dev.adminos.api.infrastructure.database.dbQueryReadCommitted { work() } }
+        else AnomalyReviewService(get(), get(), get(), get())
+    }
     // Reactions to each new transaction (AOS-505); a new one is one `bind TransactionCreatedListener::class` line.
     single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
     single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
