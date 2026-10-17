@@ -23,7 +23,8 @@ export default defineConfig({
     { name: "desktop-chrome", use: { ...devices["Desktop Chrome"] }, testIgnore: /full-stack/ },
     { name: "iphone-safari", use: { ...devices["iPhone 15"] }, testIgnore: /full-stack/ },
     { name: "android-chrome", use: { ...devices["Pixel 7"] }, testIgnore: /full-stack/ },
-    { name: "full-stack", use: { ...devices["Desktop Chrome"] }, testMatch: /full-stack/ },
+    // security.spec.ts runs in every project: its real-API attacks only here, its mocked ones only in the others (AOS-619).
+    { name: "full-stack", use: { ...devices["Desktop Chrome"] }, testMatch: /full-stack|security\.spec/ },
   ],
   webServer: [
     {
