@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion.fallback
 
 import dev.adminos.api.domain.ingestion.events.IngestDirection
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageShape
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -31,7 +32,9 @@ data class MessageProposal(
     val status: ProposalStatus = ProposalStatus.PENDING,
     val createdAt: Instant,
     val decidedAt: Instant? = null,
-    val ingestEventId: UUID? = null
+    val ingestEventId: UUID? = null,
+    /** The message's masked shape (no values, AOS-706), learnt from when the proposal is confirmed; null when unknown. */
+    val shape: MessageShape? = null
 ) {
     init {
         require(sourceRef.isNotBlank() && sourceRef.length <= 255) { "sourceRef must be 1..255 characters" }

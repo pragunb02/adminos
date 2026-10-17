@@ -5,6 +5,7 @@ import dev.adminos.api.domain.ingestion.fallback.MessageChannel
 import dev.adminos.api.domain.ingestion.fallback.MessageProposal
 import dev.adminos.api.domain.ingestion.fallback.MessageProposalRepository
 import dev.adminos.api.domain.ingestion.fallback.ProposalStatus
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageShape
 import dev.adminos.api.infrastructure.database.dbQuery
 import dev.adminos.api.infrastructure.database.dbQueryReadCommitted
 import dev.adminos.api.infrastructure.database.tables.MessageProposalsTable as T
@@ -40,6 +41,7 @@ class ExposedMessageProposalRepository : MessageProposalRepository {
             it[createdAt] = proposal.createdAt
             it[decidedAt] = proposal.decidedAt
             it[ingestEventId] = proposal.ingestEventId
+            it[shape] = proposal.shape?.text
         }.insertedCount == 1
     }
 
@@ -95,7 +97,8 @@ class ExposedMessageProposalRepository : MessageProposalRepository {
         status = ProposalStatus.valueOf(this[T.status].uppercase()),
         createdAt = this[T.createdAt],
         decidedAt = this[T.decidedAt],
-        ingestEventId = this[T.ingestEventId]
+        ingestEventId = this[T.ingestEventId],
+        shape = this[T.shape]?.let(::MessageShape)
     )
 
     private companion object {

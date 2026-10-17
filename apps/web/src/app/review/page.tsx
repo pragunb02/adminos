@@ -12,6 +12,7 @@ import { formatInr } from "@/lib/money";
 import { errorMessage, getData, postData } from "@/lib/query";
 import type { Transaction } from "@/lib/types";
 import AiReadMessages from "./AiReadMessages";
+import LearnFormats from "./LearnFormats";
 
 export interface Suggestion {
   id: string;
@@ -94,6 +95,7 @@ function ReviewContent() {
       <h2 className="text-xl font-bold">Review</h2>
       <p className="text-sm text-ink-muted">These pairs look related. Your answers make the totals final.</p>
       <AiReadMessages />
+      <LearnFormats />
       <div role="group" aria-label="Kind" className="flex flex-wrap gap-1 rounded-lg bg-line p-0.5">
         {TABS.map((t) => (
           <button key={t.label} type="button" aria-pressed={tab.key === t.key} onClick={() => go(t.key)}

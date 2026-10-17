@@ -44,6 +44,7 @@ export class MockApi {
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
       .on("GET /api/v1/review/messages", () => ({ data: [] }))
+      .on("GET /api/v1/review/templates", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
       .on("GET /api/v1/documents", (_r, u) => {
         const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];

@@ -11,6 +11,13 @@ import dev.adminos.api.domain.ingestion.fallback.MessageFallbackJob
 import dev.adminos.api.domain.ingestion.fallback.MessageProposalRepository
 import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
 import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
+import dev.adminos.api.domain.ingestion.fallback.FallbackOffer
+import dev.adminos.api.domain.ingestion.fallback.MessageChannel
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessage
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReader
+import dev.adminos.api.infrastructure.database.repositories.ExposedMessageTemplateRepository
+import kotlinx.coroutines.runBlocking
 import dev.adminos.api.domain.scheduling.ScheduledJob
 import dev.adminos.api.infrastructure.ai.AnthropicProvider
 import dev.adminos.api.infrastructure.ai.OllamaProvider
@@ -30,7 +37,9 @@ class AiMessagesConfigTest {
     private val local = mapOf("AI_MESSAGES_ENABLED" to "true", "AI_MESSAGES_MODEL" to "qwen3:4b", "OLLAMA_BASE_URL" to "http://127.0.0.1:11434")
     private val cloud = mapOf("AI_MESSAGES_ENABLED" to "true", "AI_MESSAGES_PROVIDER" to "anthropic", "ANTHROPIC_API_KEY" to "test-key-not-real")
 
-    private fun message(env: Map<String, String>) = assertFailsWith<IllegalArgumentException> { AiConfig.from(env::get) }.message.orEmpty()
+    private fun message() = UnrecognisedMessage(java.util.UUID.randomUUID(), MessageChannel.SMS, "ref", java.time.Instant.now(), java.time.ZoneOffset.UTC, null,
+        "Card XX4321 charged Rs.249.00 at ZEPTO")
+    private fun message(env: Map<String, String>) =assertFailsWith<IllegalArgumentException> { AiConfig.from(env::get) }.message.orEmpty()
     private fun koin(env: Map<String, String>, useDatabase: Boolean = false) = koinApplication { modules(buildAppModule(useDatabase = useDatabase, env = env::get)) }.koin
 
     @Test
@@ -54,7 +63,8 @@ class AiMessagesConfigTest {
     fun `off - review is still there, nothing is read and no job runs`() {
         val off = koin(emptyMap())
         assertNull(off.getOrNull<MessageFallback>())
-        assertSame(UnrecognisedMessageSink.NONE, off.get<UnrecognisedMessageSink>())
+        assertIs<TemplateReader>(off.get<UnrecognisedMessageSink>(), "approved templates read even with AI off (AOS-706)")
+        assertEquals(FallbackOffer.Off, runBlocking { off.get<UnrecognisedMessageSink>().offer(message()) })
         assertNotNull(off.get<MessageReviewService>())
         assertIs<InMemoryMessageProposalRepository>(off.get<MessageProposalRepository>())
         assertTrue(off.getAll<ScheduledJob>().none { it.name.value == "ai-message-reading" })
@@ -64,8 +74,9 @@ class AiMessagesConfigTest {
     @Test
     fun `on - unrecognised messages go to the fallback and a job reads them`() {
         val on = koin(local)
-        val fallback = on.get<MessageFallback>()
-        assertSame(fallback, on.get<UnrecognisedMessageSink>())
+        on.get<MessageFallback>()
+        assertEquals(FallbackOffer.Queued, runBlocking { on.get<UnrecognisedMessageSink>().offer(message()) }, "templates first, then the AI reader")
+        assertIs<ExposedMessageTemplateRepository>(koin(local, useDatabase = true).get<MessageTemplateRepository>())
         assertIs<MessageFallbackJob>(on.getAll<ScheduledJob>().single { it.name.value == "ai-message-reading" })
         assertIs<OllamaProvider>(on.get<AiGateway>().route(AiFeature.MESSAGES)?.provider)
         assertIs<AnthropicProvider>(koin(cloud).get<AiGateway>().route(AiFeature.MESSAGES)?.provider)
