@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/health"];
+/**
+ * Pages anyone may open, matched **exactly** (AOS-619, AUD-13): a prefix match let `/login-anything` or
+ * `/healthz` through. The guard is a navigation aid, not the security boundary (the API authenticates every call).
+ */
+const PUBLIC_PATHS = new Set(["/login", "/auth/callback", "/health"]);
 
 /**
  * Static files a browser fetches without the session cookie (AOS-510): the manifest is requested
@@ -19,12 +23,12 @@ export function proxy(request: NextRequest) {
   }
 
   // Allow public paths
-  if (PUBLIC_FILES.has(pathname) || PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (PUBLIC_FILES.has(pathname) || PUBLIC_PATHS.has(pathname.replace(/\/+$/, "") || "/")) {
     return NextResponse.next();
   }
 
   // Check for access_token cookie
-  const token = request.cookies.get("access_token");
+  const token = request.cookies.get("access_token")?.value;
   if (!token) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);

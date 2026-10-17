@@ -19,6 +19,25 @@ describe("route guard (proxy.ts)", () => {
     expect(proxy(req("/sw.js.map")).headers.get("location")).toBe("http://localhost:3000/login");
   });
 
+  // AUD-13 (AOS-619): public pages are matched exactly, not by prefix.
+  it.each(["/login-admin", "/loginx", "/healthz", "/health/../transactions", "/auth/callbackx", "/auth/callback/extra", "/login/extra"])(
+    "%s is not public just because it starts like a public page",
+    (path) => expect(proxy(req(path)).headers.get("location")).toBe("http://localhost:3000/login"),
+  );
+
+  it("a trailing slash on a public page is still public", () => {
+    expect(proxy(req("/login/")).headers.get("location")).toBeNull();
+  });
+
+  it("an empty session cookie counts as no session", () => {
+    expect(proxy(req("/transactions", "access_token=")).headers.get("location")).toBe("http://localhost:3000/login");
+  });
+
+  it("an /api look-alike outside /api/ is guarded like a page", () => {
+    expect(proxy(req("/api")).headers.get("location")).toBe("http://localhost:3000/login");
+    expect(proxy(req("/apiv1/x")).headers.get("location")).toBe("http://localhost:3000/login");
+  });
+
   it("app pages without a session go to /login", () => {
     const res = proxy(req("/transactions"));
     expect(res.status).toBe(307);

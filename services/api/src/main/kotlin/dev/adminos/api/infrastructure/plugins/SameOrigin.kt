@@ -5,6 +5,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.createRouteScopedPlugin
+import io.ktor.server.auth.AuthenticationChecked
+import io.ktor.server.auth.principal
 import io.ktor.server.request.httpMethod
 import java.net.URI
 import java.net.URISyntaxException
@@ -57,7 +59,10 @@ const val CROSS_SITE_REFUSED = "AUTH_007"
 val SameOriginMutations = createRouteScopedPlugin("SameOriginMutations", ::SameOriginConfig) {
     val appOrigin = SameOrigin.originOf(pluginConfig.appUrl)
         ?: throw IllegalArgumentException("APP_URL is not an http(s) URL, so cross-site requests can't be checked")
-    onCall { call ->
+    // After authentication (AOS-619): a call without credentials gets the usual 401 first, and only a
+    // signed-in call is then checked for its origin. A call already answered (refused) is left alone.
+    on(AuthenticationChecked) { call ->
+        if (call.response.isCommitted || call.principal<Any>() == null) return@on
         if (!SameOrigin.allows(call.request.httpMethod, { call.request.headers[it] }, appOrigin)) {
             throw ApiException(HttpStatusCode.Forbidden, ApiError(CROSS_SITE_REFUSED, "Cross-site request refused"))
         }
