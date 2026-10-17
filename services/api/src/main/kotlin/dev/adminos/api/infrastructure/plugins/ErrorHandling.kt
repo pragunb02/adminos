@@ -76,7 +76,15 @@ fun Application.configureErrorHandling() {
             }
         }
         exception<Throwable> { call, cause ->
-            logger.error("Unhandled exception", cause)
+            val sql = sqlCause(cause)
+            if (sql != null) {
+                // A database error's message can carry the values of the failed statement (AOS-628): log its kind
+                // and SQLState only, and where it was thrown from.
+                logger.error("Unhandled database error: {} (SQLState {}) at {}", sql.javaClass.simpleName, sql.sqlState,
+                    cause.stackTrace.firstOrNull { it.className.startsWith("dev.adminos") } ?: "unknown")
+            } else {
+                logger.error("Unhandled exception", cause)
+            }
             call.respond(
                 HttpStatusCode.InternalServerError,
                 ApiResponse.error(ApiError.INTERNAL_ERROR, call.requestId)
@@ -105,6 +113,17 @@ private val INTERNAL_DETAIL = listOf(
     Regex("No enum constant|Invalid UUID string|For input string|UUID string too large|Index \\d+ out of bounds"),
     Regex("(?i)exception|stack ?trace|\\bat [\\w.$]+\\("),
 )
+
+/** The first [java.sql.SQLException] in [t]'s cause chain, if any. */
+internal fun sqlCause(t: Throwable): java.sql.SQLException? {
+    var c: Throwable? = t
+    val seen = mutableSetOf<Throwable>()
+    while (c != null && seen.add(c)) {
+        if (c is java.sql.SQLException) return c
+        c = c.cause
+    }
+    return null
+}
 
 /** Innermost message of an exception chain (the decoder's message names the bad field). */
 private fun rootMessage(t: Throwable): String {
