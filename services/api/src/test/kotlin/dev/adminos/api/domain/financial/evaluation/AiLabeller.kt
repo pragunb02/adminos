@@ -23,6 +23,9 @@ class RecordedAiClient(private val answers: Map<String, AiCategoryAnswer>, priva
     val asked: MutableList<AiCategoryQuestion> = CopyOnWriteArrayList()
     val merchants: Set<String> get() = answers.keys
 
+    /** The recorded answer for [merchant], or null when none was recorded. */
+    fun answerFor(merchant: String): AiCategoryAnswer? = answers[merchant]
+
     override suspend fun ask(userId: UUID, question: AiCategoryQuestion): AiCategoryResult {
         asked += question
         return answers[question.merchant]?.let { AiCategoryResult.Answered(it, model) } ?: AiCategoryResult.Unavailable("not recorded")

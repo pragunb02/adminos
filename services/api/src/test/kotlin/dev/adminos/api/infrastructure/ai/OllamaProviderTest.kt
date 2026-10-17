@@ -81,6 +81,15 @@ class OllamaProviderTest {
     }
 
     @Test
+    fun `a thread count is sent only when set`() = runBlocking<Unit> {
+        assertEquals(null, OllamaProvider.body(request).getValue("options").jsonObject["num_thread"])
+        replies += Reply(200, chat("{}"))
+        OllamaProvider(URI("http://127.0.0.1:${server.address.port}"), Duration.ofSeconds(5), numThread = 4).complete(request)
+        assertEquals("4", Json.parseToJsonElement(seen.single().body).jsonObject.getValue("options").jsonObject["num_thread"].toString())
+        assertFailsWith<IllegalArgumentException> { OllamaProvider(URI("http://ollama"), Duration.ofSeconds(1), numThread = 0) }
+    }
+
+    @Test
     fun `an answer cut off at the output limit is truncated`() = runBlocking<Unit> {
         replies += Reply(200, chat("{\"category\":", done = "length"))
         assertEquals(AiCompletion.Truncated(AiUsage(85, 19)), provider().complete(request))
@@ -104,6 +113,15 @@ class OllamaProviderTest {
             replies += Reply(200, body)
             assertEquals(AiCompletion.Failed(AiReasonCode("bad_reply")), provider().complete(request), body)
         }
+    }
+
+    @Test
+    fun `a hostile server's negative counts and huge content can't break cost or parsing`() = runBlocking<Unit> {
+        // Large but under the reply cap (AOS-702); a reply over the cap is refused, tested separately.
+        val huge = "x".repeat(OllamaProvider.MAX_REPLY_BYTES / 2)
+        replies += Reply(200, """{"message":{"content":"$huge"},"done_reason":"stop","prompt_eval_count":-5,"eval_count":-9}""")
+        val result = provider().complete(request)
+        assertEquals(AiCompletion.Completed(huge, AiUsage.NONE), result, "negative counts are zero, so cost can't go negative")
     }
 
     @Test

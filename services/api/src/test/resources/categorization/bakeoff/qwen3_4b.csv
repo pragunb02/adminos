@@ -1,0 +1,38 @@
+# AOS-703 bake-off answers from the local model qwen3:4b (Ollama). Only these golden-set merchant names were sent, locally.
+merchant,category,confidence,reason
+A2b Adyar Ananda Bhavan,OTHER,0.95,A2b Adyar Ananda Bhavan is a religious institution; not a typical merchant for the listed categories.
+Bajaj Finance,EMI,0.95,Bajaj Finance is a leading loan provider in India; primarily for EMI loans.
+Barbeque Nation Hospitality,FOOD,0.95,Barbeque Nation is a restaurant chain known for BBQ food.
+Cred Rentpay,EMI,0.95,Cred Rentpay is a loan provider for rent payments
+Dropbox Subscription,SUBSCRIPTION,0.95,Dropbox is a cloud storage service with recurring subscription model
+Duolingo,SUBSCRIPTION,0.95,Duolingo is a language learning app that requires recurring payments.
+Ergo General Insurance,OTHER,0.95,Insurance is not typically categorized under standard merchant types.
+Fortis Healthcare,HEALTH,0.95,Fortis Healthcare is a well-known healthcare provider in India.
+Fresh Mart Supermarket,SHOPPING,0.95,Supermarket is typically an offline shopping category
+Github,SUBSCRIPTION,0.95,Github is a software subscription service
+Hdb Financial Services,OTHER,0.95,Hdb Financial Services is a Singaporean government housing agency; not a merchant for typical categories.
+Healthifyme,HEALTH,0.95,Healthifyme is a health and wellness platform
+Lifestyle International,OTHER,0.9,Lifestyle International is a bank name; not a merchant for specific categories
+Linkedin Premium,SUBSCRIPTION,0.95,Linkedin Premium is a recurring subscription service for professional networking.
+Medplus Health Services,HEALTH,0.95,Medplus is a health service provider; common in India for medical services.
+Microsoft*365 Personal,SUBSCRIPTION,0.95,Microsoft 365 is a software subscription service
+Motorola Mobility Store,SHOPPING,0.95,Motorola is a tech brand selling electronics; which falls under shopping.
+Nippon India Mf,OTHER,0.95,Nippon India MF is a mutual fund company; not a merchant for typical categories.
+Notion Labs,SUBSCRIPTION,0.95,Notion Labs is a productivity software platform; typically used for subscriptions.
+Payu Payments,OTHER,0.95,Payu Payments is a payment gateway; not a merchant for specific categories.
+Physicswallah,EDUCATION,0.95,Physicswallah is an online education platform for courses.
+Playstation Network,SUBSCRIPTION,0.95,PlayStation Network is a gaming subscription service
+Prestige Apartment Owners Assn,UTILITIES,0.95,Apartment maintenance falls under utilities
+Raj Mobile Recharge,UTILITIES,0.95,Mobile recharge is a utility service
+Salon Style Studio,ENTERTAINMENT,0.95,Salon Style Studio is a beauty salon; typically associated with hair and beauty services.
+Sapna Book House,EDUCATION,0.95,Sapna Book House is a bookstore; typically associated with educational materials.
+Shree Ganesh Kirana,OTHER,0.9,Shree Ganesh Kirana is a common Indian grocery store name
+Smaaash Entertainment,ENTERTAINMENT,0.95,Smaaash Entertainment is a known entertainment platform for movies and events.
+Sri Lakshmi General Stores,SHOPPING,0.95,General stores typically sell groceries and household items.
+Steam,SUBSCRIPTION,0.95,Steam is a digital platform for games and software; typically used for subscriptions.
+Subhash Cable Tv,UTILITIES,0.95,Cable TV falls under utilities
+The Hindu E Paper Subscription,SUBSCRIPTION,0.95,The Hindu E Paper Subscription is a recurring digital news service.
+Timezone Gaming,ENTERTAINMENT,0.95,Timezone Gaming is a gaming platform; which falls under entertainment.
+Upgrad Education,EDUCATION,0.95,Upgrad is an education platform for courses
+Urban Company,OTHER,0.9,Urban Company is not a standard merchant name for any known category
+Wonderla Holidays,ENTERTAINMENT,0.95,Wonderla is a theme park; falls under entertainment.

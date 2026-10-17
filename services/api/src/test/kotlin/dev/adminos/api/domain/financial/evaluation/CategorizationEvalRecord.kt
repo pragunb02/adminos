@@ -43,7 +43,8 @@ object CategorizationEvalRecord {
     fun record(key: AiEvalKey, input: RecordInput): AiEvalRecord = AiEvalRecord(
         feature = key.feature.key, provider = key.provider.key, model = key.model, promptVersion = key.promptVersion,
         answers = input.answers, evaluatedOn = input.evaluatedOn, goldenRows = input.report.total,
-        metrics = metrics(input.report, input.ruleDecidedUnchanged), floor = floor(input.floor)
+        metrics = (metrics(input.report, input.ruleDecidedUnchanged) + input.extraMetrics).toSortedMap(),
+        floor = (floor(input.floor) + input.extraFloor).toSortedMap()
     )
 
     data class RecordInput(
@@ -51,6 +52,9 @@ object CategorizationEvalRecord {
         val ruleDecidedUnchanged: Double,
         val floor: Baseline,
         val answers: AiEvalAnswers,
-        val evaluatedOn: String
+        val evaluatedOn: String,
+        /** Feature-run metrics beyond the golden-set scores, e.g. a local model's valid-answer rate (AOS-703). */
+        val extraMetrics: Map<String, Double> = emptyMap(),
+        val extraFloor: Map<String, Double> = emptyMap()
     )
 }
