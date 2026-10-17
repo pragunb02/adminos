@@ -71,6 +71,7 @@
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
+| D-78 | Scope | AdminOS is always personal and single-user, self-hosted and secured end to end; wealth (all holdings, net worth, policy-based guidance with AI explanations) is in scope; public-user work (E6 public ingestion, onboarding, DPDP consent records) is parked | Accepted | AOS-010, AOS-801, E6, E8 |
 | D-67 | Architecture / Product | AI ground rules: AI never invents a number shown as fact; outputs validated against input or DB; each feature off by default with minimum data; local-first where good enough; one provider port; per-feature eval gate | Accepted | AOS-701, E7 (AOS-702…719) |
 
 Append new decisions at the bottom. Never edit an old decision. If it changes, add a new
@@ -842,4 +843,17 @@ Proposed
 ### D-62 addendum — AOS-512 design choices confirmed
 2026-10-17 · Accepted (Pragun: "great do start all with best decision long term") · Type: Product · Tasks: AOS-512
 - The batch job every 15 minutes (never inside ingestion), unsure answers kept in `metadata.ai` as suggestions (shown by the AOS-708 Review queue), the business-names-only privacy gate, and the official Anthropic Java SDK are confirmed. AOS-702 moves the client behind the `AiProvider` port (D-67).
+
+### D-78 — Always personal; wealth in scope
+2026-10-17 · Accepted (Pragun: "this is always a personal project e2e and secured"; maintain "my portfolio … stocks … investments and net worth and guidance") · Type: Scope · Tasks: AOS-010, AOS-801, Epic E6, Epic E8 · Supersedes the "later open to the public" goal (BRD v2 §1, §3, M6)
+- **Who:** one user, Pragun. Self-hosted, every request authenticated and scoped to him. Nothing is built for other users: no onboarding, no Android app, no public ingestion paths, no consent records for others (parked, not deleted).
+- **Architecture stays clean:** sources, asset types, rules and AI providers remain adapters. `user_id` stays on every row (it scopes data and costs nothing).
+- **Wealth is in scope (Epic E8, design AOS-801):**
+  - all holdings: Indian MF and stocks, foreign stocks / RSU / ESPP (multi-currency), FD, PPF, EPF, NPS, bonds, gold, crypto, real estate, loans given;
+  - net worth with history;
+  - guidance level "policy + AI explanations": rules from Pragun's own investment policy, each with its working; an AI may explain, but numbers come from code and it never picks securities or gives tips (D-67). This is planning support for the owner, not regulated advice.
+- **Security:** no broker or aggregator passwords stored; holdings encrypted at rest like the documents vault (D-60); encrypted backups.
+- **India-based:** INR first, Indian banks; other currencies for foreign holdings. It is not a product for India or anywhere.
+- **Still out of scope:** trading or placing orders, stock tips, splitting with friends, paying or cancelling on Pragun's behalf, Account Aggregator, WhatsApp Web automation.
+- **Rejected:** keeping multi-user extensibility as a goal (adds work and attack surface for no user).
 

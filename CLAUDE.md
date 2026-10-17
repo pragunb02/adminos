@@ -2,7 +2,9 @@
 
 AdminOS is Pragun's **personal money console**. It collects transactions from bank
 statements, manual entry, Gmail, SMS and WhatsApp, and shows where money goes each
-day, week and month. It's built for Pragun first and must stay extensible to public users.
+day, week and month, plus his portfolio, net worth and policy-based investment guidance. It is
+**always a personal, single-user project**, self-hosted and secured end to end (D-78); keep the
+architecture clean and extensible, but build nothing for other users.
 
 ## Read these first
 0. `docs/BACKLOG.md`: the board (Epic → Story → Task tree with status and ETA). Ticket files are in `docs/tickets/`.

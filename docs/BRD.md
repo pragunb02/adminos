@@ -1,14 +1,16 @@
 # AdminOS — Business Requirements Document
 
-_Owner: Pragun Bhutani · Last updated: 2026-10-16 (v2, revised with research)_
+_Owner: Pragun Bhutani · Last updated: 2026-10-17 (v3: personal only; wealth in scope, D-78)_
 
 ## 1. Overall goal
 
 A **personal money console** that automatically collects every transaction from every
-source and shows, clearly and systematically, **where my money goes each day, week and month**.
+source and shows, clearly and systematically, **where my money goes each day, week and month**,
+and **what I own**: every investment, my net worth, and guidance against my own investment policy.
 
-It is built **for me first**, and designed so it can **later open to the general public**
-without a rewrite.
+It is **always a personal project**: single user (me), self-hosted, and secured end to end
+(D-78). It is not a product and will not open to the public. Clean architecture still matters,
+so new sources, asset types and rules stay easy to add.
 
 **North star:** _I open the console and within 10 seconds I know what I spent today, this
 month, and on what — without reading a single SMS, email, WhatsApp message, or statement,
@@ -31,15 +33,14 @@ and without typing anything in._
 
 | Phase | User | Notes |
 |---|---|---|
-| Now | Me (single user, India, INR, **iPhone**) | Self-hosted on my laptop |
-| Later | General public (India-first, iPhone and Android) | Multi-user, hosted, onboarding, privacy compliance |
+| Always | Me (single user, India-based, INR first, **iPhone**; also foreign holdings) | Self-hosted; no other users (D-78) |
 
 ## 4. Inputs (what the user gives)
 
 Every source posts to **one common intake endpoint** (a normalized "ingest event").
 Adding a source never touches the core.
 
-| Priority | Source | Personal (now) | Public (later) |
+| Priority | Source | Personal | Public (parked, D-78) |
 |---|---|---|---|
 | P0 | **Bank / card statement** | Upload PDF/CSV/Excel (SBI, HDFC, ICICI, Axis, Kotak, Yes, IndusInd, PNB, BOB) | Same |
 | P0 | **iPhone SMS** | iOS Shortcuts automation ("message contains *debited/credited/INR/due*" → POST to API, no confirmation). Optional Mac `chat.db` reader to backfill history | Installable Shortcut template + onboarding |
@@ -81,6 +82,13 @@ the suffix `-T`/`-S` means keep and `-P` means promotional (drop).
 - Weekly briefing written by Claude, plus an action list.
 - **Documents vault:** tax docs, statements, warranties found in email/WhatsApp.
 
+### 5.5 Wealth (P1, D-78; design: AOS-801)
+- **Portfolio:** Indian mutual funds and stocks, foreign stocks / RSUs / ESPP (multi-currency), FD, PPF, EPF, NPS, bonds, gold, crypto, real estate, loans given.
+  Data comes from statements and exports I download (CAS, broker CSVs). Broker or aggregator passwords are never stored.
+- **Net worth:** assets minus liabilities, monthly history.
+- **Guidance:** rules from **my own investment policy** (allocation and rebalancing, emergency fund, concentration, fees, goals), each with "how we got this".
+  An AI may explain the why, but numbers come from code and it never picks securities (D-67). This is planning support for me, not regulated advice.
+
 ## 6. Milestones
 
 | # | Milestone | Outcome |
@@ -90,30 +98,33 @@ the suffix `-T`/`-S` means keep and `-P` means promotional (drop).
 | 3 | **Console.** Daily, monthly, categories, merchants, trends, feed | I see where my money goes (**core value**) |
 | 4 | **More sources.** Gmail, WhatsApp forward-to-bot and export import, Mac SMS backfill | Nothing missed |
 | 5 | **Money admin & smart extras.** Recurring/mandates, dues calendar, alerts, briefing, documents vault | The app tells me what to act on |
-| 6 | **Public-ready.** Privacy compliance, Gmail forwarding address, Android app, onboarding, hosting | Others can use it safely |
+| 6 | **Hardening.** Security, backups, hosting for me (public items parked, D-78) | My data is safe |
+| 7 | **Smart features.** Learned categories, smarter alerts, forecast, Ask your money (E7) | The app gets smarter as I correct it |
+| 8 | **Wealth.** Portfolio, net worth, policy-based guidance (E8) | I know what I own and what to do next |
 
 ## 7. Non-functional requirements
 
 - **Privacy:**
   - Data stays in my own database; raw SMS is filtered on the device (only financial messages are sent).
   - No third-party analytics.
-- **Privacy compliance before public launch** (DPDP Act, most obligations from 13 May 2027):
-  - consent records per source
-  - data export and full delete
-  - encryption at rest (including OAuth tokens)
-  - access logs kept for 1 year
-  - breach reporting within 72 hours
+- **Secured end to end (D-78):**
+  - only I can sign in; every request is authenticated and scoped to me;
+  - encryption at rest for tokens, documents and holdings; encrypted backups;
+  - no third-party analytics, aggregators or broker logins;
+  - AI features off by default and minimum data (D-67).
+  - Public-launch compliance work (consent records for others, onboarding) is parked: the DPDP Act exempts purely personal or domestic processing (to be re-checked if scope ever changes).
 - **Self-hostable:** one `docker compose up`.
-- **Extensible:**
-  - Keep the multi-user data model (`user_id` on every row).
-  - One intake endpoint; sources are adapters.
+- **Extensible (for me):**
+  - Sources, asset types, rules and AI providers are adapters; one intake endpoint.
+  - `user_id` stays on every row (it scopes data and costs nothing), but nothing is built for other users.
 - **Correctness over automation:** every transaction can be corrected by hand, and corrections are kept.
-- **India-first:** INR, Indian banks, UPI, TRAI SMS headers.
+- **India-based:** INR first, Indian banks, UPI, TRAI SMS headers; other currencies for foreign holdings.
 
 ## 8. Out of scope (for now)
 
-- Investments, stocks, mutual funds, net worth.
-- Budgets and goals (may come after Milestone 3).
+- Trading or placing orders; stock tips or picking securities (guidance is policy-based, D-78).
+- Budgets (may come after the forecast, AOS-714).
+- Public users, onboarding for others, an Android app (parked, D-78).
 - Splitting expenses with friends (Splitwise-style).
 - Paying bills or cancelling subscriptions on my behalf (drafts and reminders only).
 - Account Aggregator (needs a regulated entity).
