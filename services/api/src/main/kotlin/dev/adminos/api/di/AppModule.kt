@@ -33,7 +33,13 @@ import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.links.TransactionMatcher
 import dev.adminos.api.domain.financial.links.SuggestionService
 import dev.adminos.api.infrastructure.database.repositories.ExposedTransactionLinkRepository
+import dev.adminos.api.domain.ingestion.fallback.InMemoryMessageProposalRepository
+import dev.adminos.api.domain.ingestion.fallback.MessageFallback
+import dev.adminos.api.domain.ingestion.fallback.MessageProposalRepository
+import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
+import dev.adminos.api.infrastructure.database.repositories.ExposedMessageProposalRepository
 import dev.adminos.api.domain.ingestion.statements.StatementImportService
 import dev.adminos.api.domain.ingestion.statements.StatementParser
 import dev.adminos.api.infrastructure.statements.HttpStatementParser
@@ -193,8 +199,13 @@ internal fun buildAppModule(
     // SMS intake (AOS-203): device tokens + parser registry
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
-    single { SmsIntake(get(), get(), get()) }
-    single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
+    // Unrecognised bank messages go to the AI fallback only when AI_MESSAGES_ENABLED (AOS-705); otherwise nowhere.
+    single<UnrecognisedMessageSink> { getOrNull<MessageFallback>() ?: UnrecognisedMessageSink.NONE }
+    single { SmsIntake(get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
+    single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get(), fallback = get()) }
+    // Review of AI-read messages: always present, so Review shows (and decides) what was read while it was on.
+    single<MessageProposalRepository> { if (useDatabase) ExposedMessageProposalRepository() else InMemoryMessageProposalRepository() }
+    single { MessageReviewService(get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
 
     // Statement import (AOS-202, D-37)

@@ -104,6 +104,11 @@ export const fx = {
     related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
     ...over,
   }),
+  /** A payment the AI reader found in an unrecognised bank message, waiting in Review (AOS-705). */
+  messageProposal: (over: Partial<import("@/app/review/AiReadMessages").MessageProposal> = {}): import("@/app/review/AiReadMessages").MessageProposal => ({
+    id: "mp-1", channel: "sms", direction: "debit", amount: "249.00", accountLast4: "4321", merchant: "ZEPTO", bankCode: null,
+    occurredAt: "2026-10-16T05:00:00Z", readBy: "qwen3:4b", ...over,
+  }),
   /** A due item for the dues calendar (AOS-503). */
   due: (over: Partial<import("@/lib/types").DueItem> = {}): import("@/lib/types").DueItem => ({
     kind: "bill", id: "b-1", name: "Tata Power", amount: "2350.00", minimumDue: null, date: "2026-10-20",

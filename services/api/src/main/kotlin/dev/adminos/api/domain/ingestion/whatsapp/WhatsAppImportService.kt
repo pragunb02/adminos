@@ -5,6 +5,10 @@ import dev.adminos.api.domain.identity.UserCalendar
 import dev.adminos.api.domain.ingestion.events.IngestEvent
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.IngestSource
+import dev.adminos.api.domain.ingestion.fallback.FallbackOffer
+import dev.adminos.api.domain.ingestion.fallback.MessageChannel
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessage
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
 import dev.adminos.api.domain.ingestion.sms.SmsParseResult
 import dev.adminos.api.domain.ingestion.sms.SmsParserRegistry
 import java.security.MessageDigest
@@ -22,6 +26,8 @@ data class WhatsAppImportResult(
     val duplicates: Int,
     /** Mandate notices applied to the user's mandates. */
     val mandates: Int,
+    /** Unrecognised bank messages queued for the AI fallback; their answers wait in Review (AOS-705). */
+    val reading: Int,
     /** Bank messages that aren't transactions, counted by reason (never by text). */
     val ignored: Map<String, Int>,
     /** Lines that looked like a message start but had an impossible date or time. */
@@ -39,7 +45,8 @@ class WhatsAppImportService(
     private val intake: IngestEventService,
     private val mandates: MandateService,
     private val calendar: UserCalendar,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    private val fallback: UnrecognisedMessageSink = UnrecognisedMessageSink.NONE
 ) {
     companion object {
         private const val CHUNK = 100 // IngestEventService.MAX_BATCH
@@ -55,6 +62,7 @@ class WhatsAppImportService(
         val events = mutableListOf<IngestEvent>()
         var fromBanks = 0
         var mandateCount = 0
+        var reading = 0
 
         for (message in export.messages) {
             val bank = BankSenders.match(message.sender) ?: continue
@@ -62,7 +70,12 @@ class WhatsAppImportService(
             val at = message.at.atZone(zone).toInstant()
             if (at.isAfter(latestAllowed)) { ignored.merge(DATED_IN_FUTURE, 1, Int::plus); continue }
             val ref = fingerprint(message.sender, at, message.text)
-            when (val result = parsers.parseFromBank(message.text, (bank as? BankSenders.Bank)?.code)) {
+            val bankCode = (bank as? BankSenders.Bank)?.code
+            when (val result = parsers.parseFromBank(message.text, bankCode)) {
+                SmsParseResult.Unrecognised -> {
+                    val offer = fallback.offer(UnrecognisedMessage(userId, MessageChannel.WHATSAPP, ref, at, zone, bankCode, message.text))
+                    if (offer == FallbackOffer.Queued) reading++ else ignored.merge(SmsParseResult.UNRECOGNISED, 1, Int::plus)
+                }
                 is SmsParseResult.Ignored -> ignored.merge(result.reason, 1, Int::plus)
                 is SmsParseResult.Mandate -> { mandates.record(userId, result.notice, at, ref); mandateCount++ }
                 is SmsParseResult.Transaction -> events += toEvent(userId, result, at, ref)
@@ -76,6 +89,7 @@ class WhatsAppImportService(
             accepted = accepted,
             duplicates = events.size - accepted,
             mandates = mandateCount,
+            reading = reading,
             ignored = ignored,
             unreadableLines = export.unreadableLines
         )

@@ -25,6 +25,12 @@ sealed interface SmsParseResult {
     data class Mandate(val notice: dev.adminos.api.domain.financial.mandates.MandateNotice) : SmsParseResult
     /** Valid SMS that must not become a transaction. [reason] never quotes the text. */
     data class Ignored(val reason: String) : SmsParseResult
+
+    companion object {
+        /** No parser read it: the one reason the AI fallback may be asked about (AOS-705). */
+        const val UNRECOGNISED = "not a recognised transaction message"
+        val Unrecognised = Ignored(UNRECOGNISED)
+    }
 }
 
 /** Parses one bank's (or the generic) SMS formats (Strategy). */

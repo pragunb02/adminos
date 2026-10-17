@@ -10,6 +10,9 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
     private val byBank: Map<String, SmsParser> = parsers.mapNotNull { p -> p.bankCode?.let { it to p } }.toMap()
     private val generic: SmsParser = parsers.firstOrNull { it.headers.isEmpty() } ?: GENERIC
 
+    /** The bank that owns a TRAI [header] (`hdfc` for HDFCBK), or null when no bank parser claims it. */
+    fun bankFor(header: String): String? = byHeader[header.uppercase()]?.bankCode
+
     fun parse(message: SmsMessage): SmsParseResult {
         val sender = SenderId.parse(message.sender)
             ?: return SmsParseResult.Ignored("sender is not a registered business header")
@@ -31,7 +34,7 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
         DROP_RULES.firstOrNull { (re, _) -> re.containsMatchIn(text) }?.let { return SmsParseResult.Ignored(it.second) }
 
         val parsed = parser?.parse(text) ?: generic.parse(text)
-            ?: return SmsParseResult.Ignored("not a recognised transaction message")
+            ?: return SmsParseResult.Unrecognised
         return SmsParseResult.Transaction(parsed.copy(markers = MandateDebitMarker.metadataFor(text)))
     }
 

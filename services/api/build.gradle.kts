@@ -135,6 +135,19 @@ tasks.register<JavaExec>("categorizationReport") {
     }
 }
 
+// Message-reading evaluation (AOS-705): ./gradlew -q messageReadingReport prints the fallback's scores on the synthetic
+// golden set (src/test/resources/messages/golden.tsv). Add -PwriteBaseline to record them in the eval records the
+// start-up gate reads (src/main/resources/ai/evals.json).
+tasks.register<JavaExec>("messageReadingReport") {
+    group = "verification"
+    description = "Evaluate the message-reading fallback on the golden set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.ingestion.fallback.evaluation.MessageReadingReportKt")
+    if (project.hasProperty("writeBaseline")) {
+        args("--eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"
