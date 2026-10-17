@@ -45,10 +45,12 @@ test.describe("Where it leaks", () => {
   });
 
   test("a failing load shows its own error with a retry", async ({ signedIn: page, api }) => {
-    let first = true;
-    api.on("GET /api/v1/coach/leaks", () => (first ? ((first = false), { status: 500, error: { code: "SERVER_001", message: "Leaks are down" } }) : { data: cx.leaks() }));
+    // Down until the user retries: the app's own automatic retries must not hide the error.
+    let healthy = false;
+    api.on("GET /api/v1/coach/leaks", () => (healthy ? { data: cx.leaks() } : { status: 500, error: { code: "SERVER_001", message: "Leaks are down" } }));
     await page.goto("/leaks");
-    await expect(alertOf(page)).toContainText("Leaks are down");
+    await expect(alertOf(page)).toContainText("Leaks are down", { timeout: 15_000 });
+    healthy = true;
     await alertOf(page).getByRole("button", { name: "Try again" }).click();
     await expect(page.getByRole("region", { name: "Quick commerce" })).toBeVisible();
   });
