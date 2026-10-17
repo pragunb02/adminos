@@ -5,7 +5,7 @@ import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.javatime.timestamp
 
-/** Maps to db/migration/V90__splitwise_splits.sql (AOS-911). */
+/** Maps to db/migration/V41__splitwise_splits.sql (AOS-911). */
 object SplitImportsTable : Table("split_imports") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)
