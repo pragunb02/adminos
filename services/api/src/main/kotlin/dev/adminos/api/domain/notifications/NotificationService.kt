@@ -121,6 +121,7 @@ class NotificationService(
             NotificationType.NUDGE -> true  // nudges always enabled (system-level)
             NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM -> true
             NotificationType.SECURITY -> true // sign-in alerts can't be switched off (AOS-620)
+            NotificationType.COACH -> true // the coach checks its own switches (CoachSettings) before sending
         }
     }
 }

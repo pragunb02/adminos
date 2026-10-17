@@ -57,6 +57,14 @@ export class MockApi {
       .on("GET /api/v1/coach/leaks/transactions", () => ({ data: [fx.transaction({ id: "t-l1", merchantName: "Zepto", category: "shopping", amount: "600" })], pagination: { cursor: null, hasMore: false, total: 1 } }))
       .on("PUT /api/v1/coach/lenses/:lens/merchants", () => ({ data: { lens: "quick_commerce", merchant: "Zepto", include: false } }))
       .on("DELETE /api/v1/coach/lenses/:lens/merchants", () => ({ data: { lens: "quick_commerce", merchant: "Zepto", cleared: true } }))
+      // Limits and coach settings (AOS-904): past the learning month, one limit, one suggestion.
+      .on("GET /api/v1/coach/limits", () => ({ data: cx.limitsReady() }))
+      .on("POST /api/v1/coach/limits", () => ({ status: 201, data: cx.limit({ id: "lim-2", scope: { kind: "lens", value: "food_delivery" }, label: "Food delivery" }) }))
+      .on("POST /api/v1/coach/limits/suggestions/:lens/dismiss", () => ({ data: { dismissed: true } }))
+      .on("PATCH /api/v1/coach/limits/:id", () => ({ data: cx.limit() }))
+      .on("DELETE /api/v1/coach/limits/:id", () => ({ data: { deleted: true } }))
+      .on("GET /api/v1/coach/settings", () => ({ data: { limitAlerts: true } }))
+      .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false } }))
       .on("GET /api/v1/documents", (_r, u) => {
         const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];
         const c = u.searchParams.get("category"); const q = u.searchParams.get("q")?.toLowerCase();

@@ -18,4 +18,8 @@ export const server = setupServer(
   http.get("/api/v1/mandates", () => ok([])),
   // Home's "Where it leaks" card (AOS-902): nothing leaked unless a test says otherwise.
   http.get("/api/v1/coach/leaks", () => ok(cx.emptyLeaks())),
+  // Limits and coach settings (AOS-904): still learning, no limits, alerts on.
+  http.get("/api/v1/coach/limits", () => ok(cx.limits())),
+  http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
+  http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
 );

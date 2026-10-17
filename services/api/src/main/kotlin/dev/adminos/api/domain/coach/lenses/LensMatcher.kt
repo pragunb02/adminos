@@ -32,6 +32,9 @@ class LensMatcher(
         }.map { it.id }.toSet()
     }
 
+    /** A UPI payment to a person (a settle-up), see [PersonToPerson]. */
+    fun isPersonToPerson(t: Transaction): Boolean = people.isPersonToPerson(t)
+
     fun belongsTo(t: Transaction, lens: LensId, overrides: LensOverrides): Boolean = lens in lensesOf(t, overrides)
 
     companion object {
