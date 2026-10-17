@@ -27,7 +27,9 @@ function whyFlagged(sub: Subscription): string | null {
 
 export default function SubscriptionsPage() {
   const [tab, setTab] = useState<Tab>("active");
-  const [cancelDraft, setCancelDraft] = useState<Subscription | null>(null);
+  /** "How to cancel" for one subscription (AOS-513): AdminOS can't cancel for you, so it shows where. */
+  const [howTo, setHowTo] = useState<{ sub: Subscription; steps: string[] } | null>(null);
+  const [howToError, setHowToError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const listQuery = useQuery({
@@ -42,15 +44,19 @@ export default function SubscriptionsPage() {
   const loading = listQuery.isPending;
   const error = listQuery.error ? errorMessage(listQuery.error, "Failed to load") : null;
 
-  // Cancel queues a draft-generation job; "keep" dismisses the flag. Both refresh the lists.
-  const action = useMutation({
-    mutationFn: ({ id, kind }: { id: string; kind: "cancel" | "keep" }) =>
-      kind === "cancel" ? postData(`/api/v1/subscriptions/${id}/cancel`, {}) : patchData(`/api/v1/subscriptions/${id}/dismiss`, {}),
+  // "Keep" dismisses the flag and refreshes the lists.
+  const keep = useMutation({
+    mutationFn: (id: string) => patchData(`/api/v1/subscriptions/${id}/dismiss`, {}),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
   });
-  const actionLoading = action.isPending ? action.variables?.id : null;
-  const handleCancel = (id: string) => action.mutate({ id, kind: "cancel" });
-  const handleKeep = (id: string) => action.mutate({ id, kind: "keep" });
+  // "How to cancel" asks the API for the steps (through the AutoPay mandate when one pays it).
+  const guidance = useMutation({
+    mutationFn: (sub: Subscription) => postData<{ steps: string[] }>(`/api/v1/subscriptions/${sub.id}/cancel`, {}),
+    onSuccess: (data, sub) => { setHowToError(null); setHowTo({ sub, steps: data?.steps ?? [] }); },
+    onError: (e) => setHowToError(errorMessage(e, "Couldn't load the cancel steps")),
+  });
+  const actionLoading = keep.isPending ? keep.variables : guidance.isPending ? guidance.variables?.id : null;
+  const handleKeep = (id: string) => keep.mutate(id);
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "active", label: "Active", count: summary ? Number(summary.activeCount) : undefined },
@@ -98,7 +104,7 @@ export default function SubscriptionsPage() {
         {/* List */}
         {loading && <LoadingSpinner />}
         {error && <ErrorMessage message={error} onRetry={() => listQuery.refetch()} />}
-        {action.error && <ErrorMessage message={errorMessage(action.error)} />}
+        {keep.error && <ErrorMessage message={errorMessage(keep.error)} />}
         {!loading && !error && subscriptions.length === 0 && (
           <p className="text-center text-gray-500 py-8">No {tab} subscriptions</p>
         )}
@@ -137,11 +143,11 @@ export default function SubscriptionsPage() {
                 {sub.isFlagged && (
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                     <button
-                      onClick={() => handleCancel(sub.id)}
+                      onClick={() => guidance.mutate(sub)}
                       disabled={actionLoading === sub.id}
-                      className="flex-1 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 disabled:opacity-50"
+                      className="flex-1 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-md hover:bg-red-100 disabled:opacity-50"
                     >
-                      Cancel
+                      How to cancel
                     </button>
                     <button
                       onClick={() => handleKeep(sub.id)}
@@ -161,23 +167,19 @@ export default function SubscriptionsPage() {
         <Mandates />
       </div>
 
-      {/* Cancel draft modal */}
-      {cancelDraft && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-sm p-5">
-            <h3 className="font-semibold text-gray-900 mb-2">Cancellation Draft</h3>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p><span className="font-medium">Subscription:</span> {cancelDraft.name}</p>
-              <p><span className="font-medium">Amount:</span> {formatInr(cancelDraft.amount)} / {cancelDraft.billingCycle}</p>
-              <p><span className="font-medium">Status:</span> {cancelDraft.status.replace(/_/g, " ")}</p>
-              {cancelDraft.nextBillingDate && (
-                <p><span className="font-medium">Next billing:</span> {cancelDraft.nextBillingDate}</p>
-              )}
-            </div>
-            <button
-              onClick={() => setCancelDraft(null)}
-              className="mt-4 w-full py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-            >
+      {howToError && <p role="alert" className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-md rounded-lg bg-white p-3 text-sm text-red-700 shadow">{howToError}</p>}
+
+      {/* How to cancel (AOS-513) */}
+      {howTo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setHowTo(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="howto-heading" className="bg-white rounded-lg shadow-lg w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === "Escape") setHowTo(null); }}>
+            <h3 id="howto-heading" className="font-semibold text-gray-900 mb-2">How to cancel {howTo.sub.name}</h3>
+            <ol className="list-decimal space-y-2 pl-5 text-sm text-gray-700">
+              {howTo.steps.map((s) => <li key={s}>{s}</li>)}
+            </ol>
+            <button autoFocus onClick={() => setHowTo(null)}
+              className="mt-4 w-full py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
               Close
             </button>
           </div>

@@ -83,7 +83,7 @@ class ScheduledJobsTest {
             override suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction> =
                 if (userId == broken.id) throw IOException("read timed out") else transactions.findDebitsByUserIdSince(userId, since)
         }
-        val job = SubscriptionDetectionJob(users, SubscriptionDetectorService(failingForOne, InMemorySubscriptionRepository()), ist)
+        val job = SubscriptionDetectionJob(users, SubscriptionDetectorService(failingForOne, InMemorySubscriptionRepository(), dev.adminos.api.domain.identity.UserCalendar(users)), ist)
 
         assertEquals(JobName("subscription-detection"), job.name)
         assertEquals(Schedule.Daily(LocalTime.of(4, 0), ist), job.schedule)

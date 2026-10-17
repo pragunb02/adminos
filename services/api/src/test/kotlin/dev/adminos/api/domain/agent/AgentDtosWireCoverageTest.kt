@@ -69,10 +69,10 @@ class AgentDtosWireCoverageTest {
     }
 
     @Test
-    fun `cancellation queued response round-trips and requires every field`() {
-        val c = CancellationQueuedResponse("s1", "queued", "Cancellation draft generation has been queued")
-        assertRoundTrips(CancellationQueuedResponse.serializer(), c)
-        assertRequiresEveryField(CancellationQueuedResponse.serializer(), c)
+    fun `cancellation guidance response round-trips and requires every field`() {
+        val c = CancellationGuidanceResponse("s1", "upi_autopay", listOf("Open the UPI app", "Revoke it"))
+        assertRoundTrips(CancellationGuidanceResponse.serializer(), c)
+        assertRequiresEveryField(CancellationGuidanceResponse.serializer(), c)
     }
 
     @Test

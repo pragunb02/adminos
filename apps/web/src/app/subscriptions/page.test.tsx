@@ -94,30 +94,52 @@ describe("Subscriptions", () => {
     expect(screen.queryByText(/flagged$/)).not.toBeInTheDocument();
   });
 
-  it.each([["Cancel", "post", "/cancel"], ["Keep", "patch", "/dismiss"]] as const)("%s calls the API and refreshes", async (label, method, path) => {
+  it("Keep calls the API and refreshes", async () => {
     let flagged = [fx.subscription({ id: "s-3", name: "Gym", isFlagged: true })];
     const called: string[] = [];
     server.use(
       http.get("/api/v1/subscriptions/summary", () => ok(fx.subscriptionSummary())),
       http.get("/api/v1/subscriptions", () => ok(flagged)),
-      http[method](`/api/v1/subscriptions/s-3${path}`, () => { called.push(path); flagged = []; return ok({}); }),
+      http.patch("/api/v1/subscriptions/s-3/dismiss", () => { called.push("/dismiss"); flagged = []; return ok({}); }),
     );
     const { user } = renderWithQuery(<SubscriptionsPage />);
     const card = (await screen.findByText("Gym")).closest(".rounded-lg") as HTMLElement;
-    await user.click(within(card).getByRole("button", { name: label }));
+    await user.click(within(card).getByRole("button", { name: "Keep" }));
     expect(await screen.findByText("No active subscriptions")).toBeInTheDocument();
-    expect(called).toEqual([path]);
+    expect(called).toEqual(["/dismiss"]);
   });
 
-  it("a failed action shows its error", async () => {
+  it("How to cancel shows the steps from the API in a dialog, and closes (AOS-513)", async () => {
+    server.use(
+      http.get("/api/v1/subscriptions/summary", () => ok(fx.subscriptionSummary())),
+      http.get("/api/v1/subscriptions", () => ok([fx.subscription({ id: "s-3", name: "Gym", isFlagged: true })])),
+      http.post("/api/v1/subscriptions/s-3/cancel", () => ok({ subscriptionId: "s-3", via: "upi_autopay", steps: ["Open the UPI app you set it up in → AutoPay / Mandates.", "Find GYM and revoke the mandate."] })),
+    );
+    const { user } = renderWithQuery(<SubscriptionsPage />);
+    await user.click(await screen.findByRole("button", { name: "How to cancel" }));
+    const dialog = await screen.findByRole("dialog", { name: "How to cancel Gym" });
+    expect(within(dialog).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Open the UPI app you set it up in → AutoPay / Mandates.", "Find GYM and revoke the mandate.",
+    ]);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "How to cancel" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("failures of Keep or How to cancel are shown", async () => {
     server.use(
       http.get("/api/v1/subscriptions/summary", () => ok(fx.subscriptionSummary())),
       http.get("/api/v1/subscriptions", () => ok([fx.subscription({ isFlagged: true })])),
-      http.post("/api/v1/subscriptions/s-1/cancel", () => fail(500, "SERVER_001", "Could not cancel")),
+      http.post("/api/v1/subscriptions/s-1/cancel", () => fail(500, "SERVER_001", "Could not load steps")),
+      http.patch("/api/v1/subscriptions/s-1/dismiss", () => fail(500, "SERVER_001", "Could not keep")),
     );
     const { user } = renderWithQuery(<SubscriptionsPage />);
-    await user.click(await screen.findByRole("button", { name: "Cancel" }));
-    expect(await screen.findByText("Could not cancel")).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "How to cancel" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not load steps");
+    await user.click(screen.getByRole("button", { name: "Keep" }));
+    expect(await screen.findByText("Could not keep")).toBeInTheDocument();
   });
 
   it("list error, then retry", async () => {

@@ -53,6 +53,9 @@ class AgentRoutesCoverageTest {
 
     private val t0 = Instant.parse("2026-10-10T06:30:00Z")
 
+    private val mandateRepo = dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository()
+    private val mandateService = dev.adminos.api.domain.financial.mandates.MandateService(mandateRepo, dev.adminos.api.domain.financial.InMemoryTransactionRepository())
+
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
         application {
@@ -61,7 +64,7 @@ class AgentRoutesCoverageTest {
                 route("/api/v1") {
                     anomalyRoutes(anomalies, auditService)
                     briefingRoutes(briefings, insights)
-                    subscriptionAgentRoutes(subscriptions, auditService)
+                    subscriptionAgentRoutes(SubscriptionReviewService(subscriptions, mandateService, auditService))
                 }
             }
         }
@@ -401,16 +404,38 @@ class AgentRoutesCoverageTest {
     // ── POST /subscriptions/{id}/cancel ──
 
     @Test
-    fun `cancelling a subscription queues a draft and audits the cancel`() = routeTest {
+    fun `cancel explains where to cancel, honestly, and audits the request (AOS-513)`() = routeTest {
         val sub = subscriptions.save(subscription())
 
         val (status, body) = call(HttpMethod.Post, "/api/v1/subscriptions/${sub.id}/cancel")
 
-        assertEquals(HttpStatusCode.Accepted, status)
+        assertEquals(HttpStatusCode.OK, status)
         val data = body["data"]!!.jsonObject
         assertEquals(sub.id.toString(), data.str("subscriptionId"))
-        assertEquals("queued", data.str("status"))
+        assertEquals(JsonNull, data["via"])
+        val steps = data["steps"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue(steps.first().startsWith("Cancel in ${sub.name}"), steps.toString())
+        assertTrue(steps.any { "App Store or Google Play" in it })
         assertEquals(AuditActions.SUBSCRIPTION_CANCEL, auditRepo.findByEntity("subscription", sub.id).single().action)
+        assertEquals(sub.status, subscriptions.findById(sub.id)!!.status, "nothing is changed or pretended")
+    }
+
+    @Test
+    fun `when an AutoPay mandate pays it, cancel says to revoke the mandate first`() = routeTest {
+        val sub = subscriptions.save(subscription())
+        listOf(
+            dev.adminos.api.domain.financial.mandates.MandateRail.UPI_AUTOPAY to "UPI app",
+            dev.adminos.api.domain.financial.mandates.MandateRail.NACH to "e-mandates",
+            dev.adminos.api.domain.financial.mandates.MandateRail.CARD_SI to "standing instruction"
+        ).forEach { (rail, words) ->
+            mandateRepo.findByUserId(user.id).forEach { mandateRepo.update(it.copy(status = dev.adminos.api.domain.financial.mandates.MandateStatus.REVOKED)) }
+            mandateRepo.save(dev.adminos.api.domain.financial.mandates.Mandate(userId = user.id, rail = rail, payee = sub.name.uppercase(),
+                statusChangedAt = java.time.Instant.now()))
+            val (_, body) = call(HttpMethod.Post, "/api/v1/subscriptions/${sub.id}/cancel")
+            val data = body["data"]!!.jsonObject
+            assertEquals(rail.name.lowercase(), data.str("via"))
+            assertTrue(data["steps"]!!.jsonArray.first().jsonPrimitive.content.contains(words), "$rail")
+        }
     }
 
     @Test
@@ -448,6 +473,7 @@ class AgentRoutesCoverageTest {
                     single<InsightRepository> { insights }
                     single<SubscriptionRepository> { subscriptions }
                     single { auditService }
+                    single { SubscriptionReviewService(subscriptions, mandateService, auditService) }
                 })
             }
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)

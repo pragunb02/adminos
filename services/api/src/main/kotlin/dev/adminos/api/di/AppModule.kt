@@ -198,7 +198,8 @@ internal fun buildAppModule(
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get()) }
+    single { SubscriptionDetectorService(get(), get(), get()) }
+    single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
     single { DuesService(get(), get(), get()) }
