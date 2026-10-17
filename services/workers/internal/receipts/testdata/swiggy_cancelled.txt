@@ -1,0 +1,6 @@
+From: Swiggy <noreply@swiggy.in>
+Subject: Your order has been cancelled
+Date: Sat, 17 Oct 2026 22:10:00 +0530
+
+We're sorry. Order No: 187654321098 was cancelled by the restaurant.
+Any amount paid will be refunded to the original payment method within 5-7 days.

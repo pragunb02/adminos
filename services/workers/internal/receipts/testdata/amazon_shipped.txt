@@ -1,0 +1,5 @@
+From: Amazon.in <shipment-tracking@amazon.in>
+Subject: Your Amazon.in order #402-1234567-7654321 has shipped
+Date: Fri, 16 Oct 2026 09:00:00 +0530
+
+Your package is on the way. Arriving Sunday.

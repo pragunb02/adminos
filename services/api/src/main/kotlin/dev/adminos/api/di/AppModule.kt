@@ -115,6 +115,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.documents.DocumentRepository> { ExposedDocumentRepository() }
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
+        single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { ExposedOrderReceiptRepository() }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -144,6 +145,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.documents.DocumentRepository> { dev.adminos.api.domain.documents.InMemoryDocumentRepository() }
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
+        single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -237,6 +239,10 @@ internal fun buildAppModule(
     single { BillTrackingService(get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
     single { DuesService(get(), get(), get()) }
+    // Order receipts and hidden fees (AOS-903, D-88): matched to payments in both directions.
+    single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
+    single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
+    single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
 
     // Agent Services
     single { AnomalyDetectorService(get(), get(), get()) }
@@ -244,6 +250,7 @@ internal fun buildAppModule(
     single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
     single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
     single { dev.adminos.api.domain.financial.mandates.MandateDebitListener(get()) } bind TransactionCreatedListener::class
+    single { dev.adminos.api.domain.financial.receipts.ReceiptPaymentListener(get()) } bind TransactionCreatedListener::class
 
     // Notification Services
     // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.
@@ -281,6 +288,7 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { GmailWatchRenewalJob(get()) } bind ScheduledJob::class
+    single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingJob(get()) } bind ScheduledJob::class
     // The AI layer (AOS-702, D-67) and the AI fallback categorizer (AOS-512, D-62): every feature off by default.
     aiDefinitions(useDatabase, env)
     single { JobScheduler(getAll<ScheduledJob>(), get()) }

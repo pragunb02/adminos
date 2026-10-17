@@ -20,6 +20,7 @@ import (
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/jobs"
 	"github.com/adminos/adminos/workers/internal/normalizer"
+	"github.com/adminos/adminos/workers/internal/receipts"
 	"github.com/adminos/adminos/workers/internal/tokencrypt"
 )
 
@@ -80,6 +81,14 @@ type GmailResult struct {
 	SyncMode     string `json:"sync_mode,omitempty"`
 	NotFinancial int    `json:"not_financial"`
 
+	// Order receipts (AOS-903): read by a per-sender parser, never turned into transactions.
+	ReceiptsFound int `json:"receipts_found"`
+	// NotReceipts counts mail from receipt senders that isn't a receipt (promotions, status updates).
+	NotReceipts int `json:"not_receipts"`
+	// ReceiptFailures counts receipts whose numbers didn't add up (a changed format shows here).
+	ReceiptFailures int             `json:"receipt_failures"`
+	Receipts        []ReceiptRecord `json:"receipts,omitempty"`
+
 	// Enriched data for Persist. Transactions go to the common intake as events (AOS-205, D-21):
 	// the API's pipeline does dedup, transfers, refunds and categories.
 	Events       []IngestEventRecord `json:"events,omitempty"`
@@ -102,6 +111,8 @@ type GmailConfig struct {
 	Cipher *tokencrypt.Cipher
 	// Now is the clock (tests inject one); nil means time.Now.
 	Now func() time.Time
+	// Receipts picks the order-receipt parser per sender (AOS-903); nil means receipts.Default().
+	Receipts *receipts.Registry
 }
 
 // GmailHandler processes Gmail ingestion jobs.
@@ -114,6 +125,7 @@ type GmailHandler struct {
 	clientID     string
 	clientSecret string
 	now          func() time.Time
+	receipts     *receipts.Registry
 	mu           sync.Mutex
 	fingerprints map[string]bool
 }
@@ -131,7 +143,12 @@ func newGmailHandler(db *pgxpool.Pool, conns gmailConnectionStore, gmailClient *
 	if now == nil {
 		now = time.Now
 	}
+	registry := cfg.Receipts
+	if registry == nil {
+		registry = receipts.Default()
+	}
 	return &GmailHandler{
+		receipts:     registry,
 		db:           db,
 		conns:        conns,
 		gmailClient:  gmailClient,
@@ -222,6 +239,13 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 			return nil, err
 		}
 
+		// A receipt is evidence about a payment, never a second spend: receipt senders never reach
+		// the bank-email parser (AOS-903).
+		if parser := h.receipts.ParserFor(email.From); parser != nil {
+			processReceipt(p.UserID, parser, email, result)
+			continue
+		}
+
 		extracted := parseFinancialEmail(email)
 		if extracted == nil {
 			continue
@@ -239,8 +263,8 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 	if confCount > 0 {
 		result.AvgConfidence = confSum / float64(confCount)
 	}
-	log.Printf("[gmail] Connection %s: %s sync, %d financial emails, %d skipped by the sender filters",
-		p.ConnectionID, fetched.Mode, len(fetched.Emails), fetched.NotFinancial)
+	log.Printf("[gmail] Connection %s: %s sync, %d financial emails (%d receipts, %d unreadable receipts), %d skipped by the sender filters",
+		p.ConnectionID, fetched.Mode, len(fetched.Emails), result.ReceiptsFound, result.ReceiptFailures, fetched.NotFinancial)
 	return result, nil
 }
 
@@ -296,6 +320,32 @@ func processTransaction(userID string, data *ExtractedFinancialData, result *Gma
 		MerchantRaw: optional(truncate(data.Merchant, 255), "Unknown"),
 		AccountHint: optional(data.AccountLast4, ""),
 	})
+}
+
+// processReceipt reads an order receipt into structured fields (AOS-903). Not a receipt (a promotion)
+// is skipped; a receipt that doesn't add up is a failure, logged by parser and message ID only (D-33).
+func processReceipt(userID string, parser receipts.Parser, email GmailEmail, result *GmailResult) {
+	date, err := mail.ParseDate(email.Date)
+	if err != nil {
+		date = time.Time{}
+	}
+	r, err := parser.Parse(receipts.Email{MessageID: email.MessageID, From: email.From, Subject: email.Subject, Body: email.Body, Date: date})
+	switch {
+	case errors.Is(err, receipts.ErrNotAReceipt):
+		result.NotReceipts++
+		return
+	case err != nil:
+		result.ReceiptFailures++
+		result.FailedItems++
+		log.Printf("[gmail] Receipt in message %s not read by the %s parser: %v", email.MessageID, parser.Name(), err)
+		return
+	}
+	if email.MessageID == "" {
+		result.FailedItems++
+		return
+	}
+	result.ReceiptsFound++
+	result.Receipts = append(result.Receipts, newReceiptRecord(userID, email.MessageID, r))
 }
 
 func optional(s, empty string) *string {
@@ -426,6 +476,10 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 		}
 	}
 
+	if err := persistReceipts(ctx, tx, r); err != nil {
+		return err
+	}
+
 	// Insert bills
 	for _, bill := range r.Bills {
 		_, err := tx.Exec(ctx, `
@@ -477,7 +531,7 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 			status = 'completed', processed_items = $2, failed_items = $3,
 			duplicate_items = $4, net_new_items = $5, completed_at = now(), updated_at = now()
 		WHERE id = $1`,
-		r.SyncSessionID, r.TransactionsFound+r.BillsFound, r.FailedItems,
+		r.SyncSessionID, r.TransactionsFound+r.BillsFound+r.ReceiptsFound, r.FailedItems,
 		r.DuplicateItems, r.NetNewItems)
 	if err != nil {
 		return fmt.Errorf("update sync session: %w", err)

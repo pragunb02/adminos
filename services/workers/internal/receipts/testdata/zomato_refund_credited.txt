@@ -1,0 +1,6 @@
+From: Zomato <noreply@zomato.com>
+Subject: Refund credited for your Zomato order
+Date: Mon, 19 Oct 2026 10:00:00 +0530
+
+Order ID: 6655443322
+Refund amount: ₹120.00 has been credited.

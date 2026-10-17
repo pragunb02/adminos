@@ -55,6 +55,9 @@ class FinancialModuleWiringCoverageTest {
         single { AnalyticsService(InMemoryAnalyticsRepository(transactions)) }
         single { dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), transactions) }
         single { DuesService(bills, subscriptions, get()) }
+        single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
+        single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
+        single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), transactions) }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
