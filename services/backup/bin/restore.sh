@@ -87,7 +87,14 @@ check() {
     die "the target database is not empty: restore only into an empty database"
 
   # What the dump will create, by type, before running any of it. Types AdminOS never uses are refused.
-  age --decrypt --identity "$identity" "$WORK/dump.age" | pg_restore --list > "$tmp/toc" || die "cannot read the dump's contents"
+  # pg_restore --list stops reading once it has the table of contents, so age may die of SIGPIPE (141): that is
+  # fine here (the full restore below decrypts and authenticates every byte); any other age failure is not.
+  local st
+  set +e +o pipefail
+  age --decrypt --identity "$identity" "$WORK/dump.age" 2>/dev/null | pg_restore --list > "$tmp/toc"
+  st="${PIPESTATUS[0]} ${PIPESTATUS[1]}"
+  set -e -o pipefail
+  [[ "$st" == "0 0" || "$st" == "141 0" ]] || die "cannot read the dump's contents"
   local summary
   summary="$(sed -n 's/^[0-9]*; [0-9]* [0-9]* \([A-Z][A-Z ]*[A-Z]\) .*/\1/p' "$tmp/toc" | sort | uniq -c | awk '{n=$1; $1=""; printf "%s%s %s", sep, n, substr($0,2); sep=", "}')"
   log "dump contains: ${summary:-nothing}"
