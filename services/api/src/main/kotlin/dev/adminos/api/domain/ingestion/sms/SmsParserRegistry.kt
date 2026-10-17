@@ -28,11 +28,18 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
         // because a pre-debit notice is exactly that (AOS-502).
         BEFORE_MANDATES.firstOrNull { (re, _) -> re.containsMatchIn(text) }?.let { return SmsParseResult.Ignored(it.second) }
         MandateSmsParser.parse(text, parser?.bankCode)?.let { return SmsParseResult.Mandate(it) }
-        DROP_RULES.firstOrNull { (re, _) -> re.containsMatchIn(text) }?.let { return SmsParseResult.Ignored(it.second) }
+        DROP_RULES.firstOrNull { (applies, _) -> applies(text) }?.let { return SmsParseResult.Ignored(it.second) }
 
-        val parsed = parser?.parse(text) ?: generic.parse(text)
-            ?: return SmsParseResult.Ignored("not a recognised transaction message")
-        return SmsParseResult.Transaction(parsed.copy(markers = MandateDebitMarker.metadataFor(text)))
+        // A promised credit is no transaction; only its clause is dropped, so a real debit beside it is still read (AOS-213).
+        val promiseless = PromisedCredits.strip(text)
+        val body = promiseless ?: text
+        val reading = parser?.read(body)?.takeUnless { it == SmsReading.NotATransaction } ?: generic.read(body)
+        return when (reading) {
+            is SmsReading.Parsed -> SmsParseResult.Transaction(reading.transaction.copy(markers = MandateDebitMarker.metadataFor(text)))
+            SmsReading.DirectionUnclear -> SmsParseResult.Ignored(SmsParseResult.DIRECTION_UNCLEAR)
+            SmsReading.NotATransaction ->
+                SmsParseResult.Ignored(if (promiseless != null) SmsParseResult.PROMISED_CREDIT else "not a recognised transaction message")
+        }
     }
 
     companion object {
@@ -44,11 +51,14 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
             Regex("\\b(declined|failed|unsuccessful|could not be processed)\\b", I) to "failed or declined transaction"
         )
 
+        private val BALANCE = Regex("\\b(available balance|avl\\.? bal|avail(able)? bal)", I)
+
         /** Checked before parsing transactions. Order matters only for the reason reported. */
-        private val DROP_RULES: List<Pair<Regex, String>> = listOf(
-            Regex("\\b(collect request|has requested (money|Rs|INR)|requested money)\\b", I) to "payment request, not a payment",
-            Regex("\\b(will be debited|is due|due on|auto-?debit (is )?scheduled|reminder)\\b", I) to "upcoming payment notice",
-            Regex("^(?!.*\\b(debited|credited|spent|sent|paid|received)\\b).*\\b(available balance|avl bal)\\b", setOf(I, RegexOption.DOT_MATCHES_ALL)) to "balance alert"
+        private val DROP_RULES: List<Pair<(String) -> Boolean, String>> = listOf(
+            Regex("\\b(collect request|has requested (money|Rs|INR)|requested money)\\b", I)::containsMatchIn to "payment request, not a payment",
+            Regex("\\b(will be debited|is due|due on|auto-?debit (is )?scheduled|reminder)\\b", I)::containsMatchIn to "upcoming payment notice",
+            // Only a balance: a transaction that also shows "Avl Bal" ("Dr. Rs 500 … Avl Bal Rs 4,500") is kept (AOS-214).
+            { text: String -> BALANCE.containsMatchIn(text) && !SmsSignals.mentionsTransaction(text) } to "balance alert"
         )
 
         val GENERIC = BankSmsParser(bankCode = null, headers = emptySet(), merchantPatterns = emptyList())

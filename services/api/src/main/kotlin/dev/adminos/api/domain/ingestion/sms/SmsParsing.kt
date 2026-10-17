@@ -25,6 +25,21 @@ sealed interface SmsParseResult {
     data class Mandate(val notice: dev.adminos.api.domain.financial.mandates.MandateNotice) : SmsParseResult
     /** Valid SMS that must not become a transaction. [reason] never quotes the text. */
     data class Ignored(val reason: String) : SmsParseResult
+
+    companion object {
+        /** Debit and credit signals disagree: skipped and counted, never guessed (D-43, AOS-215). */
+        const val DIRECTION_UNCLEAR = "direction unclear, needs review"
+        /** "Rs 50 cashback will be credited…": a promise, not money that moved (AOS-213). */
+        const val PROMISED_CREDIT = "promised credit, not a transaction"
+    }
+}
+
+/** What one parser made of a message. */
+sealed interface SmsReading {
+    data class Parsed(val transaction: ParsedSmsTransaction) : SmsReading
+    /** A transaction whose direction can't be told (its signals conflict); never guessed. */
+    data object DirectionUnclear : SmsReading
+    data object NotATransaction : SmsReading
 }
 
 /** Parses one bank's (or the generic) SMS formats (Strategy). */
@@ -34,4 +49,7 @@ interface SmsParser {
     val headers: Set<String>
     /** @return null if this parser can't read the message (the registry then tries the fallback) */
     fun parse(text: String): ParsedSmsTransaction?
+
+    /** Like [parse], but also says when a transaction was found whose direction is unclear. */
+    fun read(text: String): SmsReading = parse(text)?.let(SmsReading::Parsed) ?: SmsReading.NotATransaction
 }

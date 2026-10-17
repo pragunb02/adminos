@@ -1,14 +1,14 @@
 package dev.adminos.api.domain.ingestion.sms
 
 import dev.adminos.api.domain.financial.PaymentMethod
-import dev.adminos.api.domain.ingestion.events.IngestDirection
 import java.math.BigDecimal
 
 /**
  * Data-driven SMS parser: one instance per bank, configured with its headers and merchant patterns.
  * Shared extraction rules live here once:
- * - **direction** from verbs (debited/spent/sent… vs credited/received…);
- * - **amount** is the money value next to the verb, never "Avl Bal"/"Limit" figures;
+ * - **direction** from [SmsSignals]: account-anchored phrases and Dr/Cr markers first, then verbs; signals that
+ *   conflict make it [SmsReading.DirectionUnclear], never a guess (D-43, AOS-215);
+ * - **amount** is the first money value outside "Avl Bal"/"Limit" figures;
  * - **account** last digits (ICICI masks 3 digits; only a full 4-digit hint is kept);
  * - **UPI VPA** and **payment method**.
  */
@@ -19,12 +19,18 @@ class BankSmsParser(
     private val merchantPatterns: List<Regex>
 ) : SmsParser {
 
-    override fun parse(text: String): ParsedSmsTransaction? {
+    override fun parse(text: String): ParsedSmsTransaction? = (read(text) as? SmsReading.Parsed)?.transaction
+
+    override fun read(text: String): SmsReading {
         val flat = text.replace(Regex("\\s+"), " ").trim()
-        val direction = direction(flat) ?: return null
-        val amount = amount(flat) ?: return null
+        val amount = amount(flat) ?: return SmsReading.NotATransaction
+        val direction = when (val d = SmsSignals.direction(flat)) {
+            is SmsDirection.Clear -> d.direction
+            SmsDirection.Conflicting -> return SmsReading.DirectionUnclear
+            SmsDirection.None -> return SmsReading.NotATransaction
+        }
         val vpa = VPA.find(flat)?.value?.lowercase()
-        return ParsedSmsTransaction(
+        return SmsReading.Parsed(ParsedSmsTransaction(
             direction = direction,
             amount = amount,
             accountHint = ACCOUNT.find(flat)?.groupValues?.get(1)?.takeIf { it.length == 4 },
@@ -33,20 +39,12 @@ class BankSmsParser(
             paymentMethod = paymentMethod(flat, vpa),
             bankCode = bankCode,
             reference = REFERENCE.find(flat)?.groupValues?.get(1)
-        )
+        ))
     }
 
-    private fun direction(s: String): IngestDirection? {
-        val debit = DEBIT_VERBS.find(s)?.range?.first
-        val credit = CREDIT_VERBS.find(s)?.range?.first
-        return when {
-            debit != null && (credit == null || debit < credit) -> IngestDirection.DEBIT
-            credit != null -> IngestDirection.CREDIT
-            else -> null
-        }
-    }
-
-    private fun amount(s: String): BigDecimal? {
+    /** The first money value that isn't a balance or limit figure. */
+    private fun amount(text: String): BigDecimal? {
+        val s = SmsSignals.withoutBalances(text)
         val candidates = MONEY.findAll(s).filterNot { m ->
             val before = s.substring(maxOf(0, m.range.first - 18), m.range.first).lowercase()
             NOT_THE_AMOUNT.any { it in before }
@@ -73,10 +71,8 @@ class BankSmsParser(
 
     companion object {
         private val I = RegexOption.IGNORE_CASE
-        private val DEBIT_VERBS = Regex("\\b(debited|spent|sent|paid|withdrawn|purchase|deducted|transferred to)\\b", I)
-        private val CREDIT_VERBS = Regex("\\b(credited|received|deposited|refund(?:ed)?|reversed)\\b", I)
         private val MONEY = Regex("(?:Rs\\.?|INR|₹)\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)", I)
-        private val VERB_AMOUNT = Regex("\\b(?:debited|credited) (?:by|with|for) ([0-9][0-9,]*(?:\\.[0-9]{1,2})?)", I)
+        private val VERB_AMOUNT = Regex("\\b(?:debited|credited|Dr|Cr)\\.? ?(?:by|with|for) ([0-9][0-9,]*(?:\\.[0-9]{1,2})?)", I)
         private val NOT_THE_AMOUNT = listOf("avl", "avail", "bal", "limit", "outstanding", "min due", "total due")
         private val ACCOUNT = Regex("(?:A/?c|Acct|Account|Card)(?: no\\.?)?(?: ending(?: with)?)?\\s*[X*x]*\\s*(\\d{3,4})\\b", I)
         /** 12-digit UPI/IMPS RRN after a reference label: "Ref 1234…", "Refno", "UPI:", "UPI Ref", "RRN". */
@@ -84,7 +80,7 @@ class BankSmsParser(
         private val VPA = Regex("(?<![A-Za-z0-9._])[a-zA-Z0-9._]{2,}@[a-zA-Z]{2,}\\b")
 
         private val COMMON_MERCHANT_PATTERNS = listOf(
-            Regex("UPI/P2[MA]/\\d+/([^/\\n]+?)(?:/|\\s+Not you|$)", I),     // Axis-style UPI narration
+            Regex("UPI/P2[MA]/\\d+/([^/\\n]+?)(?:/|\\s+Not you|\\s+Avl\\b|\\s+Avail|$)", I), // Axis-style UPI narration
             Regex("\\btrf to ([A-Za-z0-9 &.'*-]+?) Ref", I),                // SBI
             Regex(";\\s*([A-Za-z0-9 &.'*-]+?) credited", I),                // ICICI UPI
             Regex("\\bAt ([A-Za-z][A-Za-z0-9 &.'*-]*?) On\\b", I),            // card spend "At AMAZON On …"
