@@ -122,6 +122,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-18:**
+  - AOS-801 (reviewed + merged by Claude): wealth research (D-79) and Epic E8 (6 stories, AOS-802…821, ~128 h; first slice 'my mutual funds, safely' ~49 h). Built after E9 (D-80).
   - AOS-213/214/215 (reviewed + merged): SMS parsing fixes in one shared `SmsSignals` (D-119, D-120): promised credits ignored clause by clause; `Dr.`/`Cr.` alerts with "Avl Bal" kept; direction from account phrases and Dr/Cr, conflicts are needs-review (ignored, never guessed). 15 before/after cases in the ticket.
   - AOS-635 (reviewed + merged): `AiJson.parseObject` checks size and nesting before parsing; a validator exception or stack overflow becomes `Rejected(read_failed)`, audited; fatal JVM errors propagate.
   - AOS-631 (reviewed + merged): tests that failed every day 18:30–24:00 UTC now use fixed clocks; regression tests at India midnight ±1 min.
