@@ -234,3 +234,37 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
 | └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
 | └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+
+## 🟦 [AOS-E8](tickets/AOS-E8.md) — Wealth · P1 · ETA 128h
+
+Research and roadmap: [`docs/research/WEALTH-RESEARCH.md`](research/WEALTH-RESEARCH.md). Scope: D-78 (wealth, personal only). Architecture and guardrails: D-79 (proposed in AOS-801). Built after E9 (D-80), except AOS-803 backups, which protect existing data too. Order: wave 1 803 → 802 → 805 → 810 → 811 → 812 → 820; wave 2 815, 814, 816, 807; wave 3 817 → 818 → 821; wave 4 806, 808, 813, 804, 819, 809.
+
+| ID | Title | Owner | Status | ETA | Actual |
+|---|---|---|---|---|---|
+| **[AOS-S8.1](tickets/AOS-S8.1.md)** | **Secure wealth foundation** | | 🟦 | 19h | 3h |
+| └ [AOS-801](tickets/AOS-801.md) | Research: wealth design; Epic E8; proposed D-79 | Claude | ✅ | 3h | 3h |
+| └ AOS-802 | Wealth domain model + schema, exact quantity/price/FX types, encrypted identifiers + blind index | Claude | ⬜ | 8h |  |
+| └ AOS-803 | Encrypted offsite backups (pg_dump → age → separate R2 bucket), restore drill, key escrow guide | Claude + Pragun | ⬜ | 5h |  |
+| └ AOS-804 | Wealth audit events, re-auth for exports and reveals, privacy mode | Claude | ⬜ | 3h |  |
+| **[AOS-S8.2](tickets/AOS-S8.2.md)** | **Holdings data in, without credentials** | | ⬜ | 33h | |
+| └ AOS-805 | CAS import: CAMS/KFintech + NSDL/CDSL (casparser), unit reconciliation | Claude | ⬜ | 8h |  |
+| └ AOS-806 | Broker exports: Zerodha Console, Groww | Claude | ⬜ | 5h |  |
+| └ AOS-807 | Equity awards (RSU/ESPP: E*TRADE/MS at Work, Schwab, Fidelity) + IBKR Flex Query | Claude | ⬜ | 8h |  |
+| └ AOS-808 | EPF, NPS, PPF/FD, gold/SGB, property, loans, crypto CSV, manual entries | Claude | ⬜ | 8h |  |
+| └ AOS-809 | Opt-in CAS auto-fetch from Gmail attachments | Claude | ⬜ | 4h |  |
+| **[AOS-S8.3](tickets/AOS-S8.3.md)** | **Prices, FX and calculations** | | ⬜ | 28h | |
+| └ AOS-810 | Price and FX sources (AMFI, NPS, FBIL/ECB, SBI TTBR, US EOD, CoinGecko, bhavcopy upload), staleness | Claude | ⬜ | 8h |  |
+| └ AOS-811 | Lots and gains engine: FIFO, corporate actions, multi-currency | Claude | ⬜ | 8h |  |
+| └ AOS-812 | XIRR (bracketed solver) + TWR | Claude | ⬜ | 4h |  |
+| └ AOS-813 | Tax reports per FY (gains schedule, Schedule FA sheet, LRS tracker) from a rules table | Claude | ⬜ | 8h |  |
+| **[AOS-S8.4](tickets/AOS-S8.4.md)** | **Net worth** | | ⬜ | 15h | |
+| └ AOS-814 | Balance observations + liabilities (card dues, loans) | Claude | ⬜ | 5h |  |
+| └ AOS-815 | Investment flows in the bank feed: `INVESTMENT` nature, matching, no double counting | Claude | ⬜ | 6h |  |
+| └ AOS-816 | Net worth snapshots (monthly job), versioning, backfill | Claude | ⬜ | 4h |  |
+| **[AOS-S8.5](tickets/AOS-S8.5.md)** | **Policy-based guidance** | | ⬜ | 19h | |
+| └ AOS-817 | Investment Policy Statement: structured, versioned | Claude + Pragun | ⬜ | 4h |  |
+| └ AOS-818 | Guidance rules engine + golden set gate | Claude | ⬜ | 10h |  |
+| └ AOS-819 | AI explanations under D-67 (facts only, number and content checks), off by default | Claude | ⬜ | 5h |  |
+| **[AOS-S8.6](tickets/AOS-S8.6.md)** | **Wealth UI** | | ⬜ | 14h | |
+| └ AOS-820 | Wealth overview: net worth trend, allocation vs target, holdings with gains | Claude | ⬜ | 8h |  |
+| └ AOS-821 | Guidance cards with "How we got this", policy editor, imports and tax report screens | Claude | ⬜ | 6h |  |
