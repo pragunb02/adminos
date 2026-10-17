@@ -32,6 +32,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.batchInsert
@@ -102,8 +103,12 @@ class ExposedInstrumentRepository : InstrumentRepository {
         t.selectAll().where { t.id inList ids.toSet() }.map { it.toInstrument() }
     }
 
-    override suspend fun withAmfiCode(): List<Instrument> = dbQuery {
-        t.selectAll().where { t.amfiCode.isNotNull() }.orderBy(t.amfiCode to SortOrder.ASC).map { it.toInstrument() }
+    override suspend fun mutualFunds(): List<Instrument> = dbQuery {
+        t.selectAll().where { t.amfiCode.isNotNull() or (t.isin like "INF%") }.orderBy(t.createdAt to SortOrder.ASC).map { it.toInstrument() }
+    }
+
+    override suspend fun findById(id: UUID): Instrument? = dbQuery {
+        t.selectAll().where { t.id eq id }.singleOrNull()?.toInstrument()
     }
 
     private fun ResultRow.toInstrument() = Instrument(

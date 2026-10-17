@@ -73,6 +73,16 @@ object InvestmentTransactionsTable : Table("investment_transactions") {
     override val primaryKey = PrimaryKey(id)
 }
 
+/** Maps to db/migration/V72__instrument_prices.sql (AOS-810). */
+object InstrumentPricesTable : Table("instrument_prices") {
+    val instrumentId = javaUUID("instrument_id").references(InstrumentsTable.id)
+    val priceDate = date("price_date")
+    val priceSource = varchar("source", 12)
+    val price = decimal("price", 30, 10)
+    val fetchedAt = timestamp("fetched_at")
+    override val primaryKey = PrimaryKey(instrumentId, priceDate, priceSource)
+}
+
 /** Maps to db/migration/V71__wealth_holding_checks.sql (AOS-805). */
 object WealthHoldingChecksTable : Table("wealth_holding_checks") {
     val id = javaUUID("id")

@@ -18,8 +18,9 @@ interface InstrumentRepository {
     /** The existing instrument with the same ISIN / AMFI code / ticker, or [instrument] saved as new. */
     suspend fun findOrCreate(instrument: Instrument): Instrument
     suspend fun findByIds(ids: Collection<UUID>): List<Instrument>
-    /** Instruments that have an AMFI scheme code (the NAV job prices exactly these, AOS-810). */
-    suspend fun withAmfiCode(): List<Instrument>
+    /** Indian mutual funds: an AMFI scheme code or an `INF…` ISIN (the NAV job prices exactly these, AOS-810). */
+    suspend fun mutualFunds(): List<Instrument>
+    suspend fun findById(id: UUID): Instrument?
 }
 
 /** What [InvestmentLedger.record] did. */
@@ -68,8 +69,12 @@ class InMemoryInstrumentRepository : InstrumentRepository {
         ?: instrument.also { store[it.id] = it }
 
     override suspend fun findByIds(ids: Collection<UUID>) = ids.toSet().mapNotNull { store[it] }
-    override suspend fun withAmfiCode() = store.values.filter { it.amfiCode != null }.sortedBy { it.amfiCode }
+    override suspend fun mutualFunds() = store.values.filter { isMutualFund(it) }.sortedBy { it.createdAt }
+    override suspend fun findById(id: UUID) = store[id]
 }
+
+/** An Indian mutual fund scheme: it has an AMFI code or an `INF…` ISIN. */
+internal fun isMutualFund(i: Instrument): Boolean = i.amfiCode != null || i.isin?.startsWith("INF") == true
 
 /**
  * The matching rule both repositories use, keyed on the incoming [b]: its ISIN if it has one, else its AMFI code

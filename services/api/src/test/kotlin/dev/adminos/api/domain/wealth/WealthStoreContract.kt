@@ -60,8 +60,10 @@ abstract class WealthStoreContract {
         assertEquals(ticker.id, instruments.findOrCreate(ticker.copy(id = UUID.randomUUID())).id)
         assertEquals(setOf(growth.id, twin.id), instruments.findByIds(listOf(growth.id, twin.id, growth.id)).map { it.id }.toSet())
         assertTrue(instruments.findByIds(emptyList()).isEmpty())
-        assertTrue(instruments.withAmfiCode().map { it.id }.containsAll(listOf(growth.id, twin.id)))
-        assertFalse(instruments.withAmfiCode().any { it.id == ticker.id })
+        assertTrue(instruments.mutualFunds().map { it.id }.containsAll(listOf(growth.id, twin.id)))
+        assertFalse(instruments.mutualFunds().any { it.id == ticker.id })
+        assertEquals(growth.id, instruments.findById(growth.id)?.id)
+        assertNull(instruments.findById(UUID.randomUUID()))
     }
 
     @Test

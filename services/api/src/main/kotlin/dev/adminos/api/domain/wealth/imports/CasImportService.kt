@@ -13,6 +13,7 @@ import dev.adminos.api.domain.wealth.InvestmentTxnType
 import dev.adminos.api.domain.wealth.UnitsEffect
 import dev.adminos.api.domain.wealth.WealthAudit
 import dev.adminos.api.domain.wealth.WealthAuditActions
+import dev.adminos.api.domain.wealth.prices.PriceService
 import dev.adminos.api.infrastructure.crypto.IdentifierKind
 import dev.adminos.api.infrastructure.crypto.WealthIdentifiers
 import org.slf4j.LoggerFactory
@@ -46,6 +47,8 @@ class CasImportService(
     private val reconciliation: ReconciliationService,
     private val identifiers: WealthIdentifiers,
     private val audit: WealthAudit,
+    /** Keeps each statement's valuation NAV as a price of its date (AOS-810), so holdings are valued before the next AMFI file. */
+    private val prices: PriceService,
     private val clock: Clock = Clock.systemUTC()
 ) {
     private val log = LoggerFactory.getLogger(CasImportService::class.java)
@@ -89,6 +92,7 @@ class CasImportService(
         )
         val recorded = ledger.record(batch, entries)
         checks.saveAll(pending.map { it.second })
+        prices.recordStatementNavs(pending.map { it.second })
         val statuses = reconciliation.forBatch(userId, batchId).associateBy { it.check.id }
         val holdings = pending.map { (account, check) -> ImportedHolding(account.identifier.masked, account.institution, checkNotNull(statuses[check.id])) }
         val result = CasImportResult(recorded.batch, holdings)

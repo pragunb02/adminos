@@ -19,7 +19,16 @@ import dev.adminos.api.infrastructure.database.repositories.ExposedInstrumentRep
 import dev.adminos.api.infrastructure.database.repositories.ExposedInvestmentAccountRepository
 import dev.adminos.api.infrastructure.database.repositories.ExposedInvestmentLedger
 import dev.adminos.api.infrastructure.statements.HttpCasReader
+import dev.adminos.api.domain.scheduling.ScheduledJob
+import dev.adminos.api.domain.wealth.prices.AmfiNavJob
+import dev.adminos.api.domain.wealth.prices.InMemoryPriceRepository
+import dev.adminos.api.domain.wealth.prices.NavFileSource
+import dev.adminos.api.domain.wealth.prices.PriceRepository
+import dev.adminos.api.domain.wealth.prices.PriceService
+import dev.adminos.api.infrastructure.database.repositories.ExposedPriceRepository
+import dev.adminos.api.infrastructure.prices.HttpAmfiNavSource
 import org.koin.core.module.Module
+import org.koin.dsl.bind
 import org.koin.dsl.module
 
 /**
@@ -37,8 +46,14 @@ internal fun wealthKoinModule(useDatabase: Boolean): Module = module {
     single<InvestmentLedger> { if (useDatabase) ExposedInvestmentLedger() else InMemoryInvestmentLedger() }
     single<HoldingCheckRepository> { if (useDatabase) ExposedHoldingCheckRepository() else InMemoryHoldingCheckRepository(get()) }
 
+    // Prices (AOS-810): AMFI's whole-market NAV file once a day, plus each statement's own valuation NAV.
+    single<PriceRepository> { if (useDatabase) ExposedPriceRepository() else InMemoryPriceRepository() }
+    single<NavFileSource> { HttpAmfiNavSource() }
+    single { PriceService(get(), get(), get(), get()) }
+    single { AmfiNavJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+
     // CAS import (AOS-805): the parser service reads the file in memory (D-37); the API reconciles and records.
     single<CasReader> { HttpCasReader(get<AppConfig>().statementParser.url) }
     single { ReconciliationService(get(), get()) }
-    single { CasImportService(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { CasImportService(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 }

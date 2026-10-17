@@ -17,6 +17,9 @@ import dev.adminos.api.domain.wealth.WealthAudit
 import dev.adminos.api.domain.wealth.WealthAuditActions
 import dev.adminos.api.domain.wealth.WealthFixtures
 import dev.adminos.api.domain.wealth.imports.CasFixtures.row
+import dev.adminos.api.domain.wealth.prices.InMemoryPriceRepository
+import dev.adminos.api.domain.wealth.prices.PriceRepository
+import dev.adminos.api.domain.wealth.prices.PriceService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -43,12 +46,17 @@ class CasImportServiceTest {
         val ledger: InvestmentLedger = InMemoryInvestmentLedger(),
         val checks: HoldingCheckRepository = InMemoryHoldingCheckRepository(ledger),
         val auditLog: InMemoryAuditRepository = InMemoryAuditRepository(),
+        val priceStore: PriceRepository = InMemoryPriceRepository(),
     ) {
         var next: () -> ParsedCas = { CasFixtures.golden() }
+        /** What the fake AMFI download returns next (AOS-810). */
+        var navFile: () -> String = { error("no NAV file in this test") }
         val clock: Clock = Clock.fixed(Instant.parse("2026-10-18T06:00:00Z"), ZoneOffset.UTC)
         val reconciliation = ReconciliationService(checks, ledger)
+        val audit = WealthAudit(AuditService(auditLog, CoroutineScope(Dispatchers.Unconfined)))
+        val prices = PriceService({ navFile() }, instruments, priceStore, audit, clock)
         val service = CasImportService({ _, _ -> next() }, accounts, instruments, ledger, checks, reconciliation, WealthFixtures.identifiers,
-            WealthAudit(AuditService(auditLog, CoroutineScope(Dispatchers.Unconfined))), clock)
+            audit, prices, clock)
     }
 
     private val kit = Kit()
@@ -77,7 +85,8 @@ class CasImportServiceTest {
         val accounts = kit.accounts.findByUser(user)
         assertEquals(2, accounts.size)
         assertTrue(accounts.none { "90001234" in it.identifier.ciphertext || "80005678" in it.identifier.ciphertext })
-        assertEquals("90001234/56", WealthFixtures.identifiers.reveal(accounts.first().identifier, "investment_accounts:${accounts.first().id}:identifier"))
+        val first = accounts.single { it.identifier.last4 == "4/56" }
+        assertEquals("90001234/56", WealthFixtures.identifiers.reveal(first.identifier, "investment_accounts:${first.id}:identifier"))
     }
 
     @Test

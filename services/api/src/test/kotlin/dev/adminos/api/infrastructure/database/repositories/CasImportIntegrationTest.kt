@@ -46,10 +46,13 @@ class CasImportIntegrationTest {
         PostgresTestDatabase.ensureStarted()
         parserContainer.start()
         val checks = ExposedHoldingCheckRepository()
+        val instruments = ExposedInstrumentRepository()
+        val audit = WealthAudit(AuditService(ExposedAuditRepository(), CoroutineScope(Dispatchers.IO)))
         service = CasImportService(
             HttpCasReader("http://${parserContainer.host}:${parserContainer.getMappedPort(8000)}"),
-            ExposedInvestmentAccountRepository(), ExposedInstrumentRepository(), ledger, checks, ReconciliationService(checks, ledger),
-            WealthFixtures.identifiers, WealthAudit(AuditService(ExposedAuditRepository(), CoroutineScope(Dispatchers.IO)))
+            ExposedInvestmentAccountRepository(), instruments, ledger, checks, ReconciliationService(checks, ledger),
+            WealthFixtures.identifiers, audit,
+            dev.adminos.api.domain.wealth.prices.PriceService({ error("no AMFI fetch here") }, instruments, ExposedPriceRepository(), audit)
         )
     }
 
