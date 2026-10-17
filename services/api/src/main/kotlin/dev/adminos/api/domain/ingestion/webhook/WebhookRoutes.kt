@@ -5,6 +5,7 @@ import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.ConnectionStatus
 import dev.adminos.api.domain.ingestion.sync.IngestionService
+import dev.adminos.api.domain.ingestion.sync.SyncType
 import dev.adminos.api.infrastructure.auth.OidcVerifier
 import dev.adminos.api.infrastructure.auth.PushTokenVerifier
 import dev.adminos.api.infrastructure.plugins.ApiException
@@ -98,10 +99,14 @@ fun Route.webhookRoutes(
                 return@post
             }
 
+            // A push is always an incremental sync (AOS-405): the worker starts from the history ID stored
+            // on the connection; the notification's own ID is passed along for information only (D-59).
+            // Its completion is what lets the daily fallback skip the connection (24 h rule).
             val session = ingestionService.enqueueGmailIngest(
                 userId = connection.userId,
                 connectionId = connection.id,
-                historyId = notification.historyId?.toString()
+                historyId = notification.historyId?.toString(),
+                syncType = SyncType.INCREMENTAL
             )
 
             call.respond(HttpStatusCode.OK, ApiResponse.success(

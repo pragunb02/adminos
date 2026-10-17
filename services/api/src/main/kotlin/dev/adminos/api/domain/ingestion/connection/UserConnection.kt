@@ -14,7 +14,8 @@ data class UserConnection(
     val tokenExpiresAt: Instant? = null,
     val oauthScope: List<String>? = null,
     val gmailAddress: String? = null,
-    val pubsubExpiry: Instant? = null,
+    /** Gmail push registration (AOS-405); [GmailWatch.NONE] for other sources and before it is set. */
+    val watch: GmailWatch = GmailWatch.NONE,
     val historyId: String? = null,
     val lastSyncedAt: Instant? = null,
     val lastSyncStatus: String? = null,
@@ -47,7 +48,9 @@ data class ConnectionResponse(
     val lastSyncedAt: String? = null,
     val lastSyncStatus: String? = null,
     val totalSynced: Int = 0,
-    val createdAt: String
+    val createdAt: String,
+    /** Until when Gmail push is registered (AOS-405); null when it isn't (the daily fallback still syncs). */
+    val watchExpiresAt: String? = null
 ) {
     companion object {
         fun from(conn: UserConnection) = ConnectionResponse(
@@ -58,7 +61,8 @@ data class ConnectionResponse(
             lastSyncedAt = conn.lastSyncedAt?.toString(),
             lastSyncStatus = conn.lastSyncStatus,
             totalSynced = conn.totalSynced,
-            createdAt = conn.createdAt.toString()
+            createdAt = conn.createdAt.toString(),
+            watchExpiresAt = conn.watch.expiresAt?.toString()
         )
     }
 }

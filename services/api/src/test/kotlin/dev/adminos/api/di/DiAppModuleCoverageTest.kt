@@ -64,10 +64,11 @@ class DiAppModuleCoverageTest {
             channels(smtp::get)
         )
         val jobs = koinOf(buildAppModule(useDatabase = false, env = smtp::get)).getAll<dev.adminos.api.domain.scheduling.ScheduledJob>()
-        assertEquals(8, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry, gmail fallback sync")
+        assertEquals(9, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry, gmail fallback sync, gmail watch renewal")
         assertTrue(jobs.any { it.name.value == "subscription-waste-score" }, "AOS-509")
         assertTrue(jobs.any { it.name.value == "document-expiry" }, "AOS-507")
         assertTrue(jobs.any { it.name.value == "gmail-fallback-sync" }, "AOS-401")
+        assertTrue(jobs.any { it.name.value == "gmail-watch-renewal" }, "AOS-405")
     }
 
     @Test

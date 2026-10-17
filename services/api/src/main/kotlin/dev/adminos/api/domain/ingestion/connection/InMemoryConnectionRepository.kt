@@ -28,6 +28,18 @@ class InMemoryConnectionRepository : ConnectionRepository {
 
     override suspend fun update(connection: UserConnection): UserConnection {
         connections[connection.id] = connection.copy(updatedAt = Instant.now())
-        return connections[connection.id]!!
+        return connections.getValue(connection.id)
+    }
+
+    override suspend fun updateWatch(id: UUID, watch: GmailWatch) {
+        connections.computeIfPresent(id) { _, c -> c.copy(watch = watch, updatedAt = Instant.now()) }
+    }
+
+    override suspend fun updateAccessToken(id: UUID, accessToken: String, expiresAt: Instant?) {
+        connections.computeIfPresent(id) { _, c -> c.copy(accessToken = accessToken, tokenExpiresAt = expiresAt, updatedAt = Instant.now()) }
+    }
+
+    override suspend fun markError(id: UUID, reason: String) {
+        connections.computeIfPresent(id) { _, c -> c.copy(status = ConnectionStatus.ERROR, lastError = reason, updatedAt = Instant.now()) }
     }
 }

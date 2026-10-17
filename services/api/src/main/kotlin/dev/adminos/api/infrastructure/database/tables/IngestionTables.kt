@@ -19,7 +19,10 @@ object UserConnectionsTable : Table("user_connections") {
     val tokenExpiresAt = timestamp("token_expires_at").nullable()
     val oauthScope = text("oauth_scope").nullable() // stored as comma-separated
     val gmailAddress = varchar("gmail_address", 255).nullable()
-    val pubsubExpiry = timestamp("pubsub_expiry").nullable()
+    val watchExpiresAt = timestamp("watch_expires_at").nullable() // V26 (AOS-405)
+    val watchHistoryId = varchar("watch_history_id", 100).nullable()
+    val watchError = text("watch_error").nullable()
+    val watchCheckedAt = timestamp("watch_checked_at").nullable()
     val historyId = varchar("history_id", 100).nullable()
     val lastSyncedAt = timestamp("last_synced_at").nullable()
     val lastSyncStatus = varchar("last_sync_status", 20).nullable()
