@@ -1,5 +1,10 @@
 package dev.adminos.api.infrastructure.ai
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import dev.adminos.api.domain.ai.AiCompletion
 import dev.adminos.api.domain.ai.AiPrice
 import dev.adminos.api.domain.ai.AiProvider
@@ -54,11 +59,21 @@ class OllamaProvider(
         } catch (e: IOException) {
             return AiCompletion.Failed(NETWORK)
         }
-        // A model server is not trusted to keep its reply small: read at most MAX_REPLY_BYTES (D-100).
+        // A model server is not trusted to keep its reply small or quick: read at most MAX_REPLY_BYTES, off the
+        // caller's thread, and close the stream if the body takes longer than the request timeout (D-100).
+        val body = response.body()
+        var timedOut = false
         val bytes = try {
-            response.body().use { it.readNBytes(MAX_REPLY_BYTES + 1) }
+            coroutineScope {
+                val watchdog = launch { delay(timeout.toMillis()); timedOut = true; body.close() }
+                try {
+                    withContext(Dispatchers.IO) { body.use { it.readNBytes(MAX_REPLY_BYTES + 1) } }
+                } finally {
+                    watchdog.cancel()
+                }
+            }
         } catch (e: IOException) {
-            return AiCompletion.Failed(NETWORK)
+            return AiCompletion.Failed(if (timedOut) TIMEOUT else NETWORK)
         }
         if (response.statusCode() != 200) return AiCompletion.Failed(AiReasonCode("http_${response.statusCode()}"))
         if (bytes.size > MAX_REPLY_BYTES) return AiCompletion.Failed(REPLY_TOO_LARGE)

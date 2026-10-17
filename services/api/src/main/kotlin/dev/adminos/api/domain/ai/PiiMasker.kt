@@ -22,7 +22,8 @@ data class Masked(val text: String, val found: Set<PiiKind>) {
 object PiiMasker {
     private val EMAIL = Regex("[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,}")
     private val VPA = Regex("[A-Za-z0-9._-]{2,}@([A-Za-z][A-Za-z0-9]{1,30})\\b")
-    private val PAN = Regex("\\b[A-Za-z]{5}\\d{4}[A-Za-z]\\b")
+    /** The PAN shape in letters and digits of any script (look-alike letters are still a PAN). */
+    private val PAN = Regex("(?<![\\p{L}\\p{Nd}])\\p{L}{5}\\p{Nd}{4}\\p{L}(?![\\p{L}\\p{Nd}])")
 
     /**
      * A run of digits in any script, with up to 3 separator characters (space, `.`, `-`, `/`, `_`) between
