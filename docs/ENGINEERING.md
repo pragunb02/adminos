@@ -165,6 +165,29 @@ Layers 4 and 5 sit side by side under layer 3.
 - [ ] Ticket closed: Resolution, Actual, Done date; story/epic/board rows updated.
 - [ ] PROGRESS.md updated.
 - [ ] Commit message starts with the task ID: `AOS-xxx: …`.
+- [ ] **Security gate passed (§4a).** No feature ships without it (D-91, D-100).
+
+## 4a. Security gate (every feature, every time; D-100)
+
+Security is P0 (D-91). A task that adds or changes behaviour is not done, and its PR is not merged, until every item below holds. A security finding blocks the merge until it is fixed or Pragun explicitly accepts it.
+
+**1. Threat review (in the ticket, a "Security" section):**
+- [ ] What the change exposes: new routes, inputs, uploads, outbound calls, stored data, secrets, jobs, dependencies.
+- [ ] How an attacker would abuse it (stranger on the internet, a malicious email/SMS/file, a stolen session, another user's IDs), and what stops each.
+
+**2. Tests that attack it (all three levels where they apply):**
+- [ ] **Unit:** hostile input (oversized, malformed, injection strings, path tricks, unicode tricks), and fail-closed behaviour on every error path.
+- [ ] **Integration/route:** the route requires auth (the route-inventory test, AOS-619, must pass with no new allowlist entry, or a reviewed one); another user's resource is 404; mutations reject missing CSRF/Origin; limits and rate limits hold.
+- [ ] **Playwright:** signed out → redirected; a forged/expired token → refused; the new screen renders untrusted text safely (no HTML injection); no secrets or tokens in the DOM, storage or bundles.
+
+**3. Checks:**
+- [ ] No secrets, tokens, personal data or raw message text in code, fixtures, logs or errors (D-33); GitGuardian green on every commit.
+- [ ] No new public listener: published ports stay `127.0.0.1`; nothing widens a bind (D-91).
+- [ ] New dependencies: licence checked, latest stable, no known CVE (dependency scan green, AOS-622).
+- [ ] Data at rest: sensitive new fields encrypted or justified in the ticket.
+- [ ] AI features: off by default, minimum data, outputs validated (D-67).
+
+**4. Review:** the reviewer (the integrator) re-reads the diff as an attacker before merging and runs the full Playwright suite, including `e2e/security.spec.ts`.
 
 ---
 
