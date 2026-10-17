@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion.webhook
 
 import com.nimbusds.jose.JWSAlgorithm
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.PlainHeader
 import com.nimbusds.jose.crypto.MACSigner
@@ -38,7 +39,7 @@ import kotlin.test.*
 class WebhookRoutesCoverageTest {
 
     private val syncSessions = InMemorySyncSessionRepository()
-    private val connections = ConnectionService(InMemoryConnectionRepository(), syncSessions)
+    private val connections = ConnectionService(InMemoryConnectionRepository(), syncSessions, randomTokenEncryptor())
     private val ingestion = IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncSessions)
     private val userId = UUID.randomUUID()
     private val audience = "https://api.adminos.example.in/api/v1/webhooks/gmail"
