@@ -73,6 +73,7 @@
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
 | D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
+| D-69 | Architecture / Product | Local models: an opt-in Ollama compose profile on loopback only, measured by a bake-off through the AI port (rules floor, no rule row changed, ≥90% valid answers); qwen3:4b recommended (89.9% on the golden set), Claude Haiku stays the default | Accepted | AOS-703 |
 | D-68 | Architecture | One AI gateway over a thin `AiProvider` port (Anthropic SDK, Ollama, fake); features are tasks with their own redactor and validator; flag → redaction → breaker → cost reservation → call → settle → validate → audit (no content); monthly cap fails closed; committed eval records gate start-up; legacy Go Claude path removed | Accepted | AOS-702 |
 | D-101 | Process | Every PR gets two independent reviews (code, security) after its last push; each sets a commit status (`review/code`, `review/security`); `scripts/merge-pr.sh` merges only when both and every check pass on the head commit | Accepted | AOS-013 |
 | D-100 | Process | Every feature rolls out only through the security gate (ENGINEERING §4a): threat review in the ticket, unit + integration + Playwright attack tests, no new exposure, dependency checks, attacker review before merge; findings block the merge | Accepted | AOS-012, all tasks |
@@ -983,3 +984,30 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
   - a model switch is configuration plus a committed record.
 - **Integration addition:** `OLLAMA_BASE_URL` allows plain http only for loopback or a compose service name; anything else must be https (prompts carry financial text, D-91).
 
+### D-69 — Local models: an opt-in Ollama profile on loopback, measured by a bake-off through the AI port; qwen3:4b recommended
+2026-10-18 · Accepted (Pragun: "start all with best decision long term"; built by the AI-foundation agent, reviewed and merged by Claude) · Type: Architecture / Product · Tasks: AOS-703, AOS-702 · Builds on D-61, D-67, D-68
+- **Runtime:**
+  - Ollama (`ollama/ollama:0.40.6`) as a compose service under the `ollama` profile, so nothing starts it by default;
+  - models in the `ollama_models` volume;
+  - published only on `127.0.0.1:11434` (Ollama has no authentication), with `ComposeExposureTest` failing on any bare host port in compose;
+  - the API reaches it at `http://ollama:11434`.
+- **Measurement:**
+  - `./gradlew -q aiBakeOff -Pmodels=…` runs each model through the golden set **via the AI port** (same prompt, redaction, validation and audit as production);
+  - it prints rules / rules + recorded Claude / rules + each model: accuracy, macro-F1, coverage, AI labels, valid/rejected/unavailable answers, agreement with Claude, latency, rule rows kept and gate.
+- **Gate for a local model:**
+  - the rules baseline (D-61: match or beat the rules);
+  - no rule-decided row changed;
+  - at least 90% schema-valid answers (so a model that rejects everything can't pass by "matching the rules").
+  - `-PwriteEvalRecord` records passing models only (`answers: live`). Their answers are committed and replayed by a test, so records can't drift.
+- **Recommended default local model: `qwen3:4b`.** On the golden set it scored 89.9% accuracy and 0.894 macro-F1 (rules 82.6% / 0.827; recorded Claude 91.7% / 0.913), with all answers valid, all rule rows kept and about 2–3 s per question on a busy CPU.
+  - `gemma3:4b` (89.2%) is the alternative.
+  - Models under 4B parameters failed a category floor.
+- **Not changed:** categorisation still defaults to Claude Haiku when enabled. Switching to local is `AI_CATEGORIZATION_PROVIDER=ollama`, `AI_CATEGORIZATION_MODEL=qwen3:4b` (Pragun's call).
+- **Rejected:**
+  - a shell script calling Ollama directly (skips redaction and validation, drifts from the real prompt);
+  - tests that need Ollama (they would break every build; a stub server is used instead);
+  - holding local models to the rules + Claude floor (that floor comes from synthetic answers);
+  - no published port (the host-side bake-off couldn't reach it).
+- **Consequence:**
+  - any feature with a golden set can be measured on local models with the same harness;
+  - a model change is a bake-off, a committed record and a config change.

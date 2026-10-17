@@ -21,7 +21,7 @@
 - [x] One `AiProvider` port with Anthropic and Ollama adapters and a test fake; model IDs in configuration (AOS-702)
 - [x] Per-feature redaction, a monthly cost cap that fails closed, an audit row per call with no content, and flags off by default (AOS-702)
 - [x] An eval gate: a feature can't be turned on unless its report meets its committed baseline (AOS-702, generalising D-61)
-- [ ] An optional Ollama compose profile, with local models measured on our golden sets (AOS-703)
+- [x] An optional Ollama compose profile, with local models measured on our golden sets (AOS-703)
 - [ ] Settings → "AI features" lists each feature, its provider, the data it sends and this month's spend, with notice and consent text (AOS-704)
 
 ## Design
@@ -32,7 +32,7 @@ See [`docs/research/AI-ML-RESEARCH.md`](../research/AI-ML-RESEARCH.md) §2–§5
 |---|---|---|---|---|---|
 | [AOS-701](AOS-701.md) | Research: where AI/ML helps AdminOS; Epic E7; D-67 | Claude | ✅ | 3h | 3h |
 | [AOS-702](AOS-702.md) | AI layer: gateway over a provider port, redaction, cost cap, audit, flags, eval gate (D-68) | Claude (agent) | ✅ | 10h | 5h |
-| AOS-703 | Ollama compose profile + local model bake-off on the golden sets | Claude | ⬜ | 3h | |
+| [AOS-703](AOS-703.md) | Local models: Ollama profile + bake-off (D-69) | Claude (agent) | ✅ | 3h | 3h |
 | AOS-704 | AI consent and notice per feature; Settings "AI features" | Claude | ⬜ | 3h | |
 
 _Task tickets are created as files when this story is picked up._
