@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E7](AOS-E7.md) |
-| **Status** | 🟦 In progress |
+| **Status** | ✅ Done |
 | **Priority** | P2 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 19h |
@@ -33,7 +33,7 @@ See [`docs/research/AI-ML-RESEARCH.md`](../research/AI-ML-RESEARCH.md) §2–§5
 | [AOS-701](AOS-701.md) | Research: where AI/ML helps AdminOS; Epic E7; D-67 | Claude | ✅ | 3h | 3h |
 | [AOS-702](AOS-702.md) | AI layer: gateway over a provider port, redaction, cost cap, audit, flags, eval gate (D-68) | Claude (agent) | ✅ | 10h | 5h |
 | [AOS-703](AOS-703.md) | Local models: Ollama profile + bake-off (D-69) | Claude (agent) | ✅ | 3h | 3h |
-| AOS-704 | AI consent and notice per feature; Settings "AI features" | Claude | ⬜ | 3h | |
+| [AOS-704](AOS-704.md) | AI consent per feature + Settings notice (D-70) | Claude (agent) | ✅ | 3h | 3h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -41,5 +41,6 @@ _Task tickets are created as files when this story is picked up._
 Settings shows each AI feature as off, with its provider and spend. Turning one on is refused until its eval passes.
 
 ## Activity log
+- 2026-10-18 — Claude: AOS-703, AOS-704 merged; AI foundation story done.
 - 2026-10-18 — Claude: AOS-702 merged (D-68).
 - 2026-10-17 — Claude: story created (AOS-701); AOS-701 done.

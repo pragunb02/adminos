@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.financial.ai
 
+import dev.adminos.api.domain.ai.AiConsentCheck
+import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.financial.CategoryRuleRepository
 import dev.adminos.api.domain.financial.MerchantCatalogue
 import dev.adminos.api.domain.financial.Transaction
@@ -24,7 +26,9 @@ enum class AiOutcome {
     /** Not a candidate: not Other, decided by a person or a rule, not spending, already asked, or a known merchant. */
     NOT_ELIGIBLE,
     /** The payee may not be shown to a model (a person, or no clean business name). */
-    PRIVATE
+    PRIVATE,
+    /** The user hasn't turned AI categorisation on in Settings (AOS-704): not asked, and no cached answer used. */
+    NO_CONSENT
 }
 
 /**
@@ -36,12 +40,14 @@ enum class AiOutcome {
  * - **Confidence:** at [minConfidence] or more the category is set with source `ai`; below it the transaction
  *   stays Other and the guess is kept in `metadata.ai` as a suggestion. Confidence and reason are stored either way.
  * - **Idempotent:** `metadata.ai` marks a transaction as done; a second run skips it.
+ * - **Consent (AOS-704):** nothing happens for a user who hasn't turned the feature on, not even a cached answer.
  */
 class AiCategorizationService(
     private val client: AiCategoryClient,
     private val cache: AiCategoryCacheRepository,
     private val rules: CategoryRuleRepository,
     private val transactions: TransactionRepository,
+    private val consent: AiConsentCheck,
     private val model: String,
     private val catalogue: MerchantCatalogue = MerchantCatalogue.DEFAULT,
     private val clock: Clock = Clock.systemUTC(),
@@ -59,6 +65,7 @@ class AiCategorizationService(
 
     suspend fun categorize(t: Transaction): AiOutcome {
         if (!isCandidate(t)) return AiOutcome.NOT_ELIGIBLE
+        if (!consent.allows(t.userId, AiFeature.CATEGORIZATION)) return AiOutcome.NO_CONSENT
         if (hasRule(t)) return AiOutcome.NOT_ELIGIBLE
         val question = AiPrivacyGate.question(t) ?: return AiOutcome.PRIVATE
         val result = answerFor(t.userId, question)

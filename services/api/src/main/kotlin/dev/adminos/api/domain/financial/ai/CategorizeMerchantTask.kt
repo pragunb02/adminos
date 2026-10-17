@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.financial.ai
 
 import dev.adminos.api.domain.ai.AiFeature
+import dev.adminos.api.domain.ai.AiNotice
 import dev.adminos.api.domain.ai.AiPrompt
 import dev.adminos.api.domain.ai.AiReading
 import dev.adminos.api.domain.ai.AiReasonCode
@@ -30,6 +31,24 @@ import kotlinx.serialization.json.doubleOrNull
 object CategorizeMerchantTask : AiTask<AiCategoryQuestion, AiCategoryAnswer> {
     override val feature = AiFeature.CATEGORIZATION
     override val promptVersion = "categorize-merchant-v1"
+
+    /** Exactly what [prompt] sends (D-62), for the Settings notice (AOS-704). */
+    override val notice = AiNotice(
+        title = "Categorise unknown shops",
+        purpose = "When the built-in rules leave a payment as Other, ask a model which category the shop belongs to. " +
+            "Rules and your corrections always win; an unsure answer is only a suggestion.",
+        sends = listOf(
+            "The shop's cleaned business name (for example \"Steam\"), only when it is clearly a business",
+            "How you paid (UPI, card, net banking)",
+            "The list of categories to choose from"
+        ),
+        neverSends = listOf(
+            "Amounts, dates, account or card numbers, UPI IDs",
+            "Message, email or statement text",
+            "Payments to people, or anyone's name",
+            "Who you are"
+        )
+    )
 
     const val MAX_OUTPUT_TOKENS = 300
 

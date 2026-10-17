@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.financial.ai
 
+import dev.adminos.api.domain.ai.AiConsentCheck
+import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.domain.financial.TransactionRepository
 import dev.adminos.api.domain.identity.UserRepository
@@ -23,6 +25,7 @@ class AiCategorizationJob(
     private val users: UserRepository,
     private val transactions: TransactionRepository,
     private val service: AiCategorizationService,
+    private val consent: AiConsentCheck,
     private val clock: Clock = Clock.systemUTC(),
     private val lookBack: Duration = Duration.ofDays(30),
     private val perUser: Int = 200
@@ -38,6 +41,11 @@ class AiCategorizationJob(
         val outcomes = AiOutcome.entries.associateWith { 0 }.toMutableMap()
         val since = clock.instant().minus(lookBack)
         val counts = forEachIsolated(active, logger, { "AI categorization for user ${it.id}" }) { user ->
+            // Off until the user turns it on in Settings (AOS-704): skip them without reading their transactions.
+            if (!consent.allows(user.id, AiFeature.CATEGORIZATION)) {
+                outcomes[AiOutcome.NO_CONSENT] = outcomes.getValue(AiOutcome.NO_CONSENT) + 1
+                return@forEachIsolated
+            }
             val others = transactions.findByUserId(user.id, from = since, category = TransactionCategory.OTHER, limit = perUser)
             for (t in others.filter { service.isCandidate(it) }) {
                 val outcome = service.categorize(t)

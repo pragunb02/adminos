@@ -22,6 +22,15 @@ object AiCallsTable : Table("ai_calls") {
     override val primaryKey = PrimaryKey(id)
 }
 
+/** Maps to the AOS-704 migration (`ai_consents`): each user's choice per AI feature; no row means off. */
+object AiConsentsTable : Table("ai_consents") {
+    val userId = javaUUID("user_id")
+    val feature = varchar("feature", 40)
+    val enabled = bool("enabled")
+    val updatedAt = timestamp("updated_at")
+    override val primaryKey = PrimaryKey(userId, feature)
+}
+
 /** Maps to the AOS-702 AI-layer migration (`ai_spend`): the monthly spend ledger behind the cost cap. */
 object AiSpendTable : Table("ai_spend") {
     val month = varchar("month", 7)

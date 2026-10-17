@@ -27,10 +27,17 @@ class FakeAiProvider(
     }
 }
 
+/**
+ * Consent for offline tools and tests that run on synthetic data (the eval harness, the bake-off): there is
+ * no user to ask. Production always uses [AiConsents] (AOS-704).
+ */
+val ALLOW_ALL_CONSENT = AiConsentCheck { _, _ -> true }
+
 /** A minimal feature task: sends the input as is (unless it says "secret"), accepts "ok" and nothing else. */
 object EchoTask : AiTask<String, String> {
     override val feature = AiFeature.CATEGORIZATION
     override val promptVersion = "echo-v1"
+    override val notice = AiNotice("Echo", "Echo the input back.", listOf("The input"), listOf("Anything else"))
     val SCHEMA = JsonObject(mapOf("type" to JsonPrimitive("object")))
 
     override fun prompt(input: String): AiPrompt =

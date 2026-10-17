@@ -24,18 +24,20 @@ data class AiRoute(val feature: AiFeature, val provider: AiProvider, val model: 
 /**
  * The single entry point for every model call (D-67, AOS-702). For one feature's [AiTask] it applies, in order:
  * 1. **flag**: no route for the feature → [AiRefusal.FEATURE_OFF] (features are off by default);
+ *    **consent**: the user hasn't turned the feature on → [AiRefusal.NO_CONSENT] (AOS-704, off by default);
  * 2. **redaction**: the task's redactor builds the only text sent, or withholds it → [AiRefusal.WITHHELD];
  * 3. **circuit breaker** per provider → [AiResult.Unavailable] while open;
  * 4. **cost cap**: reserve the worst case, or [AiRefusal.CAP_REACHED] (fails closed);
  * 5. **the provider call**, timed; the reservation is settled to the real cost (or kept whole if it threw);
  * 6. **validation** by the task; only a valid answer is returned as [AiResult.Answered];
  * 7. **audit**: one [AiCallRecord] per provider call, with codes and counts only, never content.
- * Steps 1–4 make no call, so they write no audit row.
+ * Steps 1–4 make no call, so they write no audit row. A failed consent check fails closed (it throws).
  */
 class AiGateway(
     routes: List<AiRoute>,
     private val costs: AiCostGuard,
     private val calls: AiCallLogRepository,
+    private val consents: AiConsentCheck,
     private val breaker: AiCircuitBreaker = AiCircuitBreaker(),
     private val clock: Clock = Clock.systemUTC(),
     private val nanoTime: () -> Long = System::nanoTime
@@ -51,6 +53,7 @@ class AiGateway(
 
     suspend fun <I, O> run(task: AiTask<I, O>, userId: UUID, input: I): AiResult<O> {
         val route = routes[task.feature] ?: return AiResult.Refused(AiRefusal.FEATURE_OFF)
+        if (!consents.allows(userId, task.feature)) return AiResult.Refused(AiRefusal.NO_CONSENT)
         val prompt = when (val p = task.prompt(input)) {
             is AiPrompt.Withhold -> return AiResult.Refused(AiRefusal.WITHHELD)
             is AiPrompt.Send -> p

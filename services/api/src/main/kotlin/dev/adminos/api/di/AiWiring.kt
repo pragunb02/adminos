@@ -4,6 +4,12 @@ import dev.adminos.api.config.AiConfig
 import dev.adminos.api.config.AiFeatureSetting
 import dev.adminos.api.domain.ai.AiCallLogRepository
 import dev.adminos.api.domain.ai.AiCircuitBreaker
+import dev.adminos.api.domain.ai.AiConsentCheck
+import dev.adminos.api.domain.ai.AiConsentRepository
+import dev.adminos.api.domain.ai.AiConsents
+import dev.adminos.api.domain.ai.AiFeaturesService
+import dev.adminos.api.domain.ai.AiTask
+import dev.adminos.api.domain.ai.InMemoryAiConsentRepository
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiGateway
@@ -29,19 +35,20 @@ import dev.adminos.api.infrastructure.ai.AnthropicProvider
 import dev.adminos.api.infrastructure.ai.OllamaProvider
 import dev.adminos.api.infrastructure.database.repositories.ExposedAiCallLogRepository
 import dev.adminos.api.infrastructure.database.repositories.ExposedAiCategoryCacheRepository
+import dev.adminos.api.infrastructure.database.repositories.ExposedAiConsentRepository
 import dev.adminos.api.infrastructure.database.repositories.ExposedAiSpendLedger
 import org.koin.core.module.Module
 import org.koin.dsl.bind
 import org.slf4j.LoggerFactory
 
-/** The prompt version each feature's task uses: an eval record must match it (D-67). One line per feature. */
-internal val AI_PROMPT_VERSIONS: Map<AiFeature, String> = mapOf(
-    AiFeature.CATEGORIZATION to CategorizeMerchantTask.promptVersion
+/** Each feature's task: its prompt version (an eval record must match it, D-68) and its notice (AOS-704). One line per feature. */
+internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
+    AiFeature.CATEGORIZATION to CategorizeMerchantTask
 )
 
 /**
- * The AI layer (AOS-702, D-67). Always: the audit log, the spend ledger and the gateway (with no routes when
- * every feature is off). Per enabled feature: its route, checked against the committed eval records, so an
+ * The AI layer (AOS-702, D-67). Always: the audit log, the spend ledger, consents (AOS-704), the gateway (with
+ * no routes when every feature is off) and the Settings service. Per enabled feature: its route, checked against the committed eval records, so an
  * unevaluated provider/model/prompt refuses to start; then the feature's own beans (AOS-512's categoriser).
  */
 internal fun Module.aiDefinitions(useDatabase: Boolean, env: (String) -> String?, evals: AiEvalRecords = AiEvalRecords.load()) {
@@ -52,8 +59,11 @@ internal fun Module.aiDefinitions(useDatabase: Boolean, env: (String) -> String?
 
     single<AiCallLogRepository> { if (useDatabase) ExposedAiCallLogRepository() else InMemoryAiCallLogRepository() }
     single<AiSpendLedger> { if (useDatabase) ExposedAiSpendLedger() else InMemoryAiSpendLedger() }
+    single<AiConsentRepository> { if (useDatabase) ExposedAiConsentRepository() else InMemoryAiConsentRepository() }
+    single<AiConsentCheck> { AiConsents(get()) }
     single { AiCostGuard(get(), config.monthlyCapMicros) }
-    single { AiGateway(routes, get(), get(), AiCircuitBreaker()) }
+    single { AiGateway(routes, get(), get(), get(), AiCircuitBreaker()) }
+    single { AiFeaturesService(get(), AI_TASKS, get(), get(), evals, get(), get()) }
 
     for (feature in AiFeature.entries) {
         val route = routes.firstOrNull { it.feature == feature }
@@ -65,7 +75,7 @@ internal fun Module.aiDefinitions(useDatabase: Boolean, env: (String) -> String?
 }
 
 private fun promptVersion(feature: AiFeature): String =
-    AI_PROMPT_VERSIONS[feature] ?: error("AI feature ${feature.key} has no prompt version in AI_PROMPT_VERSIONS")
+    AI_TASKS[feature]?.promptVersion ?: error("AI feature ${feature.key} has no task in AI_TASKS")
 
 /** One provider instance per kind in use, shared by the features on it (and by its circuit breaker). */
 private fun routes(config: AiConfig): List<AiRoute> {
@@ -82,6 +92,6 @@ private fun provider(kind: AiProviderKind, config: AiConfig): AiProvider = when 
 private fun Module.categorization(useDatabase: Boolean, route: AiRoute) {
     single<AiCategoryCacheRepository> { if (useDatabase) ExposedAiCategoryCacheRepository() else InMemoryAiCategoryCacheRepository() }
     single<AiCategoryClient> { PortAiCategoryClient(get()) }
-    single { AiCategorizationService(get(), get(), get(), get(), route.model) }
-    single { AiCategorizationJob(get(), get(), get()) } bind ScheduledJob::class
+    single { AiCategorizationService(get(), get(), get(), get(), get(), route.model) }
+    single { AiCategorizationJob(get(), get(), get(), get()) } bind ScheduledJob::class
 }

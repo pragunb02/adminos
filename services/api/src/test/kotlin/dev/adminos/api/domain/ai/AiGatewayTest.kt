@@ -26,10 +26,11 @@ class AiGatewayTest {
     private val ledger = InMemoryAiSpendLedger()
     private val calls = InMemoryAiCallLogRepository()
     private var tick = 0L
+    private val consents = AiConsents(InMemoryAiConsentRepository().also { runBlocking { it.save(AiConsent(user, AiFeature.CATEGORIZATION, true, now)) } })
 
     private fun gateway(provider: AiProvider = FakeAiProvider(), cap: Long = 1_000_000, routes: List<AiRoute>? = null) = AiGateway(
         routes ?: listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, FakeAiProvider.MODEL)),
-        AiCostGuard(ledger, cap, clock), calls, AiCircuitBreaker(clock), clock, nanoTime = { tick.also { tick += 7_000_000 } }
+        AiCostGuard(ledger, cap, clock), calls, consents, AiCircuitBreaker(clock), clock, nanoTime = { tick.also { tick += 7_000_000 } }
     )
 
     @Test
@@ -164,5 +165,37 @@ class AiGatewayTest {
         assertFailsWith<IllegalArgumentException> { gateway(routes = listOf(route, route)) }
         assertFailsWith<IllegalArgumentException> { AiRoute.of(AiFeature.CATEGORIZATION, p, "unpriced-model") }
         assertFailsWith<IllegalArgumentException> { AiRoute(AiFeature.CATEGORIZATION, p, "Not A Model", AiPrice.FREE) }
+    }
+
+    @Test
+    fun `a user who hasn't turned the feature on is refused before anything is sent`() = runBlocking<Unit> {
+        val provider = FakeAiProvider()
+        val stranger = UUID(0, 2)
+        assertEquals(AiResult.Refused(AiRefusal.NO_CONSENT), gateway(provider).run(EchoTask, stranger, "Steam"))
+        assertEquals(emptyList(), provider.requests)
+        assertEquals(emptyList(), calls.all)
+        assertEquals(0, ledger.spent(YearMonth.of(2026, 10)))
+    }
+
+    @Test
+    fun `a consent store that fails makes the call fail, never proceed`() = runBlocking<Unit> {
+        val provider = FakeAiProvider()
+        val broken = AiGateway(listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, FakeAiProvider.MODEL)), AiCostGuard(ledger, 1_000_000, clock), calls,
+            AiConsentCheck { _, _ -> throw java.io.IOException("database down") })
+        assertFailsWith<java.io.IOException> { broken.run(EchoTask, user, "Steam") }
+        assertEquals(emptyList(), provider.requests)
+    }
+
+    @Test
+    fun `consent is off by default and follows the user's latest choice`() = runBlocking<Unit> {
+        val repo = InMemoryAiConsentRepository()
+        val check = AiConsents(repo)
+        assertEquals(false, check.allows(user, AiFeature.CATEGORIZATION))
+        repo.save(AiConsent(user, AiFeature.CATEGORIZATION, true, now))
+        assertEquals(true, check.allows(user, AiFeature.CATEGORIZATION))
+        repo.save(AiConsent(user, AiFeature.CATEGORIZATION, false, now))
+        assertEquals(false, check.allows(user, AiFeature.CATEGORIZATION))
+        assertEquals(false, check.allows(UUID(0, 99), AiFeature.CATEGORIZATION), "one user's choice never applies to another")
+        assertEquals(listOf(AiConsent(user, AiFeature.CATEGORIZATION, false, now)), repo.findAll(user))
     }
 }

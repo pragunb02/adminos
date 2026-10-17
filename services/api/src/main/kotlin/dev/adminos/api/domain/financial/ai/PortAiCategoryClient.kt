@@ -12,7 +12,7 @@ import java.util.UUID
  * - answered → [AiCategoryResult.Answered];
  * - rejected → [AiCategoryResult.Rejected] (cached: not asked again);
  * - withheld by the redactor → [AiCategoryResult.Withheld] (never cached: the cleaned cache key is shared with the real merchant);
- * - unavailable, feature off or cap reached → [AiCategoryResult.Unavailable] (not cached: asked again later).
+ * - unavailable, feature off, cap reached or no consent → [AiCategoryResult.Unavailable] (not cached: asked again later).
  */
 class PortAiCategoryClient(private val gateway: AiGateway) : AiCategoryClient {
 
@@ -23,7 +23,7 @@ class PortAiCategoryClient(private val gateway: AiGateway) : AiCategoryClient {
             is AiResult.Unavailable -> AiCategoryResult.Unavailable(result.code.value)
             is AiResult.Refused -> when (result.reason) {
                 AiRefusal.WITHHELD -> AiCategoryResult.Withheld(result.reason.code.value)
-                AiRefusal.FEATURE_OFF, AiRefusal.CAP_REACHED -> AiCategoryResult.Unavailable(result.reason.code.value)
+                AiRefusal.FEATURE_OFF, AiRefusal.CAP_REACHED, AiRefusal.NO_CONSENT -> AiCategoryResult.Unavailable(result.reason.code.value)
             }
         }
 }

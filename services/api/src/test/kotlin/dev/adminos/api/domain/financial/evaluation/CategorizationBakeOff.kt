@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.evaluation
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiGateway
@@ -72,7 +73,7 @@ class CategorizationBakeOff(
     /** Rules + [model] on [provider], through the AI gateway. */
     suspend fun run(provider: AiProvider, model: String): BakeOffRun {
         val calls = InMemoryAiCallLogRepository()
-        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, model)), AiCostGuard(InMemoryAiSpendLedger(), FREE_ONLY), calls)
+        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.CATEGORIZATION, provider, model)), AiCostGuard(InMemoryAiSpendLedger(), FREE_ONLY), calls, ALLOW_ALL_CONSENT)
         val asked = Asked()
         val outcomes = AiLabeller(counting(PortAiCategoryClient(gateway), asked)).labelAll(golden)
         return score("rules + ${provider.kind.key} $model", outcomes, asked, calls.all.map { it.latencyMs }, agreement(asked.answers), model = true)

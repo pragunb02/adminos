@@ -73,6 +73,7 @@
 | D-51 | Architecture | Notifications go out through pluggable channels (in-app, SMTP email, Web Push next); in-app is never held; push/email wait for quiet hours to end; bounded retries; at-least-once; Firebase dropped | Accepted | AOS-504, AOS-510 |
 | D-92 | Process / Architecture | Threat model (`docs/security/THREAT-MODEL.md`) is the reference for the security gate; audits use ASVS 5.0 L2 + WSTG with CVSS and a proof per finding; every request body is size-capped before routing (Content-Length required, any Transfer-Encoding refused, 1 MiB default, listed upload paths only); advisories fixed on discovery | Accepted | AOS-615 |
 | D-97 | Architecture | Private network only: reach AdminOS over Tailscale (tailnet HTTPS, owner devices only, Funnel off), no public listener; Gmail push off by default (daily fallback + Sync now), optionally a webhook-only Cloudflare Tunnel routing exactly `/api/v1/webhooks/gmail`; `APP_URL` must be https except loopback; a script fails any non-loopback publish | Accepted | AOS-616 |
+| D-70 | Architecture / Product | Per-feature AI consent, off by default, stored per user and enforced in the AI gateway before redaction (no consent → nothing sent, nothing spent); Settings → AI features shows what each feature sends and never sends, local vs cloud, eval and spend; consent changes audited; same-origin guard on cookie mutations | Accepted | AOS-704 |
 | D-69 | Architecture / Product | Local models: an opt-in Ollama compose profile with no published port (private `ai` network with the API only), measured by a bake-off through the AI port (rules floor, no rule row changed, ≥90% valid answers); qwen3:4b recommended (89.9% on the golden set), Claude Haiku stays the default | Accepted | AOS-703 |
 | D-68 | Architecture | One AI gateway over a thin `AiProvider` port (Anthropic SDK, Ollama, fake); features are tasks with their own redactor and validator; flag → redaction → breaker → cost reservation → call → settle → validate → audit (no content); monthly cap fails closed; committed eval records gate start-up; legacy Go Claude path removed | Accepted | AOS-702 |
 | D-101 | Process | Every PR gets two independent reviews (code, security) after its last push; each sets a commit status (`review/code`, `review/security`); `scripts/merge-pr.sh` merges only when both and every check pass on the head commit | Accepted | AOS-013 |
@@ -1011,3 +1012,30 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
 - **Consequence:**
   - any feature with a golden set can be measured on local models with the same harness;
   - a model change is a bake-off, a committed record and a config change.
+
+### D-70 — AI consent per feature: off by default, enforced in the AI port, with the notice kept next to the redactor
+2026-10-17 · Accepted (built by the AI-foundation agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-704, AOS-702, AOS-512, AOS-602 · Builds on D-22, D-67, D-68, D-100
+- **Consent:**
+  - one choice per (user, feature) in `ai_consents`; no row means **off**;
+  - every change writes an `ai.consent` audit entry (before, after, feature) as DPDP evidence.
+- **Enforced in the port:**
+  - `AiGateway` asks an `AiConsentCheck` before redaction, the cap or any call; without consent the call is refused, with nothing sent and nothing spent;
+  - features also check before using anything cached (the categoriser's per-merchant cache), and its job skips users without consent without reading their transactions;
+  - offline tools on synthetic data pass an explicit allow-all.
+- **Turning on** is allowed only for a feature the server runs, which already means its eval passed (D-68): otherwise 409. Turning off always works.
+- **Notice:**
+  - each `AiTask` carries its own notice (title, purpose, what is sent, what is never sent), next to its redactor;
+  - Settings shows it with where the data goes (local server vs Anthropic's cloud), provider and model, how it was measured (synthetic recordings are labelled), this month's spend and the server cap.
+- **API:**
+  - `GET /api/v1/ai/features`;
+  - `PATCH /api/v1/ai/features/{key}` `{enabled}`: 404 for an unknown key (not echoed), 409 when unavailable, 400 for a bad body.
+- **Cross-site guard (new, reusable):** `SameOriginMutations` refuses cookie-authenticated mutations unless `Sec-Fetch-Site` is `same-origin`/`none` or `Origin` equals `APP_URL` (403 `AUTH_007`). `Authorization` requests pass. AOS-618 decides whether to apply it to every mutation.
+- **Rejected:**
+  - consent checked only in each feature (a new feature could forget);
+  - a UI-only toggle (background jobs have no request);
+  - notice text in the web (it would drift from the redactor);
+  - columns on notification preferences (they mix purposes);
+  - CSRF tokens now (AOS-618's call).
+- **Consequence:**
+  - the AI categoriser runs only for users who turn it on (Pragun must turn it on once);
+  - every later AI feature gets consent, notice, the 409 rule, audit and spend for free, from its task.

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ConnectGmailButton from "@/components/ConnectGmailButton";
 import DeviceTokens from "@/components/DeviceTokens";
 import PushDevice from "@/components/PushDevice";
+import AiFeatures from "@/components/AiFeatures";
 import { deleteData, errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { UserConnection, NotificationPreferences, Session } from "@/lib/types";
 import AppShell from "@/components/AppShell";
@@ -206,6 +207,9 @@ export default function SettingsPage() {
 
             {/* Push on this device (AOS-510) */}
             <PushDevice />
+
+            {/* AI features: per-feature consent and notice (AOS-704) */}
+            <AiFeatures />
 
             {/* Connected devices (AOS-203) */}
             <DeviceTokens />
