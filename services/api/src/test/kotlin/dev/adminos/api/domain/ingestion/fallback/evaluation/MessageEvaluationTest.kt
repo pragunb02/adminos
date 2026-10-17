@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * AOS-705: the synthetic golden set through the shipped path. Each row's outcome is part of the test (so the set is
+ * AOS-705: the synthetic golden set through the fallback (D-130; routing is MessageRoutingTest). Each row's outcome is part of the test (so the set is
  * also a regression test), and the committed eval records must equal a fresh run and pass the gate. After a
  * deliberate change: `./gradlew -q messageReadingReport -PwriteBaseline`.
  */

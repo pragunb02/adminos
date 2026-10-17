@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.ingestion.fallback
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCircuitBreaker
 import dev.adminos.api.domain.ai.AiCompletion
 import dev.adminos.api.domain.ai.AiCostGuard
@@ -40,7 +41,7 @@ class MessageFallbackTest {
 
     private fun gateway(on: Boolean = true, cap: Long = 0) = AiGateway(
         if (on) listOf(AiRoute.of(AiFeature.MESSAGES, provider, "qwen3:4b")) else emptyList(),
-        AiCostGuard(InMemoryAiSpendLedger(), cap, clock), calls, AiCircuitBreaker(clock), clock
+        AiCostGuard(InMemoryAiSpendLedger(), cap, clock), calls, ALLOW_ALL_CONSENT, AiCircuitBreaker(clock), clock
     )
 
     private fun fallback(on: Boolean = true, consent: Boolean = true, capacity: Int = 10, dailyLimit: Int = 10, gateway: AiGateway = gateway(on)) =
@@ -166,7 +167,7 @@ class MessageFallbackTest {
     fun `an unavailable model is retried up to three times in all`() = runBlocking<Unit> {
         reply = { AiCompletion.Failed(AiReasonCode("http_503")) }
         val f = fallback(gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, provider, "qwen3:4b")),
-            AiCostGuard(InMemoryAiSpendLedger(), 0, clock), calls, AiCircuitBreaker(clock, failureThreshold = 100), clock))
+            AiCostGuard(InMemoryAiSpendLedger(), 0, clock), calls, ALLOW_ALL_CONSENT, AiCircuitBreaker(clock, failureThreshold = 100), clock))
         f.offer(message())
         assertEquals(DrainCounts(retried = 1), f.drain(10, Duration.ofMinutes(1)), "one try per run")
         assertEquals(DrainCounts(retried = 1), f.drain(10, Duration.ofMinutes(1)))
@@ -178,7 +179,7 @@ class MessageFallbackTest {
     @Test
     fun `a call refused by the cap is dropped`() = runBlocking<Unit> {
         val cloud = FakeAiProvider(AiProviderKind.ANTHROPIC, mapOf("claude-haiku-5-5" to AiPrice.usd("1.00", "5.00")))
-        val gw = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, cloud, "claude-haiku-5-5")), AiCostGuard(InMemoryAiSpendLedger(), 0, clock), calls, clock = clock)
+        val gw = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, cloud, "claude-haiku-5-5")), AiCostGuard(InMemoryAiSpendLedger(), 0, clock), calls, ALLOW_ALL_CONSENT, clock = clock)
         val f = fallback(gateway = gw)
         f.offer(message())
         assertEquals(DrainCounts(dropped = 1), f.drain(10, Duration.ofMinutes(1)))

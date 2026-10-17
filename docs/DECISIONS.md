@@ -5,6 +5,8 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
+| D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
@@ -1285,3 +1287,39 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+
+### D-106 — Messages the regexes can't read are read by a model, grounded, and wait in Review as proposals
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-705, AOS-706 · Builds on D-33, D-43, D-67, D-68
+- **Where:** only bank messages the parsers return as unrecognised, from a bank sender (TRAI business header or a WhatsApp bank name), that mention money. OTPs, failures, reminders, promotions and personal senders never reach it.
+- **What is sent:** the message, redacted (cards and accounts → last 4, also 5–8 digit numbers; phones, emails, VPAs, Aadhaar and PAN masked), as a JSON string value, plus the day it arrived.
+  - **Withheld, not sent:** a message over 1,000 characters, with hidden characters, with non-ASCII digits, or with model-directed text (instructions, JSON, markup).
+- **What is accepted:** the strict six-field schema, and only if grounded:
+  - the amount is the one non-balance money figure written in the text;
+  - the last 4 is an account or card ending in the text;
+  - the date is written in the text and within a day of arrival;
+  - the merchant is a span of the text;
+  - the direction agrees with D-43's words (extended with `Dr`/`Cr` and "debit/credit of"). Unclear words are rejected, never guessed.
+- **Where it goes:** a `message_proposals` row (structured fields only), shown in Review. **Confirm** creates an ordinary intake event (`extractedBy = ai:<model>:<prompt>`), so dedup and the pipeline apply. **Dismiss** keeps the row dismissed, so a resent message isn't read again. Nothing AI-read is in any total until confirmed.
+- **How it runs:**
+  - Redacted text waits in a bounded in-memory queue (≤ 200; lost on restart, never persisted, so it is not a D-33 "queue") and is read by a job every minute.
+  - A per-day limit (`AI_MESSAGES_DAILY_LIMIT`, default 100) applies, plus the gateway's cap, breaker and audit.
+  - An unavailable model is retried up to 3 times.
+- **Defaults:** off (`AI_MESSAGES_ENABLED`); the provider defaults to **ollama** for this feature, so cloud reading of message text needs `AI_MESSAGES_PROVIDER=anthropic` and logs a warning.
+- **Eval gate:**
+  - a synthetic golden set run through the shipped path;
+  - floors: transaction precision ≥ 0.99, amount exact ≥ 0.98, grounded accepted = 1.0, hostile held = 1.0, dropped never asked = 1.0;
+  - other metrics may not regress.
+- **Rejected:**
+  - flagging intake rows and filtering every total (one missed filter breaks D-67);
+  - reading inline (timeouts, bursts);
+  - persisting messages for a worker (D-33);
+  - accepting an unclear direction.
+
+### D-130 — The message-reading eval measures the fallback; routing is tested on its own
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-705 · Amends D-106's eval gate
+- **Context:** the eval ran every golden message through the regex intake first. After AOS-213/214/215 the rules read 106 of its 218 messages (`Dr.`/`Cr.` and more), so they never reached the fallback and the eval stopped measuring it. Every parser improvement would do that again.
+- **Decision:**
+  - `MessageEvaluation` offers each golden row to `MessageFallback` directly, as the unreadable bank message it stands for (sender's bank, user's zone, text). Only the 10 drop rows (OTPs, declines, promotions, people, reminders) still go through the shipped intake. The set (≥ 200 rows), the PII and hostile tests, the floors and the records are unchanged.
+  - `MessageRoutingTest` runs the same rows through the shipped SMS and WhatsApp intake against today's rules: a message the rules read or drop is never offered to the AI, and a bank message they can't read is offered once, as written.
+- **Rejected:** relabelling the rows the rules now read (the eval shrinks with every parser change and loses its PII and hostile rows); rewriting them into formats the rules can't read (stale again at the next parser change).
+- **Consequence:** parser improvements move rows between the routing test's two halves without touching the eval or its records.

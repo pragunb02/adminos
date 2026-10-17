@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.ingestion.fallback
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCompletion
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
@@ -27,7 +28,7 @@ class MessageFallbackJobTest {
         val provider = FakeAiProvider(AiProviderKind.OLLAMA, mapOf("qwen3:4b" to AiPrice.FREE)) {
             AiCompletion.Completed("""{"kind":"not_a_transaction","direction":null,"amount":null,"accountLast4":null,"merchant":null,"date":null}""", AiUsage(1, 1))
         }
-        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, provider, "qwen3:4b")), AiCostGuard(InMemoryAiSpendLedger(), 0), InMemoryAiCallLogRepository())
+        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, provider, "qwen3:4b")), AiCostGuard(InMemoryAiSpendLedger(), 0), InMemoryAiCallLogRepository(), ALLOW_ALL_CONSENT)
         val fallback = MessageFallback(gateway, InMemoryMessageProposalRepository())
         val user = UUID.randomUUID()
         (1..3).forEach { fallback.offer(UnrecognisedMessage(user, MessageChannel.SMS, "r$it", Instant.now(), ZoneOffset.UTC, null, "Get Rs 100 cashback")) }

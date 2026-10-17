@@ -151,7 +151,7 @@ class MessageFallback(
             is AiResult.Rejected -> DrainCounts(rejected = 1)
             is AiResult.Unavailable ->
                 if (item.attempts + 1 < MAX_ATTEMPTS) { retry += item.retried(); DrainCounts(retried = 1) } else DrainCounts(dropped = 1)
-            is AiResult.Refused -> DrainCounts(dropped = 1) // turned off, withheld or over the cap: not read
+            is AiResult.Refused -> DrainCounts(dropped = 1) // turned off, no consent (AOS-704), withheld or over the cap: not read
         }
 
     private fun proposal(item: Item, answer: MessageAnswer.Transaction, model: String) = MessageProposal(

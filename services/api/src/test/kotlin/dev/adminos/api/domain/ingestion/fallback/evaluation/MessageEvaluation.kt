@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.ingestion.fallback.evaluation
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCompletion
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
@@ -25,6 +26,10 @@ import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.fallback.FallbackOffer
 import dev.adminos.api.domain.ingestion.fallback.InMemoryMessageProposalRepository
 import dev.adminos.api.domain.ingestion.fallback.MessageFallback
+import dev.adminos.api.domain.ingestion.whatsapp.BankSenders
+import dev.adminos.api.domain.ingestion.sms.SenderId
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessage
+import dev.adminos.api.domain.ingestion.fallback.MessageChannel
 import dev.adminos.api.domain.ingestion.fallback.MessageProposal
 import dev.adminos.api.domain.ingestion.fallback.ReadMessageTask
 import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
@@ -110,9 +115,13 @@ enum class Outcome { NOT_OFFERED, WITHHELD, ACCEPTED, SAID_NOT, REJECTED }
 data class Graded(val row: GoldenMessage, val outcome: Outcome, val proposal: MessageProposal?, val code: String?, val sent: String?)
 
 /**
- * Runs every golden row through the **shipped** path (AOS-705): the regex intake (SMS or WhatsApp) → the fallback's
- * offer (money word, redactor, dedup) → the gateway with a provider that replays the recorded answer → the task's
- * validator → Review. Only the provider is fake.
+ * Measures the **fallback itself** (AOS-705, D-130): each golden row is offered to [MessageFallback] as the
+ * unrecognised bank message it stands for → the fallback's offer (money word, redactor, dedup) → the gateway with a
+ * provider that replays the recorded answer → the task's validator → Review. Only the provider is fake.
+ *
+ * The rows marked `not_offered` (OTPs, declines, promotions, people, reminders) go through the shipped intake
+ * instead, which must never offer them. Which other messages reach the fallback at all is the regex rules' call, and
+ * the rules keep improving, so that is checked separately, against the rules of the day, by `MessageRoutingTest`.
  */
 object MessageEvaluation {
     val ZONE: ZoneId = UserCalendar.DEFAULT_ZONE
@@ -123,7 +132,7 @@ object MessageEvaluation {
         var answer: String? = null
         val fake = FakeAiProvider(provider, mapOf(model to AiPrice.FREE)) { AiCompletion.Completed(answer ?: error("asked about a row with no recorded answer"), AiUsage(100, 40)) }
         val calls = InMemoryAiCallLogRepository()
-        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, fake, model)), AiCostGuard(InMemoryAiSpendLedger(), 0, CLOCK), calls, clock = CLOCK)
+        val gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, fake, model)), AiCostGuard(InMemoryAiSpendLedger(), 0, CLOCK), calls, ALLOW_ALL_CONSENT, clock = CLOCK)
         val proposals = InMemoryMessageProposalRepository()
         val fallback = MessageFallback(gateway, proposals, clock = CLOCK, capacity = 10, dailyLimit = MessageFallback.MAX_DAILY_LIMIT)
         var offer: FallbackOffer? = null
@@ -140,10 +149,14 @@ object MessageEvaluation {
             val asked = fake.requests.size
             val audited = calls.all.size
             val before = proposals.pending(userId, Int.MAX_VALUE).map { it.id }.toSet()
-            when (row.channel) {
-                "sms" -> sms.accept(userId, SmsMessage(row.sender, row.text, row.receivedAt))
-                "whatsapp" -> whatsapp.import(userId, "${WHATSAPP_TIME.format(row.receivedAt.atZone(ZONE))} - ${row.sender}: ${row.text}\n".toByteArray())
-                else -> error("unknown channel ${row.channel}")
+            if (row.expected == Expected.NotOffered) {
+                when (row.channel) {
+                    "sms" -> sms.accept(userId, SmsMessage(row.sender, row.text, row.receivedAt))
+                    "whatsapp" -> whatsapp.import(userId, whatsAppExport(row))
+                    else -> error("unknown channel ${row.channel}")
+                }
+            } else {
+                offer = fallback.offer(unrecognised(userId, row))
             }
             val counts = if (offer == FallbackOffer.Queued) fallback.drain(1, Duration.ofMinutes(1)) else null
             val sent = fake.requests.drop(asked).singleOrNull()?.user
@@ -162,6 +175,22 @@ object MessageEvaluation {
 
     /** The day the message arrived, in the user's zone. */
     fun receivedOn(row: GoldenMessage): LocalDate = row.receivedAt.atZone(ZONE).toLocalDate()
+
+    /** [row] as a one-message WhatsApp chat export. */
+    fun whatsAppExport(row: GoldenMessage): ByteArray =
+        "${WHATSAPP_TIME.format(row.receivedAt.atZone(ZONE))} - ${row.sender}: ${row.text}\n".toByteArray()
+
+    /** [row] as the intake hands an unreadable bank message to the fallback: the sender's bank, the user's zone, the text. */
+    fun unrecognised(userId: UUID, row: GoldenMessage): UnrecognisedMessage {
+        val (channel, bankCode) = when (row.channel) {
+            "sms" -> MessageChannel.SMS to SenderId.parse(row.sender)?.let { PARSERS.bankFor(it.header) }
+            "whatsapp" -> MessageChannel.WHATSAPP to (BankSenders.match(row.sender) as? BankSenders.Bank)?.code
+            else -> error("unknown channel ${row.channel}")
+        }
+        return UnrecognisedMessage(userId, channel, "golden-${row.id}", row.receivedAt, ZONE, bankCode, row.text)
+    }
+
+    private val PARSERS = SmsParserRegistry()
 }
 
 /** The message-reading eval record (AOS-705, D-67): the scores the start-up gate reads, and their floor. */

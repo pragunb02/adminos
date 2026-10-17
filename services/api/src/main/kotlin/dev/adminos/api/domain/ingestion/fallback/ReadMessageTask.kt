@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion.fallback
 
 import dev.adminos.api.domain.ai.AiFeature
+import dev.adminos.api.domain.ai.AiNotice
 import dev.adminos.api.domain.ai.AiPrompt
 import dev.adminos.api.domain.ai.AiReading
 import dev.adminos.api.domain.ai.AiReasonCode
@@ -66,6 +67,22 @@ sealed interface MessageAnswer {
 object ReadMessageTask : AiTask<MessageQuestion, MessageAnswer> {
     override val feature = AiFeature.MESSAGES
     override val promptVersion = "read-message-v1"
+
+    /** Exactly what [prompt] sends (D-106), for the Settings notice (AOS-704). */
+    override val notice = AiNotice(
+        title = "Read unrecognised bank messages",
+        purpose = "When no built-in parser recognises a bank, card or wallet SMS or WhatsApp alert, ask a model to read it. " +
+            "Every value it returns must appear in the message, and each reading waits in Review until you add it.",
+        sends = listOf(
+            "The alert's text, on one line, with card and account numbers cut to their last 4 digits and phone numbers, emails, UPI IDs, Aadhaar and PAN hidden",
+            "The day the alert arrived"
+        ),
+        neverSends = listOf(
+            "Alerts a parser already read, OTPs, or messages that look like instructions to the model",
+            "Your other transactions, balances or totals",
+            "Your name, account details or user ID"
+        )
+    )
 
     const val MAX_OUTPUT_TOKENS = 200
     const val MAX_MERCHANT = 60

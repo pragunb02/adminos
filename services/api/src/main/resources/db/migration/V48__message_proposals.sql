@@ -1,4 +1,4 @@
--- AI message-reading fallback (AOS-705, D-106; tentative number, the integrator renumbers).
+-- AI message-reading fallback (AOS-705, D-106; V48).
 -- A transaction a model read from a bank message the regex parsers didn't recognise, waiting in Review.
 -- Not an intake event and not in any total until the user confirms it. Grounded, structured fields only:
 -- no message text, ever (D-33). Dismissed rows are kept so a resent message isn't read again.
