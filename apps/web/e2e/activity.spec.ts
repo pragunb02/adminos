@@ -69,7 +69,8 @@ test.describe("Activity", () => {
   test("a Home period opens Activity with that date range", async ({ signedIn: page, api }) => {
     await page.goto("/transactions?p=week&d=2026-09-02");
     await expect(page.getByRole("list", { name: "Active filters" })).toContainText("2026-08-31 → 2026-09-06");
-    expect(api.calls.find((c) => c.path === "/api/v1/transactions")).toBeTruthy();
+    // The filter chip can render before the feed request is recorded: wait for it (AOS-313).
+    await expect.poll(() => api.calls.some((c) => c.path === "/api/v1/transactions")).toBe(true);
   });
 
   test("load more appends the next page", async ({ signedIn: page }) => {
