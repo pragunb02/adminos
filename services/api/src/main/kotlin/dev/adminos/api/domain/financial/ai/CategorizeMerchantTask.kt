@@ -49,6 +49,13 @@ object CategorizeMerchantTask : AiTask<AiCategoryQuestion, AiCategoryAnswer> {
 
     private val FIELDS = setOf("category", "confidence", "reason")
     val PII_IN_INPUT = AiReasonCode("pii_in_input")
+    val UNSAFE_CHARACTERS = AiReasonCode("unsafe_characters")
+
+    /**
+     * Control characters, and the invisible format characters (bidi overrides, zero-width joiners) that can hide
+     * or reorder text: a cleaned business name never needs them, so a name holding one is not sent (D-100).
+     */
+    private fun isUnsafe(c: Char) = Character.isISOControl(c) || Character.getType(c) == Character.FORMAT.toInt()
     val NOT_JSON_OBJECT = AiReasonCode("not_json_object")
     val UNEXPECTED_FIELDS = AiReasonCode("unexpected_fields")
     val CATEGORY_NOT_ALLOWED = AiReasonCode("category_not_allowed")
@@ -56,6 +63,7 @@ object CategorizeMerchantTask : AiTask<AiCategoryQuestion, AiCategoryAnswer> {
     val BAD_REASON = AiReasonCode("bad_reason")
 
     override fun prompt(input: AiCategoryQuestion): AiPrompt {
+        if (input.merchant.any(::isUnsafe)) return AiPrompt.Withhold(UNSAFE_CHARACTERS)
         if (!PiiMasker.mask(input.merchant).isClean) return AiPrompt.Withhold(PII_IN_INPUT)
         return AiPrompt.Send(SYSTEM_PROMPT, userMessage(input), schema(input.allowed), MAX_OUTPUT_TOKENS)
     }
