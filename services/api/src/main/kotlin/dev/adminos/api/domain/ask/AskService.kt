@@ -15,16 +15,14 @@ import java.time.ZoneId
 import java.util.UUID
 
 /**
- * Whether this user has agreed to Ask sending their (masked) question and aggregates to the configured model.
- * **Consent hook for AOS-704:** once per-feature consent lands, the gateway itself refuses without consent
- * (`AiRefusal.NO_CONSENT`), and this hook should read the same consent store. Until then the server flag
- * (`AI_ASK_ENABLED`, off by default) is the only switch.
+ * Whether this user has turned Ask on in Settings → AI features (AOS-704, off by default). The gateway refuses
+ * without consent too (`AiRefusal.NO_CONSENT`); asking first means a refused question costs no quota.
  */
 fun interface AskConsent {
     suspend fun allows(userId: UUID): Boolean
 
     companion object {
-        /** Until AOS-704: the server flag is the consent (single owner, off by default). */
+        /** For tests whose gateway already allows every feature: consent is then decided by the gateway alone. */
         val SERVER_FLAG = AskConsent { true }
     }
 }
@@ -151,6 +149,8 @@ class AskService(
     private fun refusal(reason: AiRefusal): AskRejection = when (reason) {
         AiRefusal.FEATURE_OFF -> AskRejection.FeatureOff
         AiRefusal.CAP_REACHED -> AskRejection.CapReached
+        // The gateway checks the user's consent itself (AOS-704); this only happens if it changed after [consent] said yes.
+        AiRefusal.NO_CONSENT -> AskRejection.NoConsent
         // The redactor only withholds hidden characters, which were refused above; anything else fails closed.
         AiRefusal.WITHHELD -> AskRejection.HiddenCharacters
     }

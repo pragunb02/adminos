@@ -1,6 +1,8 @@
 package dev.adminos.api.domain.ask
 
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCompletion
+import dev.adminos.api.domain.ai.AiConsentCheck
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiGateway
@@ -29,6 +31,8 @@ class AskFixture(
     enabled: Boolean = true,
     capUsd: String = "2.00",
     val consent: AskConsent = AskConsent.SERVER_FLAG,
+    /** The gateway's own consent check (AOS-704); by default every feature is allowed. */
+    gatewayConsent: AiConsentCheck = ALLOW_ALL_CONSENT,
     val quota: AskQuota = AskQuota(AskSeed.CLOCK)
 ) {
     val txns = InMemoryTransactionRepository().also { r -> runBlocking { AskSeed.transactions().forEach { r.save(it) } } }
@@ -40,7 +44,7 @@ class AskFixture(
     }
     val gateway = AiGateway(
         if (enabled) listOf(AiRoute.of(AiFeature.ASK, provider, FakeAiProvider.MODEL)) else emptyList(),
-        AiCostGuard(InMemoryAiSpendLedger(), Micros.ofUsd(capUsd), AskSeed.CLOCK), calls, clock = AskSeed.CLOCK
+        AiCostGuard(InMemoryAiSpendLedger(), Micros.ofUsd(capUsd), AskSeed.CLOCK), calls, gatewayConsent, clock = AskSeed.CLOCK
     )
     val service = AskService(gateway, runner, quota, AskSeed.CLOCK, consent)
 

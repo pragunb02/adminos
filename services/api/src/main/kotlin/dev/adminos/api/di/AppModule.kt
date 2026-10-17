@@ -314,6 +314,10 @@ internal fun buildAppModule(
     aiDefinitions(useDatabase, env)
     // "Ask your money" (AOS-710): read-only tools over the analytics, through the AI gateway only.
     single { dev.adminos.api.domain.ask.AskToolRunner(get()) }
-    single { dev.adminos.api.domain.ask.AskService(get(), get(), dev.adminos.api.domain.ask.AskQuota(java.time.Clock.systemUTC()), java.time.Clock.systemUTC()) }
+    single {
+        val consents = get<dev.adminos.api.domain.ai.AiConsentCheck>()
+        dev.adminos.api.domain.ask.AskService(get(), get(), dev.adminos.api.domain.ask.AskQuota(java.time.Clock.systemUTC()), java.time.Clock.systemUTC(),
+            consent = { user -> consents.allows(user, dev.adminos.api.domain.ai.AiFeature.ASK) })
+    }
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

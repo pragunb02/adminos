@@ -113,5 +113,8 @@ class AskTasksTest {
         assertEquals(AskAnswerTask.BAD_ANSWER, code("""{"answer":42}"""))
         assertEquals(AskAnswerTask.BAD_ANSWER, code(json("a".repeat(AskAnswerTask.MAX_ANSWER + 1))))
         assertEquals(AskPlanWire.TOO_LONG, code(" ".repeat(AskPlanWire.MAX_TEXT + 1)))
+        // Deep nesting never reaches the parser (AOS-635).
+        assertEquals(AskAnswerTask.NOT_JSON_OBJECT, code("[".repeat(AskPlanWire.MAX_TEXT)))
+        assertEquals(AskAnswerTask.NOT_JSON_OBJECT, code("""{"answer":"ok","x":[[1]]}"""))
     }
 }

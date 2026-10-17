@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
 | D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
@@ -1268,3 +1269,16 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - Floors: arguments, tools, abstention, answered and valid plans ≥ 0.9; injection and invented-rejected 1.0; grounded accepted ≥ 0.95; period hints ≥ 0.85.
   - The record (`ask`, anthropic, `claude-sonnet-5-5`, `ask-v1`, recorded-synthetic) gates start-up.
 - **Rejected:** free-form tool arguments scored by string match; live-only evals; text-to-SQL (D-67).
+
+### D-109 — Ask is two structured-output steps through the AI gateway, with the number check and a visible template fallback
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-710 · Builds on D-67, D-68, D-108
+- **Flow:**
+  1. `POST /api/v1/ask` validates (1–300 characters, no hidden characters), then checks the flag, consent and the per-user quota (30/hour, 150/day).
+  2. It masks the question (`PiiMasker`) and finds its periods.
+  3. Plan step (`AskPlanTask`): structured output in the D-108 vocabulary, read strictly.
+  4. The server runs the tools for the token's user and zone.
+  5. Answer step (`AskAnswerTask`): `{"answer"}`, ≤ 600 characters, no links, markup or hidden characters, and every number from the results.
+- **Fallback:** a failed or missing answer is replaced by a templated answer from the results with a notice (`source: template`). Declines and unreadable plans say so (`declined`, `unanswered`). Nothing falls back silently.
+- **Errors:** `ASK_001–007` and `RATE_001`, as 400/409/429/503. Fixed messages; the question is never echoed.
+- **Defaults:** off (`AI_ASK_ENABLED=false`); `claude-sonnet-5-5` on Anthropic with an eval record; 2,000 output tokens per step.
+- **Rejected:** native tool use through a wider port; one combined plan-and-answer call; ignoring unknown plan fields.

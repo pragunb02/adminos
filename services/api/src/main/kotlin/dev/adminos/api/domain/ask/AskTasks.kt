@@ -1,14 +1,13 @@
 package dev.adminos.api.domain.ask
 
 import dev.adminos.api.domain.ai.AiFeature
+import dev.adminos.api.domain.ai.AiJson
 import dev.adminos.api.domain.ai.AiPrompt
 import dev.adminos.api.domain.ai.AiReading
 import dev.adminos.api.domain.ai.AiReasonCode
 import dev.adminos.api.domain.ai.AiTask
 import dev.adminos.api.domain.analytics.Bucket
 import dev.adminos.api.domain.financial.TransactionCategory
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -61,6 +60,7 @@ internal object AskText {
 object AskPlanTask : AiTask<AskPlanInput, AskPlan> {
     override val feature = AiFeature.ASK
     override val promptVersion = AskContract.PROMPT_VERSION
+    override val notice = AskContract.NOTICE
 
     /** Thinking can't be turned off on Sonnet 5.5, so the budget covers a little of it as well as the plan. */
     const val MAX_OUTPUT_TOKENS = 2_000
@@ -145,6 +145,7 @@ object AskPlanTask : AiTask<AskPlanInput, AskPlan> {
 object AskAnswerTask : AiTask<AskAnswerInput, String> {
     override val feature = AiFeature.ASK
     override val promptVersion = AskContract.PROMPT_VERSION
+    override val notice = AskContract.NOTICE
 
     const val MAX_OUTPUT_TOKENS = 2_000
     const val MAX_ANSWER = 600
@@ -184,11 +185,9 @@ object AskAnswerTask : AiTask<AskAnswerInput, String> {
 
     override fun read(text: String, input: AskAnswerInput): AiReading<String> {
         if (text.length > AskPlanWire.MAX_TEXT) return AiReading.Invalid(AskPlanWire.TOO_LONG)
-        val obj = try {
-            Json.parseToJsonElement(text.trim()) as? JsonObject
-        } catch (e: SerializationException) {
-            null
-        } ?: return AiReading.Invalid(NOT_JSON_OBJECT)
+        // Size and nesting are checked before parsing (AOS-635). The answer is one flat object; one more level lets an
+        // extra nested field be reported as unexpected rather than as not JSON.
+        val obj = AiJson.parseObject(text, maxDepth = 2, maxChars = AskPlanWire.MAX_TEXT) ?: return AiReading.Invalid(NOT_JSON_OBJECT)
         if (obj.keys != setOf("answer")) return AiReading.Invalid(UNEXPECTED_FIELDS)
         val answer = (obj["answer"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim()
         if (answer.isNullOrEmpty() || answer.length > MAX_ANSWER) return AiReading.Invalid(BAD_ANSWER)

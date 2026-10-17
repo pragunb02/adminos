@@ -179,6 +179,13 @@ class AskServiceTest {
     }
 
     @Test
+    fun `the gateway's own consent refusal is a no-consent rejection and nothing is sent`() {
+        val f = AskFixture(gatewayConsent = { _, _ -> false })
+        assertEquals(AskRejection.NoConsent, f.rejected("zepto"))
+        assertEquals(0, f.provider.requests.size)
+    }
+
+    @Test
     fun `a model that is down is reported as unavailable`() {
         assertEquals(AskRejection.Unavailable, AskFixture(plan = { AiCompletion.Failed(AiReasonCode("network")) }).rejected("zepto"))
         assertEquals(AskSource.UNANSWERED, AskFixture(plan = { AiCompletion.Refused(AiUsage(1, 0)) }).answered("zepto").source)
