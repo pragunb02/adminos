@@ -57,6 +57,9 @@ dependencies {
     // Logging
     implementation(libs.logback)
     implementation(libs.angus.mail) // SMTP for email notifications (AOS-504)
+    // S3-compatible object storage (Cloudflare R2) for the documents vault (AOS-507); the small JDK HTTP client, not Netty/Apache
+    implementation(libs.aws.s3) { exclude(group = "software.amazon.awssdk", module = "netty-nio-client"); exclude(group = "software.amazon.awssdk", module = "apache-client") }
+    implementation(libs.aws.url.connection.client)
 
     // Tests
     testImplementation(libs.ktor.server.test.host)

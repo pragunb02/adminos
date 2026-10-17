@@ -259,3 +259,43 @@ data class VapidConfig(
         }
     }
 }
+
+/**
+ * Object storage for the documents vault (AOS-507): Cloudflare R2, or any S3-compatible store.
+ * Off unless DOCS_S3_BUCKET is set; once it is, the rest must be valid or start-up stops.
+ * For R2: endpoint `https://<account id>.r2.cloudflarestorage.com`, region `auto`.
+ */
+data class DocumentStorageConfig(
+    val endpoint: String,
+    val region: String,
+    val bucket: String,
+    val accessKeyId: String,
+    val secretAccessKey: String
+) {
+    init {
+        require(endpoint.startsWith("https://") || endpoint.startsWith("http://127.0.0.1") || endpoint.startsWith("http://localhost")) {
+            "DOCS_S3_ENDPOINT must be https (plain http only for a local test store)"
+        }
+        require(bucket.matches(Regex("[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]"))) { "DOCS_S3_BUCKET is not a valid bucket name" }
+        require(region.isNotBlank()) { "DOCS_S3_REGION is blank" }
+    }
+
+    /** Never print the secret. */
+    override fun toString() = "DocumentStorageConfig(endpoint=$endpoint, region=$region, bucket=$bucket, accessKeyId=$accessKeyId)"
+
+    companion object {
+        internal fun from(getenv: (String) -> String?): DocumentStorageConfig? {
+            fun value(key: String) = getenv(key)?.trim()?.takeIf { it.isNotEmpty() }
+            val bucket = value("DOCS_S3_BUCKET") ?: return null
+            fun required(key: String) = value(key) ?: throw IllegalArgumentException("$key is required when DOCS_S3_BUCKET is set")
+            return DocumentStorageConfig(
+                endpoint = required("DOCS_S3_ENDPOINT").trimEnd('/'),
+                region = value("DOCS_S3_REGION") ?: "auto",
+                bucket = bucket,
+                accessKeyId = required("DOCS_S3_ACCESS_KEY_ID"),
+                secretAccessKey = required("DOCS_S3_SECRET_ACCESS_KEY")
+            )
+        }
+    }
+}
+

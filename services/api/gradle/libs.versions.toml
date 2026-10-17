@@ -16,6 +16,7 @@ jqwik = "1.10.2"
 jspecify = "1.0.1"
 testcontainers = "2.0.5"
 angusMail = "2.0.5"
+awsSdk = "2.56.0"
 greenmail = "2.1.14"
 
 [libraries]
@@ -51,6 +52,8 @@ nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimb
 google-auth = { module = "com.google.auth:google-auth-library-oauth2-http", version.ref = "googleAuth" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail" }
+aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awsSdk" }
+aws-url-connection-client = { module = "software.amazon.awssdk:url-connection-client", version.ref = "awsSdk" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

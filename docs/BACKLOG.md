@@ -128,8 +128,8 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-505](tickets/AOS-505.md) | Unusual-charge alerts: every new spend checked against its own past; alert if confident and recent (D-53) | Claude | ✅ | 2h | 1.5h |
 | └ [AOS-506](tickets/AOS-506.md) | Weekly briefing from real data, deterministic text; queue payloads typed (D-57) | Claude | ✅ | 3h | 1.5h |
 | └ [AOS-509](tickets/AOS-509.md) | Subscription waste score from signals we have, explained reasons, keep remembers (D-58) | Claude (agent) | ✅ | — | 2h |
-| **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ⬜ | 6h | |
-| └ AOS-507 | Documents vault | Claude | ⬜ | 6h |  |
+| **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ✅ | 6h | 3h |
+| └ [AOS-507](tickets/AOS-507.md) | Documents vault: encrypted in the app, Cloudflare R2, expiry reminders (D-60) | Claude | ✅ | 6h | 3h |
 
 ## ⬜ [AOS-E6](tickets/AOS-E6.md) — Public-ready · P2 · ETA 45h
 

@@ -15,6 +15,7 @@ const SECONDARY = [
   { label: "Import statement", path: "/import", heading: "Import a bank statement" },
   { label: "Bills", path: "/bills", heading: "Dues & renewals" },
   { label: "Subscriptions", path: "/subscriptions", heading: "Subscriptions" },
+  { label: "Documents", path: "/documents", heading: "Documents" },
   { label: "Briefings", path: "/briefings", heading: "Briefings" },
   { label: "Settings", path: "/settings", heading: "Settings" },
 ] as const;

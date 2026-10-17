@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-60 | Architecture | Documents vault: user-chosen files stored in Cloudflare R2 (any S3), envelope-encrypted in the app (per-file AES-256-GCM key wrapped with the app key); owner-only access via the API; extends D-37 (imported statements are still never kept) | Accepted | AOS-507 |
 | D-58 | Product | Subscription waste score in Kotlin from signals we have (price rise, duplicate service, cost share, long-running, dormant AutoPay, trial ending, marked unused); usage never guessed; ≥ 0.70 flags with reasons; "keep" remembers seen factors | Accepted | AOS-509 |
 | D-57 | Product | Weekly briefing is deterministic: made in the API from the console's analytics and dues, written by a template (no LLM for numbers); on the user's day/time/zone, once per week, catch-up within the week; queue payloads keep JSON types | Accepted | AOS-506 |
 | D-56 | Architecture | Mandates (UPI AutoPay, e-NACH, card SI) are their own model, learnt from bank SMS notices (never the text), identified by UMN or payee+rail, robust to late/duplicate messages; debits matched after commit and marked recurring; dormant mandates flagged; shown on Subscriptions and the dues calendar | Accepted | AOS-502 |
@@ -638,3 +639,17 @@ Proposed
 - New signals (Gmail logins after AOS-401) are new factors.
 - The thresholds are constants, to be tuned on real data.
 - Detection should set the category and end stopped subscriptions (follow-ups).
+
+### D-60 — Documents vault: encrypted in the app, stored in Cloudflare R2
+2026-10-17 · Accepted (Pragun: "Cloudflare R2", after options were laid out) · Type: Architecture · Tasks: AOS-507 · Extends D-37
+- **What's stored:** only documents the user puts in the vault. D-37 still holds for imported statements, which are never kept.
+- **Where:** Cloudflare R2 through the S3 API (one adapter, so any S3-compatible store works). The bucket is private, with public access off. The R2 token has Object Read & Write on that bucket only.
+- **How:** envelope encryption in the app, with JDK crypto.
+  - A fresh 256-bit key per file encrypts it with AES-256-GCM, with the document ID as associated data.
+  - The key is wrapped with the app key (`TokenEncryptor`).
+  - A SHA-256 checksum is checked on download.
+  - R2 holds only ciphertext under `documents/<id>`.
+- **Access:** only through the API, after sign-in, and only to the owner. Anyone else gets 404, and secrets are never returned.
+- **Without storage settings:** dev mode keeps files in memory (logged loudly). With a database, uploads are refused (503) rather than stored somewhere unsafe.
+- **Consequence:** the vault is as safe as `TOKEN_ENCRYPTION_KEY`, which must be backed up.
+

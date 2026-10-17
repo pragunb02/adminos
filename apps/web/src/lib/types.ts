@@ -134,6 +134,22 @@ export interface Mandate {
   hasReference: boolean;
 }
 
+/** A file in the documents vault (AOS-507): stored encrypted; never the storage key or file key. */
+export interface VaultDocument {
+  id: string;
+  title: string;
+  category: DocumentCategory;
+  fileType: "pdf" | "png" | "jpeg" | "webp" | "heic";
+  mime: string;
+  sizeBytes: number;
+  originalName: string | null;
+  expiresOn: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export type DocumentCategory = "identity" | "tax" | "insurance" | "bank" | "property" | "vehicle" | "medical" | "warranty" | "other";
+
 export interface DuesMonth {
   month: string;
   /** The user's own date (the server decides it). */
