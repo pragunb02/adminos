@@ -4,7 +4,7 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.javatime.timestamp
 
-/** Maps to db/migration/V80__ask_feedback.sql (AOS-711). [payload] is encrypted (masked question + plan). */
+/** Maps to db/migration/V47__ask_feedback.sql (AOS-711). [payload] is encrypted (masked question + plan). */
 object AskFeedbackTable : Table("ask_feedback") {
     val askId = javaUUID("ask_id")
     val userId = javaUUID("user_id").references(UsersTable.id)

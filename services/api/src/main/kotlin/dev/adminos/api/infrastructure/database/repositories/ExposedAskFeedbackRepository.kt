@@ -20,7 +20,7 @@ import org.jetbrains.exposed.v1.jdbc.upsert
 import java.util.UUID
 
 /**
- * Ask feedback on Postgres (AOS-711, V80). The masked question and the plan are encrypted together with
+ * Ask feedback on Postgres (AOS-711, V47). The masked question and the plan are encrypted together with
  * [TokenEncryptor] (AES-256-GCM), bound to `ask_feedback:<askId>:payload`, so a payload copied to another row fails.
  */
 class ExposedAskFeedbackRepository(private val encryptor: TokenEncryptor) : AskFeedbackRepository {

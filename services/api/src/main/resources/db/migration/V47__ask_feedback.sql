@@ -1,4 +1,4 @@
--- V80 (tentative; the integrator renumbers): "Ask your money" feedback for the eval set (AOS-711).
+-- V47: "Ask your money" feedback for the eval set (AOS-711).
 -- One row per rated answer. The masked question and the model's plan are one encrypted payload (AES-GCM,
 -- TokenEncryptor, bound to the row id), so the database holds no readable question. No amounts, no answer text.
 CREATE TABLE ask_feedback (

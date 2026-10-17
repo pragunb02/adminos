@@ -22,7 +22,7 @@ import kotlin.test.assertFails
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** AOS-711 (V80) on Postgres: feedback round-trips, a vote replaces the earlier one, and the question is encrypted at rest. */
+/** AOS-711 (V47) on Postgres: feedback round-trips, a vote replaces the earlier one, and the question is encrypted at rest. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AskFeedbackIntegrationTest {
