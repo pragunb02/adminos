@@ -1,0 +1,48 @@
+{
+  "version": "2026-10-17",
+  "lateNight": {"from": "22:00", "to": "05:00"},
+  "lenses": [
+    {
+      "id": "quick_commerce",
+      "label": "Quick commerce",
+      "description": "10-minute delivery apps",
+      "brands": ["Zepto", "Blinkit", "Swiggy Instamart", "BB Now", "Flipkart Minutes", "Amazon Now", "Dunzo"]
+    },
+    {
+      "id": "food_delivery",
+      "label": "Food delivery",
+      "description": "Meals ordered in",
+      "brands": ["Swiggy", "Zomato", "Uber Eats", "EatSure"],
+      "subcategories": ["food_delivery"]
+    },
+    {
+      "id": "nights_out",
+      "label": "Nights out",
+      "description": "Bars, pubs, clubs and events",
+      "brands": ["Social", "Toit", "Hard Rock Cafe", "Paytm Insider", "District"],
+      "subcategories": ["nightlife"],
+      "keywords": ["bar", "pub", "brewpub", "brewery", "brewing", "taproom", "nightclub", "club", "lounge", "tavern", "liquor", "wines", "beer"]
+    },
+    {
+      "id": "shopping",
+      "label": "Shopping",
+      "description": "Online and fashion shopping",
+      "brands": ["Amazon", "Flipkart", "Myntra", "Ajio", "Meesho", "Nykaa", "Tata CLiQ", "Lifestyle", "Westside", "Zudio", "Zara", "Uniqlo", "Shoppers Stop", "Bewakoof", "Snitch", "FirstCry", "Purplle"],
+      "subcategories": ["ecommerce", "fashion", "beauty"]
+    },
+    {
+      "id": "pay_later",
+      "label": "Pay later",
+      "description": "Buy now, pay later repayments",
+      "brands": ["LazyPay", "Simpl", "Amazon Pay Later", "Flipkart Pay Later", "Paytm Postpaid", "ZestMoney", "Snapmint"],
+      "subcategories": ["pay_later"]
+    },
+    {
+      "id": "travel",
+      "label": "Travel",
+      "description": "Flights, trains and buses",
+      "brands": ["IndiGo", "Air India", "Air India Express", "Akasa Air", "SpiceJet", "IRCTC", "redBus", "AbhiBus", "MakeMyTrip", "Goibibo", "Cleartrip", "ixigo", "EaseMyTrip", "Yatra"],
+      "subcategories": ["flights", "travel"]
+    }
+  ]
+}

@@ -25,6 +25,34 @@ class MerchantCatalogueTest {
     }
 
     @Test
+    fun `the brands the habit lenses need are recognised with their category`() {
+        val normalizer = dev.adminos.api.domain.ingestion.pipeline.MerchantNormalizer()
+        val cases = listOf(
+            Triple("UPI-BBNOW-bbnow@icici-ICIC0000217-428911300017-GROCERY", "BB Now", "groceries"),
+            Triple("FLIPKART MINUTES ORDER", "Flipkart Minutes", "groceries"),
+            Triple("AMAZON NOW", "Amazon Now", "groceries"),
+            Triple("LAZYPAY PRIVATE LIMITED", "LazyPay", "pay_later"),
+            Triple("ONE SIGMA TECHNOLOGIES SIMPL", "Simpl", "pay_later"),
+            Triple("AMAZON PAY LATER REPAYMENT", "Amazon Pay Later", "pay_later"),
+            Triple("PAYTM POSTPAID BILL", "Paytm Postpaid", "pay_later"),
+            Triple("SPICEJET LTD", "SpiceJet", "flights"),
+            Triple("AIR INDIA EXPRESS", "Air India Express", "flights"),
+            Triple("ABHIBUS SERVICES", "AbhiBus", "bus"),
+            Triple("EASY TRIP PLANNERS", "EaseMyTrip", "travel"),
+            Triple("TOIT BREWPUB", "Toit", "nightlife"),
+            Triple("PAYTM INSIDER EVENTS", "Paytm Insider", "movies_events"),
+            Triple("LIFESTYLE INTERNATIONAL", "Lifestyle", "fashion"),
+            Triple("BRAINBEES SOLUTIONS", "FirstCry", "ecommerce")
+        )
+        for ((raw, brand, sub) in cases) {
+            assertEquals(brand, normalizer.normalize(raw), raw)
+            assertEquals(sub, CategorizationService().builtIn(brand).subcategory, brand)
+        }
+        assertEquals("Amazon", normalizer.normalize("AMAZON PAY INDIA"), "the longer Pay Later alias doesn't take plain Amazon Pay")
+        assertEquals("BigBasket", normalizer.normalize("INNOVATIVE RETAIL CONCEPTS"))
+    }
+
+    @Test
     fun `an alias claimed by two brands is rejected`() {
         val ex = assertFailsWith<IllegalArgumentException> {
             MerchantCatalogue("t", listOf(CatalogueMerchant("A", "food", aliases = listOf("ACME")), CatalogueMerchant("B", "food", aliases = listOf("acme"))))
