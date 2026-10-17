@@ -1,4 +1,4 @@
-# AOS-E6 — Public-ready
+# AOS-E6 — Hardening (public items parked, D-78)
 
 | Field | Value |
 |---|---|
@@ -15,18 +15,18 @@
 | **Depends on** | AOS-E5 |
 
 ## Goal
-Other people can sign up and use it safely and legally.
+My data is safe: security hardening and hosting for me. The public-launch goal (other people signing up) is parked: AdminOS is always personal (D-78).
 
 ## Success criteria (exit criteria)
-- [ ] DPDP gate met (consent, export/delete, encryption, logs)
-- [ ] Public ingestion paths (Gmail forwarding, Android app)
-- [ ] Hosted with onboarding
+- [ ] Security items done (AOS-121, AOS-601)
+- [ ] Hosted for me (AOS-605)
+- ⏸ DPDP gate, public ingestion paths, onboarding: parked (D-78)
 
 ## Stories
 | ID | Story | Status | ETA |
 |---|---|---|---|
 | [AOS-S6.1](AOS-S6.1.md) | Security & DPDP compliance | ⬜ | 11h |
-| [AOS-S6.2](AOS-S6.2.md) | Public ingestion paths | ⬜ | 26h |
+| [AOS-S6.2](AOS-S6.2.md) | Public ingestion paths | ⏸ parked (D-78) | 26h |
 | [AOS-S6.3](AOS-S6.3.md) | Launch | ⬜ | 8h |
 
 ## Out of scope
@@ -38,3 +38,4 @@ Other people can sign up and use it safely and legally.
 
 ## Activity log
 - 2026-10-16 — Claude: epic created (AOS-004).
+- 2026-10-17 — Claude: re-scoped to hardening; public items parked (Pragun: personal only, D-78).

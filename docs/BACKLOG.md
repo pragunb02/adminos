@@ -4,7 +4,7 @@ Hierarchy: **Epic** (milestone) → **Story** (user-visible outcome) → **Task*
 
 **IDs:** Epic `AOS-E<n>` · Story `AOS-S<n>.<m>` · Task `AOS-<n><nn>` (the hundreds digit is the milestone). IDs are permanent; never reuse them.
 
-**Status:** ⬜ Todo · 🟦 In progress · 🟨 Done, unverified · ✅ Done · ⛔ Blocked · ❌ Dropped. **ETA** = focused hours (D-23).
+**Status:** ⬜ Todo · 🟦 In progress · 🟨 Done, unverified · ✅ Done · ⛔ Blocked · ⏸ Parked · ❌ Dropped. **ETA** = focused hours (D-23).
 
 _Board generated 2026-10-16. When a ticket changes, update the ticket file **and** its row here._
 
@@ -22,6 +22,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-007](tickets/AOS-007.md) | Audit existing code against ENGINEERING.md (read-only) and file tickets | Claude | ⬜ | 2h |  |
 | └ [AOS-008](tickets/AOS-008.md) | Design principles, patterns, design-before-code; dependency policy | Claude | ✅ | 1h | 1h |
 | └ [AOS-009](tickets/AOS-009.md) | Dependency audit: current vs latest stable | Claude | ✅ | 0.5h | 0.5h |
+| └ [AOS-010](tickets/AOS-010.md) | Re-scope: always personal and single-user; wealth (portfolio, net worth, guidance) in scope; public items parked (D-78) | Claude | ✅ | 0.5h | 0.5h |
 
 ## 🟦 [AOS-E1](tickets/AOS-E1.md) — Foundation runs · P0 · ETA 30h
 
@@ -137,19 +138,19 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ✅ | 6h | 3h |
 | └ [AOS-507](tickets/AOS-507.md) | Documents vault: encrypted in the app, Cloudflare R2, expiry reminders (D-60) | Claude | ✅ | 6h | 3h |
 
-## ⬜ [AOS-E6](tickets/AOS-E6.md) — Public-ready · P2 · ETA 45h
+## ⬜ [AOS-E6](tickets/AOS-E6.md) — Hardening (public items parked, D-78) · P2 · ETA 45h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S6.1](tickets/AOS-S6.1.md)** | **Security & DPDP compliance** | | ⬜ | 11h | |
 | └ [AOS-121](tickets/AOS-121.md) | Refresh-token rotation with reuse detection | Claude | ⬜ | 2h |  |
 | └ AOS-601 | Encrypt tokens at rest; refuse default secrets; require Pub/Sub audience | Claude | ⬜ | 3h |  |
-| └ AOS-602 | DPDP: consent records, export/delete, access logs | Claude | ⬜ | 8h |  |
-| **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** | | ⬜ | 26h | |
-| └ AOS-603 | Gmail forwarding-address inbound | Claude | ⬜ | 6h |  |
-| └ AOS-604 | Android app (SMS + notification listener) | Claude | ⬜ | 20h |  |
+| └ AOS-602 | ~~DPDP: consent records, export/delete, access logs~~ parked (personal use, D-78); export and backup move to E8 security | Claude | ⏸ | 8h |  |
+| **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
+| └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
+| └ AOS-604 | Android app (SMS + notification listener) | Claude | ⏸ | 20h |  |
 | **[AOS-S6.3](tickets/AOS-S6.3.md)** | **Launch** | | ⬜ | 8h | |
-| └ [AOS-605](tickets/AOS-605.md) | Onboarding + hosting (edge proxy owns XFF, D-32) | Claude + Pragun | ⬜ | 8h |  |
+| └ [AOS-605](tickets/AOS-605.md) | Hosting for me (edge proxy owns XFF, D-32); onboarding for others parked (D-78) | Claude + Pragun | ⬜ | 8h |  |
 | └ [AOS-607](tickets/AOS-607.md) | JWT key now uses the whole `JWT_SECRET` (found by AOS-311) | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-608](tickets/AOS-608.md) | Token encryption: whole 256-bit key, row-bound ciphertext; no public default secrets | Claude | ✅ | 1.5h | 1h |
 | └ [AOS-609](tickets/AOS-609.md) | Gmail Pub/Sub webhook authentication (issuer, service account, fail closed) | Claude | ✅ | 1h | 0.75h |

@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E6](AOS-E6.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ⏸ Parked (D-78) |
 | **Priority** | P2 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 26h |
