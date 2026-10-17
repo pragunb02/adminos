@@ -47,4 +47,7 @@ internal fun coachKoinModule(useDatabase: Boolean): Module = module {
     single { DigestSources(get(), get(), get()) }
     single { EveningDigestService(get(), get(), get(), get(), get()) }
     single { EveningDigestJob(get(), get()) } bind ScheduledJob::class
+
+    // Report card (AOS-906): a section of the weekly briefing, not a second weekly push
+    single { dev.adminos.api.domain.coach.report.ReportCard(get(), get(), get()) } bind dev.adminos.api.domain.agent.briefing.BriefingSection::class
 }
