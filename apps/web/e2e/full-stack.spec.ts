@@ -63,4 +63,20 @@ test.describe("full stack", () => {
     expect(res.status()).toBe(400);
     expect((await res.json()).error.message).toMatch(/^to:/);
   });
+
+  test("messages read by AI (AOS-705) are owner-only: a forged token is refused and an unknown id is not found", async ({ page, context, baseURL }) => {
+    const forged = signAccessToken(undefined, { secret: "e2e-only-secret-not-for-production-attacker" });
+    await signIn(context, baseURL!, forged.token);
+    expect((await page.request.get("/api/v1/review/messages")).status()).toBe(401);
+    expect((await page.request.post(`/api/v1/review/messages/${crypto.randomUUID()}/confirm`, { data: {} })).status()).toBe(401);
+
+    await context.clearCookies();
+    const { token } = signAccessToken();
+    await signIn(context, baseURL!, token);
+    const list = await page.request.get("/api/v1/review/messages");
+    expect(list.status()).toBe(200);
+    expect((await list.json()).data).toEqual([]);
+    expect((await page.request.post(`/api/v1/review/messages/${crypto.randomUUID()}/confirm`, { data: {} })).status()).toBe(404);
+    expect((await page.request.post("/api/v1/review/messages/not-an-id/dismiss", { data: {} })).status()).toBe(400);
+  });
 });

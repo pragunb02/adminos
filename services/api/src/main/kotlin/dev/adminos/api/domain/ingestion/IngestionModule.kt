@@ -13,6 +13,8 @@ import dev.adminos.api.domain.ingestion.connection.OAuthStateService
 import dev.adminos.api.domain.ingestion.connection.connectionRoutes
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.ingestEventRoutes
+import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
+import dev.adminos.api.domain.ingestion.fallback.messageReviewRoutes
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.domain.ingestion.sms.rawSmsRoutes
 import dev.adminos.api.domain.ingestion.sync.IngestionService
@@ -45,6 +47,7 @@ fun Application.ingestionModule(config: AppConfig) {
     val cashIntake: CashIntake by inject()
     val cashPhrases: CashPhraseParser by inject()
     val whatsAppImportService: WhatsAppImportService by inject()
+    val messageReviewService: MessageReviewService by inject()
 
     routing {
         route("/api/v1") {
@@ -57,6 +60,7 @@ fun Application.ingestionModule(config: AppConfig) {
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience, config.auth.googlePubsubServiceAccount)
             statementRoutes(statementImportService)
             whatsAppImportRoutes(whatsAppImportService)
+            messageReviewRoutes(messageReviewService)
         }
     }
 }
