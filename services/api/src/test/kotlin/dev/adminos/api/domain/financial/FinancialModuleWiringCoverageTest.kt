@@ -63,6 +63,9 @@ class FinancialModuleWiringCoverageTest {
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
         single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
         single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), transactions) }
+        single { dev.adminos.api.domain.financial.paylater.PayLaterService(bills, transactions) }
+        single { dev.adminos.api.domain.financial.trips.TripService(transactions, dev.adminos.api.domain.financial.links.InMemoryTransactionLinkRepository(),
+            dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository(), dev.adminos.api.domain.financial.trips.InMemoryTripEditRepository()) }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {

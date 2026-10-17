@@ -46,6 +46,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.koin.ktor.ext.get
@@ -76,10 +77,10 @@ class IdorTest {
         val txn: Transaction, val otherTxn: Transaction, val subscription: Subscription, val bill: Bill, val anomaly: Anomaly,
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
         val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
-        val receipt: OrderReceipt, val limit: SpendingLimit
+        val receipt: OrderReceipt, val limit: SpendingLimit, val tripId: String, val flight: Transaction
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id, receipt.id, limit.id).map { it.toString() } + documentId
+            push.id, mandate.id, notification.id, receipt.id, limit.id, flight.id).map { it.toString() } + documentId + tripId
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -125,8 +126,14 @@ class IdorTest {
         val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
         val limit = app.get<SpendingLimitRepository>().save(SpendingLimit(userId = alice.id, scope = LimitScope.Merchant("Alice Secret Merchant"),
             label = "Alice Secret Merchant", period = LimitPeriod.MONTHLY, amount = BigDecimal("3000"), createdAt = Instant.now(), updatedAt = Instant.now()))
+        // A trip of Alice's (AOS-910): trips are computed from her bookings, so its ID comes from her own list.
+        val flight = txns.save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("4500.00"),
+            merchantName = "IndiGo", category = TransactionCategory.TRANSPORT, paymentMethod = PaymentMethod.UPI, transactedAt = Instant.now()))
+        val trips = client.get("/api/v1/trips") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
+        val tripId = Json.parseToJsonElement(trips).jsonObject["data"]?.jsonObject?.get("trips")?.jsonArray?.singleOrNull()
+            ?.jsonObject?.get("id")?.jsonPrimitive?.content ?: error("no trip for Alice in $trips")
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
-            receipt, limit)
+            receipt, limit, tripId, flight)
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -167,6 +174,12 @@ class IdorTest {
             Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
             Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
+            Attack(HttpMethod.Get, { "/api/v1/trips/$it" }, a.tripId),
+            Attack(HttpMethod.Get, { "/api/v1/trips/$it/candidates" }, a.tripId),
+            Attack(HttpMethod.Patch, { "/api/v1/trips/$it" }, a.tripId, """{"name":"pwned"}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/trips/$it" }, a.tripId),
+            Attack(HttpMethod.Post, { "/api/v1/trips/$it/transactions" }, a.tripId, """{"transactionId":"${a.txn.id}"}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/trips/$it/transactions/${a.flight.id}" }, a.tripId),
         )
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
@@ -211,6 +224,14 @@ class IdorTest {
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
         assertEquals(HttpStatusCode.OK, client.get("/api/v1/documents/${a.documentId}/file") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.status)
+        // Alice's trip (AOS-910) is neither renamed nor dismissed, and keeps its booking.
+        client.asBob(HttpMethod.Patch, "/api/v1/trips/${a.tripId}", """{"name":"pwned"}""")
+        client.asBob(HttpMethod.Delete, "/api/v1/trips/${a.tripId}/transactions/${a.flight.id}", null)
+        client.asBob(HttpMethod.Delete, "/api/v1/trips/${a.tripId}", null)
+        val trip = client.get("/api/v1/trips/${a.tripId}") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
+        assertEquals(HttpStatusCode.OK, trip.status)
+        assertFalse("pwned" in trip.bodyAsText(), "the trip wasn't renamed")
+        assertTrue(a.flight.id.toString() in trip.bodyAsText(), "the booking is still in the trip")
     }
 
     @Test
@@ -230,7 +251,7 @@ class IdorTest {
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
-            "/api/v1/leaks/fees", "/api/v1/receipts",
+            "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/pay-later", "/api/v1/trips",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
         )
         val leaks = lists.mapNotNull { path ->
@@ -258,5 +279,10 @@ class IdorTest {
         for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
             assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
+        // Pay-later debt (AOS-909): Alice's unpaid pay-later bill shows for her, and not for Bob.
+        val payLater = app.get<BillRepository>().save(Bill(userId = alice.id, billType = BillType.PAY_LATER, billerName = "LazyPay",
+            amount = BigDecimal("1200"), dueDate = LocalDate.now().plusDays(5)))
+        assertTrue(payLater.id.toString() in client.get("/api/v1/pay-later") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        assertFalse(payLater.id.toString() in client.asBob(HttpMethod.Get, "/api/v1/pay-later", null).bodyAsText())
     }
 }

@@ -66,6 +66,8 @@ export class MockApi {
       .on("DELETE /api/v1/coach/limits/:id", () => ({ data: { deleted: true } }))
       .on("GET /api/v1/coach/settings", () => ({ data: { limitAlerts: true } }))
       .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false } }))
+      .on("GET /api/v1/pay-later", () => ({ data: { outstanding: "0.00", currency: "INR", providers: [] } }))
+      .on("GET /api/v1/trips", (_r, u) => ({ data: { year: Number(u.searchParams.get("year") ?? 2026), total: "0.00", currency: "INR", trips: [] } }))
       .on("GET /api/v1/documents", (_r, u) => {
         const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];
         const c = u.searchParams.get("category"); const q = u.searchParams.get("q")?.toLowerCase();

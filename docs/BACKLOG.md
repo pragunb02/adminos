@@ -231,9 +231,9 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ⬜ | 9h | |
 | └ AOS-907 | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ⬜ | 5h |  |
 | └ AOS-908 | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ⬜ | 4h |  |
-| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
-| └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
-| └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | 🟦 | 8h | |
+| └ [AOS-909](tickets/AOS-909.md) | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders; repayments are transfers that pay the bill; gaps in Review (D-89) | Claude (agent) | ✅ | 3h | — |
+| └ [AOS-910](tickets/AOS-910.md) | Trips: group travel bookings and the spends around them into one trip, with its total cost; editable; measured rule with a baseline (D-90) | Claude (agent) | ✅ | 5h | — |
 
 ## 🟦 [AOS-E8](tickets/AOS-E8.md) — Wealth · P1 · ETA 128h
 
