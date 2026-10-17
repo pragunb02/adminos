@@ -224,13 +224,13 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | └ [AOS-901](tickets/AOS-901.md) | Habit lenses as data, settle-ups excluded, per-merchant overrides; +37 catalogue brands (D-81) | Claude (agent) | ✅ | — | — |
 | └ [AOS-902](tickets/AOS-902.md) | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ✅ | 6h |  |
 | └ [AOS-903](tickets/AOS-903.md) | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees and item counts from Gmail, matched to the payment; hidden fees per app (D-88) | Claude (agent) | ✅ | 8h | 6h |
-| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ⬜ | 12h | |
+| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ✅ | 12h | |
 | └ [AOS-904](tickets/AOS-904.md) | Limits per lens, merchant or category (monthly/weekly), pushes at 50/80/100%, once per threshold per period | Claude | ✅ | 5h |  |
-| └ AOS-905 | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ⬜ | 3h |  |
-| └ AOS-906 | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ⬜ | 4h |  |
-| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ⬜ | 9h | |
-| └ AOS-907 | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ⬜ | 5h |  |
-| └ AOS-908 | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ⬜ | 4h |  |
+| └ [AOS-905](tickets/AOS-905.md) | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ✅ | 3h |  |
+| └ [AOS-906](tickets/AOS-906.md) | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ✅ | 4h |  |
+| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ✅ | 9h | |
+| └ [AOS-907](tickets/AOS-907.md) | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ✅ | 5h |  |
+| └ [AOS-908](tickets/AOS-908.md) | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ✅ | 4h |  |
 | **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
 | └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
 | └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
