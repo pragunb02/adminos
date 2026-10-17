@@ -33,9 +33,10 @@ class PortAiCategoryClientTest {
     }
 
     @Test
-    fun `a withheld name is rejected, so it is cached and never sent`() = runBlocking<Unit> {
-        assertEquals(AiCategoryResult.Rejected("withheld"), client().ask(user, question.copy(merchant = "ABCDE1234F Traders")))
+    fun `a withheld name is withheld, never sent, and never cached (AOS-702 review)`() = runBlocking<Unit> {
+        assertEquals(AiCategoryResult.Withheld("withheld"), client().ask(user, question.copy(merchant = "ABCDE1234F Traders")))
         assertEquals(emptyList(), provider.requests)
+        assertEquals(null, CachedAiCategory.of("abcde1234f traders", AiCategoryResult.Withheld("withheld"), FakeAiProvider.MODEL, java.time.Instant.EPOCH))
     }
 
     @Test

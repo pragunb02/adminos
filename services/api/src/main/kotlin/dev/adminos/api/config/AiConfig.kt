@@ -98,10 +98,11 @@ class AiConfig(
                 throw IllegalArgumentException("OLLAMA_BASE_URL is not a URL", e)
             }
             require(url.scheme in setOf("http", "https") && !url.host.isNullOrBlank()) { "OLLAMA_BASE_URL must be an http(s) URL with a host" }
+            require(url.rawUserInfo == null) { "OLLAMA_BASE_URL must not contain credentials" }
             // Prompts carry financial text: plain http only to this machine or a compose service (no dot in the
             // name, so it never leaves the compose network); anything else must be https (D-91).
             require(url.scheme == "https" || isPrivateHost(url.host)) {
-                "OLLAMA_BASE_URL must use https unless it is localhost, a loopback address or a compose service name"
+                "OLLAMA_BASE_URL must use https unless it is localhost, a loopback IP or the compose service ollama"
             }
             val seconds = value("OLLAMA_TIMEOUT_SECONDS")?.let {
                 it.toLongOrNull()?.takeIf { s -> s in 1..600 } ?: throw IllegalArgumentException("OLLAMA_TIMEOUT_SECONDS is 1..600, was '$it'")
@@ -109,10 +110,15 @@ class AiConfig(
             return OllamaSettings(url, Duration.ofSeconds(seconds))
         }
 
-        /** Loopback, or a single-label compose service name like `ollama`. */
+        /** Where plain http may go: `localhost`, a literal loopback IP, or the compose service [COMPOSE_OLLAMA]. Nothing else. */
         internal fun isPrivateHost(host: String): Boolean {
             val h = host.lowercase().removePrefix("[").removeSuffix("]")
-            return h == "localhost" || h == "::1" || h.startsWith("127.") || ('.' !in h && ':' !in h)
+            return h == "localhost" || h == COMPOSE_OLLAMA || h == "::1" || h == "0:0:0:0:0:0:0:1" || LOOPBACK_V4.matches(h)
         }
+
+        /** The service name in docker-compose.yml's `ollama` profile (AOS-703). */
+        private const val COMPOSE_OLLAMA = "ollama"
+        /** A literal 127.x.y.z address (each octet 0–255), not a DNS name that merely starts with "127.". */
+        private val LOOPBACK_V4 = Regex("^127\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.(25[0-5]|2[0-4]\\d|1?\\d?\\d)$")
     }
 }

@@ -28,7 +28,7 @@ data class CachedAiCategory(
         fun of(merchantKey: String, result: AiCategoryResult, fallbackModel: String, at: Instant): CachedAiCategory? = when (result) {
             is AiCategoryResult.Answered -> CachedAiCategory(merchantKey, result.model, result.answer, at)
             is AiCategoryResult.Rejected -> CachedAiCategory(merchantKey, fallbackModel, null, at)
-            is AiCategoryResult.Unavailable -> null
+            is AiCategoryResult.Unavailable, is AiCategoryResult.Withheld -> null
         }
     }
 }

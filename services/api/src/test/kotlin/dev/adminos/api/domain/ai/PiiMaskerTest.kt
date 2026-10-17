@@ -55,4 +55,15 @@ class PiiMaskerTest {
     fun `a masked result never prints its text`() {
         assertFalse(mask("9800000012").toString().contains("<PHONE>"))
     }
+
+    @Test
+    fun `numbers in other scripts or with other separators are masked too (AOS-702 review B1)`() {
+        val fullwidth = "\uFF19\uFF18\uFF10\uFF10\uFF10\uFF10\uFF10\uFF10\uFF11\uFF12" // a mobile number in fullwidth digits
+        val devanagari = "\u096F\u096E\u0966\u0966\u0966\u0966\u0966\u0966\u0967\u0968" // the same in Devanagari digits
+        assertEquals("<PHONE>", mask(fullwidth).text)
+        assertEquals("<PHONE>", mask(devanagari).text)
+        assertEquals("XX9012", mask("4111.1111/1111_9012").text)
+        assertEquals("XX9012", mask("4111  1111  1111  9012").text)
+        assertEquals("<ID>", mask("ABCDE\uFF11234F").text) // a PAN with a fullwidth digit
+    }
 }

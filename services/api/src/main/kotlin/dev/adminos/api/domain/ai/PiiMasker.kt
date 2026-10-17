@@ -24,16 +24,20 @@ object PiiMasker {
     private val VPA = Regex("[A-Za-z0-9._-]{2,}@([A-Za-z][A-Za-z0-9]{1,30})\\b")
     private val PAN = Regex("\\b[A-Za-z]{5}\\d{4}[A-Za-z]\\b")
 
-    /** A run of digits, single spaces or dashes allowed between them, with an optional leading `+`. */
-    private val DIGIT_RUN = Regex("(?<![\\dA-Za-z])(\\+)?\\d(?:[ -]?\\d){8,18}(?![\\dA-Za-z])")
+    /**
+     * A run of digits in any script, with up to 3 separator characters (space, `.`, `-`, `/`, `_`) between
+     * them, and an optional leading `+`. Matched after NFKC, so fullwidth digits and letters are plain ASCII.
+     */
+    private val DIGIT_RUN = Regex("(?<![\\p{Nd}\\p{L}])(\\+)?\\p{Nd}(?:[ .\\-/_]{0,3}\\p{Nd}){8,18}(?![\\p{Nd}\\p{L}])")
 
     fun mask(text: String): Masked {
         val found = mutableSetOf<PiiKind>()
-        var out = EMAIL.replace(text) { found += PiiKind.EMAIL; "<EMAIL>" }
+        val normal = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFKC)
+        var out = EMAIL.replace(normal) { found += PiiKind.EMAIL; "<EMAIL>" }
         out = VPA.replace(out) { found += PiiKind.VPA; "<VPA:${it.groupValues[1].lowercase()}>" }
         out = PAN.replace(out) { found += PiiKind.NATIONAL_ID; "<ID>" }
         out = DIGIT_RUN.replace(out) { match ->
-            val digits = match.value.filter(Char::isDigit)
+            val digits = match.value.filter(Char::isDigit).map { Character.forDigit(Character.digit(it, 10), 10) }.joinToString("")
             val kind = classify(digits, plus = match.groupValues[1].isNotEmpty())
             found += kind
             when (kind) {

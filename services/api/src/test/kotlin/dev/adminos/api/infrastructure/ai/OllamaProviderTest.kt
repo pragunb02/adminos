@@ -93,6 +93,12 @@ class OllamaProviderTest {
     }
 
     @Test
+    fun `a reply larger than the cap is refused without being kept (D-100)`() = runBlocking<Unit> {
+        replies += Reply(200, chat("x".repeat(OllamaProvider.MAX_REPLY_BYTES)))
+        assertEquals(AiCompletion.Failed(AiReasonCode("reply_too_large")), provider().complete(request))
+    }
+
+    @Test
     fun `a reply that isn't a chat message is a bad reply`() = runBlocking<Unit> {
         for (body in listOf("not json", "[]", """{"message":{}}""", """{"message":{"content":3}}""")) {
             replies += Reply(200, body)

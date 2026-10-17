@@ -32,7 +32,7 @@ object AiPrivacyGate {
     /** The question to ask about [t], or null when its payee may not be shown to a model. */
     fun question(t: Transaction): AiCategoryQuestion? {
         val name = t.merchantName?.trim()?.takeIf { it.length in 3..AiCategoryQuestion.MAX_MERCHANT } ?: return null
-        if ('@' in name || Regex("\\d{5,}").containsMatchIn(name) || name.count(Char::isLetter) < 3) return null
+        if ('@' in name || !dev.adminos.api.domain.ai.SafeName.isSafe(name) || name.count(Char::isLetter) < 3) return null
         if (!isBusiness(t)) return null
         return AiCategoryQuestion(name, t.paymentMethod, AI_ALLOWED_CATEGORIES)
     }

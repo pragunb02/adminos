@@ -4,6 +4,8 @@ import dev.adminos.api.domain.scheduling.TestClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import java.time.Instant
@@ -137,11 +139,22 @@ class AiGatewayTest {
     }
 
     @Test
-    fun `a provider that throws is charged its worst case and the error propagates`() = runBlocking<Unit> {
+    fun `a provider that throws is unavailable, charged its worst case, and still audited (AOS-702 review)`() = runBlocking<Unit> {
         val g = gateway(FakeAiProvider { throw IllegalStateException("adapter bug") })
-        assertFailsWith<IllegalStateException> { g.run(EchoTask, user, "Steam") }
+        assertEquals(AiResult.Unavailable(AiGateway.INTERNAL), g.run(EchoTask, user, "Steam"))
         assertTrue(ledger.spent(YearMonth.of(2026, 10)) > 0, "an unknown cost fails closed")
-        assertEquals(emptyList(), calls.all)
+        val row = calls.all.single()
+        assertEquals(AiCallOutcome.ERROR, row.outcome)
+        assertEquals(AiGateway.INTERNAL, row.code)
+    }
+
+    @Test
+    fun `a cancelled call still settles its reservation and is never left reserved`() = runBlocking<Unit> {
+        val g = gateway(FakeAiProvider { kotlinx.coroutines.awaitCancellation() })
+        val job = launch { g.run(EchoTask, user, "Steam") }
+        delay(50); job.cancelAndJoin()
+        // Settled at its worst case (the cost is unknown), rather than left reserved for the rest of the month.
+        assertTrue(ledger.spent(YearMonth.of(2026, 10)) > 0, "the reservation was settled on cancellation")
     }
 
     @Test

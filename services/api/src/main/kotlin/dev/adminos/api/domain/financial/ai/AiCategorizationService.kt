@@ -63,6 +63,7 @@ class AiCategorizationService(
         val question = AiPrivacyGate.question(t) ?: return AiOutcome.PRIVATE
         val result = answerFor(t.userId, question)
         if (result is AiCategoryResult.Unavailable) return AiOutcome.UNAVAILABLE
+        if (result is AiCategoryResult.Withheld) return AiOutcome.PRIVATE
 
         // The user may have corrected it while we waited: re-read, and only touch it if it is still ours to touch.
         val current = transactions.findById(t.id)?.takeIf { isCandidate(it) && !hasRule(it) } ?: return AiOutcome.NOT_ELIGIBLE
@@ -102,7 +103,7 @@ class AiCategorizationService(
                     else -> mark(t, record + ("status" to "suggested")) to AiOutcome.SUGGESTED
                 }
             }
-            is AiCategoryResult.Unavailable -> error("unavailable results are never applied")
+            is AiCategoryResult.Unavailable, is AiCategoryResult.Withheld -> error("unavailable and withheld results are never applied")
         }
     }
 

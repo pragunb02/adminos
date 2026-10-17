@@ -48,14 +48,21 @@ class OllamaProvider(
 
     override suspend fun complete(request: AiRequest): AiCompletion {
         val response = try {
-            http.sendAsync(httpRequest(request), HttpResponse.BodyHandlers.ofString()).await()
+            http.sendAsync(httpRequest(request), HttpResponse.BodyHandlers.ofInputStream()).await()
         } catch (e: HttpTimeoutException) {
             return AiCompletion.Failed(TIMEOUT)
         } catch (e: IOException) {
             return AiCompletion.Failed(NETWORK)
         }
+        // A model server is not trusted to keep its reply small: read at most MAX_REPLY_BYTES (D-100).
+        val bytes = try {
+            response.body().use { it.readNBytes(MAX_REPLY_BYTES + 1) }
+        } catch (e: IOException) {
+            return AiCompletion.Failed(NETWORK)
+        }
         if (response.statusCode() != 200) return AiCompletion.Failed(AiReasonCode("http_${response.statusCode()}"))
-        return read(response.body())
+        if (bytes.size > MAX_REPLY_BYTES) return AiCompletion.Failed(REPLY_TOO_LARGE)
+        return read(bytes.toString(Charsets.UTF_8))
     }
 
     internal fun httpRequest(request: AiRequest): HttpRequest = HttpRequest.newBuilder(URI.create(baseUrl.toString().trimEnd('/') + "/api/chat"))
@@ -70,6 +77,9 @@ class OllamaProvider(
         private val TIMEOUT = AiReasonCode("timeout")
         private val NETWORK = AiReasonCode("network")
         private val BAD_REPLY = AiReasonCode("bad_reply")
+        private val REPLY_TOO_LARGE = AiReasonCode("reply_too_large")
+        /** Far above any structured answer we ask for (a few hundred bytes). */
+        internal const val MAX_REPLY_BYTES = 256 * 1024
 
         internal fun body(request: AiRequest): JsonObject = JsonObject(mapOf(
             "model" to JsonPrimitive(request.model),

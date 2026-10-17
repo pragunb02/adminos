@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.ai
 
+
 import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.TransactionCategory
 import java.util.UUID
@@ -22,6 +23,7 @@ data class AiCategoryQuestion(val merchant: String, val paymentMethod: PaymentMe
 
     companion object {
         const val MAX_MERCHANT = 60
+        /** A structural backstop; the full rule (any script, any separator, look-alikes) is SafeName, applied before sending. */
         private val LONG_NUMBER = Regex("\\d{5,}")
     }
 }
@@ -45,6 +47,11 @@ sealed interface AiCategoryResult {
     data class Rejected(val why: String) : AiCategoryResult
     /** No answer this time (network, rate limit, server error, open circuit); asked again on a later run. */
     data class Unavailable(val why: String) : AiCategoryResult
+    /**
+     * The redactor refused to send this exact name (hidden characters, a number, personal data). Never cached:
+     * the cache is keyed by the cleaned name, which the real merchant shares (AOS-702 code review).
+     */
+    data class Withheld(val why: String) : AiCategoryResult
 }
 
 /**

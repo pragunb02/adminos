@@ -96,6 +96,11 @@ class AiConfigTest {
         assertEquals(URI("https://gpu-box.example.com"), config(withModel + ("OLLAMA_BASE_URL" to "https://gpu-box.example.com")).ollama?.baseUrl)
         assertEquals(URI("http://[::1]:11434"), config(withModel + ("OLLAMA_BASE_URL" to "http://[::1]:11434")).ollama?.baseUrl)
         assertEquals(URI("http://localhost:11434"), config(withModel + ("OLLAMA_BASE_URL" to "http://localhost:11434")).ollama?.baseUrl)
+        // AOS-702 review B2: the host must really be loopback or the compose service, not just look like it.
+        listOf("http://127.evil.example:11434", "http://lan-box:11434", "http://2130706433:11434", "http://ollama.example.com:11434")
+            .forEach { assertContains(message(withModel + ("OLLAMA_BASE_URL" to it)), "https", message = it) }
+        assertEquals(URI("http://127.0.0.1:11434"), config(withModel + ("OLLAMA_BASE_URL" to "http://127.0.0.1:11434")).ollama?.baseUrl)
+        assertContains(message(withModel + ("OLLAMA_BASE_URL" to "https://user:secret@gpu-box.example.com")), "credentials")
         assertContains(message(withModel + mapOf("OLLAMA_BASE_URL" to "http://ollama:11434", "OLLAMA_TIMEOUT_SECONDS" to "0")), "OLLAMA_TIMEOUT_SECONDS")
         assertContains(message(withModel + mapOf("OLLAMA_BASE_URL" to "http://ollama:11434", "OLLAMA_TIMEOUT_SECONDS" to "soon")), "OLLAMA_TIMEOUT_SECONDS")
     }

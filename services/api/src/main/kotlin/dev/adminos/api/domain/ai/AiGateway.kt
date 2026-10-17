@@ -58,27 +58,37 @@ class AiGateway(
         if (breaker.isOpen(route.provider.kind)) return AiResult.Unavailable(CIRCUIT_OPEN)
 
         val request = AiRequest(route.model, prompt.system, prompt.user, prompt.schema, prompt.maxOutputTokens)
-        val reservation = costs.reserve(route.price.worstCaseMicros(request)) ?: return AiResult.Refused(AiRefusal.CAP_REACHED)
+        // Reserved and (below) audited under NonCancellable: a cancellation between steps can't leak a reservation or lose a row.
+        val reservation = withContext(NonCancellable) { costs.reserve(route.price.worstCaseMicros(request)) }
+            ?: return AiResult.Refused(AiRefusal.CAP_REACHED)
         val started = nanoTime()
         val completion = call(route, request, reservation)
         val latencyMs = (nanoTime() - started).coerceAtLeast(0) / NANOS_PER_MILLI
         breaker.record(route.provider.kind, failed = completion is AiCompletion.Failed)
 
         val (result, outcome) = judge(task, input, completion, route.model)
-        calls.record(AiCallRecord(
+        withContext(NonCancellable) { calls.record(AiCallRecord(
             userId = userId, feature = task.feature, provider = route.provider.kind, model = route.model,
             promptVersion = task.promptVersion, usage = completion.usage, costMicros = route.price.costMicros(completion.usage),
             outcome = outcome, code = codeOf(result), latencyMs = latencyMs, at = clock.instant()
-        ))
+        )) }
         return result
     }
 
-    /** Calls the provider and settles the reservation; an unexpected throw keeps the whole reservation (fails closed). */
+    /**
+     * Calls the provider and settles the reservation. A provider that throws (a bug, not a failure it reported)
+     * becomes [AiCompletion.Failed] with [INTERNAL], so it is still audited and counted by the breaker; its cost is
+     * unknown, so the whole reservation is kept (fails closed). Cancellation is re-thrown.
+     */
     private suspend fun call(route: AiRoute, request: AiRequest, reservation: AiReservation): AiCompletion {
         var completion: AiCompletion? = null
         try {
             completion = route.provider.complete(request)
             return completion
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return AiCompletion.Failed(INTERNAL)
         } finally {
             // Settled even when cancelled; an unknown cost is charged at its worst case.
             withContext(NonCancellable) { costs.settle(reservation, completion?.let { route.price.costMicros(it.usage) } ?: reservation.micros) }
@@ -107,6 +117,7 @@ class AiGateway(
         val CIRCUIT_OPEN = AiReasonCode("circuit_open")
         val REFUSED = AiReasonCode("refused")
         val TRUNCATED = AiReasonCode("truncated")
+        val INTERNAL = AiReasonCode("internal")
         private const val NANOS_PER_MILLI = 1_000_000L
     }
 }

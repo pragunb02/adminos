@@ -10,7 +10,8 @@ import java.util.UUID
  * [CategorizeMerchantTask], so it is flagged, redacted, capped, circuit-broken and audited like any AI call.
  * The results map onto AOS-512's three outcomes, which the service and its cache already handle:
  * - answered → [AiCategoryResult.Answered];
- * - rejected, or withheld by the redactor → [AiCategoryResult.Rejected] (cached: not asked again);
+ * - rejected → [AiCategoryResult.Rejected] (cached: not asked again);
+ * - withheld by the redactor → [AiCategoryResult.Withheld] (never cached: the cleaned cache key is shared with the real merchant);
  * - unavailable, feature off or cap reached → [AiCategoryResult.Unavailable] (not cached: asked again later).
  */
 class PortAiCategoryClient(private val gateway: AiGateway) : AiCategoryClient {
@@ -21,7 +22,7 @@ class PortAiCategoryClient(private val gateway: AiGateway) : AiCategoryClient {
             is AiResult.Rejected -> AiCategoryResult.Rejected(result.code.value)
             is AiResult.Unavailable -> AiCategoryResult.Unavailable(result.code.value)
             is AiResult.Refused -> when (result.reason) {
-                AiRefusal.WITHHELD -> AiCategoryResult.Rejected(result.reason.code.value)
+                AiRefusal.WITHHELD -> AiCategoryResult.Withheld(result.reason.code.value)
                 AiRefusal.FEATURE_OFF, AiRefusal.CAP_REACHED -> AiCategoryResult.Unavailable(result.reason.code.value)
             }
         }
