@@ -15,6 +15,12 @@ class InMemorySyncSessionRepository : SyncSessionRepository {
             .sortedByDescending { it.createdAt }
             .take(limit)
 
+    override suspend fun lastCompletedAt(connectionId: UUID, types: Set<SyncType>): Instant? =
+        sessions.values
+            .filter { it.connectionId == connectionId && it.status == SyncSessionStatus.COMPLETED && it.syncType in types }
+            .mapNotNull { it.completedAt }
+            .maxOrNull()
+
     override suspend fun save(session: SyncSession): SyncSession {
         sessions[session.id] = session
         return session

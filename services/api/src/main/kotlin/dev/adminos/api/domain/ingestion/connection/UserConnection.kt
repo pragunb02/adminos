@@ -36,6 +36,9 @@ data class CreateConnectionRequest(
 )
 
 @Serializable
+data class GmailAuthorizeUrlResponse(val url: String)
+
+@Serializable
 data class ConnectionResponse(
     val id: String,
     val sourceType: String,

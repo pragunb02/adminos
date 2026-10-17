@@ -120,6 +120,78 @@ class ConnectionRoutesCoverageTest {
     }
 
     @Test
+    fun `connecting gmail stores when the access token expires and what was granted`() = routesTest {
+        create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+
+        val stored = assertNotNull(service.findByGmailAddress("pragun.b@gmail.com"))
+        val expires = assertNotNull(stored.tokenExpiresAt)
+        assertTrue(expires.isAfter(java.time.Instant.now().plusSeconds(3000)) && expires.isBefore(java.time.Instant.now().plusSeconds(3600)))
+        assertTrue(GMAIL_READONLY_SCOPE in stored.oauthScope.orEmpty())
+    }
+
+    @Test
+    fun `a google grant without gmail read access is CONN_007 and nothing is stored`() = routesTest {
+        google.tokenBody = """{"access_token":"ya29.a0-test-access","expires_in":3599,"refresh_token":"1//0g-test-refresh","scope":"openid email"}"""
+
+        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertEquals("CONN_007", res.errorCode())
+        assertNull(service.findByGmailAddress("pragun.b@gmail.com"))
+    }
+
+    @Test
+    fun `a google grant without offline access is CONN_008`() = routesTest {
+        google.tokenBody = """{"access_token":"ya29.a0-test-access","expires_in":3599,"scope":"openid email $GMAIL_READONLY_SCOPE"}"""
+
+        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertEquals("CONN_008", res.errorCode())
+    }
+
+    @Test
+    fun `the gmail authorize url asks google for read-only gmail with offline access`() =
+        routesTest(oauth = google.client(dev.adminos.api.domain.identity.identityTestAuthConfig())) {
+            val res = client.get("/api/v1/connections/gmail/authorize-url") {
+                bearerAuth(token); parameter("redirectUri", redirect)
+            }
+
+            assertEquals(HttpStatusCode.OK, res.status)
+            val url = java.net.URI(res.json()["data"]!!.jsonObject["url"]!!.jsonPrimitive.content)
+            assertEquals("accounts.google.com", url.host)
+            val query = url.rawQuery.split('&').associate {
+                val (k, v) = it.split('=', limit = 2)
+                k to java.net.URLDecoder.decode(v, Charsets.UTF_8)
+            }
+            assertEquals("openid email $GMAIL_READONLY_SCOPE", query["scope"])
+            assertEquals(redirect, query["redirect_uri"])
+            assertEquals("offline", query["access_type"])
+            assertEquals("consent", query["prompt"])
+            assertEquals("code", query["response_type"])
+            assertEquals("test-client-id.apps.googleusercontent.com", query["client_id"])
+        }
+
+    @Test
+    fun `the gmail authorize url needs a redirect uri and a configured google client`() = routesTest(oauth = null) {
+        val noRedirect = client.get("/api/v1/connections/gmail/authorize-url") { bearerAuth(token) }
+        val noClient = client.get("/api/v1/connections/gmail/authorize-url") { bearerAuth(token); parameter("redirectUri", redirect) }
+
+        assertEquals(HttpStatusCode.BadRequest, noRedirect.status)
+        assertEquals("CONN_005", noRedirect.errorCode())
+        assertEquals(HttpStatusCode.ServiceUnavailable, noClient.status)
+        assertEquals("CONN_009", noClient.errorCode())
+    }
+
+    @Test
+    fun `the gmail authorize url is unavailable when the google client id is blank`() =
+        routesTest(oauth = google.client(dev.adminos.api.domain.identity.identityTestAuthConfig().copy(googleClientId = ""))) {
+            val res = client.get("/api/v1/connections/gmail/authorize-url") { bearerAuth(token); parameter("redirectUri", redirect) }
+
+            assertEquals(HttpStatusCode.ServiceUnavailable, res.status)
+        }
+
+    @Test
     fun `the gmail connect response never contains the oauth tokens`() = routesTest {
         val body = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""").bodyAsText()
 

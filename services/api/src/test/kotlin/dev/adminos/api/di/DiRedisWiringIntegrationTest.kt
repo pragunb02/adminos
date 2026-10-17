@@ -16,6 +16,8 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+import dev.adminos.api.domain.ingestion.sync.SyncType
 
 /** With REDIS_URL set, DI wires the queue publisher and Gmail ingests are queued for the Go workers (AOS-312). */
 @Testcontainers
@@ -43,6 +45,30 @@ class DiRedisWiringIntegrationTest {
             val payload = Json.parseToJsonElement(msg["payload"]!!.jsonPrimitive.content).jsonObject
             assertEquals(session.id.toString(), payload["sync_session_id"]!!.jsonPrimitive.content)
             assertEquals("4242", payload["history_id"]!!.jsonPrimitive.content)
+        } finally {
+            publisher.close()
+        }
+    }
+
+    @Test
+    fun `a fallback Gmail sync carries only string values and no history id key (AOS-401)`() = runBlocking<Unit> {
+        val url = "redis://${redis.host}:${redis.getMappedPort(6379)}"
+        val koin = koinApplication { modules(buildAppModule(useDatabase = false, env = mapOf("REDIS_URL" to url)::get)) }.koin
+        val publisher = koin.get<AsynqPublisher>()
+        try {
+            val userId = UUID.randomUUID()
+            val connectionId = UUID.randomUUID()
+            val session = koin.get<IngestionService>().enqueueGmailIngest(userId, connectionId, syncType = SyncType.CRON_FALLBACK)
+            val client = RedisClient.create(url)
+            val job = client.connect().use { it.sync().rpop(AsynqPublisher.JOBS_LIST) }
+            client.shutdown()
+            val msg = Json.parseToJsonElement(assertNotNull(job)).jsonObject
+            val payload = Json.parseToJsonElement(msg.getValue("payload").jsonPrimitive.content).jsonObject
+
+            assertEquals(SyncType.CRON_FALLBACK, session.syncType)
+            assertEquals(setOf("user_id", "sync_session_id", "connection_id"), payload.keys)
+            assertEquals(connectionId.toString(), payload.getValue("connection_id").jsonPrimitive.content)
+            assertTrue(payload.values.all { it.jsonPrimitive.isString })
         } finally {
             publisher.close()
         }

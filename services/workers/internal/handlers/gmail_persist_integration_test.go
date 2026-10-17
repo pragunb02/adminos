@@ -30,7 +30,7 @@ func TestGmailPersistWritesIngestEvents_Integration(t *testing.T) {
 			Events: []IngestEventRecord{{UserID: userID, SourceRef: "msg-1", OccurredAt: at, Direction: "credit", Amount: "75000.00",
 				MerchantRaw: &merchant, AccountHint: &last4}}}
 	}
-	h := NewGmailHandler(pool, nil, "", "")
+	h := NewGmailHandler(pool, nil, GmailConfig{})
 	first, second := result(), result()
 	if err := h.Persist(ctx, first); err != nil {
 		t.Fatalf("persist: %v", err)
@@ -77,7 +77,7 @@ func TestGmailPersistWritesTypedBills_Integration(t *testing.T) {
 	result := &GmailResult{SyncSessionID: sessionID, UserID: userID, ConnectionID: connID, TotalEmails: 1, BillsFound: 1,
 		Bills: []BillRecord{{ID: billID, UserID: userID, BillerName: "HDFC Bank Credit Card", Amount: 18450, Currency: "INR",
 			DueDate: "2026-11-05", Status: "upcoming", SourceType: "gmail", BillType: "credit_card", AccountRef: &last4}}}
-	if err := NewGmailHandler(pool, nil, "", "").Persist(ctx, result); err != nil {
+	if err := NewGmailHandler(pool, nil, GmailConfig{}).Persist(ctx, result); err != nil {
 		t.Fatalf("persist: %v", err)
 	}
 	var billType, due string

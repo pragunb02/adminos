@@ -78,7 +78,7 @@ func TestEmailTransactionsBecomeIngestEvents(t *testing.T) {
 }
 
 func TestExecuteFailsWithoutGmailInsteadOfReportingSuccess(t *testing.T) {
-	h := NewGmailHandler(nil, nil, "", "")
+	h := NewGmailHandler(nil, nil, GmailConfig{})
 	if _, err := h.Execute(context.Background(), &GmailPayload{UserID: "u", ConnectionID: "c"}); err == nil {
 		t.Fatal("expected an error when Gmail can't be reached")
 	}

@@ -22,6 +22,15 @@ class ExposedSyncSessionRepository : SyncSessionRepository {
             .map { it.toSyncSession() }
     }
 
+    override suspend fun lastCompletedAt(connectionId: UUID, types: Set<SyncType>): Instant? = dbQuery {
+        val latest = SyncSessionsTable.completedAt.max()
+        SyncSessionsTable.select(latest).where {
+            (SyncSessionsTable.connectionId eq connectionId) and
+                (SyncSessionsTable.status eq SyncSessionStatus.COMPLETED.name.lowercase()) and
+                (SyncSessionsTable.syncType inList types.map { it.name.lowercase() })
+        }.singleOrNull()?.get(latest)
+    }
+
     override suspend fun save(session: SyncSession): SyncSession = dbQuery {
         SyncSessionsTable.insert {
             it[id] = session.id

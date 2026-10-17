@@ -64,28 +64,34 @@ class IngestionService(
         return syncSessionRepository.findById(sessionId)
     }
 
+    /**
+     * Queues a Gmail sync for the Go worker. [historyId] is a push notification's (informational:
+     * the worker always starts from the history ID stored on the connection, AOS-401). [syncType]
+     * records why the sync ran; by default a push with a history ID is incremental.
+     * The payload carries strings only, and no key for an absent value.
+     */
     suspend fun enqueueGmailIngest(
         userId: UUID,
         connectionId: UUID,
-        historyId: String? = null
+        historyId: String? = null,
+        syncType: SyncType? = null
     ): SyncSession {
         val session = SyncSession(
             userId = userId,
             connectionId = connectionId,
-            syncType = if (historyId != null) SyncType.INCREMENTAL else SyncType.HISTORICAL,
+            syncType = syncType ?: if (historyId != null) SyncType.INCREMENTAL else SyncType.HISTORICAL,
             status = SyncSessionStatus.QUEUED
         )
         syncSessionRepository.save(session)
 
-        publisher?.enqueue(
-            jobType = "gmail_ingest",
-            payload = mapOf(
-                "user_id" to userId.toString(),
-                "sync_session_id" to session.id.toString(),
-                "connection_id" to connectionId.toString(),
-                "history_id" to historyId
-            )
-        ) ?: logger.info("Gmail ingest logged (no queue): session={}, historyId={}", session.id, historyId)
+        val payload = buildMap {
+            put("user_id", userId.toString())
+            put("sync_session_id", session.id.toString())
+            put("connection_id", connectionId.toString())
+            if (historyId != null) put("history_id", historyId)
+        }
+        publisher?.enqueue(jobType = "gmail_ingest", payload = payload)
+            ?: logger.info("Gmail ingest logged (no queue): session={}, type={}", session.id, session.syncType)
 
         return session
     }

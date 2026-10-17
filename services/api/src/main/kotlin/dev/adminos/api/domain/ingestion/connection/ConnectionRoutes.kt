@@ -19,6 +19,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import java.time.Instant
 import java.util.UUID
 
 fun Route.connectionRoutes(connectionService: ConnectionService, auditService: AuditService, googleOAuthClient: GoogleOAuthClient? = null) {
@@ -34,6 +35,16 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                     HttpStatusCode.OK,
                     ApiResponse.success(connections.map { ConnectionResponse.from(it) }, call.requestId)
                 )
+            }
+
+            // Where to send the user to connect Gmail (AOS-401): Google's consent page for read-only
+            // Gmail with offline access. The code it returns is then POSTed to /connections.
+            get("/gmail/authorize-url") {
+                val redirectUri = call.request.queryParameters["redirectUri"]?.takeIf { it.isNotBlank() }
+                    ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri is required"))
+                val url = googleOAuthClient?.gmailConsentUrl(redirectUri)
+                    ?: throw ApiException(HttpStatusCode.ServiceUnavailable, ApiError("CONN_009", "Google sign-in is not configured"))
+                call.respond(HttpStatusCode.OK, ApiResponse.success(GmailAuthorizeUrlResponse(url), call.requestId))
             }
 
             post {
@@ -61,13 +72,14 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                         // Google refused the code (expired, reused, wrong redirect): the user's problem, not a 500 (AOS-613).
                         throw ApiException(HttpStatusCode.BadRequest, ApiError.OAUTH_FAILED)
                     }
-                    connectionService.createConnection(
-                        userId = principal.userId,
-                        sourceType = sourceType,
-                        gmailAddress = userInfo.email,
-                        accessToken = tokens.accessToken,
-                        refreshToken = tokens.refreshToken
-                    )
+                    val grant = OAuthGrant.fromGoogle(tokens.accessToken, tokens.refreshToken, tokens.expiresIn, tokens.scope, Instant.now())
+                    try {
+                        connectionService.connectGmail(principal.userId, userInfo.email, grant)
+                    } catch (e: GmailGrantException.ReadAccessMissing) {
+                        throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_007", "Allow AdminOS to read Gmail to connect it"))
+                    } catch (e: GmailGrantException.OfflineAccessMissing) {
+                        throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_008", "Google didn't grant offline access: connect Gmail again"))
+                    }
                 } else {
                     connectionService.createConnection(userId = principal.userId, sourceType = sourceType)
                 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -19,6 +20,7 @@ import (
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/jobs"
 	"github.com/adminos/adminos/workers/internal/normalizer"
+	"github.com/adminos/adminos/workers/internal/tokencrypt"
 )
 
 // GmailPayload is the input for the Gmail ingestion job.
@@ -26,17 +28,21 @@ type GmailPayload struct {
 	UserID        string `json:"user_id"`
 	SyncSessionID string `json:"sync_session_id"`
 	ConnectionID  string `json:"connection_id"`
-	HistoryID     string `json:"history_id,omitempty"`
-	GmailAddress  string `json:"gmail_address"`
+	// HistoryID is the push notification's history ID: informational only. A sync always starts
+	// from the history ID stored on the connection (the notification's is the mailbox's *new*
+	// position; starting there would skip the very change it announces).
+	HistoryID    string `json:"history_id,omitempty"`
+	GmailAddress string `json:"gmail_address"`
 }
 
-// GmailEmail represents a single email fetched from Gmail API.
+// GmailEmail represents a single email fetched from Gmail API. It lives in memory only, for
+// extraction (D-33): it is never serialised, stored or logged.
 type GmailEmail struct {
-	MessageID string `json:"message_id"`
-	From      string `json:"from"`
-	Subject   string `json:"subject"`
-	Body      string `json:"body"`
-	Date      string `json:"date"`
+	MessageID string `json:"-"`
+	From      string `json:"-"`
+	Subject   string `json:"-"`
+	Body      string `json:"-"`
+	Date      string `json:"-"`
 }
 
 // ExtractedFinancialData holds parsed financial info from an email.
@@ -69,7 +75,10 @@ type GmailResult struct {
 	DuplicateItems    int    `json:"duplicate_items"`
 	NetNewItems       int    `json:"net_new_items"`
 	FailedItems       int    `json:"failed_items"`
-	NewHistoryID      string `json:"new_history_id,omitempty"`
+	// NewHistoryID is Gmail's real history ID after this sync (AOS-401); "" leaves the stored one.
+	NewHistoryID string `json:"new_history_id,omitempty"`
+	SyncMode     string `json:"sync_mode,omitempty"`
+	NotFinancial int    `json:"not_financial"`
 
 	// Enriched data for Persist. Transactions go to the common intake as events (AOS-205, D-21):
 	// the API's pipeline does dedup, transfers, refunds and categories.
@@ -85,23 +94,51 @@ type GmailResult struct {
 	AvgConfidence float64 `json:"avg_confidence"`
 }
 
+// GmailConfig is what the Gmail handler needs besides its database and Gmail client.
+type GmailConfig struct {
+	ClientID     string
+	ClientSecret string
+	// Cipher reads and writes the OAuth tokens in the API's TokenEncryptor format (D-59). Required.
+	Cipher *tokencrypt.Cipher
+	// Now is the clock (tests inject one); nil means time.Now.
+	Now func() time.Time
+}
+
 // GmailHandler processes Gmail ingestion jobs.
 // Implements the JobHandler interface from the workflow package.
 type GmailHandler struct {
 	db           *pgxpool.Pool
+	conns        gmailConnectionStore
 	gmailClient  *gmail.Client
+	cipher       *tokencrypt.Cipher
 	clientID     string
 	clientSecret string
+	now          func() time.Time
 	mu           sync.Mutex
 	fingerprints map[string]bool
 }
 
-func NewGmailHandler(db *pgxpool.Pool, gmailClient *gmail.Client, clientID, clientSecret string) *GmailHandler {
+func NewGmailHandler(db *pgxpool.Pool, gmailClient *gmail.Client, cfg GmailConfig) *GmailHandler {
+	var conns gmailConnectionStore
+	if db != nil {
+		conns = &pgConnectionStore{db: db}
+	}
+	return newGmailHandler(db, conns, gmailClient, cfg)
+}
+
+func newGmailHandler(db *pgxpool.Pool, conns gmailConnectionStore, gmailClient *gmail.Client, cfg GmailConfig) *GmailHandler {
+	now := cfg.Now
+	if now == nil {
+		now = time.Now
+	}
 	return &GmailHandler{
 		db:           db,
+		conns:        conns,
 		gmailClient:  gmailClient,
-		clientID:     clientID,
-		clientSecret: clientSecret,
+		cipher:       cfg.Cipher,
+		clientID:     cfg.ClientID,
+		clientSecret: cfg.ClientSecret,
+		now:          now,
 		fingerprints: make(map[string]bool),
 	}
 }
@@ -114,27 +151,54 @@ func (h *GmailHandler) Parse(payload json.RawMessage) (any, error) {
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return nil, fmt.Errorf("failed to parse Gmail payload: %w", err)
 	}
-	if p.UserID == "" {
-		return nil, fmt.Errorf("user_id is required")
-	}
-	if p.ConnectionID == "" {
-		return nil, fmt.Errorf("connection_id is required")
+	for _, f := range []struct{ name, value string }{
+		{"user_id", p.UserID}, {"connection_id", p.ConnectionID}, {"sync_session_id", p.SyncSessionID},
+	} {
+		if f.value == "" {
+			return nil, fmt.Errorf("%s is required", f.name)
+		}
+		if _, err := uuid.Parse(f.value); err != nil {
+			return nil, fmt.Errorf("%s must be a UUID", f.name)
+		}
 	}
 	return &p, nil
 }
 
+// Execute syncs one Gmail connection. A failure is recorded on the sync session and the connection
+// (a short reason, no content) and returned, so the job is retried (D-43).
 func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
-	p := payload.(*GmailPayload)
-
-	// No silent fallback: if Gmail can't be reached the job fails and is retried (AOS-205).
-	if h.gmailClient == nil || h.db == nil {
-		return nil, fmt.Errorf("gmail ingestion needs a database and a Gmail client")
+	p, ok := payload.(*GmailPayload)
+	if !ok {
+		return nil, fmt.Errorf("gmail ingestion: unexpected payload %T", payload)
 	}
-	accessToken, err := h.getAccessToken(ctx, p.ConnectionID)
+	// No silent fallback: if Gmail can't be reached the job fails and is retried (AOS-205).
+	if h.gmailClient == nil || h.conns == nil || h.cipher == nil {
+		return nil, errGmailNotConfigured
+	}
+	result, err := h.execute(ctx, p)
+	if err != nil {
+		f := syncFailure{ConnectionID: p.ConnectionID, SyncSessionID: p.SyncSessionID, Reason: failureReason(err)}
+		if recErr := h.conns.RecordFailure(context.WithoutCancel(ctx), f); recErr != nil {
+			log.Printf("[gmail] Could not record the failed sync of connection %s: %v", p.ConnectionID, recErr)
+		}
+		return nil, err
+	}
+	return result, nil
+}
+
+func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResult, error) {
+	conn, err := h.conns.Load(ctx, p.ConnectionID)
+	if err != nil {
+		return nil, err
+	}
+	if conn.Status != "connected" {
+		return nil, errNotConnected
+	}
+	accessToken, err := h.accessToken(ctx, p.ConnectionID, conn)
 	if err != nil {
 		return nil, fmt.Errorf("gmail access token: %w", err)
 	}
-	emails, err := h.fetchRealEmails(ctx, accessToken, p.HistoryID)
+	fetched, err := h.fetchMail(ctx, accessToken, conn.HistoryID)
 	if err != nil {
 		return nil, fmt.Errorf("fetch gmail messages: %w", err)
 	}
@@ -143,17 +207,19 @@ func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
 		SyncSessionID: p.SyncSessionID,
 		UserID:        p.UserID,
 		ConnectionID:  p.ConnectionID,
-		TotalEmails:   len(emails),
+		TotalEmails:   len(fetched.Emails),
+		FailedItems:   fetched.Gone,
+		NewHistoryID:  fetched.NewHistoryID,
+		SyncMode:      string(fetched.Mode),
+		NotFinancial:  fetched.NotFinancial,
 	}
 
 	var confSum float64
 	var confCount int
 
-	for _, email := range emails {
-		select {
-		case <-ctx.Done():
-			return result, ctx.Err()
-		default:
+	for _, email := range fetched.Emails {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 
 		extracted := parseFinancialEmail(email)
@@ -173,98 +239,28 @@ func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
 	if confCount > 0 {
 		result.AvgConfidence = confSum / float64(confCount)
 	}
-
-	result.NewHistoryID = fmt.Sprintf("history_%d", time.Now().Unix())
+	log.Printf("[gmail] Connection %s: %s sync, %d financial emails, %d skipped by the sender filters",
+		p.ConnectionID, fetched.Mode, len(fetched.Emails), fetched.NotFinancial)
 	return result, nil
 }
 
-// getAccessToken retrieves a valid OAuth access token for the given connection.
-// If the token is expired (with 5-minute buffer), it refreshes via the Gmail client.
-// TODO: Token encryption/decryption — currently stores/reads plaintext tokens.
-func (h *GmailHandler) getAccessToken(ctx context.Context, connectionID string) (string, error) {
-	var accessToken, refreshToken string
-	var expiresAt *time.Time
-
-	err := h.db.QueryRow(ctx,
-		`SELECT access_token, refresh_token, token_expires_at FROM user_connections WHERE id = $1`,
-		connectionID).Scan(&accessToken, &refreshToken, &expiresAt)
-	if err != nil {
-		return "", fmt.Errorf("query connection tokens: %w", err)
+// failureReason is the short, content-free reason stored with a failed sync.
+func failureReason(err error) string {
+	var retryable *gmail.RetryableError
+	switch {
+	case errors.Is(err, errAccessRevoked):
+		return errAccessRevoked.Error()
+	case errors.Is(err, errTokenUnreadable):
+		return "stored gmail token can't be decrypted"
+	case errors.Is(err, errNoTokens), errors.Is(err, errNotConnected), errors.Is(err, errConnectionNotFound):
+		return "gmail is not connected"
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
+		return "gmail sync interrupted"
+	case errors.As(err, &retryable):
+		return "gmail temporarily unavailable"
+	default:
+		return "gmail sync failed"
 	}
-
-	if accessToken == "" {
-		return "", fmt.Errorf("no access token stored for connection %s", connectionID)
-	}
-
-	// Check if token is still valid with 5-minute buffer
-	if expiresAt != nil && time.Now().Before(expiresAt.Add(-5*time.Minute)) {
-		return accessToken, nil
-	}
-
-	// Token expired — refresh it
-	if refreshToken == "" {
-		return "", fmt.Errorf("no refresh token available for connection %s", connectionID)
-	}
-
-	tokenResp, err := h.gmailClient.RefreshToken(ctx, h.clientID, h.clientSecret, refreshToken)
-	if err != nil {
-		// If refresh token is revoked, mark connection as error
-		if _, ok := err.(*gmail.TokenRevokedError); ok {
-			_, dbErr := h.db.Exec(ctx,
-				`UPDATE user_connections SET status = 'error', last_error = $2, updated_at = now() WHERE id = $1`,
-				connectionID, err.Error())
-			if dbErr != nil {
-				log.Printf("[gmail] Failed to update connection status: %v", dbErr)
-			}
-		}
-		return "", fmt.Errorf("refresh token: %w", err)
-	}
-
-	// Store new token in DB
-	newExpiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
-	_, err = h.db.Exec(ctx,
-		`UPDATE user_connections SET access_token = $2, token_expires_at = $3, updated_at = now() WHERE id = $1`,
-		connectionID, tokenResp.AccessToken, newExpiry)
-	if err != nil {
-		log.Printf("[gmail] Failed to store refreshed token: %v", err)
-	}
-
-	return tokenResp.AccessToken, nil
-}
-
-// fetchRealEmails uses the Gmail API client to fetch financial emails.
-func (h *GmailHandler) fetchRealEmails(ctx context.Context, accessToken, historyID string) ([]GmailEmail, error) {
-	query := "category:updates OR category:promotions subject:(transaction OR payment OR bill OR statement OR receipt)"
-
-	listResp, err := h.gmailClient.ListMessages(ctx, accessToken, query, "")
-	if err != nil {
-		return nil, fmt.Errorf("list messages: %w", err)
-	}
-
-	var emails []GmailEmail
-	for _, entry := range listResp.Messages {
-		msg, err := h.gmailClient.GetMessage(ctx, accessToken, entry.ID)
-		if err != nil {
-			log.Printf("[gmail] Failed to get message %s: %v", entry.ID, err)
-			continue
-		}
-
-		email := GmailEmail{MessageID: msg.ID}
-		for _, h := range msg.Payload.Headers {
-			switch h.Name {
-			case "From":
-				email.From = h.Value
-			case "Subject":
-				email.Subject = h.Value
-			case "Date":
-				email.Date = h.Value
-			}
-		}
-		email.Body = msg.Snippet
-		emails = append(emails, email)
-	}
-
-	return emails, nil
 }
 
 // processTransaction turns an extracted email transaction into an ingest event (AOS-205).
@@ -455,13 +451,21 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 		}
 	}
 
-	// Update user_connections with new history_id and last_synced_at
+	// The connection's new start point and last success (AOS-401). The history ID only moves
+	// forward: a slower, older sync finishing late never rewinds it; a non-Gmail value (the old
+	// "history_<time>") is replaced; "" keeps what is stored.
 	if r.ConnectionID != "" {
 		_, err = tx.Exec(ctx, `
 			UPDATE user_connections SET
-				history_id = $2, last_synced_at = now(), last_sync_status = 'success', updated_at = now()
+				history_id = CASE
+					WHEN $2::text = '' THEN history_id
+					WHEN history_id ~ '^[0-9]{1,20}$' AND $2::text ~ '^[0-9]{1,20}$'
+						AND history_id::numeric > $2::text::numeric THEN history_id
+					ELSE $2::text END,
+				last_synced_at = now(), last_sync_status = 'success', last_error = NULL,
+				total_synced = total_synced + $3, updated_at = now()
 			WHERE id = $1`,
-			r.ConnectionID, r.NewHistoryID)
+			r.ConnectionID, r.NewHistoryID, r.NetNewItems)
 		if err != nil {
 			return fmt.Errorf("update user connection: %w", err)
 		}
@@ -813,4 +817,3 @@ func billTypeOrOther(kind string) string {
 	}
 	return kind
 }
-

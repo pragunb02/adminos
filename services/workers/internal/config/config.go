@@ -10,6 +10,9 @@ type Config struct {
 	WorkerType         string
 	GoogleClientID     string
 	GoogleClientSecret string
+	// TokenEncryptionKey is the API's TOKEN_ENCRYPTION_KEY: the Gmail worker decrypts and encrypts
+	// OAuth tokens with it (AOS-401). Required for Gmail ingestion.
+	TokenEncryptionKey string
 }
 
 func Load() *Config {
@@ -21,6 +24,7 @@ func Load() *Config {
 		WorkerType:         getEnv("WORKER_TYPE", "all"),
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+		TokenEncryptionKey: getEnv("TOKEN_ENCRYPTION_KEY", ""),
 	}
 }
 

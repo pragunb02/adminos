@@ -1,0 +1,8 @@
+{
+  "about": "AOS-401 / D-59 cross-language vector for TokenEncryptor v2 (API, Kotlin) and tokencrypt (Gmail worker, Go). Test only: the AES key is SHA-256 of the public seed below, computed at test time, so this file protects nothing. Both TokenEncryptorCrossLanguageTest (API) and tokencrypt_test.go (worker) read it.",
+  "seed": "adminos/AOS-401/token-encryptor-v2/cross-language-test-vector (public, test only)",
+  "aad": "user_connections:7d1e6a4e-5b3c-4f2a-9e8d-401401401401:refresh_token",
+  "message": "AOS-401 vector: ₹1,234.50 ✓",
+  "sealedByKotlin": "v2:mylSJl8fHBg99cWFhJU2riZD9h5qfz08owA4ABWlo5qYAev3A5B98JqhfIRqnPNifTEB5t6C8mRsvNE=",
+  "sealedByGo": "v2:caq+vwAKh/5sPbJ/pmSBSbuaJj2G+5cS2TPOSf4M4/g3gkBuoKXe39TWbme3ettF85/xVRAhVWKhsRQ="
+}
