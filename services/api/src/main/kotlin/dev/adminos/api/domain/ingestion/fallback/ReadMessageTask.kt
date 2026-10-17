@@ -47,6 +47,15 @@ sealed interface MessageAnswer {
 }
 
 /**
+ * When the money moved: when the message arrived, unless it names an earlier day (then that day's start, as D-43).
+ * A message can't report money moving after it arrived, so a later date keeps the arrival time.
+ */
+fun MessageAnswer.Transaction.occurredAt(receivedAt: java.time.Instant, receivedOn: LocalDate, zone: java.time.ZoneId): java.time.Instant {
+    val d = date ?: return receivedAt
+    return if (d.isBefore(receivedOn)) d.atStartOfDay(zone).toInstant() else receivedAt
+}
+
+/**
  * The message-reading fallback's redactor and validator (AOS-705, D-67, D-106).
  *
  * **What is sent:** a fixed system prompt, and `{"message": <redacted text>, "receivedOn": "YYYY-MM-DD"}`, the

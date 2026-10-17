@@ -78,4 +78,15 @@ test.describe("full stack", () => {
     expect((await page.request.post(`/api/v1/review/messages/${crypto.randomUUID()}/confirm`, { data: {} })).status()).toBe(404);
     expect((await page.request.post("/api/v1/review/messages/not-an-id/dismiss", { data: {} })).status()).toBe(400);
   });
+
+  test("formats to learn (AOS-706) are owner-only too", async ({ page, context, baseURL }) => {
+    const forged = signAccessToken(undefined, { secret: "e2e-only-secret-not-for-production-attacker" });
+    await signIn(context, baseURL!, forged.token);
+    expect((await page.request.get("/api/v1/review/templates")).status()).toBe(401);
+    await context.clearCookies();
+    const { token } = signAccessToken();
+    await signIn(context, baseURL!, token);
+    expect((await (await page.request.get("/api/v1/review/templates")).json()).data).toEqual([]);
+    expect((await page.request.post(`/api/v1/review/templates/${crypto.randomUUID()}/approve`, { data: {} })).status()).toBe(404);
+  });
 });

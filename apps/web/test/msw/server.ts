@@ -10,6 +10,8 @@ export const server = setupServer(
   http.get("/api/v1/transactions/suggestions", () => ok([])),
   // Review → messages read by AI (AOS-705): none unless a test says otherwise.
   http.get("/api/v1/review/messages", () => ok([])),
+  // Review → formats to learn (AOS-706): none unless a test says otherwise.
+  http.get("/api/v1/review/templates", () => ok([])),
   // Settings → Notifications on this device (AOS-510): push not set up unless a test says otherwise.
   http.get("/api/v1/push", () => ok({ enabled: false, publicKey: null, devices: [] })),
   // Subscriptions → AutoPay & mandates (AOS-502): none unless a test says otherwise.
