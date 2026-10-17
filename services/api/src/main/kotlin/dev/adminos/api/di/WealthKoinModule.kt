@@ -20,6 +20,7 @@ import dev.adminos.api.infrastructure.database.repositories.ExposedInvestmentAcc
 import dev.adminos.api.infrastructure.database.repositories.ExposedInvestmentLedger
 import dev.adminos.api.infrastructure.statements.HttpCasReader
 import dev.adminos.api.domain.scheduling.ScheduledJob
+import dev.adminos.api.domain.wealth.lots.LotService
 import dev.adminos.api.domain.wealth.prices.AmfiNavJob
 import dev.adminos.api.domain.wealth.prices.InMemoryPriceRepository
 import dev.adminos.api.domain.wealth.prices.NavFileSource
@@ -51,6 +52,9 @@ internal fun wealthKoinModule(useDatabase: Boolean): Module = module {
     single<NavFileSource> { HttpAmfiNavSource() }
     single { PriceService(get(), get(), get(), get()) }
     single { AmfiNavJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+
+    // FIFO lots (AOS-811): derived from the ledger on read.
+    single { LotService(get()) }
 
     // CAS import (AOS-805): the parser service reads the file in memory (D-37); the API reconciles and records.
     single<CasReader> { HttpCasReader(get<AppConfig>().statementParser.url) }
