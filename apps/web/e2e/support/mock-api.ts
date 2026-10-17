@@ -48,6 +48,10 @@ export class MockApi {
       }))
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
+      // Review → Check these categories (AOS-708): nothing to ask unless a test says otherwise.
+      .on("GET /api/v1/categories/review", () => ({ data: [] }))
+      .on("GET /api/v1/categories/model", () => ({ data: { enabled: false, state: "off", corrections: 0, correctionsNeeded: 20 } }))
+      .on("GET /api/v1/categories/golden", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
       // Settings → AI features (AOS-704): not set up on the server by default; e2e/ai-features.spec.ts turns it on.
       .on("GET /api/v1/ai/features", () => ({ data: { features: [fx.aiFeature({ available: false, provider: null, locality: null, model: null, destination: null, evaluation: null })], monthlyCapUsd: "2.00" } }))

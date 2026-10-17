@@ -212,6 +212,11 @@ internal fun buildAppModule(
             dev.adminos.api.domain.financial.evaluation.GoldenSet.load(), get<MerchantNormalizer>()::normalize)
         dev.adminos.api.domain.financial.learning.CategoryModelTrainingService(get(), get(), get(), prior, learning)
     }
+    // Review queue with active learning (AOS-708): the learned model's and the AI's unsure guesses, and the local golden set.
+    single<dev.adminos.api.domain.financial.review.GoldenCandidateRepository> {
+        if (useDatabase) ExposedGoldenCandidateRepository() else dev.adminos.api.domain.financial.review.InMemoryGoldenCandidateRepository()
+    }
+    single { dev.adminos.api.domain.financial.review.CategoryReviewService(get(), get(), get(), get()) }
     single {
         val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(

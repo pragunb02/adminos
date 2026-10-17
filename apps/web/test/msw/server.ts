@@ -22,4 +22,8 @@ export const server = setupServer(
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
   http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Review → Check these categories (AOS-708): nothing to ask, learning off, no local test set unless a test says otherwise.
+  http.get("/api/v1/categories/review", () => ok([])),
+  http.get("/api/v1/categories/model", () => ok({ enabled: false, state: "off", corrections: 0, correctionsNeeded: 20 })),
+  http.get("/api/v1/categories/golden", () => ok([])),
 );
