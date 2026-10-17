@@ -124,9 +124,9 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-502](tickets/AOS-502.md) | Mandates from SMS: UPI AutoPay, e-NACH, card SI; debits matched and marked recurring; dormant flagged (D-56) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-503](tickets/AOS-503.md) | Dues & renewals calendar, renewal reminders; fixes: reminder days stored, user-zone dates, Gmail bills without a due date (D-55) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-508](tickets/AOS-508.md) | Bill-payment matching after each transaction + daily sweep, incl. card bills paid by transfer (D-54) | Claude | ✅ | — | 1.5h |
-| **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | 🟦 | 5h | |
+| **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | ✅ | 5h | 3h |
 | └ [AOS-505](tickets/AOS-505.md) | Unusual-charge alerts: every new spend checked against its own past; alert if confident and recent (D-53) | Claude | ✅ | 2h | 1.5h |
-| └ AOS-506 | Weekly briefing with real data (fix: queue payload types) | Claude | ⬜ | 3h |  |
+| └ [AOS-506](tickets/AOS-506.md) | Weekly briefing from real data, deterministic text; queue payloads typed (D-57) | Claude | ✅ | 3h | 1.5h |
 | └ AOS-509 | Subscription waste score from SMS/statement signals | Claude | ⬜ | — |  |
 | **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ⬜ | 6h | |
 | └ AOS-507 | Documents vault | Claude | ⬜ | 6h |  |

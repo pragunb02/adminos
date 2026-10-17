@@ -225,5 +225,9 @@ internal fun buildAppModule(
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
+    // Weekly briefing from real data (AOS-506)
+    single { dev.adminos.api.domain.agent.briefing.BriefingSources(get(), get(), get(), get(), get()) }
+    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get()) }
+    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingJob(get(), get(), get()) } bind ScheduledJob::class
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

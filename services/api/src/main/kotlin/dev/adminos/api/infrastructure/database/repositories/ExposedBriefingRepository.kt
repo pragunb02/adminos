@@ -48,6 +48,12 @@ class ExposedBriefingRepository : BriefingRepository {
         briefing
     }
 
+    override suspend fun findByUserAndPeriod(userId: UUID, periodStart: java.time.LocalDate, type: BriefingType): Briefing? = dbQuery {
+        BriefingsTable.selectAll().where {
+            (BriefingsTable.userId eq userId) and (BriefingsTable.periodStart eq periodStart) and (BriefingsTable.type eq type.name.lowercase())
+        }.singleOrNull()?.toBriefing()
+    }
+
     override suspend fun findById(id: UUID): Briefing? = dbQuery {
         BriefingsTable.selectAll().where { BriefingsTable.id eq id }.singleOrNull()?.toBriefing()
     }

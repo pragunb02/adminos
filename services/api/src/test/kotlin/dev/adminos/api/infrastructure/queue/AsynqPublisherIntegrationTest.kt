@@ -79,6 +79,28 @@ class AsynqPublisherIntegrationTest {
     }
 
     @Test
+    fun `payload values keep their JSON types, so Go can read numbers, lists and objects (AOS-506)`() = runBlocking<Unit> {
+        val redisUrl = "redis://${redis.host}:${redis.getMappedPort(6379)}"
+        val publisher = AsynqPublisher(RedisClient.create(redisUrl))
+        publisher.enqueue("waste_score", mapOf(
+            "user_id" to "u-1", "amount" to java.math.BigDecimal("649.50"), "count" to 3, "flag" to true,
+            "ids" to listOf("a", "b"), "nested" to mapOf("k" to 1), "none" to null
+        ))
+        val verify = RedisClient.create(redisUrl)
+        val conn = verify.connect()
+        val job = Json.parseToJsonElement(conn.sync().rpop(AsynqPublisher.JOBS_LIST)).jsonObject
+        val payload = Json.parseToJsonElement(job["payload"]!!.jsonPrimitive.content).jsonObject
+        assertEquals("649.50", payload["amount"]!!.jsonPrimitive.content)
+        assertTrue(!payload["amount"]!!.jsonPrimitive.isString, "a number, not a string")
+        assertEquals(3, payload["count"]!!.jsonPrimitive.int)
+        assertEquals(true, payload["flag"]!!.jsonPrimitive.boolean)
+        assertEquals(listOf("a", "b"), payload["ids"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(1, payload["nested"]!!.jsonObject["k"]!!.jsonPrimitive.int)
+        assertEquals(JsonNull, payload["none"])
+        conn.close(); verify.shutdown(); publisher.close()
+    }
+
+    @Test
     fun `enqueue supports all job types`() = runBlocking<Unit> {
         val redisUrl = "redis://${redis.host}:${redis.getMappedPort(6379)}"
         val redisClient = RedisClient.create(redisUrl)

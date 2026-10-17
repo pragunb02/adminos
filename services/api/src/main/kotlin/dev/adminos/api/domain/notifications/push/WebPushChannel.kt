@@ -65,6 +65,7 @@ class WebPushChannel(
                 "bill" -> "/bills"
                 "anomaly" -> n.data["entity_id"]?.let { "/anomalies/$it" } ?: "/"
                 "subscription" -> "/subscriptions"
+                "briefing" -> "/briefings"
                 else -> "/"
             },
             tag = n.data?.get("entity_id")?.let { "${n.type.name.lowercase()}-$it" },

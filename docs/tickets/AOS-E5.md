@@ -11,7 +11,7 @@
 | **Target date** | TBD (AOS-005) |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **BRD reference** | §5.3, §5.4, §6 M5 |
-| **Decisions** | D-3, D-48, D-50, D-51, D-52, D-53, D-54, D-55, D-56 |
+| **Decisions** | D-3, D-48, D-50, D-51, D-52, D-53, D-54, D-55, D-56, D-57 |
 | **Depends on** | AOS-E3 |
 
 ## Goal
@@ -20,14 +20,14 @@ The app tells me what to act on: mandates, dues, odd charges, a weekly briefing.
 ## Success criteria (exit criteria)
 - [ ] Recurring/AutoPay tracker and dues calendar on real data — built and tested (AOS-502, AOS-503); real-data check waits on AOS-111/211
 - [x] Reminders and alerts actually delivered (in-app, email, Web Push; needs SMTP/VAPID settings in `.env`)
-- [ ] Weekly briefing generated from real data
+- [x] Weekly briefing generated from real data (AOS-506)
 
 ## Stories
 | ID | Story | Status | ETA |
 |---|---|---|---|
 | [AOS-S5.1](AOS-S5.1.md) | Scheduler & notifications | ✅ | 7h |
 | [AOS-S5.2](AOS-S5.2.md) | Recurring payments & dues | ✅ | 8h |
-| [AOS-S5.3](AOS-S5.3.md) | Alerts & weekly briefing | 🟦 | 5h |
+| [AOS-S5.3](AOS-S5.3.md) | Alerts & weekly briefing | ✅ | 5h |
 | [AOS-S5.4](AOS-S5.4.md) | Documents vault | ⬜ | 6h |
 
 ## Out of scope
@@ -40,7 +40,7 @@ Legacy bugs found by the E5 survey, each fixed in its task:
 - ~~AOS-503: custom reminder days not persisted; reminder dates on the server date; Gmail bills without a due date fail the batch~~ fixed.
 - ~~AOS-505: anomaly context windows use "now" instead of the transaction's time~~ fixed.
 - ~~AOS-508: card bill payments are tagged as transfers, so they never match a card bill~~ fixed.
-- AOS-506/509: the queue publisher turns every payload value into a string (numbers and lists break in Go).
+- ~~AOS-506/509: the queue publisher turns every payload value into a string~~ fixed (AOS-506).
 
 ## Risks
 | Risk | Impact | Mitigation |
@@ -54,3 +54,4 @@ Legacy bugs found by the E5 survey, each fixed in its task:
 - 2026-10-16 — Claude: AOS-508 done.
 - 2026-10-17 — Claude: AOS-503 done.
 - 2026-10-17 — Claude: AOS-502 done; S5.1 and S5.2 complete.
+- 2026-10-17 — Claude: AOS-506 done; S5.3 complete. AOS-509 and AOS-401 running in parallel (background).
