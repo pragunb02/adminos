@@ -43,6 +43,7 @@ class ForecastRoutesTest {
     private val subscriptions = InMemorySubscriptionRepository()
     private val ist = ZoneId.of("Asia/Kolkata")
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
+    private val limiter = dev.adminos.api.infrastructure.plugins.RateLimiter(maxRequests = 5, windowSeconds = 60)
     private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills),
         DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, clock = clock)
 
@@ -50,13 +51,13 @@ class ForecastRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
-            routing { route("/api/v1") { forecastRoutes(service) } }
+            routing { route("/api/v1") { forecastRoutes(service, limiter) } }
         }
         block()
     }
 
-    private suspend fun ApplicationTestBuilder.data(): JsonObject {
-        val res = client.get("/api/v1/forecast") { cookie(ACCESS_TOKEN_COOKIE, jwt) }
+    private suspend fun ApplicationTestBuilder.data(token: String = jwt): JsonObject {
+        val res = client.get("/api/v1/forecast") { cookie(ACCESS_TOKEN_COOKIE, token) }
         assertEquals(HttpStatusCode.OK, res.status)
         return Json.parseToJsonElement(res.bodyAsText()).jsonObject["data"]!!.jsonObject
     }
@@ -106,8 +107,32 @@ class ForecastRoutesTest {
     }
 
     @Test
-    fun `signed-out calls are refused`() = routeTest {
+    fun `signed-out calls and forged tokens are refused`() = routeTest {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/v1/forecast").status)
+        val forged = client.get("/api/v1/forecast") { cookie(ACCESS_TOKEN_COOKIE, jwt.dropLast(3) + "abc") }
+        assertEquals(HttpStatusCode.Unauthorized, forged.status)
+    }
+
+    @Test
+    fun `another user's money never reaches my forecast`() = routeTest {
+        val other = User(id = UUID.randomUUID(), email = "other@example.in", googleId = "g-715", timezone = "Asia/Kolkata")
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = other.id, type = TransactionType.DEBIT, amount = BigDecimal("999"), merchantName = "Theirs", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+        }
+        assertEquals("not_enough_history", data().str("status"))
+        assertEquals("ready", data(jwtService.generateAccessToken(other)).str("status"))
+    }
+
+    @Test
+    fun `forecasts are rate limited per user`() = routeTest {
+        repeat(5) { assertEquals(HttpStatusCode.OK, client.get("/api/v1/forecast") { cookie(ACCESS_TOKEN_COOKIE, jwt) }.status) }
+        val res = client.get("/api/v1/forecast") { cookie(ACCESS_TOKEN_COOKIE, jwt) }
+        assertEquals(HttpStatusCode.TooManyRequests, res.status)
+        assertEquals("RATE_001", Json.parseToJsonElement(res.bodyAsText()).jsonObject["error"]!!.jsonObject["code"]!!.jsonPrimitive.content)
     }
 
     @Test

@@ -117,6 +117,18 @@ describe("ForecastCard", () => {
     expect(await screen.findByText("About ₹61,540.50")).toBeInTheDocument();
   });
 
+  it("names from emails and SMS (payer, bills) are shown as text, never as HTML", async () => {
+    const evil = '<img src=x onerror="alert(1)">';
+    const bills = { ...monthEnd.parts[0], items: [{ ...monthEnd.parts[0].items[0], name: `${evil}<script>alert(2)</script>` }] };
+    forecastWith({ monthEnd: { ...monthEnd, parts: [bills, ...monthEnd.parts.slice(1)] }, salary: { ...salary, payer: evil } });
+    const { user } = renderWithQuery(<ForecastCard />);
+    expect(await screen.findByText(`Salary expected Fri, 30 Oct (${evil})`)).toBeInTheDocument();
+    await user.click(screen.getAllByText("How we got this")[0]);
+    expect(screen.getAllByText(/<script>alert\(2\)<\/script>/).length).toBeGreaterThan(0);
+    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector("script")).toBeNull();
+  });
+
   it("date helpers", () => {
     expect(monthEndDate("2028-02")).toBe("2028-02-29");
     expect(monthEndDate("2026-12")).toBe("2026-12-31");

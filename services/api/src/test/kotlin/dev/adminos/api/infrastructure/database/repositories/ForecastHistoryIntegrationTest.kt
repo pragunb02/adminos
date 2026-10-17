@@ -53,6 +53,8 @@ class ForecastHistoryIntegrationTest {
             txn(user, TransactionType.DEBIT, "999.00", null, "2026-10-09T19:00:00Z"),
             txn(user, TransactionType.CREDIT, "85000.00", "ACME", "2026-10-01T03:30:00Z"),
             txn(user, TransactionType.REVERSAL, "70.00", "Chai Point", "2026-10-02T06:00:00Z"),
+            // A hostile merchant name from an email or SMS is data, never SQL.
+            txn(user, TransactionType.DEBIT, "1.00", "x'); DROP TABLE transactions; --", "2026-10-04T06:00:00Z"),
             rent
         )
         rows.forEach { pg.save(it); mem.save(it) }
@@ -74,6 +76,8 @@ class ForecastHistoryIntegrationTest {
         assertEquals(true, ist.single { it.merchant == "Landlord" }.recurring)
         assertEquals(LocalDate.of(2026, 10, 10), ist.single { it.merchant == null }.day)
         assertNull(sql.firstActivityDay(UUID.randomUUID(), ZoneId.of("Asia/Kolkata")))
+        assertEquals(BigDecimal("1"), ist.single { it.merchant == "x'); DROP TABLE transactions; --" }.amount)
+        assertEquals(rows.size, pg.findByUserId(user, limit = 100).size, "the table is intact")
     }
 
     private fun normalized(rows: List<SpendRow>) =

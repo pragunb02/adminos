@@ -153,6 +153,14 @@ class SalaryDetectorTest {
     }
 
     @Test
+    fun `a hostile payer name is just a name`() {
+        val evil = "<img src=x onerror=alert(1)> ACME"
+        val f = found(listOf(credit("2026-08-07", payer = evil), credit("2026-09-07", payer = evil), credit("2026-10-07", payer = evil)), "2026-10-17")
+        assertEquals(evil, f.salary.payer)
+        assertEquals("img src x onerror alert 1 acme", SalaryDetector.payerKey(evil))
+    }
+
+    @Test
     fun `payer keys ignore case and punctuation`() {
         assertEquals("acme tech pvt ltd", SalaryDetector.payerKey("ACME-TECH, Pvt. Ltd."))
         assertEquals("", SalaryDetector.payerKey(null))

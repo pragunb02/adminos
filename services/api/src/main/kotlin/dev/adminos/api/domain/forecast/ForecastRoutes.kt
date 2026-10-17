@@ -1,7 +1,11 @@
 package dev.adminos.api.domain.forecast
 
+import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.common.toMoney
+import dev.adminos.api.infrastructure.plugins.ApiException
+import dev.adminos.api.infrastructure.plugins.RateLimiter
+import dev.adminos.api.infrastructure.plugins.RateLimiters
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
 import io.ktor.http.*
@@ -79,10 +83,15 @@ import kotlinx.serialization.Serializable
 )
 
 /** `GET /api/v1/forecast` — the month-end forecast and money left until salary, on the user's calendar (AOS-714). */
-fun Route.forecastRoutes(service: ForecastService) {
+fun Route.forecastRoutes(service: ForecastService, limiter: RateLimiter = RateLimiters.forecast()) {
     authenticate("auth-jwt") {
         get("/forecast") {
             val principal = call.userPrincipal
+            // It reads over a year of history per call: a per-user limit keeps a stolen session from burning CPU.
+            val key = "forecast:${principal.userId}"
+            if (!limiter.isAllowed(key)) {
+                throw ApiException(HttpStatusCode.TooManyRequests, ApiError("RATE_001", "Too many forecasts. Try again in ${limiter.retryAfterSeconds(key)} seconds."))
+            }
             val forecast = service.forecast(principal.userId, principal.zone)
             call.respond(HttpStatusCode.OK, ApiResponse.success(forecast.toResponse(), call.requestId))
         }
