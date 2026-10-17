@@ -75,9 +75,21 @@ data class PushSubscription(
     }
 }
 
+/** What saving a subscription did (AOS-627). */
+sealed interface PushSaveResult {
+    /** Stored: a new device, or the same user's device updated (keys rotate, label changes), keeping its id. */
+    data class Saved(val subscription: PushSubscription) : PushSaveResult
+
+    /** The endpoint is registered to another user: nothing was changed. A device never moves between users. */
+    data object OwnedByAnotherUser : PushSaveResult
+}
+
 interface PushSubscriptionRepository {
-    /** Saves [subscription]; an existing row with the same endpoint is replaced (it may move to another user). */
-    suspend fun upsert(subscription: PushSubscription): PushSubscription
+    /**
+     * Saves [subscription], one row per endpoint. The same user's existing row is updated in place; a row of another
+     * user is left untouched (atomically, so two registrations can't race a device across users).
+     */
+    suspend fun save(subscription: PushSubscription): PushSaveResult
     suspend fun findByUserId(userId: UUID): List<PushSubscription>
     /** @return true if a subscription of [userId] with [endpoint] was removed */
     suspend fun delete(userId: UUID, endpoint: PushEndpoint): Boolean
