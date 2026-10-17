@@ -16,7 +16,8 @@ class FinancialSubscriptionDetectorCoverageTest {
     private val now = Instant.parse("2026-10-16T06:30:00Z")
     private val transactions = InMemoryTransactionRepository()
     private val subscriptions = InMemorySubscriptionRepository()
-    private val detector = SubscriptionDetectorService(transactions, subscriptions, Clock.fixed(now, ZoneOffset.UTC))
+    private val detector = SubscriptionDetectorService(transactions, subscriptions,
+        dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)))
 
     private fun day(daysAgo: Long): Instant = now.minusSeconds(daysAgo * 86_400)
 
@@ -35,7 +36,7 @@ class FinancialSubscriptionDetectorCoverageTest {
         assertEquals(0, BigDecimal("649.00").compareTo(sub.amount))
         assertEquals(LocalDate.of(2026, 8, 12), sub.firstBilledDate)
         assertEquals(LocalDate.of(2026, 10, 11), sub.lastBilledDate)
-        assertEquals(LocalDate.of(2026, 11, 10), sub.nextBillingDate)
+        assertEquals(LocalDate.of(2026, 11, 11), sub.nextBillingDate, "a calendar month after the last charge (AOS-513), not +30 days")
         assertEquals("gmail", sub.detectionSource)
         assertEquals(ids, sub.transactionIds)
         assertFalse(sub.priceChanged)
@@ -55,7 +56,7 @@ class FinancialSubscriptionDetectorCoverageTest {
         charge("Disney+ Hotstar", "899.00", 1)
         val sub = detector.detectSubscriptions(userId).single()
         assertEquals(BillingCycle.QUARTERLY, sub.billingCycle)
-        assertEquals(sub.lastBilledDate!!.plusDays(90), sub.nextBillingDate)
+        assertEquals(sub.lastBilledDate!!.plusMonths(3), sub.nextBillingDate)
     }
 
     @Test
@@ -98,8 +99,8 @@ class FinancialSubscriptionDetectorCoverageTest {
     }
 
     @Test
-    fun `charges older than 90 days, other users' charges and refunds are not considered`() = runBlocking<Unit> {
-        charge("Netflix", "649.00", 120); charge("Netflix", "649.00", 10)
+    fun `charges older than 400 days, other users' charges and refunds are not considered`() = runBlocking<Unit> {
+        charge("Netflix", "649.00", 430); charge("Netflix", "649.00", 65) // a year apart, but the first is outside the window
         listOf(60L, 30L).forEach { charge("Spotify", "119.00", it, owner = UUID.randomUUID()) }
         listOf(60L, 30L).forEach { charge("Amazon", "499.00", it, type = TransactionType.REFUND) }
         assertTrue(detector.detectSubscriptions(userId).isEmpty())
@@ -144,5 +145,74 @@ class FinancialSubscriptionDetectorCoverageTest {
         assertTrue(SubscriptionDetectorService.computeIntervals(listOf(one)).isEmpty())
         assertEquals(0.0, SubscriptionDetectorService.stddev(listOf(30.0)))
         assertEquals(1.0, SubscriptionDetectorService.stddev(listOf(29.0, 31.0)))
+    }
+
+    // ── AOS-513 ──
+
+    @Test
+    fun `a yearly plan is found from two charges a year apart`() = runBlocking<Unit> {
+        listOf(370L, 5L).forEach { charge("Amazon Prime", "1499.00", it) }
+        val sub = detector.detectSubscriptions(userId).single()
+        assertEquals(BillingCycle.YEARLY, sub.billingCycle)
+        assertEquals(sub.lastBilledDate!!.plusYears(1), sub.nextBillingDate)
+    }
+
+    @Test
+    fun `the category comes from the catalogue, or the charges, else other`() = runBlocking<Unit> {
+        listOf(65L, 35L, 5L).forEach { charge("Netflix", "649.00", it) }
+        assertEquals(SubscriptionCategory.ENTERTAINMENT, detector.detectSubscriptions(userId).single().category)
+        assertEquals(SubscriptionCategory.CLOUD, SubscriptionDetectorService.fromCatalogue(TransactionCategory.SUBSCRIPTION, "cloud"))
+        assertEquals(SubscriptionCategory.FITNESS, SubscriptionDetectorService.fromCatalogue(TransactionCategory.HEALTH, "fitness"))
+        assertEquals(SubscriptionCategory.FOOD, SubscriptionDetectorService.fromCatalogue(TransactionCategory.FOOD, "food_delivery"))
+        assertEquals(SubscriptionCategory.PRODUCTIVITY, SubscriptionDetectorService.fromCatalogue(TransactionCategory.SUBSCRIPTION, "apps"))
+        assertEquals(SubscriptionCategory.NEWS, SubscriptionDetectorService.fromCatalogue(TransactionCategory.SUBSCRIPTION, "news"))
+        assertEquals(SubscriptionCategory.GAMING, SubscriptionDetectorService.fromCatalogue(TransactionCategory.SUBSCRIPTION, "gaming"))
+        assertEquals(SubscriptionCategory.ENTERTAINMENT, SubscriptionDetectorService.fromCatalogue(TransactionCategory.ENTERTAINMENT, null))
+        assertEquals(null, SubscriptionDetectorService.fromCatalogue(TransactionCategory.SUBSCRIPTION, "books"))
+        fun t(c: TransactionCategory) = Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal.ONE, category = c, transactedAt = now)
+        assertEquals(SubscriptionCategory.FOOD, detector.categoryFor("Unknown kitchen club", listOf(t(TransactionCategory.FOOD))))
+        assertEquals(SubscriptionCategory.ENTERTAINMENT, detector.categoryFor("Some theatre", listOf(t(TransactionCategory.ENTERTAINMENT))))
+        assertEquals(SubscriptionCategory.PRODUCTIVITY, detector.categoryFor("A course", listOf(t(TransactionCategory.EDUCATION))))
+        assertEquals(SubscriptionCategory.OTHER, detector.categoryFor("Gym-ish", listOf(t(TransactionCategory.OTHER))))
+    }
+
+    @Test
+    fun `a subscription with no charge for two cycles is marked ended, and a new charge brings it back`() = runBlocking<Unit> {
+        val old = subscriptions.save(Subscription(userId = userId, name = "Old gym", merchantName = "old gym", amount = BigDecimal("999.00"),
+            billingCycle = BillingCycle.MONTHLY, lastBilledDate = LocalDate.of(2026, 8, 1), nextBillingDate = LocalDate.of(2026, 9, 1)))
+        val recent = subscriptions.save(Subscription(userId = userId, name = "Fresh", merchantName = "fresh", amount = BigDecimal("99.00"),
+            billingCycle = BillingCycle.MONTHLY, lastBilledDate = LocalDate.of(2026, 9, 20)))
+        detector.detectSubscriptions(userId)
+        val ended = subscriptions.findById(old.id)!!
+        assertEquals(SubscriptionStatus.CANCELLED, ended.status)
+        assertNull(ended.nextBillingDate)
+        assertEquals(mapOf("endedBy" to "detector", "endedReason" to "No charge since 2026-08-01"), ended.metadata)
+        assertEquals(SubscriptionStatus.ACTIVE, subscriptions.findById(recent.id)!!.status, "two cycles not yet passed")
+
+        listOf(65L, 35L, 5L).forEach { charge("Old gym", "999.00", it) }
+        val back = subscriptions.findById(detector.detectSubscriptions(userId).single { it.merchantName == "old gym" }.id)!!
+        assertEquals(SubscriptionStatus.ACTIVE, back.status)
+        assertNull(back.metadata, "the ended reason is cleared")
+    }
+
+    @Test
+    fun `dates are the user's own`() = runBlocking<Unit> {
+        val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
+        val owner = users.save(dev.adminos.api.domain.identity.User(email = "p@example.com", googleId = "g", timezone = "Pacific/Kiritimati"))
+        val d = SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC)))
+        // 20:00Z is the next day in Kiritimati (UTC+14).
+        listOf(Instant.parse("2026-08-10T20:00:00Z"), Instant.parse("2026-09-10T20:00:00Z"), Instant.parse("2026-10-10T20:00:00Z")).forEach {
+            transactions.save(Transaction(userId = owner.id, type = TransactionType.DEBIT, amount = BigDecimal("199.00"), merchantName = "Hotstar", transactedAt = it))
+        }
+        val sub = d.detectSubscriptions(owner.id).single()
+        assertEquals(LocalDate.of(2026, 10, 11), sub.lastBilledDate)
+        assertEquals(LocalDate.of(2026, 11, 11), sub.nextBillingDate)
+    }
+
+    @Test
+    fun `month ends stay month ends`() {
+        assertEquals(LocalDate.of(2027, 2, 28), SubscriptionDetectorService.nextCharge(LocalDate.of(2027, 1, 31), BillingCycle.MONTHLY))
+        assertEquals(LocalDate.of(2026, 10, 17), SubscriptionDetectorService.nextCharge(LocalDate.of(2026, 10, 16), BillingCycle.DAILY))
+        assertEquals(LocalDate.of(2026, 10, 23), SubscriptionDetectorService.nextCharge(LocalDate.of(2026, 10, 16), BillingCycle.WEEKLY))
     }
 }

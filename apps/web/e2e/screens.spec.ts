@@ -72,11 +72,17 @@ test.describe("anomaly review", () => {
 });
 
 test.describe("subscriptions", () => {
-  test("tabs and keep/cancel on a flagged one", async ({ signedIn: page, api }) => {
+  test("tabs, how to cancel, and keep on a flagged one", async ({ signedIn: page, api }) => {
     await page.goto("/subscriptions");
     await expect(page.getByText("₹1,847")).toBeVisible();
     await page.getByRole("button", { name: /Flagged/ }).click();
     await expect(page.getByText("No visits in 45 days")).toBeVisible();
+    api.on("POST /api/v1/subscriptions/s-9/cancel", () => ({ data: { subscriptionId: "s-9", via: null, steps: ["Cancel in Gym's account or app settings (subscription or membership)."] } }));
+    await page.getByRole("button", { name: "How to cancel" }).click();
+    const dialog = page.getByRole("dialog", { name: "How to cancel Gym" });
+    await expect(dialog).toContainText("Cancel in Gym's account");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
     api.on("PATCH /api/v1/subscriptions/s-9/dismiss", () => ({ data: {} }));
     await page.getByRole("button", { name: "Keep" }).click();
     await expect.poll(() => api.callsTo("PATCH", "/api/v1/subscriptions/s-9/dismiss").length).toBe(1);

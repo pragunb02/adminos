@@ -56,6 +56,7 @@
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 | D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
+| D-65 | Product | Subscription detection looks back 400 days, uses the user's dates and calendar steps, takes the catalogue's category, and marks a subscription ended (reversibly) after two cycles without a charge; "cancel" gives honest steps (via the AutoPay mandate when one pays it), never a fake "queued" | Accepted | AOS-513 |
 | D-60 | Architecture | Documents vault: user-chosen files stored in Cloudflare R2 (any S3), envelope-encrypted in the app (per-file AES-256-GCM key wrapped with the app key); owner-only access via the API; extends D-37 (imported statements are still never kept) | Accepted | AOS-507 |
 | D-58 | Product | Subscription waste score in Kotlin from signals we have (price rise, duplicate service, cost share, long-running, dormant AutoPay, trial ending, marked unused); usage never guessed; ≥ 0.70 flags with reasons; "keep" remembers seen factors | Accepted | AOS-509 |
 | D-57 | Product | Weekly briefing is deterministic: made in the API from the console's analytics and dues, written by a template (no LLM for numbers); on the user's day/time/zone, once per week, catch-up within the week; queue payloads keep JSON types | Accepted | AOS-506 |
@@ -678,4 +679,14 @@ Proposed
   - date-window searches instead of history;
   - the API refreshing tokens for the worker (a new internal endpoint);
   - an Asynq periodic task for the fallback.
+
+### D-65 — Subscription detection and honest cancelling
+2026-10-17 · Accepted (Pragun: "yes yes all") · Type: Product · Tasks: AOS-513
+- **Detection:**
+  - a 400-day look-back, so yearly plans are found;
+  - the user's own dates;
+  - the next charge by the calendar;
+  - the category from the merchant catalogue, then the charges, then Other.
+- **Ending:** no charge for two cycles plus 7 days marks a subscription cancelled with a reason; a new charge reverses it.
+- **Cancelling:** AdminOS can't cancel anything, so "how to cancel" gives real steps. When a mandate pays it, revoke the mandate first (the UPI app, bank e-mandates, or card standing instructions), then cancel with the service. Nothing pretends work was queued.
 

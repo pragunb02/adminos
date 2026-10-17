@@ -24,6 +24,7 @@
 |---|---|---|---|---|---|
 | [AOS-502](AOS-502.md) | Recurring / UPI AutoPay, e-NACH, card SI mandates from SMS | Claude | ✅ | 4h | 2.5h |
 | [AOS-503](AOS-503.md) | Dues & renewals calendar + renewal reminders + reminder fixes | Claude | ✅ | 4h | 2.5h |
+| [AOS-513](AOS-513.md) | Subscription detection fixes; honest "how to cancel" | Claude | ✅ | — | 1.5h |
 | [AOS-508](AOS-508.md) | Bill-payment matching: listener + daily sweep, card bills by transfer | Claude | ✅ | — | 1.5h |
 
 _Task tickets are created as files when this story is picked up._
@@ -36,3 +37,4 @@ See upcoming dues
 - 2026-10-16 — Claude: started; AOS-508 done.
 - 2026-10-17 — Claude: AOS-503 done.
 - 2026-10-17 — Claude: AOS-502 done; story done.
+- 2026-10-17 — Claude: AOS-513 done.

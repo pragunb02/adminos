@@ -196,7 +196,7 @@ class AgentRepositoriesDtosCoverageTest {
         assertNull(SubscriptionDismissRequest().reason)
         assertEquals("still using it", SubscriptionDismissRequest("still using it").reason)
         assertEquals("dismissed", AnomalyResolveRequest("dismissed").status)
-        assertEquals("queued", CancellationQueuedResponse("s", "queued", "m").status)
+        assertEquals(listOf("step"), CancellationGuidanceResponse("s", null, listOf("step")).steps)
     }
 
     @Test

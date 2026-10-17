@@ -11,7 +11,7 @@
 | **Target date** | TBD (AOS-005) |
 | **Created / Updated** | 2026-10-16 / 2026-10-16 |
 | **BRD reference** | §5.3, §5.4, §6 M5 |
-| **Decisions** | D-3, D-48, D-50, D-51, D-52, D-53, D-54, D-55, D-56, D-57, D-58, D-60 |
+| **Decisions** | D-3, D-48, D-50, D-51, D-52, D-53, D-54, D-55, D-56, D-57, D-58, D-60, D-65 |
 | **Depends on** | AOS-E3 |
 
 ## Goal
@@ -57,3 +57,4 @@ Legacy bugs found by the E5 survey, each fixed in its task:
 - 2026-10-17 — Claude: AOS-506 done; S5.3 complete. AOS-509 and AOS-401 running in parallel (background).
 - 2026-10-17 — Claude: AOS-509 merged (D-58).
 - 2026-10-17 — Claude: AOS-507 done (D-60); all four stories complete. Left for the exit criteria: the real-data checks (AOS-111, AOS-211/212) and R2/SMTP/VAPID settings.
+- 2026-10-17 — Claude: AOS-513 done (D-65).
