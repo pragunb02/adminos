@@ -35,6 +35,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -50,7 +51,7 @@ class AskRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
-            routing { route("/api/v1") { askRoutes(f.service) } }
+            routing { route("/api/v1") { askRoutes(f.service, f.feedback) } }
         }
         block()
     }
@@ -162,6 +163,31 @@ class AskRoutesTest {
         routeTest(AskFixture(plan = { dev.adminos.api.domain.ai.AiCompletion.Failed(dev.adminos.api.domain.ai.AiReasonCode("network")) })) {
             assertEquals("ASK_007", ask("""{"question":"zepto"}""").errorCode())
         }
+    }
+
+    private suspend fun ApplicationTestBuilder.vote(body: String, jwt: String? = ownerJwt): HttpResponse = client.post("/api/v1/ask/feedback") {
+        jwt?.let { cookie(ACCESS_TOKEN_COOKIE, it) }
+        contentType(ContentType.Application.Json)
+        setBody(body)
+    }
+
+    @Test
+    fun `feedback is saved for the owner's own recent answer only (AOS-711)`() {
+        val f = AskFixture()
+        routeTest(f) {
+            val askId = ask("""{"question":"hmm"}""").json()["data"]!!.jsonObject["askId"]!!.jsonPrimitive.content
+            val saved = vote("""{"askId":"$askId","helpful":true}""")
+            assertEquals(HttpStatusCode.OK, saved.status)
+            assertEquals("true", saved.json()["data"]!!.jsonObject["saved"]!!.jsonPrimitive.content)
+            val theirs = vote("""{"askId":"$askId","helpful":false}""", jwtService.generateAccessToken(stranger))
+            assertEquals(HttpStatusCode.NotFound, theirs.status)
+            assertEquals("ASK_008", theirs.errorCode())
+            assertEquals(HttpStatusCode.NotFound, vote("""{"askId":"${java.util.UUID.randomUUID()}","helpful":true}""").status)
+            assertEquals(HttpStatusCode.BadRequest, vote("""{"askId":"../../etc","helpful":true}""").status)
+            assertEquals(HttpStatusCode.BadRequest, vote("""{"askId":"$askId","helpful":"yes"}""").status)
+            assertEquals(HttpStatusCode.Unauthorized, vote("""{"askId":"$askId","helpful":true}""", jwt = null).status)
+        }
+        assertEquals(true, runBlocking { f.feedbackRepository.forUser(AskSeed.OWNER) }.single().helpful)
     }
 
     @Test

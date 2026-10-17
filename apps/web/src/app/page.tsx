@@ -65,6 +65,9 @@ function HomeContent() {
     <div className="space-y-4">
       <PeriodSwitcher period={period} today={today} />
       {notice && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>}
+      <Link href="/ask" className="block rounded-xl border border-line bg-surface px-4 py-3 text-sm hover:bg-page">
+        Ask your money <span className="text-ink-muted">· “How much on Zepto last month?”</span>
+      </Link>
 
       <div className="rounded-xl border border-line bg-surface p-4">
         {summary.isPending || compared.isPending ? (

@@ -78,7 +78,11 @@ export class MockApi {
       .on("GET /api/v1/analytics/summary", (_r, u) => ({ data: { ...fx.summary(), period: { from: u.searchParams.get("from"), to: u.searchParams.get("to") } } }))
       .on("GET /api/v1/analytics/series", () => ({ data: fx.week() }))
       .on("GET /api/v1/analytics/categories", () => ({ data: fx.categories() }))
-      .on("GET /api/v1/analytics/merchants", () => ({ data: fx.merchants() }));
+      .on("GET /api/v1/analytics/merchants", () => ({ data: fx.merchants() }))
+      // Ask your money (AOS-711): on, with a fixed answer unless a test says otherwise.
+      .on("GET /api/v1/ask", () => ({ data: { enabled: true, maxQuestionLength: 300 } }))
+      .on("POST /api/v1/ask", () => ({ data: fx.askAnswer() }))
+      .on("POST /api/v1/ask/feedback", () => ({ data: { saved: true } }));
   }
 
   on(key: string, handler: Handler): this {

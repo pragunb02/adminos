@@ -55,7 +55,13 @@ import java.util.Locale
 
 @Serializable data class AskComparisonDto(val later: String, val earlier: String, val difference: String, val changePct: String?)
 
+@Serializable data class AskFeedbackRequest(val askId: String, val helpful: Boolean)
+
+@Serializable data class AskFeedbackResponse(val saved: Boolean)
+
 @Serializable data class AskResponse(
+    /** Names this answer for thumbs up or down for an hour (AOS-711). */
+    val askId: String,
     val answer: String,
     val source: String,
     val notice: String?,
@@ -69,7 +75,7 @@ import java.util.Locale
  * and zone come from the token only. Errors carry codes the web maps to calm messages; no question text or
  * amount is ever echoed in an error.
  */
-fun Route.askRoutes(service: AskService) {
+fun Route.askRoutes(service: AskService, feedback: AskFeedbackService) {
     authenticate("auth-jwt") {
         route("/ask") {
             get {
@@ -79,12 +85,23 @@ fun Route.askRoutes(service: AskService) {
                 val principal = call.userPrincipal
                 val body = call.receive<AskRequest>()
                 when (val outcome = service.ask(principal.userId, principal.zone, body.question)) {
-                    is AskOutcome.Answered -> call.respond(HttpStatusCode.OK, ApiResponse.success(outcome.answer.dto(), call.requestId))
+                    is AskOutcome.Answered -> call.respond(HttpStatusCode.OK, ApiResponse.success(outcome.answer.dto(outcome.askId), call.requestId))
                     is AskOutcome.Rejected -> {
                         val why = outcome.why
                         if (why is AskRejection.RateLimited) call.response.header("Retry-After", why.retryAfter.toSeconds().coerceAtLeast(1).toString())
                         throw why.exception()
                     }
+                }
+            }
+            // Thumbs up or down on a recent answer (AOS-711): stores the masked question and the plan for the eval set.
+            post("/feedback") {
+                val principal = call.userPrincipal
+                val body = call.receive<AskFeedbackRequest>()
+                val askId = runCatching { java.util.UUID.fromString(body.askId) }.getOrNull()
+                    ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("VALIDATION_003", "Invalid 'askId'. Expected a UUID."))
+                when (feedback.vote(principal.userId, askId, body.helpful)) {
+                    AskFeedbackService.Result.Saved -> call.respond(HttpStatusCode.OK, ApiResponse.success(AskFeedbackResponse(true), call.requestId))
+                    AskFeedbackService.Result.NotFound -> throw ApiException(HttpStatusCode.NotFound, ApiError("ASK_008", "That answer is too old to rate. Ask again to rate it."))
                 }
             }
         }
@@ -105,10 +122,10 @@ private fun AskRejection.exception(): ApiException = when (this) {
 
 private fun lower(e: Enum<*>?) = e?.name?.lowercase(Locale.ROOT)
 
-internal fun AskAnswer.dto(): AskResponse {
+internal fun AskAnswer.dto(askId: java.util.UUID): AskResponse {
     val idOf = steps.filter { it.result != null }.map { it.id }
     return AskResponse(
-        answer = text, source = source.key, notice = notice, declineReason = declineReason?.key,
+        askId = askId.toString(), answer = text, source = source.key, notice = notice, declineReason = declineReason?.key,
         steps = steps.map { it.dto() },
         comparisons = comparisons.map { AskComparisonDto(idOf[it.later], idOf[it.earlier], it.difference.toMoney(), it.changePct?.toPlainString()) }
     )

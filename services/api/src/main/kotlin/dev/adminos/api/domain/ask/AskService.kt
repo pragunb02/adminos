@@ -68,7 +68,8 @@ sealed interface AskRejection {
 }
 
 sealed interface AskOutcome {
-    data class Answered(val answer: AskAnswer) : AskOutcome
+    /** [askId] names this answer for feedback for a while ([RecentAsks]). */
+    data class Answered(val answer: AskAnswer, val askId: java.util.UUID) : AskOutcome
     data class Rejected(val why: AskRejection) : AskOutcome
 }
 
@@ -90,7 +91,8 @@ class AskService(
     private val runner: AskToolRunner,
     private val quota: AskQuota,
     private val clock: Clock,
-    private val consent: AskConsent = AskConsent.SERVER_FLAG
+    private val consent: AskConsent = AskConsent.SERVER_FLAG,
+    private val recent: RecentAsks = RecentAsks(clock)
 ) {
     companion object {
         const val MAX_QUESTION = 300
@@ -113,12 +115,12 @@ class AskService(
         val masked = PiiMasker.mask(text).text
         val plan = when (val r = gateway.run(AskPlanTask, userId, AskPlanInput(masked, today, PeriodPhrases.detect(masked, today)))) {
             is AiResult.Answered -> r.value
-            is AiResult.Rejected -> return answered(userId, AskAnswer(AskTemplate.NOT_UNDERSTOOD, AskSource.UNANSWERED, null, null, emptyList(), emptyList()), r.code)
+            is AiResult.Rejected -> return answered(Asked(userId, masked, null), AskAnswer(AskTemplate.NOT_UNDERSTOOD, AskSource.UNANSWERED, null, null, emptyList(), emptyList()), r.code)
             is AiResult.Unavailable -> return rejected(AskRejection.Unavailable)
             is AiResult.Refused -> return rejected(refusal(r.reason))
         }
         val calls = when (plan) {
-            is AskPlan.Decline -> return answered(userId, AskAnswer(AskTemplate.decline(plan.reason), AskSource.DECLINED, null, plan.reason, emptyList(), emptyList()), null)
+            is AskPlan.Decline -> return answered(Asked(userId, masked, plan), AskAnswer(AskTemplate.decline(plan.reason), AskSource.DECLINED, null, plan.reason, emptyList(), emptyList()), null)
             is AskPlan.Tools -> plan.calls
         }
 
@@ -132,15 +134,15 @@ class AskService(
         val results = steps.mapNotNull { it.result }
         if (results.isEmpty()) {
             val onlyFuture = steps.all { it.refused == AskToolRunner.FUTURE_PERIOD }
-            return answered(userId, AskAnswer(if (onlyFuture) AskTemplate.ONLY_PAST else AskTemplate.NOT_UNDERSTOOD, AskSource.UNANSWERED, null, null, steps, emptyList()), null)
+            return answered(Asked(userId, masked, plan), AskAnswer(if (onlyFuture) AskTemplate.ONLY_PAST else AskTemplate.NOT_UNDERSTOOD, AskSource.UNANSWERED, null, null, steps, emptyList()), null)
         }
         // The model sees only the results that ran, numbered t1, t2… in that order; comparisons index the same list.
         val input = AskAnswerInput(masked, results)
         val comparisons = input.comparisons
         val r = gateway.run(AskAnswerTask, userId, input)
-        if (r is AiResult.Answered) return answered(userId, AskAnswer(r.value, AskSource.MODEL, null, null, steps, comparisons), null)
+        if (r is AiResult.Answered) return answered(Asked(userId, masked, plan), AskAnswer(r.value, AskSource.MODEL, null, null, steps, comparisons), null)
         // Rejected (failed a check), unavailable, or refused (e.g. the cap was reached between the steps): numbers from code.
-        return answered(userId, template(results, steps, comparisons), (r as? AiResult.Rejected)?.code)
+        return answered(Asked(userId, masked, plan), template(results, steps, comparisons), (r as? AiResult.Rejected)?.code)
     }
 
     private fun template(results: List<AskToolResult>, steps: List<AskStep>, comparisons: List<AskComparison>) =
@@ -160,8 +162,11 @@ class AskService(
         return AskOutcome.Rejected(why)
     }
 
-    private fun answered(userId: UUID, answer: AskAnswer, code: AiReasonCode?): AskOutcome {
-        log.info("Ask for {}: {} with {} tool calls{}", userId, answer.source.key, answer.steps.size, code?.let { " ($it)" } ?: "")
-        return AskOutcome.Answered(answer)
+    /** Who asked what (masked) and what the model planned: kept briefly so the user can vote on the answer. */
+    private data class Asked(val userId: UUID, val question: String, val plan: AskPlan?)
+
+    private fun answered(asked: Asked, answer: AskAnswer, code: AiReasonCode?): AskOutcome {
+        log.info("Ask for {}: {} with {} tool calls{}", asked.userId, answer.source.key, answer.steps.size, code?.let { " ($it)" } ?: "")
+        return AskOutcome.Answered(answer, recent.remember(asked.userId, asked.question, asked.plan, answer.source))
     }
 }
