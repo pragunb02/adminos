@@ -160,6 +160,20 @@ tasks.register<JavaExec>("aiBakeOff") {
     }
 }
 
+// Splitwise matching eval (AOS-911): ./gradlew -q splitwiseReport prints match precision/recall and spend correctness
+// on the synthetic eval set and writes build/reports/splitwise/report.json. -PwriteBaseline records the current
+// numbers as the new floor (src/test/resources/splits/baseline.json), which SplitEvalTest enforces.
+tasks.register<JavaExec>("splitwiseReport") {
+    group = "verification"
+    description = "Evaluate Splitwise matching on the synthetic eval set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.splits.eval.SplitEvalReportKt")
+    args(layout.buildDirectory.file("reports/splitwise/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/splits").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"
