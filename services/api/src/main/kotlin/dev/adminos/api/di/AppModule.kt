@@ -232,6 +232,11 @@ internal fun buildAppModule(
     single { SmsIntake(get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
+    // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
+    // AiProvider exists, an AI CashPhraseParser plugs in as FallbackCashPhraseParser(rules, ai), behind its consent toggle and eval gate.
+    single<dev.adminos.api.domain.ingestion.cash.CashPhraseParser> {
+        dev.adminos.api.domain.ingestion.cash.RuleCashPhraseParser(dev.adminos.api.domain.ingestion.cash.CashCategoryGuesser(get()))
+    }
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
