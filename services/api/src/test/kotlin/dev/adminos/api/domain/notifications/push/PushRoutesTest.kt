@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 /** /api/v1/push (AOS-510): status, turn on/off, test; validation and "not set up" errors. */
 class PushRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-510")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-510")
     private val jwt = jwtService.generateAccessToken(user)
     private val repo = InMemoryPushSubscriptionRepository()
     private val sender = ScriptedPushSender()

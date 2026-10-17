@@ -30,7 +30,7 @@ func TestTemporaryGmailErrorsAreRetriedWithBackoff(t *testing.T) {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
 		}
-		w.Write([]byte(`{"emailAddress":"pragun.b@gmail.com","historyId":"98765"}`))
+		w.Write([]byte(`{"emailAddress":"owner@example.com","historyId":"98765"}`))
 	}))
 	defer server.Close()
 	c, slept := retryingClient(server.URL, "", 4)

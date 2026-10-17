@@ -28,8 +28,8 @@ func TestIsFinancial(t *testing.T) {
 		{"SBI Card <statements@mail.sbicard.com>", "e-statement", true}, // subdomain
 		{"Kotak <noreply@kotak.bank.in>", "Alert", true},                // RBI .bank.in
 		{"Google Pay <googlepay-noreply@google.com>", "You paid ₹250", true},
-		{"Ravi <ravi@gmail.com>", "Transaction alert: Rs 500 has been debited", true}, // subject match
-		{"Ravi <ravi@gmail.com>", "Dinner on Friday?", false},
+		{"Ravi <ravi@example.com>", "Transaction alert: Rs 500 has been debited", true}, // subject match
+		{"Ravi <ravi@example.com>", "Dinner on Friday?", false},
 		{"Google <no-reply@accounts.google.com>", "Security alert", false},
 		{"Phisher <alerts@hdfcbank.net.evil.com>", "Hello", false}, // look-alike domain
 		{"Fake <x@nothdfcbank.net>", "Hi", false},

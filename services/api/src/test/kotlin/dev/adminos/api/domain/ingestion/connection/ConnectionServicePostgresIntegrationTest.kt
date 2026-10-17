@@ -26,7 +26,7 @@ class ConnectionServicePostgresIntegrationTest {
     @Test
     fun `disconnecting a gmail connection clears its tokens in the database`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
-        val conn = service.createConnection(userId, SourceType.GMAIL, "pg-${userId}@gmail.com", accessToken = "ya29.a", refreshToken = "1//0g")
+        val conn = service.createConnection(userId, SourceType.GMAIL, "pg-${userId}@example.com", accessToken = "ya29.a", refreshToken = "1//0g")
 
         service.disconnect(userId, conn.id)
 
@@ -49,7 +49,7 @@ class ConnectionServicePostgresIntegrationTest {
     @Test
     fun `reconnecting the same gmail address after a disconnect works`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
-        val address = "again-${userId}@gmail.com"
+        val address = "again-${userId}@example.com"
         val first = service.createConnection(userId, SourceType.GMAIL, address)
         service.disconnect(userId, first.id)
 

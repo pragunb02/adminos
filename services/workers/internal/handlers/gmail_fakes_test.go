@@ -82,7 +82,7 @@ func (f *fakeGoogle) serve(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	switch {
 	case r.URL.Path == "/gmail/v1/users/me/profile":
-		writeJSON(w, map[string]string{"emailAddress": "pragun.b@gmail.com", "historyId": f.profileHistoryID})
+		writeJSON(w, map[string]string{"emailAddress": "owner@example.com", "historyId": f.profileHistoryID})
 	case r.URL.Path == "/gmail/v1/users/me/history":
 		page, ok := f.historyPages[q.Get("startHistoryId")+"|"+q.Get("pageToken")]
 		if !ok {
