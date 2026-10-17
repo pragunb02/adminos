@@ -17,7 +17,14 @@ import java.time.LocalDateTime
  * One counted transaction as the leaks see it (AOS-902): its lenses and its local time, worked out once.
  * [timeKnown] is false for statement imports, which carry a date but no time (stored at midday).
  */
-data class LeakFact(val transaction: Transaction, val lenses: Set<LensId>, val local: LocalDateTime, val timeKnown: Boolean) {
+data class LeakFact(
+    val transaction: Transaction,
+    val lenses: Set<LensId>,
+    val local: LocalDateTime,
+    val timeKnown: Boolean,
+    /** A UPI payment to a person (D-81): never a habit, never in a category limit. */
+    val person: Boolean = false
+) {
     val nature: TransactionNature get() = transaction.nature
     val amount: BigDecimal get() = transaction.amount
     val isOrder: Boolean get() = nature == TransactionNature.SPEND

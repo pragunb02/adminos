@@ -6,6 +6,7 @@ import ConnectGmailButton from "@/components/ConnectGmailButton";
 import DeviceTokens from "@/components/DeviceTokens";
 import PushDevice from "@/components/PushDevice";
 import AiFeatures from "@/components/AiFeatures";
+import CoachSettingsSection from "@/components/limits/CoachSettingsSection";
 import { deleteData, errorMessage, getData, patchData, postData } from "@/lib/query";
 import type { UserConnection, NotificationPreferences } from "@/lib/types";
 import Link from "next/link";
@@ -209,6 +210,8 @@ export default function SettingsPage() {
 
             {/* AI features: per-feature consent and notice (AOS-704) */}
             <AiFeatures />
+            {/* Spending coach: alerts and limits (AOS-904) */}
+            <CoachSettingsSection />
 
             {/* Connected devices (AOS-203) */}
             <DeviceTokens />

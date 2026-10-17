@@ -9,6 +9,7 @@ import PeriodSwitcher from "@/components/PeriodSwitcher";
 import { Skeleton } from "@/components/console/Section";
 import UndoToast from "@/components/console/UndoToast";
 import LensCard, { type LensActions } from "@/components/leaks/LensCard";
+import LimitsPanel from "@/components/limits/LimitsPanel";
 import { browserZone } from "@/lib/format";
 import { activityHref, changeText, leaksPath, LENSES_PATH, lensOverridePath, lensResetPath, readLeakRange, type LeaksData, type LensesData } from "@/lib/leaks";
 import { formatInr } from "@/lib/money";
@@ -87,6 +88,7 @@ function LeaksContent() {
       ) : (
         <>
           <TotalLine data={leaks.data} />
+          <LimitsPanel />
           {leaks.data.total.orders === 0 && leaks.data.total.spent === "0.00" && (
             <p className="rounded-xl border border-line bg-surface p-4 text-sm text-ink-muted">
               No leaks in this period: nothing from quick commerce, food delivery, nights out, shopping, pay-later or travel.

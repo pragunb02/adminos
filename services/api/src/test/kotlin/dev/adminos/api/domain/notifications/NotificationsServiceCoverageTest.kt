@@ -146,7 +146,7 @@ class NotificationsServiceCoverageTest {
 
         val enabled = NotificationType.entries.filter { NotificationService.isTypeEnabled(it, off) }.toSet()
 
-        assertEquals(setOf(NotificationType.NUDGE, NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM, NotificationType.SECURITY), enabled)
+        assertEquals(setOf(NotificationType.NUDGE, NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM, NotificationType.SECURITY, NotificationType.COACH), enabled) // COACH: gated by the coach settings (AOS-904)
     }
 
     @Test

@@ -67,7 +67,7 @@ class LeakService(
             .filter { it.nature in LensMatcher.COUNTED }
             .map { t ->
                 val local = t.transactedAt.atZone(zone).toLocalDateTime()
-                LeakFact(t, matcher.lensesOf(t, overrides), local, timeKnown = t.sourceType != DATE_ONLY_SOURCE)
+                LeakFact(t, matcher.lensesOf(t, overrides), local, timeKnown = t.sourceType != DATE_ONLY_SOURCE, person = matcher.isPersonToPerson(t))
             }
             .filter { !it.local.toLocalDate().isBefore(range.from) && !it.local.toLocalDate().isAfter(range.to) }
     }

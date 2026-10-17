@@ -1,5 +1,6 @@
 import type { LeakNumbers, LeaksData, LensDefinition, LensesData, WeekdayNumbers } from "@/lib/leaks";
 import { WEEKDAYS } from "@/lib/leaks";
+import type { Limit, LimitsData } from "@/lib/limits";
 
 /** Canned spending-coach data (Epic E9) for unit tests and Playwright mocks. Synthetic; India time. */
 
@@ -43,6 +44,29 @@ export const cx = {
     ...cx.leaks(),
     total: numbers(),
     lenses: cx.leaks().lenses.map((l) => ({ ...l, numbers: numbers(), merchants: [] })),
+  }),
+  /** Limits (AOS-904): by default still learning (12 of 30 days), nothing set. */
+  limits: (over: Partial<LimitsData> = {}): LimitsData => ({
+    today: "2026-10-18",
+    learning: { daysOfData: 12, daysNeeded: 30, ready: false, label: "Learning your habits: 12 of 30 days" },
+    limits: [], suggestions: [], ...over,
+  }),
+  limit: (over: Partial<Limit> = {}): Limit => ({
+    id: "lim-1", scope: { kind: "lens", value: "quick_commerce" }, label: "Quick commerce", period: "weekly", amount: "2000.00",
+    status: { periodFrom: "2026-10-12", periodTo: "2026-10-18", spent: "1200.00", used: "0.6000", left: "800.00", reached: [50], daysLeft: 0 },
+    ...over,
+  }),
+  /** After the learning month: one limit, one suggestion. */
+  limitsReady: (): LimitsData => cx.limits({
+    learning: { daysOfData: 48, daysNeeded: 30, ready: true, label: "Learning your habits: 30 of 30 days" },
+    limits: [cx.limit()],
+    suggestions: [{
+      lens: "food_delivery", label: "Food delivery", period: "weekly", amount: "1100.00", median: "1250.00", stepPercent: 10, roundTo: "50.00",
+      weeks: [
+        { from: "2026-09-14", to: "2026-09-20", spent: "1500.00" }, { from: "2026-09-21", to: "2026-09-27", spent: "1500.00" },
+        { from: "2026-09-28", to: "2026-10-04", spent: "1000.00" }, { from: "2026-10-05", to: "2026-10-11", spent: "1000.00" },
+      ],
+    }],
   }),
   lens: (over: Partial<LensDefinition> = {}): LensDefinition => ({
     id: "quick_commerce", label: "Quick commerce", description: "10-minute delivery apps", brands: ["Blinkit", "Zepto"], categories: [],
