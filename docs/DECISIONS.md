@@ -10,6 +10,7 @@
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
+| D-87 | Product / Architecture | Savings rate (income − spent) ÷ income per calendar month from the console's analytics is the Home headline with its trend; last month's leaks shown as a monthly SIP over 5 and 10 years with the formula and editable assumptions (12% return, 6% inflation), computed in Kotlin; not advice | Accepted | AOS-908 |
 | D-86 | Product | Goals on habit lenses: cut by X% vs a baseline frozen at creation (the 3 full months before) or keep under ₹Y, weekly or monthly, one per lens; progress per period with refunds netted; streaks are consecutive no-order days; goals never push | Accepted | AOS-907 |
 | D-85 | Architecture / Product | The Sunday report card is a BriefingSection of the weekly briefing (one notification, format weekly-v2): week vs the usual week, best and worst lens, limit outcomes, suggested limit ready, and exactly one rule-based suggestion (first rule that applies wins) | Accepted | AOS-906 |
 | D-84 | Product / Architecture | Evening digest: polled every 15 minutes, sent once per local day at or after the owner's time (default 21:30, never the next morning) via a claim row; today's spent, top two lenses and limits, deterministic text; optional skip on a zero day; a COACH notification under quiet hours | Accepted | AOS-905 |
@@ -1284,3 +1285,11 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Streak:** consecutive days without an order in the lens ending today, and the best run in the last year since the first day with data; refunds don't break it.
 - **Shown** on the leaks page and Home; goals don't push (limits do, D-83).
 - **Rejected:** goals as flagged limits; a moving baseline.
+
+### D-87 — The savings rate is computed from the console's analytics; projections show their formula and assumptions
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-908 · Builds on D-39, D-45, D-46, D-67, D-80, D-82
+- **Rate:** per calendar month in the user's zone, (income − spent) ÷ income, where income = the income nature and spent = spend − refunds (D-39/D-46), from `AnalyticsService`; no rate for a month without income; negative allowed.
+- **Headline:** this month if it has income yet, else the latest month that does; trend vs the previous month in percentage points.
+- **"What this could become":** last full month's leak total (AOS-902) as a monthly SIP, 5 and 10 years; defaults 12% return and 6% inflation, editable (0..30, 0..20); formula shown; computed in Kotlin with BigDecimal; framed as the habit's cost over time, not investment advice (E8 owns guidance).
+- **Too little data:** no month with income in the last 12 → say what's needed.
+- **Rejected:** computing in the browser (duplicate money rules, D-67); stored snapshots (drift after corrections).

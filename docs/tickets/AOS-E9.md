@@ -29,7 +29,7 @@ The app changes behaviour, not just records it: I see where money leaks, get tol
 |---|---|---|---|
 | [AOS-S9.1](AOS-S9.1.md) | Where it leaks | ⬜ | 18h |
 | [AOS-S9.2](AOS-S9.2.md) | Limits and nudges | ✅ | 12h |
-| [AOS-S9.3](AOS-S9.3.md) | Goals and savings rate | ⬜ | 9h |
+| [AOS-S9.3](AOS-S9.3.md) | Goals and savings rate | ✅ | 9h |
 | [AOS-S9.4](AOS-S9.4.md) | Pay-later and trips | ⬜ | 8h |
 
 ## Out of scope
