@@ -21,7 +21,7 @@
   - large-amount alerts use a per-merchant median/MAD baseline (else per category) and fire at a modified z-score above 3.5;
   - the alert text shows the usual range;
   - a dismissal raises that merchant's tolerance (capped), and a confirmation lowers it.
-- [ ] **Forecast (AOS-714):**
+- [x] **Forecast (AOS-714):**
   - month-end = spent so far + known unpaid dues and mandates + a robust run-rate, with an empirical range;
   - "money left until salary" when the salary and balance are known;
   - "not enough history" with less than 3 months of data.
@@ -35,7 +35,7 @@ See the research report §10–§12. Isolation Forest, Prophet and deep forecast
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ⬜ | 6h | |
-| AOS-714 | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ⬜ | 8h | |
+| [AOS-714](AOS-714.md) | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ✅ | 8h | 9h |
 | AOS-709 | Fuzzy merchant grouping for subscriptions (normalise + Jaro-Winkler), merges via Review | Claude | ⬜ | 5h | |
 | AOS-715 | Subscription price-rise alert | Claude | ⬜ | 2h | |
 
@@ -45,4 +45,5 @@ _Task tickets are created as files when this story is picked up._
 A synthetic spending stream with injected spikes alerts on the spikes, and otherwise at most twice a month. The backtest beats the naive pace.
 
 ## Activity log
+- 2026-10-18 — Claude (integration engineer): AOS-714 integrated onto main; D-76 recorded.
 - 2026-10-17 — Claude: story created (AOS-701).

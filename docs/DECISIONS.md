@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-76 | Architecture / Product | The month-end forecast is deterministic decomposition (spent so far + known bills, renewals and mandates + a weekly-median weekday/weekend run-rate × days left) with an 80% range from the user's own past errors; money left until salary from a learnt salary; measured by a synthetic backtest with a floor | Accepted | AOS-714 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1243,6 +1244,7 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Limits:** scope = lens, merchant or category; weekly (Mon–Sun) or monthly, in the user's zone; one per scope and period. Person-to-person UPI never counts for lenses or categories (D-81); a merchant limit counts that merchant exactly.
 - **Alerts:** 50/80/100%. A ledger row per (limit, period start, threshold), primary key = the claim; claim then send (at most once). Several thresholds at once → one push for the highest. Thresholds already passed when a limit is set or changed are recorded silently. A refund that drops spending below a threshold does not re-arm it in that period. Alerts off → thresholds still recorded silently (no backlog when switched on). Checked after each new payment and every 10 minutes. Coach pushes are `NotificationType.COACH`, gated by `coach_settings`, quiet hours as usual.
 - **Rejected:** flags on the limit reset per period (a reset job to keep right); looking for earlier notifications (per channel, prunable); a listener only (misses re-categorisation and lens edits); pushing suggestions (the owner hasn't agreed to them).
+
 ### D-99 — Supply chain and runtime: scan everything, pin everything, run least-privileged
 2026-10-18 · Accepted · Type: Architecture / Process · Tasks: AOS-622 · Builds on D-91, D-100, D-101
 - **Every PR** runs CI (all stacks), Security (OSV-Scanner, npm audit, govulncheck, Trivy + hardened-stack smoke)
@@ -1256,3 +1258,37 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
+
+### D-76 — The month-end forecast is deterministic decomposition, measured by a backtest
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-714 · Builds on D-39, D-46, D-55, D-56, D-61, D-67
+- **What it says:**
+  - **month-end** = spent so far (the console's "spent", D-46) + known payments after today, one component per source (unpaid bills except credit cards, renewals, mandate debits) + everyday spending at a robust daily rate × the days left;
+  - **money left until salary** = the last salary − spent since it − what the same components expect until the day before the next salary.
+- **No double counting:**
+  - what a mandate, a bill payment or an active subscription took is kept out of the everyday rate;
+  - credit-card bills aren't dues (they're paid by transfer, D-39).
+- **The rate:** the median of weekly totals over the last 8 weeks, separately for weekdays and weekends. It is robust to one big purchase and to days without spending.
+- **The range:**
+  - an 80% range from the user's own past errors on the same day of the month (±3 days), using split-conformal ranks;
+  - none with fewer than 3 past months, and the card says how many more months it needs.
+- **Salary:**
+  - learnt from income credits: the same payer, about monthly, a similar amount, a similar day (a plain day or from the month's end), and the payer's own weekend habit;
+  - weekly payouts and irregular credits are not a salary;
+  - "late", "stopped", "varies" and "none" are said, never guessed.
+- **Not enough history:** below 90 days the API says so and when the forecast starts; nothing is estimated.
+- **Explainable:** the API returns every part (dues items; rates × day counts and the learning window), and Home's "How we got this" shows the sum. No model computes any number (D-67).
+- **Measured (D-61 style):**
+  - a synthetic backtest (24 histories, 720 forecasts on the 10th and 20th) against the naive pace and seasonal naive;
+  - `forecast/baseline.json` is a floor that a test enforces;
+  - it is raised only deliberately (`./gradlew -q forecastReport -PwriteBaseline`).
+  - Today: MAPE 9.5% (seasonal naive 21.8%), coverage 75.6%, payday exact 94%.
+- **Rejected:**
+  - ETS / seasonal naive on daily totals (they can't use known dues and are 2.3× worse);
+  - Prophet and foundation models (they need years of data, a heavy dependency, and give no explanation);
+  - an LLM (D-67);
+  - medians of days (0 for intermittent spenders);
+  - interpolated quantiles of few months (61.6% coverage).
+- **Consequences:**
+  - a new source of expected spending is one `ForecastComponent`;
+  - "money left" from a bank balance needs the balance stored (follow-up);
+  - unreceived bills aren't forecast yet (follow-up `ProjectedBillsComponent`).

@@ -2,6 +2,7 @@ package dev.adminos.api.di
 
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.infrastructure.database.repositories.ExposedIngestEventRepository
+import dev.adminos.api.infrastructure.database.repositories.ExposedForecastHistoryRepository
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.audit.AuditRepository
@@ -98,6 +99,7 @@ internal fun buildAppModule(
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
         single<dev.adminos.api.domain.analytics.AnalyticsRepository> { ExposedAnalyticsRepository() }
+        single<dev.adminos.api.domain.forecast.ForecastHistoryRepository> { ExposedForecastHistoryRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
@@ -133,6 +135,7 @@ internal fun buildAppModule(
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
         single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()) }
+        single<dev.adminos.api.domain.forecast.ForecastHistoryRepository> { dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(get(), get()) }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
@@ -261,6 +264,8 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
+    // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get()) }
 
     // Agent Services
     single { AnomalyDetectorService(get(), get(), get()) }

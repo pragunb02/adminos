@@ -160,6 +160,20 @@ tasks.register<JavaExec>("aiBakeOff") {
     }
 }
 
+// Forecast backtest (AOS-714): ./gradlew -q forecastReport prints MAPE / relative MAE vs the naive pace / 80% range
+// coverage on synthetic histories and writes build/reports/forecast/report.json. -PwriteBaseline records the floor
+// (src/test/resources/forecast/baseline.json) that ForecastBacktestTest holds the shipped engine to.
+tasks.register<JavaExec>("forecastReport") {
+    group = "verification"
+    description = "Backtest the month-end forecast on synthetic histories"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.forecast.evaluation.ForecastReportKt")
+    args(layout.buildDirectory.file("reports/forecast/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/forecast").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"
