@@ -9,7 +9,7 @@ import io.ktor.server.application.*
  * This is the single entry point for plugin installation,
  * following the pattern from JetBrains' Ktor DDD guide.
  */
-fun Application.configurePlugins(config: AppConfig, jwtService: JwtService) {
+fun Application.configurePlugins(config: AppConfig, jwtService: JwtService, sessions: SessionGate? = null) {
     // First, so everything after sees the client IP. Only behind an edge proxy that appends the real peer: without one,
     // X-Forwarded-For is whatever the client sent (verified through the Next proxy, AUD-03), so the TCP peer is used.
     if (config.app.trustForwardedFor) configureForwardedHeaders()
@@ -20,5 +20,5 @@ fun Application.configurePlugins(config: AppConfig, jwtService: JwtService) {
     configureHTTP(config.app.appUrl)
     configureLogging()
     configureErrorHandling()
-    configureAuthentication(jwtService)
+    configureAuthentication(jwtService, sessions)
 }

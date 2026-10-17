@@ -14,6 +14,9 @@ class OwnerPolicy(ownerEmail: String) {
 
     val isConfigured: Boolean get() = owner != null
 
+    /** The owner's normalised email, or null when none is configured. Server-side only: never shown to a caller. */
+    val email: String? get() = owner
+
     fun isOwnerEmail(email: String?): Boolean = owner != null && email != null && normalize(email) == owner
 
     companion object {

@@ -60,7 +60,9 @@ fun Application.module(
 
     // Configure all Ktor plugins — JwtService from Koin (single instance)
     val jwtService: JwtService by inject()
-    configurePlugins(config, jwtService)
+    val authService: dev.adminos.api.domain.identity.AuthService by inject()
+    // Every access token must belong to a live session; with real data (a database) there are no exceptions (AOS-620).
+    configurePlugins(config, jwtService, SessionGate(requireSession = useDatabase) { user, session -> authService.isActiveSession(user, session) })
     val deviceTokenService: DeviceTokenService by inject()
     configureDeviceAuthentication(deviceTokenService)
 

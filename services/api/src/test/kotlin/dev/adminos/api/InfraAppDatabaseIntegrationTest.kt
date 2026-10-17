@@ -36,13 +36,21 @@ class InfraAppDatabaseIntegrationTest {
             ExposedUserRepository().save(User(email = "db-${UUID.randomUUID()}@example.in", googleId = "g-${UUID.randomUUID()}",
                 role = UserRole.OWNER, onboardingStatus = OnboardingStatus.STARTED))
         }
+        // With a database every access token must name a live session (AOS-620).
+        val session = runBlocking {
+            dev.adminos.api.infrastructure.database.repositories.ExposedSessionRepository().save(dev.adminos.api.domain.identity.Session(
+                userId = user.id, tokenHash = dev.adminos.api.domain.identity.JwtService.hashToken(UUID.randomUUID().toString()),
+                expiresAt = java.time.Instant.now().plusSeconds(3600)))
+        }
         testApplication {
             environment { this.config = MapApplicationConfig() }
             application { module(dbConfig, diModule = buildAppModule(useDatabase = true, env = { null }), useDatabase = true) }
 
             assertEquals(HttpStatusCode.OK, client.get("/health").status)
+            val sessionless = client.get("/api/v1/transactions") { cookie(ACCESS_TOKEN_COOKIE, InfraIngestTestKit.tokenFor(user)) }
+            assertEquals(HttpStatusCode.Unauthorized, sessionless.status, "a correctly signed token without a session is refused with real data")
             val res = client.post("/api/v1/transactions/cash") {
-                cookie(ACCESS_TOKEN_COOKIE, InfraIngestTestKit.tokenFor(user))
+                cookie(ACCESS_TOKEN_COOKIE, InfraIngestTestKit.jwtService.generateAccessToken(user, session.id))
                 header(HttpHeaders.Origin, InfraIngestTestKit.config.app.appUrl) // the CSRF check (AOS-618)
                 contentType(ContentType.Application.Json)
                 setBody("""{"clientRef":"cash-db-0001","amount":"80","category":"food","note":"Auto"}""")

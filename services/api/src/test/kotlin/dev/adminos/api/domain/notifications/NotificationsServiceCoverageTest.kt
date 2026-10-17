@@ -124,10 +124,10 @@ class NotificationsServiceCoverageTest {
     }
 
     @Test
-    fun `only anomaly is critical`() {
+    fun `only anomaly and security alerts are critical`() {
         val critical = NotificationType.entries.filter { NotificationService.isCriticalNotification(it) }
 
-        assertEquals(listOf(NotificationType.ANOMALY), critical)
+        assertEquals(listOf(NotificationType.ANOMALY, NotificationType.SECURITY), critical)
     }
 
     @Test
@@ -146,7 +146,7 @@ class NotificationsServiceCoverageTest {
 
         val enabled = NotificationType.entries.filter { NotificationService.isTypeEnabled(it, off) }.toSet()
 
-        assertEquals(setOf(NotificationType.NUDGE, NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM), enabled)
+        assertEquals(setOf(NotificationType.NUDGE, NotificationType.GENERAL, NotificationType.SYNC_COMPLETE, NotificationType.SYSTEM, NotificationType.SECURITY), enabled)
     }
 
     @Test

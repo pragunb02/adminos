@@ -31,6 +31,11 @@ class AuthCookies(private val config: AppConfig) {
         call.response.cookies.append(cookie(REFRESH_TOKEN_COOKIE, refreshToken, sessionMaxAge, REFRESH_COOKIE_PATH))
     }
 
+    /** A rotated refresh token (AOS-620). */
+    fun setRefresh(call: ApplicationCall, refreshToken: String) {
+        call.response.cookies.append(cookie(REFRESH_TOKEN_COOKIE, refreshToken, sessionMaxAge, REFRESH_COOKIE_PATH))
+    }
+
     fun setAccess(call: ApplicationCall, accessToken: String) {
         call.response.cookies.append(cookie(ACCESS_TOKEN_COOKIE, accessToken, sessionMaxAge, "/"))
     }
