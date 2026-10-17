@@ -59,7 +59,9 @@ val testAppModule = module {
     single { CategorizationService(get()) }
     single { CategoryCorrectionService(get(), get()) }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get(), get()) }
+    single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
+    single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository() }
+    single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
     single { AnomalyDetectorService(get(), get(), get()) }
     single { dev.adminos.api.domain.notifications.delivery.NotificationDispatcher(listOf(dev.adminos.api.domain.notifications.delivery.InAppChannel()), get(), get()) }

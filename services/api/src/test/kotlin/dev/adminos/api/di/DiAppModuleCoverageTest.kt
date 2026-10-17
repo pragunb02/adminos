@@ -99,7 +99,8 @@ class DiAppModuleCoverageTest {
         val koin = koinOf(buildAppModule(useDatabase = false, env = noEnv))
         assertIs<InMemoryUserRepository>(koin.get<UserRepository>())
         assertIs<InMemoryTransactionRepository>(koin.get<TransactionRepository>())
-        assertIs<InMemoryAnalyticsRepository>(koin.get<AnalyticsRepository>())
+        assertIs<dev.adminos.api.domain.analytics.AliasedAnalyticsRepository>(koin.get<AnalyticsRepository>()) // over the in-memory facts (AOS-709)
+        assertIs<dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository>(koin.get<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository>())
         assertIs<InMemoryAuditRepository>(koin.get<AuditRepository>())
     }
 
@@ -114,7 +115,8 @@ class DiAppModuleCoverageTest {
         val koin = koinOf(buildAppModule(useDatabase = true, env = noEnv))
         assertIs<ExposedUserRepository>(koin.get<UserRepository>())
         assertIs<ExposedTransactionRepository>(koin.get<TransactionRepository>())
-        assertIs<ExposedAnalyticsRepository>(koin.get<AnalyticsRepository>())
+        assertIs<dev.adminos.api.domain.analytics.AliasedAnalyticsRepository>(koin.get<AnalyticsRepository>()) // over the SQL facts (AOS-709)
+        assertIs<dev.adminos.api.infrastructure.database.repositories.ExposedMerchantAliasRepository>(koin.get<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository>())
         assertIs<ExposedAuditRepository>(koin.get<AuditRepository>())
     }
 

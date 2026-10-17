@@ -97,11 +97,14 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { ExposedAnalyticsRepository() }
+        // Read through confirmed merchant merges (AOS-709).
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(ExposedAnalyticsRepository(), get()) }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
         single<SubscriptionRepository> { ExposedSubscriptionRepository() }
+        single<PriceRiseRepository> { ExposedPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { ExposedMerchantAliasRepository() }
         single<BillRepository> { ExposedBillRepository() }
         // Agent
         single<AnomalyRepository> { ExposedAnomalyRepository() }
@@ -132,10 +135,12 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()) }
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()), get()) }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
+        single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository() }
         single<BillRepository> { InMemoryBillRepository() }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
@@ -252,7 +257,9 @@ internal fun buildAppModule(
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get(), get()) }
+    single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
+    // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
+    single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
@@ -290,12 +297,14 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.identity.UserCalendar(get()) }
     single { ReminderEngine(get(), get(), get(), get()) }
     single { RenewalReminders(get(), get(), get(), get()) }
+    // Subscription price-rise alerts, once per new price (AOS-715, D-74); sent by the detection job.
+    single { PriceRiseAlerts(get(), get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
 
     // Scheduled jobs (AOS-501, D-50): a new job is one `single { … } bind ScheduledJob::class` line.
     single { BillRemindersJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
-    single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { SubscriptionDetectionJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { WasteScoreService(get(), get(), get(), java.time.Clock.systemUTC(), get<AppConfig>().scheduler.zone) }
     single { SubscriptionWasteScoreJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class

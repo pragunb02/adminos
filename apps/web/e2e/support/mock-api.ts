@@ -48,6 +48,7 @@ export class MockApi {
       }))
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
+      .on("GET /api/v1/merchants/merge-proposals", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
       // Settings → AI features (AOS-704): not set up on the server by default; e2e/ai-features.spec.ts turns it on.
       .on("GET /api/v1/ai/features", () => ({ data: { features: [fx.aiFeature({ available: false, provider: null, locality: null, model: null, destination: null, evaluation: null })], monthlyCapUsd: "2.00" } }))
