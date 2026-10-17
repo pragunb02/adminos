@@ -1,0 +1,42 @@
+# AOS-512 recorded AI answers for the golden set. SYNTHETIC: written by hand as plausible model answers,
+# including deliberate mistakes (Healthifyme, Duolingo) and low-confidence guesses (Prestige AOA, Sapna Book House),
+# so the harness measures the policy (threshold, rules-first, privacy), not a real model's accuracy.
+# To replace them with real Claude answers: ./gradlew -q categorizationReport -PrecordAi (needs ANTHROPIC_API_KEY;
+# sends only the merchant names below). Columns: merchant (exactly as asked),category,confidence,reason (no commas).
+merchant,category,confidence,reason
+Barbeque Nation Hospitality,FOOD,0.93,Buffet restaurant chain
+A2b Adyar Ananda Bhavan,FOOD,0.9,South Indian sweets and restaurant chain
+Sri Lakshmi General Stores,SHOPPING,0.8,Neighbourhood general store
+Fresh Mart Supermarket,SHOPPING,0.92,Supermarket
+Lifestyle International,SHOPPING,0.88,Fashion and lifestyle department store
+Shree Ganesh Kirana,SHOPPING,0.86,Kirana grocery shop
+Motorola Mobility Store,SHOPPING,0.9,Phone and electronics store
+Prestige Apartment Owners Assn,UTILITIES,0.62,Apartment association dues are usually maintenance
+Bajaj Finance,EMI,0.85,Consumer loan lender
+Hdb Financial Services,EMI,0.78,NBFC loan instalments
+Microsoft*365 Personal,SUBSCRIPTION,0.95,Office software subscription
+Linkedin Premium,SUBSCRIPTION,0.93,Professional network subscription
+Notion Labs,SUBSCRIPTION,0.85,Productivity software
+Github,SUBSCRIPTION,0.8,Developer platform subscription
+The Hindu E Paper Subscription,SUBSCRIPTION,0.9,Newspaper subscription
+Dropbox Subscription,SUBSCRIPTION,0.93,Cloud storage subscription
+Steam,ENTERTAINMENT,0.9,PC game store
+Playstation Network,ENTERTAINMENT,0.88,Console games
+Wonderla Holidays,ENTERTAINMENT,0.85,Amusement park tickets
+Smaaash Entertainment,ENTERTAINMENT,0.9,Gaming and entertainment centre
+Timezone Gaming,ENTERTAINMENT,0.87,Arcade games
+Medplus Health Services,HEALTH,0.9,Pharmacy chain
+Fortis Healthcare,HEALTH,0.93,Hospital chain
+Healthifyme,SUBSCRIPTION,0.72,Health app with paid plans
+Upgrad Education,EDUCATION,0.92,Online degrees and courses
+Physicswallah,EDUCATION,0.9,Exam coaching platform
+Sapna Book House,SHOPPING,0.6,Bookshop
+Duolingo,SUBSCRIPTION,0.8,Language app subscription
+Cred Rentpay,OTHER,0.6,Rent payment through a card app
+Nippon India Mf,OTHER,0.85,Mutual fund investment
+Ergo General Insurance,OTHER,0.8,Insurance premium
+Payu Payments,OTHER,0.5,Payment gateway with no merchant named
+Urban Company,SHOPPING,0.45,Home services marketplace
+Salon Style Studio,OTHER,0.7,Salon services
+Subhash Cable Tv,UTILITIES,0.82,Local cable TV operator
+Raj Mobile Recharge,UTILITIES,0.8,Mobile recharge shop

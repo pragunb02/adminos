@@ -60,6 +60,8 @@ dependencies {
     // S3-compatible object storage (Cloudflare R2) for the documents vault (AOS-507); the small JDK HTTP client, not Netty/Apache
     implementation(libs.aws.s3) { exclude(group = "software.amazon.awssdk", module = "netty-nio-client"); exclude(group = "software.amazon.awssdk", module = "apache-client") }
     implementation(libs.aws.url.connection.client)
+    // Claude for the optional AI fallback categorizer (AOS-512, D-62): the official SDK (retries, timeouts, typed errors)
+    implementation(libs.anthropic.java)
 
     // Tests
     testImplementation(libs.ktor.server.test.host)
@@ -113,6 +115,8 @@ kover {
 // Categorization evaluation (AOS-511, D-61): ./gradlew -q categorizationReport prints precision/recall/F1 on the
 // synthetic golden set and writes build/reports/categorization/report.json. Add -PwriteBaseline to deliberately
 // record the current numbers as the new floor (src/test/resources/categorization/baseline.json).
+// AOS-512: it also evaluates rules + the AI fallback with recorded answers (report-ai.json, baseline-ai.json).
+// -PrecordAi re-records those answers from the real Claude API (needs ANTHROPIC_API_KEY; sends merchant names only).
 tasks.register<JavaExec>("categorizationReport") {
     group = "verification"
     description = "Evaluate the categorizer on the golden set"
@@ -120,7 +124,10 @@ tasks.register<JavaExec>("categorizationReport") {
     mainClass.set("dev.adminos.api.domain.financial.evaluation.CategorizationReportKt")
     args(layout.buildDirectory.file("reports/categorization/report.json").get().asFile.path)
     if (project.hasProperty("writeBaseline")) {
-        args("--write-baseline", file("src/test/resources/categorization/baseline.json").path)
+        args("--write-baseline", file("src/test/resources/categorization").path)
+    }
+    if (project.hasProperty("recordAi")) {
+        args("--record-ai", file("src/test/resources/categorization/ai-recorded.csv").path)
     }
 }
 

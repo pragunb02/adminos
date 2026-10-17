@@ -17,6 +17,7 @@ jspecify = "1.0.1"
 testcontainers = "2.0.5"
 angusMail = "2.0.5"
 awsSdk = "2.56.0"
+anthropic = "2.73.0"
 greenmail = "2.1.14"
 
 [libraries]
@@ -54,6 +55,7 @@ logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 angus-mail = { module = "org.eclipse.angus:angus-mail", version.ref = "angusMail" }
 aws-s3 = { module = "software.amazon.awssdk:s3", version.ref = "awsSdk" }
 aws-url-connection-client = { module = "software.amazon.awssdk:url-connection-client", version.ref = "awsSdk" }
+anthropic-java = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
 greenmail-junit5 = { module = "com.icegreen:greenmail-junit5", version.ref = "greenmail" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
