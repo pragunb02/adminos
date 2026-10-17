@@ -79,6 +79,7 @@ class LearnedCategorizerTest {
         val record = learnedOf(d.transaction)
         assertEquals("applied", record?.get("status")); assertEquals("health", record?.get("category"))
         assertEquals(0.93, record?.get("confidence")); assertEquals(listOf("medicos"), record?.get("cues"))
+        assertEquals(listOf("food", "other"), record?.get("alternatives"), "the next most likely, for one-tap corrections (AOS-708)")
         assertTrue((record?.get("model") as? String).orEmpty().startsWith("softmax-v1@")); assertEquals(NOW.toString(), record?.get("at"))
         assertEquals("umn-1", d.transaction.metadata?.get("mandate"), "other metadata is kept")
     }

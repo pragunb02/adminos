@@ -115,6 +115,13 @@ export const fx = {
     related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
     ...over,
   }),
+  /** A category question for Review (AOS-708): the learned model's unsure guess on a row still left as Other. */
+  categoryQuestion: (over: Partial<import("@/lib/types").CategoryQuestion> = {}, guess: Partial<import("@/lib/types").CategoryGuess> = {}): import("@/lib/types").CategoryQuestion => ({
+    transaction: fx.transaction({ id: "cq-1", merchantName: "Sai Medicos", category: "other", amount: "1240", transactedAt: "2026-10-15T08:30:00Z" }),
+    guess: { category: "health", confidence: 0.55, by: "learned", applied: false, cues: ["medicos"], reason: null, alternatives: ["shopping"], ...guess },
+    priority: 558,
+    ...over,
+  }),
   /** A due item for the dues calendar (AOS-503). */
   due: (over: Partial<import("@/lib/types").DueItem> = {}): import("@/lib/types").DueItem => ({
     kind: "bill", id: "b-1", name: "Tata Power", amount: "2350.00", minimumDue: null, date: "2026-10-20",

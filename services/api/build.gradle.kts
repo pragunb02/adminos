@@ -142,6 +142,8 @@ tasks.register<JavaExec>("categorizationReport") {
     if (project.hasProperty("recordAi")) {
         args("--record-ai", file("src/test/resources/categorization/ai-recorded.csv").path)
     }
+    // AOS-708: -PlocalGolden=<csv> scores your own scrubbed local golden set (exported from Review); printed only.
+    project.findProperty("localGolden")?.let { args("--local-golden", file(it.toString()).path) }
 }
 
 // Local-model bake-off (AOS-703, D-69): ./gradlew -q aiBakeOff -Pmodels=qwen3:4b,gemma3:4b runs each Ollama model
