@@ -16,6 +16,8 @@ import { delta } from "@/lib/format";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantList from "@/components/console/MerchantList";
 import LeaksHomeCard from "@/components/leaks/LeaksHomeCard";
+import GoalsHomeCard from "@/components/goals/GoalsHomeCard";
+import SavingsCard from "@/components/savings/SavingsCard";
 import FeedRow from "@/components/console/FeedRow";
 import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
 import { browserZone } from "@/lib/format";
@@ -63,6 +65,8 @@ function HomeContent() {
 
   return (
     <div className="space-y-4">
+      {/* The headline metric (AOS-908, D-80): self-contained */}
+      <SavingsCard />
       <PeriodSwitcher period={period} today={today} />
       {notice && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>}
 
@@ -118,6 +122,7 @@ function HomeContent() {
           </Section>
 
           <LeaksHomeCard range={range} />
+          <GoalsHomeCard />
 
           <Section title="Top merchants" error={merchants.error ? errorMessage(merchants.error) : null} onRetry={() => merchants.refetch()}>
             {merchants.data ? (merchants.data.merchants.length ? <MerchantList rows={merchants.data.merchants} /> : <Quiet>No merchants in this period.</Quiet>) : <Skeleton />}
