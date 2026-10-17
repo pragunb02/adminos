@@ -24,4 +24,6 @@ export const server = setupServer(
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
   // Goals (AOS-907): none unless a test says otherwise.
   http.get("/api/v1/coach/goals", () => ok([])),
+  // Savings rate on Home (AOS-908): too little data unless a test says otherwise.
+  http.get("/api/v1/coach/savings", () => ok(cx.noSavings())),
 );
