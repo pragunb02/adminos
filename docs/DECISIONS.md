@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-93 | Process | Every route is authenticated unless on a reviewed allowlist, enforced by a route-inventory test over the real app; another user's resource is always 404 (same as missing); Playwright attack suite security.spec.ts; web guard matches public pages exactly | Accepted | AOS-619 |
 | D-81 | Product | Habit lenses are data (quick commerce, food delivery, nights out, shopping, pay-later, travel) with per-merchant overrides; person-to-person UPI (settle-ups) never counts as a leak | Accepted | AOS-901 |
 | D-1 | Architecture | Polyglot stack | Accepted | — |
 | D-2 | Architecture | On-device SMS parsing, self-hosted data | Accepted | AOS-203 |
@@ -1063,3 +1064,8 @@ Type: Architecture / Security · Tasks: AOS-621 · Builds on D-91, D-60
   any checksum, decrypt, restore or count mismatch fails.
 - `TOKEN_ENCRYPTION_KEY`, `JWT_SECRET`, the age key and the restore token are never in the repo or the bucket.
 
+P26-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Process · Tasks: AOS-619
+- Every API route needs `authenticate("auth-jwt")` unless it is on the allowlist in `RouteInventoryTest` (today: `/health`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/webhooks/gmail`; device-token route `/ingest/sms/raw`). Adding an entry is a security decision recorded in the ticket with its replacing control and attack tests.
+- Another user's resource is always **404 with the same error as a missing ID**, never 403; each new `{id}` route adds an IDOR row in `IdorTest`.
+- `e2e/security.spec.ts` is the shared Playwright attack suite; new pages are added to `PAGES`.
+- Rejected: hand-maintained route lists; 403 for others' resources.
