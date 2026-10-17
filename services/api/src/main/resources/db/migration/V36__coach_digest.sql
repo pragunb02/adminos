@@ -1,4 +1,4 @@
--- V42 (tentative number; the integrator renumbers): the evening digest (AOS-905).
+-- V36: the evening digest (AOS-905, D-84).
 -- Settings: on by default at 21:30 local time (the owner's choice), not skipping zero days.
 ALTER TABLE coach_settings
   ADD COLUMN evening_digest       BOOLEAN NOT NULL DEFAULT TRUE,

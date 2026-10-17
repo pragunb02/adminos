@@ -19,7 +19,7 @@ import java.time.LocalTime
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** V42 on Postgres (AOS-905): one digest per user and day, and the digest settings round-trip. */
+/** V36 on Postgres (AOS-905): one digest per user and day, and the digest settings round-trip. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CoachDigestIntegrationTest {

@@ -56,7 +56,7 @@ object CoachSettingsTable : Table("coach_settings") {
     override val primaryKey = PrimaryKey(userId)
 }
 
-/** Maps to db/migration/V42__coach_digest.sql (AOS-905): one row per (user, kind, day) sent. */
+/** Maps to db/migration/V36__coach_digest.sql (AOS-905): one row per (user, kind, day) sent. */
 object CoachDigestsSentTable : Table("coach_digests_sent") {
     val userId = javaUUID("user_id").references(UsersTable.id)
     val kind = varchar("kind", 20)
