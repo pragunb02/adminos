@@ -63,6 +63,7 @@ class RequestBodyErrorsRoutesTest {
         client.request(route.path) {
             method = route.method
             header("X-Forwarded-For", uniqueTestIp()) // the sign-in rate limiter never couples cases
+            header("Sec-Fetch-Site", "same-origin") // what the web app's browser sends, so a CSRF check (D-100) passes
             if (signedIn) cookie(ACCESS_TOKEN_COOKIE, token)
             body.contentType?.let { contentType(it) }
             body.text?.let { setBody(it) }
