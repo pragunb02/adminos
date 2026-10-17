@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-74 | Product | A subscription price rise (latest charge vs the median of the previous up to 3, at least max(5%, ₹20), plan switches excluded) is told once per new price; one rule for the alert, the ↑/↓ and the waste score; cuts shown, not alerted | Accepted | AOS-715 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1243,6 +1244,7 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Limits:** scope = lens, merchant or category; weekly (Mon–Sun) or monthly, in the user's zone; one per scope and period. Person-to-person UPI never counts for lenses or categories (D-81); a merchant limit counts that merchant exactly.
 - **Alerts:** 50/80/100%. A ledger row per (limit, period start, threshold), primary key = the claim; claim then send (at most once). Several thresholds at once → one push for the highest. Thresholds already passed when a limit is set or changed are recorded silently. A refund that drops spending below a threshold does not re-arm it in that period. Alerts off → thresholds still recorded silently (no backlog when switched on). Checked after each new payment and every 10 minutes. Coach pushes are `NotificationType.COACH`, gated by `coach_settings`, quiet hours as usual.
 - **Rejected:** flags on the limit reset per period (a reset job to keep right); looking for earlier notifications (per channel, prunable); a listener only (misses re-categorisation and lens edits); pushing suggestions (the owner hasn't agreed to them).
+
 ### D-99 — Supply chain and runtime: scan everything, pin everything, run least-privileged
 2026-10-18 · Accepted · Type: Architecture / Process · Tasks: AOS-622 · Builds on D-91, D-100, D-101
 - **Every PR** runs CI (all stacks), Security (OSV-Scanner, npm audit, govulncheck, Trivy + hardened-stack smoke)
@@ -1256,3 +1258,14 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
+
+### D-74 — A subscription price rise is told once per new price, by the rule the waste score uses
+2026-10-18 · Accepted · Type: Product · Tasks: AOS-715 · Builds on D-51, D-58, D-65
+- **Context:** `priceChanged` compared only the last two charges (GST rounding or one odd charge was noise), and nothing told the user when a price went up.
+- **Decision:**
+  - **The rule (`PriceChangeRule`):** the latest charge vs the median of the up-to-3 charges before it, in whole currency units, same currency only; a change is at least max(5%, ₹20); 8–14× (or 1/14–1/8) is a monthly ↔ yearly plan switch, not a change; monthly and weekly plans need 2 earlier charges, yearly and quarterly 1.
+  - **One rule for three things:** the alert, the Subscriptions page's ↑/↓ (`priceChanged`, `priceChangePct`) and the waste score's price-rise factor (D-58).
+  - **Once per new price:** the nightly detection records each rise in `subscription_price_rises` (V45), unique per (subscription, new price in whole units); the same job then sends the untold ones as a subscription alert ("Netflix went up: ₹649 → ₹799 (+23%)", opening Subscriptions) and marks them told. A failed send is retried the next night; a user with subscription alerts off is not told later.
+  - **Price cuts are shown, not alerted.**
+- **Alternatives rejected:** a per-transaction listener (a second copy of the grouping, inside ingestion), a "notified price" flag on the subscription (forgets history; can't tell a rise back to an old price from a repeat), last-two comparison (noisy).
+- **Consequences:** a price history per subscription exists for later UI; the thresholds are constants to tune on real data.

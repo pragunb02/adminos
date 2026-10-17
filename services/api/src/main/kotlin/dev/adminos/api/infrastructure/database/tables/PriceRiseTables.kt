@@ -5,7 +5,7 @@ import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.javatime.timestamp
 
-/** Subscription price rises, one per (subscription, new price in whole units) (V34, AOS-715). */
+/** Subscription price rises, one per (subscription, new price in whole units) (V45, AOS-715). */
 object SubscriptionPriceRisesTable : Table("subscription_price_rises") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)

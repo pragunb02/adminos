@@ -15,7 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
 import java.util.UUID
 
-/** V34 `subscription_price_rises` (AOS-715): the unique (subscription, price_key) makes a rise once. */
+/** V45 `subscription_price_rises` (AOS-715): the unique (subscription, price_key) makes a rise once. */
 class ExposedPriceRiseRepository : PriceRiseRepository {
 
     override suspend fun recordIfNew(rise: PriceRise): Boolean = dbQuery {

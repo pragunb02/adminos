@@ -33,7 +33,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** AOS-715 on Postgres: V34 records a rise once per (subscription, price), and the job tells the user once. */
+/** AOS-715 on Postgres: V45 records a rise once per (subscription, price), and the job tells the user once. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PriceRiseIntegrationTest {

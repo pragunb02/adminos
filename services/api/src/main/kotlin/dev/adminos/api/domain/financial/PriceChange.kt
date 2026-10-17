@@ -81,7 +81,7 @@ object PriceChangeRule {
     }
 }
 
-/** A recorded rise of one subscription to a new price (V34); [notifiedAt] is set once the user was told. */
+/** A recorded rise of one subscription to a new price (V45); [notifiedAt] is set once the user was told. */
 data class PriceRise(
     val id: UUID = UUID.randomUUID(),
     val userId: UUID,
