@@ -259,7 +259,7 @@ internal fun buildAppModule(
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
-    single { BillTrackingService(get(), get()) }
+    single { BillTrackingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
     single { DuesService(get(), get(), get()) }
     // Order receipts and hidden fees (AOS-903, D-88): matched to payments in both directions.

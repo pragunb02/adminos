@@ -51,7 +51,7 @@ class ScheduledJobsTest {
         val calendar = dev.adminos.api.domain.identity.UserCalendar(users)
         val job = BillRemindersJob(ReminderEngine(bills, prefs, sender, calendar),
             dev.adminos.api.domain.notifications.RenewalReminders(InMemorySubscriptionRepository(), prefs, sender, calendar),
-            dev.adminos.api.domain.financial.BillTrackingService(bills, InMemoryTransactionRepository()), ist)
+            dev.adminos.api.domain.financial.BillTrackingService(bills, InMemoryTransactionRepository(), calendar), ist)
         assertEquals(JobName("bill-reminders"), job.name)
         assertEquals(Schedule.Daily(LocalTime.of(9, 0), ist), job.schedule)
         assertEquals(java.time.Duration.ofMinutes(10), job.timeout, "default timeout")

@@ -60,7 +60,7 @@ val testAppModule = module {
     single { CategoryCorrectionService(get(), get()) }
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get(), get()) }
-    single { BillTrackingService(get(), get()) }
+    single { BillTrackingService(get(), get(), get()) }
     single { AnomalyDetectorService(get(), get(), get()) }
     single { dev.adminos.api.domain.notifications.delivery.NotificationDispatcher(listOf(dev.adminos.api.domain.notifications.delivery.InAppChannel()), get(), get()) }
     single { NotificationService(get(), get(), get()) }
