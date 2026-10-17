@@ -48,6 +48,7 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
 | AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
 | AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
+| [AOS-638](AOS-638.md) | Bill dates follow the user's calendar on an injected clock; unused Redis config removed (D-123) | Claude (agent) | ✅ | 2h | 2h |
 
 ## Demo / verification
 From a device outside the private network the site doesn't answer; a second Google account is refused; the audit report lists no open findings.

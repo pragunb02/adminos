@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-123 | Architecture | Repositories never read the clock or a zone: callers pass dates from UserCalendar (today(userId) for one user, serverToday() for cross-user pre-filters refined per user) | Accepted | AOS-638 |
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
@@ -1285,3 +1286,9 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+
+### D-123 — Repositories never read the clock or a zone
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-638 · Builds on D-78
+- Repositories never read the clock or a time zone. Callers pass dates from `UserCalendar`: `today(userId)` for one user, `serverToday()` for cross-user pre-filters that are then refined per user.
+- The domain owns the calendar; persistence filters on what it is given (bill dates follow the user's calendar on an injected clock).
+- **Rejected:** a clock in each repository (persistence would still decide what "today" means, in one zone for everyone); repositories calling `UserCalendar` (breaks the layer rule).
