@@ -40,7 +40,7 @@ class PriceRiseAlertsTest {
     private val prefs = InMemoryNotificationPreferencesRepository()
     private val notificationRepo = InMemoryNotificationRepository()
     private val calendar = UserCalendar(InMemoryUserRepository(), clock)
-    private val detector = SubscriptionDetectorService(transactions, subscriptions, calendar, rises)
+    private val detector = SubscriptionDetectorService(transactions, subscriptions, calendar, rises, dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository())
     private val alerts = PriceRiseAlerts(rises, subscriptions, notificationService(prefs, notificationRepo, clock = clock), calendar, clock)
 
     private suspend fun charge(amount: String, daysAgo: Long, merchant: String = "Netflix") = transactions.save(Transaction(

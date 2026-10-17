@@ -25,7 +25,7 @@ class SubscriptionDetectorPropertyTest {
         // Arrange
         val transactionRepo = InMemoryTransactionRepository()
         val subscriptionRepo = InMemorySubscriptionRepository()
-        val detector = SubscriptionDetectorService(transactionRepo, subscriptionRepo, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()), InMemoryPriceRiseRepository())
+        val detector = SubscriptionDetectorService(transactionRepo, subscriptionRepo, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()), InMemoryPriceRiseRepository(), dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository())
 
         val userId = UUID.randomUUID()
         val now = Instant.now()

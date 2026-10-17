@@ -160,6 +160,19 @@ tasks.register<JavaExec>("aiBakeOff") {
     }
 }
 
+// Merchant grouping evaluation (AOS-709): ./gradlew -q merchantGroupingReport prints pair precision/recall of each
+// matcher on the synthetic pairs (src/test/resources/merchants/pairs.csv); -PwriteBaseline records the floor.
+tasks.register<JavaExec>("merchantGroupingReport") {
+    group = "verification"
+    description = "Evaluate merchant grouping on the synthetic pairs"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.grouping.GroupingEvaluationKt")
+    args(layout.buildDirectory.file("reports/merchants/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/merchants/baseline.json").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"

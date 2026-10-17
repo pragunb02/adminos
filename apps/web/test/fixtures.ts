@@ -115,6 +115,11 @@ export const fx = {
     related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
     ...over,
   }),
+  /** Look-alike merchant names proposed as one (AOS-709). */
+  mergeProposal: (over: Partial<import("@/lib/types").MergeProposal> = {}): import("@/lib/types").MergeProposal => ({
+    id: "mp-1", name: "Netflix", names: [{ name: "Netflix", payments: 4 }, { name: "NETFLIX.COM", payments: 2 }, { name: "Netflix Ent", payments: 1 }],
+    reasons: ["the same name once cleaned", "one is a known brand"], score: 1, ...over,
+  }),
   /** A due item for the dues calendar (AOS-503). */
   due: (over: Partial<import("@/lib/types").DueItem> = {}): import("@/lib/types").DueItem => ({
     kind: "bill", id: "b-1", name: "Tata Power", amount: "2350.00", minimumDue: null, date: "2026-10-20",

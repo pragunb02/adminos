@@ -88,7 +88,7 @@ class ScheduledJobsTest {
         val calendar = dev.adminos.api.domain.identity.UserCalendar(users)
         val alerts = dev.adminos.api.domain.notifications.PriceRiseAlerts(rises, subs,
             dev.adminos.api.domain.notifications.notificationService(dev.adminos.api.domain.notifications.InMemoryNotificationPreferencesRepository(), dev.adminos.api.domain.notifications.InMemoryNotificationRepository()), calendar)
-        val job = SubscriptionDetectionJob(users, SubscriptionDetectorService(failingForOne, subs, calendar, rises), alerts, ist)
+        val job = SubscriptionDetectionJob(users, SubscriptionDetectorService(failingForOne, subs, calendar, rises, dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository()), alerts, ist)
 
         assertEquals(JobName("subscription-detection"), job.name)
         assertEquals(Schedule.Daily(LocalTime.of(4, 0), ist), job.schedule)

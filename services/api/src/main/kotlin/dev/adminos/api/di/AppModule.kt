@@ -97,12 +97,14 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { ExposedAnalyticsRepository() }
+        // Read through confirmed merchant merges (AOS-709).
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(ExposedAnalyticsRepository(), get()) }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
         single<SubscriptionRepository> { ExposedSubscriptionRepository() }
         single<PriceRiseRepository> { ExposedPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { ExposedMerchantAliasRepository() }
         single<BillRepository> { ExposedBillRepository() }
         // Agent
         single<AnomalyRepository> { ExposedAnomalyRepository() }
@@ -133,11 +135,12 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()) }
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()), get()) }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
         single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository() }
         single<BillRepository> { InMemoryBillRepository() }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
@@ -254,7 +257,9 @@ internal fun buildAppModule(
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get(), get(), get()) }
+    single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
+    // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
+    single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }

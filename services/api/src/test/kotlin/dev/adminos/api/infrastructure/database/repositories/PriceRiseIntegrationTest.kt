@@ -88,7 +88,7 @@ class PriceRiseIntegrationTest {
         val notifications = ExposedNotificationRepository()
         val alerts = PriceRiseAlerts(rises, subscriptions,
             NotificationService(ExposedNotificationPreferencesRepository(), notifications, NotificationDispatcher(listOf(InAppChannel()), users, notifications)), calendar)
-        val detector = SubscriptionDetectorService(transactions, subscriptions, calendar, rises)
+        val detector = SubscriptionDetectorService(transactions, subscriptions, calendar, rises, ExposedMerchantAliasRepository())
         repeat(2) {
             detector.detectSubscriptions(user)
             alerts.notifyPending(user)
