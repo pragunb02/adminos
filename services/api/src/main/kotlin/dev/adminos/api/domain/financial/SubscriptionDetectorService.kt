@@ -34,7 +34,8 @@ data class CycleReading(
  * - **Category** comes from the merchant catalogue (streaming → Entertainment, cloud → Cloud…), not
  *   always Other.
  * - **Ended:** an active subscription with no charge for two cycles (+ a week) is marked cancelled,
- *   with the reason; a new charge brings it back.
+ *   with the reason, even when its old charges still look regular (AOS-517); only a charge after
+ *   its last one brings it back. Rows the AOS-516 rules no longer accept end as "Not a subscription: …".
  * - **Subscription-like only (AOS-516):** a steady interval isn't enough; [SubscriptionSignals] also
  *   needs stable amounts and a service, plan or mandate (or an unknown merchant), and never
  *   groceries, food or quick commerce ([EverydaySpending]) or a financial product.
@@ -62,6 +63,8 @@ class SubscriptionDetectorService(
             .groupBy({ it.first }, { it.second })
 
         val detected = mutableListOf<Subscription>()
+        // The rows that still charge, read before anything below ends one: a rejected merchant's rows end (AOS-517).
+        val live = liveRows(userId)
         for ((merchant, txns) in groups) {
             if (txns.size < 2) continue
             val sorted = txns.sortedBy { it.transactedAt }
@@ -70,7 +73,9 @@ class SubscriptionDetectorService(
             val evidence = SubscriptionSignals.assess(reading.current, everyday, catalogue)
             val earlierStable = SubscriptionSignals.isStable(reading.earlier.map { it.amount }, vouched = SubscriptionSignals.vouches(evidence.signals))
             if (!evidence.isSubscription || !earlierStable) {
-                logger.debug("Regular charges for user {} are not a subscription: {}", userId, if (earlierStable) evidence.reason else "the amounts vary")
+                val why = if (earlierStable) evidence.reason else "the amounts vary"
+                logger.debug("Regular charges for user {} are not a subscription: {}", userId, why)
+                endNotSubscription(live.filter { it.merchantName == merchant }, why)
                 continue
             }
 
@@ -84,35 +89,50 @@ class SubscriptionDetectorService(
 
             val firstDate = sorted.first().transactedAt.atZone(zone).toLocalDate()
             val lastDate = sorted.last().transactedAt.atZone(zone).toLocalDate()
-            val nextDate = nextCharge(lastDate, cycle)
+            // D-65 (AOS-517): a regular history whose last charge is two cycles + a week old has stopped.
+            val charging = !looksEnded(lastDate, cycle, today)
+            val nextDate = if (charging) nextCharge(lastDate, cycle) else null
             val displayName = sorted.last().merchantName?.trim()?.takeIf { it.isNotEmpty() } ?: merchant
             val category = categoryFor(displayName, sorted)
             val switchedMetadata = reading.switch?.let {
                 mapOf(PLAN_SWITCHED_FROM to reading.previousCycle?.name?.lowercase(),
                       PLAN_SWITCHED_ON to reading.current.first().transactedAt.atZone(zone).toLocalDate().toString())
             }.orEmpty()
+            val endedMetadata = if (charging) emptyMap() else endedBecause(noChargeSince(lastDate))
 
             // After a plan switch the subscription is the same one on a new cycle: move it, don't start another.
             val existing = subscriptionRepository.findByUserAndMerchantAndCycle(userId, merchant, cycle)
                 ?: reading.previousCycle?.let { subscriptionRepository.findByUserAndMerchantAndCycle(userId, merchant, it) }
+            // An ended (or cancelled) row comes back only with a charge after its last one (D-65, AOS-517).
+            val newCharge = existing?.lastBilledDate?.let { lastDate.isAfter(it) } ?: true
+            if (existing != null && existing.status !in LIVE && !newCharge) continue
             val subscription = if (existing != null) {
                 if (existing.billingCycle != cycle) logger.info("Subscription {} switched plan: {} → {}", existing.id, existing.billingCycle, cycle)
                 subscriptionRepository.update(existing.copy(
                     billingCycle = cycle,
                     amount = latest, lastBilledDate = lastDate, nextBillingDate = nextDate,
                     priceChanged = priceChanged, priceChangePct = priceChangePct, transactionIds = sorted.map { it.id },
-                    // A new charge after it looked ended (or a user cancel) means it's charging again.
-                    status = if (existing.status == SubscriptionStatus.TRIAL) SubscriptionStatus.TRIAL else SubscriptionStatus.ACTIVE,
+                    status = when {
+                        !charging -> SubscriptionStatus.CANCELLED
+                        existing.status == SubscriptionStatus.TRIAL -> SubscriptionStatus.TRIAL
+                        // A new charge after it looked ended (or a user cancel) means it's charging again.
+                        else -> SubscriptionStatus.ACTIVE
+                    },
                     category = if (existing.category == SubscriptionCategory.OTHER) category else existing.category,
-                    metadata = ((existing.metadata?.minus(ENDED_KEYS) ?: emptyMap()) + switchedMetadata).takeIf { it.isNotEmpty() }
+                    metadata = ((existing.metadata?.minus(ENDED_KEYS) ?: emptyMap()) + switchedMetadata + endedMetadata).takeIf { it.isNotEmpty() }
                 ))
             } else {
                 subscriptionRepository.save(Subscription(
                     userId = userId, name = displayName, merchantName = merchant, category = category, amount = latest,
                     billingCycle = cycle, firstBilledDate = firstDate, lastBilledDate = lastDate, nextBillingDate = nextDate,
+                    status = if (charging) SubscriptionStatus.ACTIVE else SubscriptionStatus.CANCELLED,
                     detectionSource = sorted.first().sourceType, priceChanged = priceChanged, priceChangePct = priceChangePct,
-                    transactionIds = sorted.map { it.id }, metadata = switchedMetadata.takeIf { it.isNotEmpty() }
+                    transactionIds = sorted.map { it.id }, metadata = (switchedMetadata + endedMetadata).takeIf { it.isNotEmpty() }
                 ))
+            }
+            if (!charging) {
+                logger.info("Subscription {} looks ended (no charge since {})", subscription.id, lastDate)
+                continue
             }
             detected += subscription
             logger.info("Detected subscription {} for user {} ({})", subscription.id, userId, cycle)
@@ -120,6 +140,24 @@ class SubscriptionDetectorService(
 
         endStopped(userId, today, detected.map { it.id }.toSet())
         return detected
+    }
+
+    private suspend fun liveRows(userId: UUID): List<Subscription> =
+        LIVE.flatMap { subscriptionRepository.findByUserId(userId, status = it, limit = 500) }
+
+    /**
+     * Rows an earlier, broader detector saved for charges that aren't a subscription by today's rules
+     * (AOS-516) end now and say so: the charges haven't stopped, so "No charge since" would be wrong.
+     * Reversible like any end: a later charge the rules accept brings the row back.
+     */
+    private suspend fun endNotSubscription(rows: List<Subscription>, why: String) {
+        for (s in rows) {
+            subscriptionRepository.update(s.copy(
+                status = SubscriptionStatus.CANCELLED, nextBillingDate = null,
+                metadata = (s.metadata ?: emptyMap()) + endedBecause("Not a subscription: $why")
+            ))
+            logger.info("Subscription {} ended: not a subscription ({})", s.id, why)
+        }
     }
 
     /**
@@ -147,11 +185,10 @@ class SubscriptionDetectorService(
         for (s in active) {
             if (s.id in stillCharging) continue
             val last = s.lastBilledDate ?: continue
-            val due = nextCharge(nextCharge(last, s.billingCycle), s.billingCycle).plusDays(GRACE_DAYS)
-            if (!due.isBefore(today)) continue
+            if (!looksEnded(last, s.billingCycle, today)) continue
             subscriptionRepository.update(s.copy(
                 status = SubscriptionStatus.CANCELLED, nextBillingDate = null,
-                metadata = (s.metadata ?: emptyMap()) + mapOf(ENDED_BY to "detector", ENDED_REASON to "No charge since $last")
+                metadata = (s.metadata ?: emptyMap()) + endedBecause(noChargeSince(last))
             ))
             logger.info("Subscription {} looks ended (no charge since {})", s.id, last)
         }
@@ -176,6 +213,15 @@ class SubscriptionDetectorService(
         private const val ENDED_BY = "endedBy"
         private const val ENDED_REASON = "endedReason"
         private val ENDED_KEYS = setOf(ENDED_BY, ENDED_REASON)
+        /** Statuses that still charge; any other stays as it is until a new charge (AOS-517). */
+        private val LIVE = listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL)
+
+        private fun endedBecause(reason: String): Map<String, String> = mapOf(ENDED_BY to "detector", ENDED_REASON to reason)
+        private fun noChargeSince(last: LocalDate) = "No charge since $last"
+
+        /** D-65: no charge for two cycles plus [GRACE_DAYS] after [last]. The last day of grace still counts as charging. */
+        fun looksEnded(last: LocalDate, cycle: BillingCycle, today: LocalDate): Boolean =
+            nextCharge(nextCharge(last, cycle), cycle).plusDays(GRACE_DAYS).isBefore(today)
         const val PLAN_SWITCHED_FROM = "planSwitchedFrom"
         const val PLAN_SWITCHED_ON = "planSwitchedOn"
 

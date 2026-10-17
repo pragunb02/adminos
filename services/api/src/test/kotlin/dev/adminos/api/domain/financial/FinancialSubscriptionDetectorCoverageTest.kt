@@ -303,4 +303,180 @@ class FinancialSubscriptionDetectorCoverageTest {
         assertEquals(LocalDate.of(2026, 10, 17), SubscriptionDetectorService.nextCharge(LocalDate.of(2026, 10, 16), BillingCycle.DAILY))
         assertEquals(LocalDate.of(2026, 10, 23), SubscriptionDetectorService.nextCharge(LocalDate.of(2026, 10, 16), BillingCycle.WEEKLY))
     }
+
+    // ── AOS-517: stale subscriptions end (D-65) ──
+
+    private val today = LocalDate.of(2026, 10, 16)
+    private fun ended(reason: String) = mapOf("endedBy" to "detector", "endedReason" to reason)
+
+    @Test
+    fun `a regular history whose charges stopped months ago is saved ended, not active`() = runBlocking<Unit> {
+        listOf(300L, 270L, 240L).forEach { charge("Netflix", "649.00", it) }
+        assertTrue(detector.detectSubscriptions(userId).isEmpty(), "not reported as charging")
+        val row = subscriptions.findByUserId(userId).single()
+        assertEquals(SubscriptionStatus.CANCELLED, row.status)
+        assertNull(row.nextBillingDate, "no next charge in the past")
+        assertEquals(today.minusDays(240), row.lastBilledDate)
+        assertEquals(BillingCycle.MONTHLY, row.billingCycle)
+        assertEquals(ended("No charge since ${today.minusDays(240)}"), row.metadata)
+    }
+
+    @Test
+    fun `an active subscription whose old charges still look regular is ended on the next run`() = runBlocking<Unit> {
+        // The AOS-516 bug: the group was re-saved active every night with a past next-billing date.
+        val known = subscriptions.save(Subscription(userId = userId, name = "Netflix", merchantName = "netflix", amount = BigDecimal("649.00"),
+            billingCycle = BillingCycle.MONTHLY, lastBilledDate = today.minusDays(240), nextBillingDate = today.minusDays(210),
+            metadata = mapOf("note" to "kept")))
+        listOf(300L, 270L, 240L).forEach { charge("Netflix", "649.00", it) }
+        detector.detectSubscriptions(userId)
+        val row = assertNotNull(subscriptions.findById(known.id))
+        assertEquals(SubscriptionStatus.CANCELLED, row.status)
+        assertNull(row.nextBillingDate)
+        assertEquals(mapOf("note" to "kept") + ended("No charge since ${today.minusDays(240)}"), row.metadata)
+        assertEquals(1, subscriptions.countByUserId(userId))
+    }
+
+    @Test
+    fun `an ended subscription stays ended on later runs until a charge after its last one`() = runBlocking<Unit> {
+        val cancelled = subscriptions.save(Subscription(userId = userId, name = "Audible", merchantName = "audible", amount = BigDecimal("199.00"),
+            billingCycle = BillingCycle.MONTHLY, status = SubscriptionStatus.CANCELLED, lastBilledDate = today.minusDays(36),
+            metadata = ended("No charge since 2026-09-10")))
+        listOf(96L, 66L, 36L).forEach { charge("Audible", "199.00", it) }
+        repeat(2) { assertTrue(detector.detectSubscriptions(userId).isEmpty(), "no charge after its last one: not re-activated") }
+        assertEquals(cancelled, subscriptions.findById(cancelled.id), "left exactly as it was")
+
+        charge("Audible", "199.00", 6)
+        val back = detector.detectSubscriptions(userId).single()
+        assertEquals(cancelled.id, back.id)
+        assertEquals(SubscriptionStatus.ACTIVE, back.status)
+        assertEquals(today.minusDays(6), back.lastBilledDate)
+        assertEquals(today.minusDays(6).plusMonths(1), back.nextBillingDate)
+        assertNull(back.metadata, "the ended reason is cleared")
+    }
+
+    @Test
+    fun `charges after a row's last one that have stopped too update it but keep it ended`() = runBlocking<Unit> {
+        val old = subscriptions.save(Subscription(userId = userId, name = "Cult.fit", merchantName = "cult.fit", amount = BigDecimal("199.00"),
+            billingCycle = BillingCycle.WEEKLY, status = SubscriptionStatus.CANCELLED, lastBilledDate = today.minusDays(120)))
+        // A late statement import: newer charges, but they stopped too.
+        listOf(120L, 113L, 106L, 99L).forEach { charge("Cult.fit", "199.00", it) }
+        assertTrue(detector.detectSubscriptions(userId).isEmpty())
+        val row = assertNotNull(subscriptions.findById(old.id))
+        assertEquals(SubscriptionStatus.CANCELLED, row.status)
+        assertEquals(today.minusDays(99), row.lastBilledDate)
+        assertEquals(ended("No charge since ${today.minusDays(99)}"), row.metadata)
+    }
+
+    @Test
+    fun `a stopped trial ends too`() = runBlocking<Unit> {
+        val trial = subscriptions.save(Subscription(userId = userId, name = "Coursera", merchantName = "coursera", amount = BigDecimal("4100.00"),
+            billingCycle = BillingCycle.MONTHLY, status = SubscriptionStatus.TRIAL, lastBilledDate = today.minusDays(150)))
+        listOf(210L, 180L, 150L).forEach { charge("Coursera", "4100.00", it) }
+        detector.detectSubscriptions(userId)
+        assertEquals(SubscriptionStatus.CANCELLED, assertNotNull(subscriptions.findById(trial.id)).status)
+    }
+
+    @Test
+    fun `the end falls two cycles plus a week after the last charge, by the calendar`() {
+        fun ends(last: LocalDate, cycle: BillingCycle, on: LocalDate) {
+            assertFalse(SubscriptionDetectorService.looksEnded(last, cycle, on), "$cycle from $last: still charging on the last day of grace")
+            assertTrue(SubscriptionDetectorService.looksEnded(last, cycle, on.plusDays(1)), "$cycle from $last: ended the day after")
+        }
+        ends(LocalDate.of(2026, 10, 1), BillingCycle.DAILY, LocalDate.of(2026, 10, 10))
+        ends(LocalDate.of(2026, 10, 1), BillingCycle.WEEKLY, LocalDate.of(2026, 10, 22))
+        ends(LocalDate.of(2026, 8, 9), BillingCycle.MONTHLY, LocalDate.of(2026, 10, 16))
+        ends(LocalDate.of(2027, 1, 31), BillingCycle.MONTHLY, LocalDate.of(2027, 4, 4)) // 31 Jan → 28 Feb → 28 Mar, + 7
+        ends(LocalDate.of(2026, 4, 9), BillingCycle.QUARTERLY, LocalDate.of(2026, 10, 16))
+        ends(LocalDate.of(2024, 2, 29), BillingCycle.YEARLY, LocalDate.of(2026, 3, 7)) // 29 Feb → 28 Feb twice, + 7
+    }
+
+    @Test
+    fun `a monthly history is still charging on the last day of grace and ended the day after`() = runBlocking<Unit> {
+        // Last charge 9 Aug: two calendar months is 9 Oct, + 7 is today, 16 Oct.
+        listOf(LocalDate.of(2026, 6, 9), LocalDate.of(2026, 7, 9), LocalDate.of(2026, 8, 9)).forEach { onDay("Iron Gym", it) }
+        listOf(LocalDate.of(2026, 6, 8), LocalDate.of(2026, 7, 8), LocalDate.of(2026, 8, 8)).forEach { onDay("Zen Yoga", it) }
+        val charging = detector.detectSubscriptions(userId).single()
+        assertEquals("iron gym", charging.merchantName)
+        assertEquals(SubscriptionStatus.ACTIVE, charging.status)
+        assertEquals(LocalDate.of(2026, 9, 9), charging.nextBillingDate, "late, but within the grace D-65 allows")
+        val stopped = subscriptions.findByUserId(userId).single { it.merchantName == "zen yoga" }
+        assertEquals(SubscriptionStatus.CANCELLED, stopped.status)
+    }
+
+    /** A 1,500 charge at noon India time (06:30Z) on [date]. */
+    private suspend fun onDay(merchant: String, date: LocalDate, owner: UUID = userId) =
+        transactions.save(Transaction(userId = owner, type = TransactionType.DEBIT, amount = BigDecimal("1500.00"), merchantName = merchant,
+            transactedAt = date.atTime(6, 30).toInstant(ZoneOffset.UTC)))
+
+    private suspend fun detectorFor(zone: String): Pair<SubscriptionDetectorService, UUID> {
+        val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
+        val owner = users.save(dev.adminos.api.domain.identity.User(email = "owner@example.com", googleId = "g-$zone", timezone = zone))
+        return SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC))) to owner.id
+    }
+
+    @Test
+    fun `the end is judged on the user's own today, behind UTC`() = runBlocking<Unit> {
+        // Honolulu (UTC-10): it's still 15 Oct there, and 20:00Z on 8 Aug is 8 Aug locally, so the grace runs to 15 Oct.
+        val (d, owner) = detectorFor("Pacific/Honolulu")
+        listOf("2026-06-08", "2026-07-08", "2026-08-08").forEach {
+            transactions.save(Transaction(userId = owner, type = TransactionType.DEBIT, amount = BigDecimal("1500.00"), merchantName = "Iron Gym",
+                transactedAt = Instant.parse("${it}T20:00:00Z")))
+        }
+        assertEquals(SubscriptionStatus.ACTIVE, d.detectSubscriptions(owner).single().status, "UTC's 16 Oct would have ended it")
+    }
+
+    @Test
+    fun `the end is judged on the user's own dates, ahead of UTC`() = runBlocking<Unit> {
+        // 12:00Z on 8 Aug is 9 Aug in Kiritimati (UTC+14), so the grace runs to 16 Oct there; in India it's 8 Aug, ended on 16 Oct.
+        val instants = listOf("2026-06-08", "2026-07-08", "2026-08-08").map { Instant.parse("${it}T12:00:00Z") }
+        val (ahead, owner) = detectorFor("Pacific/Kiritimati")
+        val (india, indian) = detectorFor("Asia/Kolkata")
+        for (who in listOf(owner, indian)) instants.forEach {
+            transactions.save(Transaction(userId = who, type = TransactionType.DEBIT, amount = BigDecimal("1500.00"), merchantName = "Iron Gym", transactedAt = it))
+        }
+        assertEquals(SubscriptionStatus.ACTIVE, ahead.detectSubscriptions(owner).single().status)
+        assertTrue(india.detectSubscriptions(indian).isEmpty())
+        assertEquals(SubscriptionStatus.CANCELLED, subscriptions.findByUserId(indian).single().status)
+    }
+
+    @Test
+    fun `a row the broader detector saved for charges that are not a subscription ends and says why`() = runBlocking<Unit> {
+        // Saved by the detector before AOS-516; the weekly shop goes on, so "No charge since" would be wrong.
+        val zepto = subscriptions.save(Subscription(userId = userId, name = "Zepto", merchantName = "zepto", amount = BigDecimal("499.00"),
+            billingCycle = BillingCycle.WEEKLY, lastBilledDate = today.minusDays(60), nextBillingDate = today.minusDays(53),
+            metadata = mapOf("note" to "kept")))
+        val elsewhere = subscriptions.save(zepto.copy(id = UUID.randomUUID(), userId = UUID.randomUUID()))
+        listOf(28L, 21L, 14L, 7L, 0L).forEach { charge("Zepto", "499.00", it) }
+        assertTrue(detector.detectSubscriptions(userId).isEmpty())
+        val row = assertNotNull(subscriptions.findById(zepto.id))
+        assertEquals(SubscriptionStatus.CANCELLED, row.status)
+        assertNull(row.nextBillingDate)
+        assertEquals(today.minusDays(60), row.lastBilledDate, "its charge history is left as it was")
+        assertEquals(mapOf("note" to "kept") + ended("Not a subscription: groceries, food or quick commerce"), row.metadata)
+        assertEquals(SubscriptionStatus.ACTIVE, assertNotNull(subscriptions.findById(elsewhere.id)).status, "another user's row is not touched")
+
+        detector.detectSubscriptions(userId)
+        assertEquals(row, subscriptions.findById(zepto.id), "a later run leaves it ended, as it was")
+    }
+
+    @Test
+    fun `a rejected merchant's row on any cycle ends, with amounts that vary as the reason`() = runBlocking<Unit> {
+        val gym = subscriptions.save(Subscription(userId = userId, name = "Iron Gym", merchantName = "iron gym", amount = BigDecimal("1500.00"),
+            billingCycle = BillingCycle.MONTHLY, lastBilledDate = today.minusDays(90)))
+        charge("Iron Gym", "1500.00", 150); charge("Iron Gym", "900.00", 120); charge("Iron Gym", "1500.00", 90); charge("Iron Gym", "15000.00", 60)
+        assertTrue(detector.detectSubscriptions(userId).isEmpty())
+        assertEquals(ended("Not a subscription: the amounts vary"), assertNotNull(subscriptions.findById(gym.id)).metadata)
+    }
+
+    @Test
+    fun `a row ended as not a subscription comes back when a later charge passes the rules`() = runBlocking<Unit> {
+        val gym = subscriptions.save(Subscription(userId = userId, name = "Iron Gym", merchantName = "iron gym", amount = BigDecimal("1500.00"),
+            billingCycle = BillingCycle.MONTHLY, status = SubscriptionStatus.CANCELLED, lastBilledDate = today.minusDays(65),
+            metadata = ended("Not a subscription: the amounts vary")))
+        listOf(65L, 35L, 5L).forEach { charge("Iron Gym", "1500.00", it) }
+        val back = detector.detectSubscriptions(userId).single()
+        assertEquals(gym.id, back.id)
+        assertEquals(SubscriptionStatus.ACTIVE, back.status)
+        assertNull(back.metadata)
+    }
 }
