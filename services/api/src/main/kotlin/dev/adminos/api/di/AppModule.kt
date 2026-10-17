@@ -265,5 +265,22 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { GmailWatchRenewalJob(get()) } bind ScheduledJob::class
+    // AI fallback categorizer for "Other" (AOS-512, D-62): off unless AI_CATEGORIZATION_ENABLED=true, which then
+    // requires ANTHROPIC_API_KEY (a bad setup refuses to start). Runs as a batch job, never inside ingestion.
+    val aiCategorization = dev.adminos.api.config.AiCategorizationConfig.from(env)
+    val aiLog = org.slf4j.LoggerFactory.getLogger("AiCategorization")
+    if (aiCategorization != null) {
+        aiLog.info("AI categorization is on (model {}): only cleaned business names are sent", aiCategorization.model)
+        single<dev.adminos.api.domain.financial.ai.AiCategoryCacheRepository> {
+            if (useDatabase) ExposedAiCategoryCacheRepository() else dev.adminos.api.domain.financial.ai.InMemoryAiCategoryCacheRepository()
+        }
+        single<dev.adminos.api.domain.financial.ai.AiCategoryClient> {
+            dev.adminos.api.domain.financial.ai.CircuitBreakingAiClient(dev.adminos.api.infrastructure.ai.AnthropicCategoryClient.create(aiCategorization))
+        }
+        single { dev.adminos.api.domain.financial.ai.AiCategorizationService(get(), get(), get(), get(), aiCategorization.model) }
+        single { dev.adminos.api.domain.financial.ai.AiCategorizationJob(get(), get(), get()) } bind ScheduledJob::class
+    } else {
+        aiLog.info("AI categorization is off (AI_CATEGORIZATION_ENABLED is not true)")
+    }
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

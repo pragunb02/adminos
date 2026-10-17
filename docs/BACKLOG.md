@@ -77,6 +77,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-613](tickets/AOS-613.md) | Notifications and Gmail connect correctness | Claude | ✅ | 1.5h | 1h |
 | └ [AOS-210](tickets/AOS-210.md) | Single categorizer with remembered corrections (D-41) | Claude | ✅ | 4h | 2h |
 | └ [AOS-511](tickets/AOS-511.md) | Categorization evaluation harness: synthetic golden set, report, no-regression gate (D-61) | Claude (agent) | ✅ | — | 3h |
+| └ [AOS-512](tickets/AOS-512.md) | AI fallback categorizer for "Other": off by default, business names only, confident answers only, V28 (D-62) | Claude (agent) | ✅ | — | 4.5h |
 
 ## 🟦 [AOS-E3](tickets/AOS-E3.md) — Console (core value) · P0 · ETA 24h
 

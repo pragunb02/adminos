@@ -33,6 +33,7 @@
 | [AOS-209](AOS-209.md) | Refund/reversal linking | Claude | ✅ | 2h | 2h |
 | [AOS-210](AOS-210.md) | Single categorizer with remembered corrections | Claude | ✅ | 4h | 2h |
 | [AOS-511](AOS-511.md) | Categorization evaluation harness: 288-row synthetic golden set, report, no-regression gate (D-61) | Claude (agent) | ✅ | — | 3h |
+| [AOS-512](AOS-512.md) | AI fallback categorizer for "Other", off by default, business names only (D-62) | Claude (agent) | ✅ | — | 4.5h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -40,6 +41,7 @@ _Task tickets are created as files when this story is picked up._
 Monthly total matches the bank statement
 
 ## Activity log
+- 2026-10-17 — Claude: AOS-512 merged (rules + AI on the golden set: accuracy 91.7%, coverage 79.2%, from recorded answers).
 - 2026-10-17 — Claude: AOS-511 merged (accuracy 82.6%, macro-F1 0.827 on the golden set; fixed `@paytm` payees collapsing into "Paytm").
 - 2026-10-16 — Claude: AOS-206 done; all tasks done. Demo ("monthly total matches the bank statement") needs Pragun's real statement (AOS-212).
 - 2026-10-16 — Claude: AOS-205 done. Left: AOS-206.

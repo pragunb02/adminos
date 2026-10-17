@@ -1,0 +1,19 @@
+{
+    "subject": "rules+ai",
+    "goldenRows": 288,
+    "accuracy": 0.9167,
+    "subcategoryAccuracy": 0.7246,
+    "f1": {
+        "EDUCATION": 0.8695,
+        "EMI": 0.8333,
+        "ENTERTAINMENT": 0.8461,
+        "FOOD": 0.9577,
+        "HEALTH": 0.9444,
+        "OTHER": 0.8039,
+        "SHOPPING": 0.9639,
+        "SUBSCRIPTION": 0.9455,
+        "TRANSFER": 0.9565,
+        "TRANSPORT": 0.973,
+        "UTILITIES": 0.9491
+    }
+}
