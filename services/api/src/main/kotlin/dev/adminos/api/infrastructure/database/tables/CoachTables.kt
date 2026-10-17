@@ -3,6 +3,7 @@ package dev.adminos.api.infrastructure.database.tables
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.javatime.date
+import org.jetbrains.exposed.v1.javatime.time
 import org.jetbrains.exposed.v1.javatime.timestamp
 
 /** Maps to db/migration/V31__lens_overrides.sql (AOS-901). */
@@ -48,6 +49,18 @@ object LimitSuggestionDismissalsTable : Table("limit_suggestion_dismissals") {
 object CoachSettingsTable : Table("coach_settings") {
     val userId = javaUUID("user_id").references(UsersTable.id)
     val limitAlerts = bool("limit_alerts")
+    val eveningDigest = bool("evening_digest")
+    val digestTime = time("digest_time")
+    val digestSkipZeroDay = bool("digest_skip_zero_day")
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(userId)
+}
+
+/** Maps to db/migration/V42__coach_digest.sql (AOS-905): one row per (user, kind, day) sent. */
+object CoachDigestsSentTable : Table("coach_digests_sent") {
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val kind = varchar("kind", 20)
+    val day = date("day")
+    val sentAt = timestamp("sent_at")
+    override val primaryKey = PrimaryKey(userId, kind, day)
 }

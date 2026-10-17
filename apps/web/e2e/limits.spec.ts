@@ -39,6 +39,19 @@ test.describe("Limits", () => {
   });
 });
 
+test.describe("Evening digest settings (AOS-905)", () => {
+  test("the digest defaults to 21:30 and its time and options are saved", async ({ signedIn: page, api }) => {
+    await page.goto("/settings");
+    const coach = page.getByRole("region", { name: "Spending coach" });
+    const time = coach.getByLabel("Digest time");
+    await expect(time).toHaveValue("21:30");
+    await time.fill("20:15");
+    await time.blur();
+    await coach.getByRole("checkbox", { name: "Skip on a day with no spending" }).check();
+    await expect.poll(() => api.callsTo("PATCH", "/api/v1/coach/settings").map((c) => c.body)).toEqual([{ digestTime: "20:15" }, { digestSkipZeroDay: true }]);
+  });
+});
+
 test.describe("Limits: attacks (D-100)", () => {
   test("signed out, Settings and the leaks page go to login", async ({ page }) => {
     for (const path of ["/settings", "/leaks"]) {
