@@ -48,5 +48,7 @@ OLLAMA_BASE_URL=http://ollama:11434     # inside compose; http://127.0.0.1:11434
 ```
 Local calls cost $0, so the monthly cap never blocks them; they are still audited.
 
+Finally, turn the feature on for yourself in **Settings → AI features** (AOS-704). Every AI feature is off for each user until they switch it on, and the notice there shows exactly what is sent and that it stays on your server.
+
 ## Which model
 See the numbers and the recommendation in [AOS-703](../tickets/AOS-703.md#verification). Re-run the bake-off when you change models or the golden set grows.
