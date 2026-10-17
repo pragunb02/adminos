@@ -70,12 +70,17 @@ func TestPayLaterEmailsBecomeBillsAndTaggedPurchases(t *testing.T) {
 }
 
 func TestPayLaterDomainsAreInTheSenderFilters(t *testing.T) {
+	// Authenticated mail from each provider is read (AOS-624: the sender filter is Qualify).
+	qualifies := func(from, subject string) bool {
+		return gmail.Qualify([]gmail.MessageHeader{{Name: "Authentication-Results", Value: genuineAuthResults(from)},
+			{Name: "From", Value: from}, {Name: "Subject", Value: subject}}) == gmail.BankMail
+	}
 	for _, d := range PayLaterDomains {
-		if !gmail.IsFinancial("x <a@"+d+">", "anything") {
+		if !qualifies("x <a@"+d+">", "anything") {
 			t.Errorf("%s must be fetched", d)
 		}
 	}
-	if !gmail.IsFinancial("Flipkart <noreply@flipkart.com>", "Your Flipkart Pay Later bill") {
+	if !qualifies("Flipkart <noreply@flipkart.com>", "Your Flipkart Pay Later bill") {
 		t.Error("Flipkart's pay-later bills are fetched through the receipt subjects")
 	}
 }
