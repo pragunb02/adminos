@@ -5,9 +5,9 @@ import io.ktor.server.plugins.*
 import io.ktor.server.plugins.forwardedheaders.*
 
 /**
- * The browser reaches the API through the web app's same-origin proxy (D-32), so the TCP peer is
- * the proxy. The proxy appends the real client to `X-Forwarded-For`. We trust only the **last**
- * hop (the one our proxy added), so a client can't spoof its IP by sending its own header.
+ * Trust the **last** `X-Forwarded-For` hop as the client IP. Installed only when `TRUST_FORWARDED_FOR=true`
+ * (AOS-618, AUD-03): that is safe only behind an edge proxy that appends the real peer, because the Next proxy
+ * itself forwards a client-sent header unchanged. Without it, the TCP peer is the client IP.
  */
 fun Application.configureForwardedHeaders() {
     install(XForwardedHeaders) {

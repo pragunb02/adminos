@@ -53,6 +53,33 @@ class OAuthStateRepositoryIntegrationTest {
     }
 
     @Test
+    fun `a sign-in state has no user and round-trips once (V32, AOS-618)`() = runBlocking<Unit> {
+        val login = OAuthStateClaim.login("http://localhost:3000/auth/callback")
+        val issued = service.issue(login)
+        val stored = assertNotNull(repo.findByHash(OAuthStateService.sha256Hex(issued.state)))
+        assertNull(stored.userId)
+        assertEquals(OAuthPurpose.LOGIN, stored.purpose)
+        assertEquals(issued.codeChallenge, OAuthStateService.codeChallenge(service.consume(issued.state, login)))
+        assertFailsWith<OAuthStateException.Reused> { service.consume(issued.state, login) }
+        // Not redeemable as a Gmail consent by anyone.
+        val other = service.issue(login)
+        assertFailsWith<OAuthStateException.Mismatch> { service.consume(other.state, claim()) }
+    }
+
+    @Test
+    fun `the database refuses a userless state for any purpose but sign-in`() = runBlocking<Unit> {
+        val e = runCatching {
+            dev.adminos.api.infrastructure.database.dbQuery {
+                org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager.current().exec(
+                    "INSERT INTO oauth_states (id, user_id, purpose, state_hash, redirect_uri, code_verifier, created_at, expires_at) " +
+                        "VALUES ('${java.util.UUID.randomUUID()}', NULL, 'gmail_connect', '${"a".repeat(64)}', 'x', 'y', now(), now() + interval '1 minute')"
+                )
+            }
+        }.exceptionOrNull()
+        assertNotNull(e, "the check constraint must reject it")
+    }
+
+    @Test
     fun `only one of many concurrent redemptions marks a state used`() = runBlocking<Unit> {
         val issued = service.issue(claim())
         val id = assertNotNull(repo.findByHash(OAuthStateService.sha256Hex(issued.state))).id

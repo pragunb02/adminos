@@ -4,7 +4,11 @@ import java.time.Instant
 import java.util.UUID
 
 /** What an OAuth `state` was issued for; a state is only accepted for the same purpose. */
-enum class OAuthPurpose { GMAIL_CONNECT }
+enum class OAuthPurpose {
+    GMAIL_CONNECT,
+    /** Signing in with Google (AOS-618, AUD-06): no user yet, so the state is bound to the browser by a cookie instead. */
+    LOGIN
+}
 
 /**
  * A pending OAuth consent (AOS-406, D-64): the CSRF `state` sent to Google, stored server-side so it
@@ -16,7 +20,8 @@ enum class OAuthPurpose { GMAIL_CONNECT }
  */
 data class OAuthState(
     val id: UUID = UUID.randomUUID(),
-    val userId: UUID,
+    /** Who started the consent; null only for [OAuthPurpose.LOGIN], which starts before anyone is signed in. */
+    val userId: UUID?,
     val purpose: OAuthPurpose,
     val stateHash: String,
     val redirectUri: String,
@@ -28,6 +33,7 @@ data class OAuthState(
     init {
         require(stateHash.matches(Regex("[0-9a-f]{64}"))) { "stateHash is a hex SHA-256" }
         require(redirectUri.isNotBlank()) { "redirectUri is required" }
+        require((userId == null) == (purpose == OAuthPurpose.LOGIN)) { "Only a sign-in state has no user" }
         require(expiresAt > createdAt) { "An OAuth state must expire after it is created" }
     }
 

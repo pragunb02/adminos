@@ -15,7 +15,16 @@ data class IssuedOAuthState(val state: String, val codeChallenge: String) {
 }
 
 /** Who may redeem a state, and where Google sent the user back. */
-data class OAuthStateClaim(val userId: UUID, val purpose: OAuthPurpose, val redirectUri: String)
+data class OAuthStateClaim(val userId: UUID?, val purpose: OAuthPurpose, val redirectUri: String) {
+    init {
+        require((userId == null) == (purpose == OAuthPurpose.LOGIN)) { "Only a sign-in state has no user" }
+    }
+
+    companion object {
+        /** Signing in: nobody is signed in yet (AOS-618). */
+        fun login(redirectUri: String) = OAuthStateClaim(null, OAuthPurpose.LOGIN, redirectUri)
+    }
+}
 
 /**
  * OAuth `state` (CSRF) and PKCE for Google consents (AOS-406, D-64).

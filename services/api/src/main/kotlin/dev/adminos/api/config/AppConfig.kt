@@ -42,7 +42,8 @@ data class AppConfig(
                 // Loopback by default; the Docker image sets 0.0.0.0, where the 127.0.0.1-only publish is the boundary.
                 bindHost = env("BIND_HOST", "127.0.0.1"),
                 appUrl = appUrl(),
-                apiUrl = env("API_URL", "http://localhost:8080")
+                apiUrl = env("API_URL", "http://localhost:8080"),
+                trustForwardedFor = trustForwardedFor(System::getenv)
             ),
             security = SecurityConfig(
                 tokenEncryptionKey = secret("TOKEN_ENCRYPTION_KEY") { DevSecrets.tokenEncryptionKey }
@@ -116,6 +117,18 @@ data class AppConfig(
             return raw
         }
 
+        /**
+         * `TRUST_FORWARDED_FOR` (AOS-618, AUD-03): off by default. The web proxy forwards a client-sent
+         * `X-Forwarded-For` unchanged, so trusting it lets anyone pick their IP. Turn it on only behind an edge proxy
+         * that *appends* the real peer (Tailscale serve, Caddy, Cloudflare Tunnel; AOS-616). Anything but true/false stops start-up.
+         */
+        internal fun trustForwardedFor(getenv: (String) -> String?): Boolean =
+            when (val raw = getenv("TRUST_FORWARDED_FOR")?.trim()?.lowercase()) {
+                null, "", "false" -> false
+                "true" -> true
+                else -> throw IllegalArgumentException("TRUST_FORWARDED_FOR must be true or false, was '$raw'")
+            }
+
         private val PLACEHOLDER = Regex("(?i)^(change[-_]?me|generate[-_]|your[-_])")
         internal fun isPlaceholder(value: String) = PLACEHOLDER.containsMatchIn(value)
     }
@@ -157,7 +170,9 @@ data class AppSettings(
     val port: Int,
     val bindHost: String,
     val appUrl: String,
-    val apiUrl: String
+    val apiUrl: String,
+    /** Use the last `X-Forwarded-For` hop as the client IP (only behind an edge that appends it; AOS-618). */
+    val trustForwardedFor: Boolean = false
 )
 
 data class SecurityConfig(

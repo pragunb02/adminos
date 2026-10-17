@@ -43,6 +43,7 @@ class InfraAppDatabaseIntegrationTest {
             assertEquals(HttpStatusCode.OK, client.get("/health").status)
             val res = client.post("/api/v1/transactions/cash") {
                 cookie(ACCESS_TOKEN_COOKIE, InfraIngestTestKit.tokenFor(user))
+                header(HttpHeaders.Origin, InfraIngestTestKit.config.app.appUrl) // the CSRF check (AOS-618)
                 contentType(ContentType.Application.Json)
                 setBody("""{"clientRef":"cash-db-0001","amount":"80","category":"food","note":"Auto"}""")
             }

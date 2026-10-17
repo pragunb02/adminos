@@ -41,6 +41,10 @@ export class MockApi {
       .on("GET /api/v1/device-tokens", () => ({ data: [] }))
       .on("POST /api/v1/transactions/cash", () => ({ status: 202, data: { saved: true, duplicate: false } }))
       .on("POST /api/v1/auth/refresh", () => ({ data: {} }))
+      // Sign-in starts at the API (AOS-618): Google's URL with the API's state and PKCE challenge.
+      .on("GET /api/v1/auth/google/start", () => ({
+        data: { url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({ client_id: "e2e-client-id", redirect_uri: `${new URL(page.url()).origin}/auth/callback`, response_type: "code", scope: "openid email profile", state: "e2e-login-state", code_challenge: "e2e-login-challenge", code_challenge_method: "S256" })}` },
+      }))
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))

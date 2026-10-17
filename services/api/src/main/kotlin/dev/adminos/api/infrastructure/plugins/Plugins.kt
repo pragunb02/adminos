@@ -10,7 +10,10 @@ import io.ktor.server.application.*
  * following the pattern from JetBrains' Ktor DDD guide.
  */
 fun Application.configurePlugins(config: AppConfig, jwtService: JwtService) {
-    configureForwardedHeaders() // first: everything after sees the real client IP (D-32)
+    // First, so everything after sees the client IP. Only behind an edge proxy that appends the real peer: without one,
+    // X-Forwarded-For is whatever the client sent (verified through the Next proxy, AUD-03), so the TCP peer is used.
+    if (config.app.trustForwardedFor) configureForwardedHeaders()
+    else log.info("TRUST_FORWARDED_FOR is off: client IPs are the connection peer (set it only behind an edge proxy that appends X-Forwarded-For)")
     configureRequestId()
     configureRequestBodyLimit() // before anything reads a body, including unauthenticated routes (AOS-615)
     configureSerialization()

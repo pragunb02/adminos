@@ -24,7 +24,22 @@ import java.util.UUID
 @Serializable
 data class GoogleLoginRequest(
     val code: String,
-    val redirectUri: String
+    val redirectUri: String,
+    /** The state from `GET /auth/google/start`, as Google returned it (AOS-618). */
+    val state: String? = null
+)
+
+@Serializable
+data class GoogleLoginStartResponse(val url: String)
+
+/**
+ * What signing in with Google needs besides the auth service (AOS-618, AUD-06/16/19): the Google client (consent
+ * URL), the server-side state + PKCE store, and the lockout for refused attempts.
+ */
+class LoginOAuth(
+    val google: GoogleOAuthClient,
+    val states: dev.adminos.api.domain.ingestion.connection.OAuthStateService,
+    val guard: SignInGuard = SignInGuard()
 )
 
 /**
@@ -51,29 +66,57 @@ data class SessionResponse(
     val createdAt: String
 )
 
-fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: AppConfig, auditService: AuditService) {
+fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: AppConfig, auditService: AuditService, login: LoginOAuth) {
     val cookies = AuthCookies(config)
+    val authLimiter = RateLimiters.auth()
+    val callbackUri = "${config.app.appUrl.trimEnd('/')}/auth/callback"
 
     route("/auth") {
 
         // Rate limit: 10 req/min per IP on all auth endpoints
         install(RateLimitPlugin) {
-            limiter = RateLimiters.auth
+            limiter = authLimiter
             keyExtractor = { call -> call.clientIp }
         }
 
         // Public routes (no JWT required)
 
+        // Starts a Google sign-in (AOS-618, AUD-06): a fresh single-use state (server-side, hashed) with a PKCE
+        // challenge, bound to this browser by an HttpOnly cookie. Identity scopes only (AUD-19).
+        get("/google/start") {
+            call.lockedOut(login.guard, call.clientIp)
+            val issued = login.states.issue(dev.adminos.api.domain.ingestion.connection.OAuthStateClaim.login(callbackUri))
+            val url = login.google.loginConsentUrl(callbackUri, issued.state, issued.codeChallenge)
+                ?: throw ApiException(HttpStatusCode.ServiceUnavailable, ApiError("AUTH_008", "Google sign-in is not configured"))
+            cookies.setLoginState(call, issued.state)
+            call.respond(HttpStatusCode.OK, ApiResponse.success(GoogleLoginStartResponse(url), call.requestId))
+        }
+
         post("/google") {
+            val ipAddress = call.clientIp
+            call.lockedOut(login.guard, ipAddress)
             val request = call.receive<GoogleLoginRequest>()
 
-            // Item 3: Validate redirectUri against allowed list (OWASP OAuth Cheat Sheet)
-            val allowedRedirectUri = "${config.app.appUrl}/auth/callback"
-            if (request.redirectUri != allowedRedirectUri) {
-                throw ApiException(HttpStatusCode.BadRequest, ApiError("AUTH_005", "Invalid redirect URI"))
+            // Every refusal below counts towards the lockout; only the owner's success clears it.
+            fun refuse(status: HttpStatusCode, error: ApiError): Nothing {
+                login.guard.refused(ipAddress)
+                throw ApiException(status, error)
             }
 
-            val ipAddress = call.clientIp
+            // Item 3: Validate redirectUri against allowed list (OWASP OAuth Cheat Sheet)
+            if (request.redirectUri != callbackUri) refuse(HttpStatusCode.BadRequest, ApiError("AUTH_005", "Invalid redirect URI"))
+
+            // The state must be the one this browser was given (cookie) and still unused server-side (AUD-06).
+            val presented = request.state
+            val bound = cookies.loginState(call)
+            cookies.clearLoginState(call)
+            if (presented == null || bound == null || !constantTimeEquals(presented, bound)) refuse(HttpStatusCode.BadRequest, LOGIN_STATE_INVALID)
+            val codeVerifier = try {
+                login.states.consume(presented, dev.adminos.api.domain.ingestion.connection.OAuthStateClaim.login(callbackUri))
+            } catch (e: dev.adminos.api.domain.ingestion.connection.OAuthStateException) {
+                refuse(HttpStatusCode.BadRequest, LOGIN_STATE_INVALID)
+            }
+
             val userAgent = call.request.userAgent()
 
             try {
@@ -81,8 +124,10 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     code = request.code,
                     redirectUri = request.redirectUri,
                     ipAddress = ipAddress,
-                    userAgent = userAgent
+                    userAgent = userAgent,
+                    codeVerifier = codeVerifier
                 )
+                login.guard.succeeded(ipAddress)
 
                 // Session cookies: HttpOnly, SameSite=Strict (OWASP Session Management)
                 cookies.setSession(call, result.accessToken, result.refreshToken)
@@ -107,11 +152,11 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
                     )
                 )
             } catch (e: UserInactiveException) {
-                throw ApiException(HttpStatusCode.Forbidden, ApiError.USER_INACTIVE)
+                refuse(HttpStatusCode.Forbidden, ApiError.USER_INACTIVE)
             } catch (e: NotOwnerException) {
-                throw ApiException(HttpStatusCode.Forbidden, ApiError.NOT_OWNER)
+                refuse(HttpStatusCode.Forbidden, ApiError.NOT_OWNER)
             } catch (e: RuntimeException) {
-                throw ApiException(HttpStatusCode.Unauthorized, ApiError.OAUTH_FAILED)
+                refuse(HttpStatusCode.Unauthorized, ApiError.OAUTH_FAILED)
             }
         }
 
@@ -210,3 +255,18 @@ fun Route.authRoutes(authService: AuthService, accessTokenTtl: Long, config: App
         }
     }
 }
+
+/** A sign-in that didn't start in this browser, was already used, or expired (AOS-618). One answer for all. */
+val LOGIN_STATE_INVALID = ApiError("AUTH_007", "This sign-in didn't start here or has expired. Start again.")
+
+/** 429 with Retry-After while [client] is locked out after refused sign-ins (AOS-618). */
+private fun ApplicationCall.lockedOut(guard: SignInGuard, client: String) {
+    val wait = guard.lockedFor(client) ?: return
+    val seconds = wait.seconds.coerceAtLeast(1)
+    response.header(HttpHeaders.RetryAfter, seconds.toString())
+    throw ApiException(HttpStatusCode.TooManyRequests, ApiError("RATE_002", "Too many refused sign-ins. Try again in ${(seconds + 59) / 60} min."))
+}
+
+/** Compares secrets without leaking, through timing, how much of them matched. */
+internal fun constantTimeEquals(a: String, b: String): Boolean =
+    java.security.MessageDigest.isEqual(a.toByteArray(Charsets.UTF_8), b.toByteArray(Charsets.UTF_8))

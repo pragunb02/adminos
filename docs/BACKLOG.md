@@ -154,7 +154,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-615](tickets/AOS-615.md) | Threat model + red-team audit (ASVS 5.0 L2 / WSTG): 27 findings; fixed pre-auth body exhaustion and Jackson advisories; rest ticketed (D-92) | Claude (agent) | ✅ | 6h | 4h |
 | └ [AOS-616](tickets/AOS-616.md) | Private network only: Tailscale, webhook-only tunnel option for Gmail push, exposure check script (D-97) | Claude (agent) | ✅ | 3h | 3h |
 | └ AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
-| └ AOS-618 | Security headers (CSP, HSTS, frame-ancestors, Referrer/Permissions-Policy), CSRF review, auth rate limits and lockout | Claude | ⬜ | 3h |  |
+| └ [AOS-618](tickets/AOS-618.md) | Hardening: nonce CSP + headers, app-wide CSRF check, sign-in state + PKCE, lockout, strict JWT, XFF distrusted (D-94) | Claude (agent) | ✅ | — | — |
 | └ [AOS-619](tickets/AOS-619.md) | Authorization attack tests: route inventory, IDOR 404s, Playwright attack suite; exact public paths (D-93) | Claude (agent) | ✅ | — | — |
 | └ AOS-620 | New-sign-in and refused-sign-in alerts (push + email); sessions list and revoke-all | Claude | ⬜ | 3h |  |
 | └ [AOS-621](tickets/AOS-621.md) | Encrypted backups: age-encrypted pg_dump to a locked R2 bucket, restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |

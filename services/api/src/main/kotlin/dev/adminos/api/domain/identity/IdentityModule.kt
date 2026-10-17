@@ -14,10 +14,13 @@ fun Application.identityModule(config: AppConfig) {
     val authService: AuthService by inject()
     val auditService: AuditService by inject()
     val deviceTokenService: DeviceTokenService by inject()
+    val google: GoogleOAuthClient by inject()
+    val states: dev.adminos.api.domain.ingestion.connection.OAuthStateService by inject()
+    val login = LoginOAuth(google, states)
 
     routing {
         route("/api/v1") {
-            authRoutes(authService, config.auth.accessTokenTtlSeconds, config, auditService)
+            authRoutes(authService, config.auth.accessTokenTtlSeconds, config, auditService, login)
             deviceTokenRoutes(deviceTokenService)
         }
     }

@@ -275,30 +275,4 @@ class InfraPluginsCoverageTest {
         limiter.isAllowed("203.0.113.9")
         assertEquals(0, limiter.remainingRequests("10.0.0.0"), "still counted")
     }
-
-    // ── CORS ──
-
-    private fun corsTest(appUrl: String, block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
-        environment { config = MapApplicationConfig() }
-        application { configureHTTP(appUrl); routing { post("/x") { call.respondText("ok") } } }
-        block()
-    }
-
-    @Test
-    fun `CORS allows the configured http origin`() = corsTest("http://localhost:3000") {
-        val res = client.options("/x") { header(HttpHeaders.Origin, "http://localhost:3000"); header(HttpHeaders.AccessControlRequestMethod, "POST") }
-        assertEquals("http://localhost:3000", res.headers[HttpHeaders.AccessControlAllowOrigin])
-    }
-
-    @Test
-    fun `CORS rejects a look-alike subdomain of the app origin`() = corsTest("http://localhost:3000") {
-        val res = client.options("/x") { header(HttpHeaders.Origin, "http://evil.localhost:3000"); header(HttpHeaders.AccessControlRequestMethod, "POST") }
-        assertNull(res.headers[HttpHeaders.AccessControlAllowOrigin])
-    }
-
-    @Test
-    fun `CORS allows the configured https origin`() = corsTest("https://app.adminos.in") {
-        val res = client.options("/x") { header(HttpHeaders.Origin, "https://app.adminos.in"); header(HttpHeaders.AccessControlRequestMethod, "POST") }
-        assertEquals("https://app.adminos.in", res.headers[HttpHeaders.AccessControlAllowOrigin])
-    }
 }

@@ -23,9 +23,21 @@ import java.time.Instant
 import java.util.UUID
 
 /** Connecting Gmail with Google's consent: the OAuth client and the state (CSRF) + PKCE store (AOS-406). */
-class GmailOAuth(val google: GoogleOAuthClient, val states: OAuthStateService)
+class GmailOAuth(
+    val google: GoogleOAuthClient,
+    val states: OAuthStateService,
+    /** The only redirect URI accepted (this app's Gmail callback; AOS-618, AUD-18). Null only in route tests. */
+    val redirectUri: String? = null
+) {
+    fun requireAllowed(redirectUri: String) {
+        if (this.redirectUri != null && redirectUri != this.redirectUri) {
+            throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri must be this app's Gmail callback"))
+        }
+    }
+}
 
 fun Route.connectionRoutes(connectionService: ConnectionService, auditService: AuditService, gmailOAuth: GmailOAuth? = null) {
+    val manualSync = RateLimiters.manualSync()
 
     authenticate("auth-jwt") {
 
@@ -48,6 +60,7 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                 val redirectUri = call.request.queryParameters["redirectUri"]?.takeIf { it.isNotBlank() }
                     ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri is required"))
                 val oauth = gmailOAuth?.takeIf { it.google.isConfigured } ?: throw googleNotConfigured()
+                oauth.requireAllowed(redirectUri)
                 val issued = oauth.states.issue(OAuthStateClaim(call.userPrincipal.userId, OAuthPurpose.GMAIL_CONNECT, redirectUri))
                 val url = oauth.google.gmailConsentUrl(redirectUri, issued.state, issued.codeChallenge) ?: throw googleNotConfigured()
                 call.respond(HttpStatusCode.OK, ApiResponse.success(GmailAuthorizeUrlResponse(url), call.requestId))
@@ -72,6 +85,7 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                     val redirectUri = request.redirectUri ?: throw ApiException(
                         HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri is required for OAuth code exchange")
                     )
+                    gmailOAuth.requireAllowed(redirectUri)
                     // The state is checked (and used up) before the code is sent to Google, so a code
                     // planted by another site (login CSRF) is never redeemed (AOS-406, D-64).
                     val codeVerifier = try {
@@ -136,7 +150,7 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
                 val connectionId = call.parameters["id"]
                     ?: throw ApiException(HttpStatusCode.BadRequest, ApiError.CONNECTION_NOT_FOUND)
 
-                val rateLimiter = RateLimiters.manualSync
+                val rateLimiter = manualSync
                 if (!rateLimiter.isAllowed("sync:${principal.userId}")) {
                     val retryAfter = rateLimiter.retryAfterSeconds("sync:${principal.userId}")
                     throw ApiException(HttpStatusCode.TooManyRequests, ApiError("RATE_001", "Manual sync rate limit exceeded. Try again in $retryAfter seconds."))

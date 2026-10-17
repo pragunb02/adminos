@@ -9,6 +9,10 @@ import io.ktor.server.application.*
 const val REFRESH_TOKEN_COOKIE = "refresh_token"
 private const val REFRESH_COOKIE_PATH = "/api/v1/auth"
 
+/** HttpOnly cookie holding the pending Google sign-in state (AOS-618). */
+const val LOGIN_STATE_COOKIE = "login_state"
+private const val LOGIN_STATE_MAX_AGE = 600 // the state itself expires after 10 minutes
+
 /**
  * The web session's cookies (AOS-109). Both are HttpOnly + SameSite=Strict, and Secure off localhost.
  *
@@ -37,6 +41,20 @@ class AuthCookies(private val config: AppConfig) {
     }
 
     fun refreshToken(call: ApplicationCall): String? = call.request.cookies[REFRESH_TOKEN_COOKIE]?.takeIf { it.isNotBlank() }
+
+    /**
+     * The sign-in state, bound to this browser (AOS-618, AUD-06): set when the sign-in starts, checked and
+     * cleared when Google's code comes back. Scoped to the auth endpoints, gone after [LOGIN_STATE_MAX_AGE].
+     */
+    fun setLoginState(call: ApplicationCall, state: String) {
+        call.response.cookies.append(cookie(LOGIN_STATE_COOKIE, state, LOGIN_STATE_MAX_AGE, REFRESH_COOKIE_PATH))
+    }
+
+    fun clearLoginState(call: ApplicationCall) {
+        call.response.cookies.append(cookie(LOGIN_STATE_COOKIE, "", 0, REFRESH_COOKIE_PATH))
+    }
+
+    fun loginState(call: ApplicationCall): String? = call.request.cookies[LOGIN_STATE_COOKIE]?.takeIf { it.isNotBlank() }
 
     private fun cookie(name: String, value: String, maxAge: Int, path: String) = Cookie(
         name = name, value = value, maxAge = maxAge, path = path,

@@ -5,7 +5,6 @@ import dev.adminos.api.domain.ai.eval.AiEvalAnswers
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.infrastructure.plugins.ApiException
-import dev.adminos.api.infrastructure.plugins.SameOriginMutations
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
 import io.ktor.http.HttpStatusCode
@@ -76,9 +75,9 @@ internal fun AiFeatureStatus.toResponse() = AiFeatureResponse(
  * Settings → AI features (AOS-704), signed-in users only, scoped to the caller:
  * - `GET /ai/features`: every feature with its notice, whether the server runs it, spend and the user's choice;
  * - `PATCH /ai/features/{key}` `{"enabled": true|false}`: the user's consent. 404 for an unknown feature, 409
- *   when turning on a feature the server doesn't run, 403 for a cross-site request.
+ *   when turning on a feature the server doesn't run, 403 for a cross-site request (the app-wide OriginCheck, AOS-618).
  */
-fun Route.aiRoutes(service: AiFeaturesService, appUrl: String) {
+fun Route.aiRoutes(service: AiFeaturesService) {
     authenticate("auth-jwt") {
         route("/ai/features") {
             get {
@@ -87,7 +86,6 @@ fun Route.aiRoutes(service: AiFeaturesService, appUrl: String) {
                 call.respond(HttpStatusCode.OK, ApiResponse.success(AiFeaturesResponse(features.map { it.toResponse() }, cap), call.requestId))
             }
             route("/{key}") {
-                install(SameOriginMutations) { this.appUrl = appUrl }
                 patch {
                     val key = call.parameters["key"].orEmpty()
                     val feature = AiFeature.fromKey(key) ?: throw ApiException(HttpStatusCode.NotFound, ApiError(UNKNOWN_FEATURE, "No such AI feature"))
@@ -111,5 +109,5 @@ const val NOT_AVAILABLE = "AI_002"
 fun Application.aiModule() {
     val service: AiFeaturesService by inject()
     val config: AppConfig by inject()
-    routing { route("/api/v1") { aiRoutes(service, config.app.appUrl) } }
+    routing { route("/api/v1") { aiRoutes(service) } }
 }

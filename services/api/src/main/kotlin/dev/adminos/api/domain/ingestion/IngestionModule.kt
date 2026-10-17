@@ -28,6 +28,9 @@ import org.koin.ktor.ext.inject
  * Ingestion domain module — registers ingestion, connection, webhook, and upload routes.
  * Dependencies are resolved via Koin (single instances, no duplication).
  */
+/** This app's Connect Gmail callback page: the only redirect URI the API accepts for it (AOS-618). */
+internal fun gmailCallbackUrl(appUrl: String) = appUrl.trimEnd('/') + "/connections/gmail/callback"
+
 fun Application.ingestionModule(config: AppConfig) {
     val ingestionService: IngestionService by inject()
     val connectionService: ConnectionService by inject()
@@ -46,7 +49,7 @@ fun Application.ingestionModule(config: AppConfig) {
             ingestEventRoutes(ingestEventService)
             rawSmsRoutes(smsIntake)
             cashRoutes(cashIntake)
-            connectionRoutes(connectionService, auditService, GmailOAuth(googleOAuthClient, oauthStates))
+            connectionRoutes(connectionService, auditService, GmailOAuth(googleOAuthClient, oauthStates, gmailCallbackUrl(config.app.appUrl)))
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience, config.auth.googlePubsubServiceAccount)
             statementRoutes(statementImportService)
             whatsAppImportRoutes(whatsAppImportService)

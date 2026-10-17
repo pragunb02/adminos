@@ -41,7 +41,8 @@ class AuthSessionRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
-            routing { route("/api/v1") { authRoutes(authService, config.auth.accessTokenTtlSeconds, config, AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined))) } }
+            routing { route("/api/v1") { authRoutes(authService, config.auth.accessTokenTtlSeconds, config, AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined)),
+                LoginOAuth(GoogleOAuthClient(config.auth), dev.adminos.api.domain.ingestion.connection.OAuthStateService(dev.adminos.api.domain.ingestion.connection.InMemoryOAuthStateRepository(), null))) } }
         }
         block()
     }

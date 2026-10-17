@@ -24,6 +24,10 @@ export const mainNav = (page: Page) => page.getByRole("navigation", { name: "Mai
 
 /** No serious or critical accessibility violations (WCAG 2.2 A/AA rules). */
 export async function expectAccessible(page: Page) {
+  // Measure the settled page: sizes (e.g. target-size) are wrong while styles and fonts are still applying,
+  // which the dynamic, nonce-CSP root layout (AOS-618) made more likely.
+  await page.waitForLoadState("load");
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   const bad = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(bad.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) → ${v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);

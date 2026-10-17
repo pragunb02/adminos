@@ -10,6 +10,8 @@ import dev.adminos.api.domain.identity.JwtService
 import dev.adminos.api.domain.identity.User
 import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.infrastructure.plugins.CROSS_SITE_REFUSED
+import dev.adminos.api.infrastructure.plugins.OriginCheck
+import io.ktor.server.application.install
 import dev.adminos.api.infrastructure.plugins.configureAuthentication
 import dev.adminos.api.infrastructure.plugins.configureErrorHandling
 import dev.adminos.api.infrastructure.plugins.configureRequestId
@@ -64,7 +66,8 @@ class AiRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
-            routing { route("/api/v1") { aiRoutes(service(on), "http://localhost:3000") } }
+            install(OriginCheck) { allowedOrigin = "http://localhost:3000" } // the app-wide CSRF check (AOS-618)
+            routing { route("/api/v1") { aiRoutes(service(on)) } }
         }
         block()
     }
@@ -149,7 +152,7 @@ class AiRoutesTest {
         for ((site, origin) in listOf<Pair<String?, String?>>("cross-site" to null, "same-site" to null, null to "https://evil.example", null to null)) {
             val r = call(HttpMethod.Patch, "/ai/features/categorization", on, site = site, origin = origin)
             assertEquals(HttpStatusCode.Forbidden, r.status, "$site / $origin")
-            assertEquals(CROSS_SITE_REFUSED, r.code())
+            assertEquals(CROSS_SITE_REFUSED.code, r.code())
         }
         assertFalse(runBlocking { AiConsents(consents).allows(pragun.id, AiFeature.CATEGORIZATION) })
         assertEquals(HttpStatusCode.OK, call(HttpMethod.Patch, "/ai/features/categorization", on, site = null, origin = "http://localhost:3000").status)

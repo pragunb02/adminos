@@ -126,10 +126,28 @@ class IngestionStatementsCoverageTest {
     }
 
     @Test
-    fun `a file under another field name is not the statement`() = uploadTest {
+    fun `a file under another field name is refused (AOS-618)`() = uploadTest {
         val res = upload { file(name = "attachment") }
         assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertTrue("UPLOAD_001" in res.bodyAsText())
+    }
+
+    @Test
+    fun `no file at all is STATEMENT_001`() = uploadTest {
+        val res = upload { append("password", "") }
+        assertEquals(HttpStatusCode.BadRequest, res.status)
         assertTrue("STATEMENT_001" in res.bodyAsText())
+    }
+
+    @Test
+    fun `a second file or a repeated field is refused (AOS-618)`() = uploadTest {
+        assertEquals(HttpStatusCode.BadRequest, upload { file(); file() }.status)
+        assertEquals(HttpStatusCode.BadRequest, upload { file(); append("password", "a"); append("password", "b") }.status)
+    }
+
+    @Test
+    fun `a password field longer than any real statement password is refused`() = uploadTest {
+        assertEquals(HttpStatusCode.BadRequest, upload { file(); append("password", "x".repeat(257)) }.status)
     }
 
     @Test
@@ -140,10 +158,17 @@ class IngestionStatementsCoverageTest {
     }
 
     @Test
-    fun `an empty password and unrelated form fields are ignored`() = uploadTest {
-        val res = upload { file(); append("password", ""); append("note", "october") }
+    fun `an empty password counts as no password`() = uploadTest {
+        val res = upload { file(); append("password", "") }
         assertEquals(HttpStatusCode.OK, res.status)
         assertNull(seen!!.third)
+    }
+
+    @Test
+    fun `an unrelated form field is refused (AOS-618)`() = uploadTest {
+        val res = upload { file(); append("note", "october") }
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertTrue("UPLOAD_001" in res.bodyAsText())
     }
 
     @Test

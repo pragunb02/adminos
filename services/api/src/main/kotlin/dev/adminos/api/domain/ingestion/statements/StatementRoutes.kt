@@ -41,16 +41,21 @@ fun Route.statementRoutes(service: StatementImportService) {
             var file: ByteArray? = null
             var filename = ""
             var password: String? = null
+            val form = dev.adminos.api.infrastructure.plugins.UploadForm("file", setOf("password"), maxTextLength = 256)
             call.receiveMultipart(formFieldLimit = MAX_BYTES + 1).forEachPart { part ->
-                when (part) {
-                    is PartData.FileItem -> if (part.name == "file") {
-                        filename = part.originalFileName ?: ""
-                        file = part.provider().readRemaining(MAX_BYTES + 1).readByteArray()
+                try {
+                    form.check(part)
+                    when (part) {
+                        is PartData.FileItem -> {
+                            filename = part.originalFileName ?: ""
+                            file = part.provider().readRemaining(MAX_BYTES + 1).readByteArray()
+                        }
+                        is PartData.FormItem -> password = part.value.takeIf { it.isNotEmpty() }
+                        else -> {}
                     }
-                    is PartData.FormItem -> if (part.name == "password") password = part.value.takeIf { it.isNotEmpty() }
-                    else -> {}
+                } finally {
+                    part.dispose()
                 }
-                part.dispose()
             }
             val bytes = file ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("STATEMENT_001", "Attach a statement file as 'file'"))
             if (bytes.size > MAX_BYTES) throw ApiException(HttpStatusCode.PayloadTooLarge, ApiError("FILE_TOO_LARGE", "Statement exceeds 20 MB"))

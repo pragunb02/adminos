@@ -38,11 +38,14 @@ fun Route.whatsAppImportRoutes(service: WhatsAppImportService) {
         post("/imports/whatsapp") {
             val userId = call.userPrincipal.userId
             var file: ByteArray? = null
+            val form = dev.adminos.api.infrastructure.plugins.UploadForm("file", emptySet())
             call.receiveMultipart(formFieldLimit = MAX_UPLOAD_BYTES + 1).forEachPart { part ->
-                if (part is PartData.FileItem && part.name == "file") {
-                    file = part.provider().readRemaining(MAX_UPLOAD_BYTES + 1).readByteArray()
+                try {
+                    form.check(part)
+                    if (part is PartData.FileItem) file = part.provider().readRemaining(MAX_UPLOAD_BYTES + 1).readByteArray()
+                } finally {
+                    part.dispose()
                 }
-                part.dispose()
             }
             val bytes = file ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("WHATSAPP_NO_FILE", "Attach the chat export as 'file'"))
             if (bytes.size > MAX_UPLOAD_BYTES) throw ApiException(HttpStatusCode.PayloadTooLarge, ApiError("FILE_TOO_LARGE", "The file is too large (at most 20 MB)"))

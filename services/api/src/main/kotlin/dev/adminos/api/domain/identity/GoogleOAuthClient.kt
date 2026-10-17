@@ -115,6 +115,25 @@ class GoogleOAuthClient(
     }
 
     /**
+     * Google's sign-in page (AOS-618): identity only (`openid email profile`), no offline access and no forced
+     * consent, so a sign-in never mints a Google refresh token nobody uses (AUD-19). [state] is the server-side
+     * CSRF state and [codeChallenge] the PKCE S256 challenge (AUD-06). Null when no Google client is configured.
+     */
+    fun loginConsentUrl(redirectUri: String, state: String, codeChallenge: String): String? {
+        if (!isConfigured) return null
+        return "https://accounts.google.com/o/oauth2/v2/auth?" + formEncode(
+            "client_id" to config.googleClientId,
+            "redirect_uri" to redirectUri,
+            "response_type" to "code",
+            "scope" to "openid email profile",
+            "prompt" to "select_account",
+            "state" to state,
+            "code_challenge" to codeChallenge,
+            "code_challenge_method" to "S256"
+        )
+    }
+
+    /**
      * A new access token from a refresh token (AOS-405), for the API's own Gmail calls.
      * Google's `invalid_grant` (revoked, or expired while the app is in testing) is [GmailAccessException.Revoked];
      * anything else is [GmailAccessException.Unavailable]. Response bodies are never quoted.
@@ -153,8 +172,8 @@ class GoogleOAuthClient(
     /**
      * Legacy method — exchanges code and returns only user info.
      */
-    suspend fun exchangeCode(code: String, redirectUri: String): GoogleUserInfo {
-        val (_, userInfo) = exchangeCodeForTokens(code, redirectUri)
+    suspend fun exchangeCode(code: String, redirectUri: String, codeVerifier: String? = null): GoogleUserInfo {
+        val (_, userInfo) = exchangeCodeForTokens(code, redirectUri, codeVerifier)
         return userInfo
     }
 }

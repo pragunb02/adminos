@@ -83,10 +83,10 @@ class JwtService(private val config: AuthConfig) {
     fun verifyAccessToken(token: String): JwtClaims? {
         return try {
             val signedJwt = SignedJWT.parse(token)
-            if (!signedJwt.verify(verifier)) return null
+            if (!signedJwt.isOurs()) return null
 
             val claims = signedJwt.jwtClaimsSet
-            if (claims.expirationTime.before(Date())) return null
+            if (!claims.isCurrent()) return null
             if (claims.issuer != config.jwtIssuer) return null
             // Only access tokens: a device token must never work as a login (tokens before `typ` existed are access tokens).
             if ((claims.getStringClaim("typ") ?: TYPE_ACCESS) != TYPE_ACCESS) return null
@@ -121,7 +121,7 @@ class JwtService(private val config: AuthConfig) {
     fun verifyDeviceToken(token: String): DeviceTokenClaims? = try {
         val jwt = SignedJWT.parse(token)
         val c = jwt.jwtClaimsSet
-        if (!jwt.verify(verifier) || c.expirationTime?.before(Date()) != false || c.issuer != config.jwtIssuer ||
+        if (!jwt.isOurs() || !c.isCurrent() || c.issuer != config.jwtIssuer ||
             c.getStringClaim("typ") != TYPE_DEVICE) null
         else DeviceTokenClaims(
             userId = UUID.fromString(c.subject),
@@ -130,6 +130,21 @@ class JwtService(private val config: AuthConfig) {
         )
     } catch (e: Exception) {
         null
+    }
+
+    /**
+     * Only what we issue (AOS-618, AUD-14, RFC 8725 §3.1): exactly HS256 (no other HMAC size the key would also
+     * allow), no critical extensions, a valid signature over our key.
+     */
+    private fun SignedJWT.isOurs(): Boolean =
+        header.algorithm == JWSAlgorithm.HS256 && header.criticalParams.isNullOrEmpty() && verify(verifier)
+
+    /** Has an expiry in the future and wasn't issued in the future (one minute of clock skew). */
+    private fun JWTClaimsSet.isCurrent(): Boolean {
+        val now = Date()
+        val exp = expirationTime ?: return false
+        val iat = issueTime
+        return exp.after(now) && (iat == null || iat.time <= now.time + CLOCK_SKEW_MS)
     }
 
     private fun generateRefreshToken(): String {
@@ -141,6 +156,7 @@ class JwtService(private val config: AuthConfig) {
     companion object {
         const val TYPE_ACCESS = "access"
         const val TYPE_DEVICE = "device"
+        private const val CLOCK_SKEW_MS = 60_000L
 
         /** Hash a refresh token for storage — never store raw tokens */
         fun hashToken(token: String): String {

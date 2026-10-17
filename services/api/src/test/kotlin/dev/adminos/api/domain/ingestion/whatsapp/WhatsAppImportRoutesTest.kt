@@ -43,16 +43,23 @@ class WhatsAppImportRoutesTest {
         block()
     }
 
-    private suspend fun ApplicationTestBuilder.upload(content: ByteArray?, auth: Boolean = true) =
+    private suspend fun ApplicationTestBuilder.upload(content: ByteArray?, auth: Boolean = true, extra: String? = null) =
         client.post("/api/v1/imports/whatsapp") {
             if (auth) cookie(ACCESS_TOKEN_COOKIE, token)
             setBody(MultiPartFormDataContent(formData {
                 if (content != null) append("file", content, Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"_chat.txt\"")
                 })
-                append("note", "ignored")
+                if (extra != null) append(extra, "smuggled")
             }))
         }
+
+    @Test
+    fun `an unexpected form field is refused before the file is read (AOS-618)`() = routeTest {
+        val res = upload("16/10/26, 09:12 - HDFC Bank: hi".toByteArray(), extra = "note")
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertTrue("UPLOAD_001" in res.bodyAsText())
+    }
 
     @Test
     fun `upload returns the import counts`() = routeTest {

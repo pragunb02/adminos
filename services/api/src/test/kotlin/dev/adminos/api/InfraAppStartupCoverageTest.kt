@@ -59,6 +59,7 @@ class InfraAppStartupCoverageTest {
     fun `a signed-in user can use the ingestion routes wired by the module`() = appTest {
         val res = client.post("/api/v1/transactions/cash") {
             cookie(ACCESS_TOKEN_COOKIE, tokenFor(user()))
+            header(HttpHeaders.Origin, config.app.appUrl)
             contentType(ContentType.Application.Json)
             setBody("""{"clientRef":"cash-0001-abcd","amount":"120","category":"food","note":"Chai"}""")
         }
@@ -69,6 +70,7 @@ class InfraAppStartupCoverageTest {
     fun `malformed JSON is a 400, not a 500`() = appTest {
         val res = client.post("/api/v1/transactions/cash") {
             cookie(ACCESS_TOKEN_COOKIE, tokenFor(user()))
+            header(HttpHeaders.Origin, config.app.appUrl)
             contentType(ContentType.Application.Json)
             setBody("""{"clientRef": 12""")
         }
@@ -77,22 +79,15 @@ class InfraAppStartupCoverageTest {
     }
 
     @Test
-    fun `CORS preflight from the web app origin is allowed with credentials`() = appTest {
-        val res = client.options("/api/v1/transactions/cash") {
-            header(HttpHeaders.Origin, config.app.appUrl)
-            header(HttpHeaders.AccessControlRequestMethod, "POST")
+    fun `no CORS headers are given to any origin, not even the app's (AOS-618, AUD-17)`() = appTest {
+        for (origin in listOf(config.app.appUrl, "https://evil.example.com")) {
+            val res = client.options("/api/v1/transactions/cash") {
+                header(HttpHeaders.Origin, origin)
+                header(HttpHeaders.AccessControlRequestMethod, "POST")
+            }
+            assertEquals(null, res.headers[HttpHeaders.AccessControlAllowOrigin], origin)
+            assertEquals(null, res.headers[HttpHeaders.AccessControlAllowCredentials], origin)
         }
-        assertEquals(config.app.appUrl, res.headers[HttpHeaders.AccessControlAllowOrigin])
-        assertEquals("true", res.headers[HttpHeaders.AccessControlAllowCredentials])
-    }
-
-    @Test
-    fun `CORS rejects an unknown origin`() = appTest {
-        val res = client.options("/api/v1/transactions/cash") {
-            header(HttpHeaders.Origin, "https://evil.example.com")
-            header(HttpHeaders.AccessControlRequestMethod, "POST")
-        }
-        assertEquals(null, res.headers[HttpHeaders.AccessControlAllowOrigin])
     }
 
     @Test

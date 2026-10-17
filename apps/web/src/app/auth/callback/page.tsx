@@ -12,9 +12,10 @@ function CallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get("code");
+    const state = searchParams.get("state");
     const error = searchParams.get("error");
 
-    if (error || !code) {
+    if (error || !code || !state) {
       router.replace("/login?error=auth_failed");
       return;
     }
@@ -23,6 +24,7 @@ function CallbackContent() {
       try {
         const res = await api.post<AuthResponse>("/api/v1/auth/google", {
           code,
+          state, // checked against this browser's sign-in cookie and used up (AOS-618)
           redirectUri: `${window.location.origin}/auth/callback`,
         });
 

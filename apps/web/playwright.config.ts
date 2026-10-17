@@ -30,7 +30,8 @@ export default defineConfig({
     {
       command: "cd ../../services/api && ./gradlew --no-daemon -q run",
       url: `${API}/health`,
-      env: { JWT_SECRET: E2E_JWT_SECRET, PORT: "18080", BIND_HOST: "127.0.0.1", DATABASE_URL: "" },
+      // APP_URL is the web origin: the API's CSRF check accepts only it (AOS-618). A public test client id lets sign-in start.
+      env: { JWT_SECRET: E2E_JWT_SECRET, PORT: "18080", BIND_HOST: "127.0.0.1", DATABASE_URL: "", APP_URL: WEB, GOOGLE_CLIENT_ID: "e2e-client-id" },
       reuseExistingServer: !CI,
       timeout: 240_000,
     },
