@@ -21,7 +21,8 @@ class AuthServiceTest {
         refreshTokenTtlDays = 30,
         googleClientId = "test-client-id",
         googleClientSecret = "test-client-secret",
-        googlePubsubAudience = ""
+        googlePubsubAudience = "",
+        ownerEmail = "test@example.com"
     )
 
     private lateinit var userRepository: InMemoryUserRepository

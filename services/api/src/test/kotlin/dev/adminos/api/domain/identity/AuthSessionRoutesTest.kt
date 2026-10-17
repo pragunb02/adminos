@@ -21,7 +21,7 @@ import kotlin.test.*
 /** AOS-109: cookie-based refresh and per-device logout. */
 class AuthSessionRoutesTest {
 
-    private val config = AppConfig.load()
+    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "me@example.com")) }
     private val jwtService = JwtService(config.auth)
     private val users = InMemoryUserRepository()
     private val sessions = InMemorySessionRepository()

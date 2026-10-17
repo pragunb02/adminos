@@ -139,7 +139,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | **[AOS-S5.4](tickets/AOS-S5.4.md)** | **Documents vault** | | ✅ | 6h | 3h |
 | └ [AOS-507](tickets/AOS-507.md) | Documents vault: encrypted in the app, Cloudflare R2, expiry reminders (D-60) | Claude | ✅ | 6h | 3h |
 
-## ⬜ [AOS-E6](tickets/AOS-E6.md) — Hardening (public items parked, D-78) · P2 · ETA 45h
+## 🟦 [AOS-E6](tickets/AOS-E6.md) — Hardening and security (public items parked, D-78) · **P0** (D-91) · ETA 45h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
@@ -147,6 +147,17 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-121](tickets/AOS-121.md) | Refresh-token rotation with reuse detection | Claude | ⬜ | 2h |  |
 | └ AOS-601 | Encrypt tokens at rest; refuse default secrets; require Pub/Sub audience | Claude | ⬜ | 3h |  |
 | └ AOS-602 | ~~DPDP: consent records, export/delete, access logs~~ parked (personal use, D-78); export and backup move to E8 security | Claude | ⏸ | 8h |  |
+| **[AOS-S6.4](tickets/AOS-S6.4.md)** | **Owner-only fortress** (P0, D-91) | | 🟦 | 39.5h | 1.5h |
+| └ [AOS-614](tickets/AOS-614.md) | Owner-only sign-in: one allowlisted Google email, pinned Google ID, fail closed (critical finding) | Claude | ✅ | 1.5h | 1.5h |
+| └ AOS-615 | Security research, threat model and red-team audit: attack our own site (OWASP ASVS L2 / WSTG), every finding ticketed | Claude | ⬜ | 6h |  |
+| └ AOS-616 | Private network only: Tailscale (no public listener); Cloudflare Tunnel + Access as the documented alternative | Claude | ⬜ | 3h |  |
+| └ AOS-617 | Passkey (WebAuthn) second factor after Google, with recovery codes | Claude | ⬜ | 6h |  |
+| └ AOS-618 | Security headers (CSP, HSTS, frame-ancestors, Referrer/Permissions-Policy), CSRF review, auth rate limits and lockout | Claude | ⬜ | 3h |  |
+| └ AOS-619 | Authorization tests: every route requires auth unless allowlisted; every resource scoped to its owner (IDOR); Playwright attack specs | Claude | ⬜ | 4h |  |
+| └ AOS-620 | New-sign-in and refused-sign-in alerts (push + email); sessions list and revoke-all | Claude | ⬜ | 3h |  |
+| └ AOS-621 | Encrypted backups (client-side, separate R2 bucket, write-only token) + restore drill; key backup guide | Claude | ⬜ | 5h |  |
+| └ AOS-622 | Supply chain and runtime: dependency and container scanning in CI (OSV, npm audit, govulncheck), non-root read-only containers, pinned images | Claude | ⬜ | 4h |  |
+| └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
 | └ AOS-604 | Android app (SMS + notification listener) | Claude | ⏸ | 20h |  |

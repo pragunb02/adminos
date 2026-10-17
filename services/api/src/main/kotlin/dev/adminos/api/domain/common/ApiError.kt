@@ -19,6 +19,8 @@ data class ApiError(
         // User
         val USER_NOT_FOUND = ApiError("USER_001", "User not found")
         val USER_INACTIVE = ApiError("USER_002", "This account is deactivated")
+        /** Sign-in by anyone but the owner (AOS-614). Never names the owner. */
+        val NOT_OWNER = ApiError("USER_003", "This AdminOS is private")
         val SESSION_NOT_FOUND = ApiError("AUTH_006", "Session not found")
 
         // Connection

@@ -72,7 +72,7 @@ test.describe("Connect Gmail", () => {
     await page.getByRole("button", { name: "Start again" }).click();
     await expect(alertOf(page)).toContainText("This sign-in didn't start here"); // the fresh answer is refused too here
     expect(api.callsTo("GET", "/api/v1/connections/gmail/authorize-url")).toHaveLength(1);
-    expect(api.callsTo("POST", "/api/v1/connections")).toHaveLength(2);
+    await expect.poll(() => api.callsTo("POST", "/api/v1/connections").length).toBe(2); // the second POST can be recorded after the alert (AOS-614 review)
   });
 
   test("Google sign-in not configured is said on Settings", async ({ signedIn: page, api }) => {

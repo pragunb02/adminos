@@ -11,7 +11,7 @@ _Last updated: 2026-10-17 by a Claude session. Update this file at the end of ev
 | 3. Dashboards | 🟦 Code complete (AOS-301…313, Epic E3 stories all ✅): Home, Month, Spending, Trends, Activity, Review. Left: check on real data (needs AOS-111, AOS-211/212) |
 | 4. Automatic sources (SMS app, WhatsApp) | ⚪ Not started |
 | 5. Smart extras | 🟠 Rule code exists but nothing ever calls it |
-| 6. Hardening (public items parked, D-78) | ⚪ Not started |
+| 6. Hardening and security (P0, D-91) | 🟦 AOS-614 done; S6.4 in progress |
 | 7. Smart features (E7) | 🟦 Wave 1 in progress |
 | 8. Wealth (E8) | 🟦 Research (AOS-801) |
 | 9. Spending coach (E9) | 🟦 Started (before E8 build) |
@@ -114,6 +114,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-17:**
+  - **AOS-614 (critical, fixed):** any Google account with a verified email could sign in and became OWNER. Now only `OWNER_EMAIL` (verified, pinned to its Google ID, fail closed; required with a database) can sign in; others get 403 "This AdminOS is private"; non-owner sessions are revoked on refresh. **Security is P0 (D-91):** story S6.4 Owner-only fortress (AOS-614…623: red-team audit, private network, passkeys, headers, authorization attack tests, sign-in alerts, encrypted backups, supply chain, pen-test). Also fixed a polling race in `e2e/gmail.spec.ts`. **Pragun: set `OWNER_EMAIL` in `.env`.**
   - AOS-011: north star "spend less → save more → invest well" (D-80); Epic E9 Spending coach planned (S9.1–S9.4, AOS-901…910, 47h) and prioritised before the E8 build. Go-live with real data in 1–2 days (Pragun).
   - AOS-010: re-scoped (D-78): always personal, single-user, secured end to end; wealth in scope (all holdings, net worth, guidance "policy + AI explanations"); BRD v3, CLAUDE.md; E6 renamed Hardening, public items parked (⏸). AOS-801 wealth research + Epic E8 started in a background agent.
   - Pragun accepted D-67 (AI ground rules) and the AOS-512 choices ("start all with best decision long term"). E7 wave 1 started in four background agents: AOS-702→703→704 (AI layer, local models, consent), 707→708 (learned categoriser, Review queue), 713→715→709 (anomaly baselines, price rise, merchant grouping), 714→718 (forecast, cash from text). Reserved: D-68…D-77; migrations are renumbered by the integrator at merge (next free V29).

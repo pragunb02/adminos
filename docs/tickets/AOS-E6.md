@@ -1,10 +1,10 @@
-# AOS-E6 — Hardening (public items parked, D-78)
+# AOS-E6 — Hardening and security (public items parked, D-78)
 
 | Field | Value |
 |---|---|
 | **Type** | Epic |
-| **Status** | ⬜ Todo |
-| **Priority** | P2 |
+| **Status** | 🟦 In progress |
+| **Priority** | P0 (D-91) |
 | **Owner** | Pragun |
 | **ETA (rollup)** | 45h |
 | **Actual** | — |
@@ -26,6 +26,7 @@ My data is safe: security hardening and hosting for me. The public-launch goal (
 | ID | Story | Status | ETA |
 |---|---|---|---|
 | [AOS-S6.1](AOS-S6.1.md) | Security & DPDP compliance | ⬜ | 11h |
+| [AOS-S6.4](AOS-S6.4.md) | Owner-only fortress | 🟦 | 39.5h |
 | [AOS-S6.2](AOS-S6.2.md) | Public ingestion paths | ⏸ parked (D-78) | 26h |
 | [AOS-S6.3](AOS-S6.3.md) | Launch | ⬜ | 8h |
 
@@ -39,3 +40,4 @@ My data is safe: security hardening and hosting for me. The public-launch goal (
 ## Activity log
 - 2026-10-16 — Claude: epic created (AOS-004).
 - 2026-10-17 — Claude: re-scoped to hardening; public items parked (Pragun: personal only, D-78).
+- 2026-10-17 — Claude: P0 (D-91); story S6.4 Owner-only fortress; AOS-614 fixed the critical open sign-in.

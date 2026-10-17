@@ -34,7 +34,8 @@ data class AppConfig(
                 googleClientSecret = env("GOOGLE_CLIENT_SECRET", ""),
                 googlePubsubAudience = env("GOOGLE_PUBSUB_AUDIENCE", ""),
                 // The service account the Pub/Sub push subscription signs as (AOS-609). Gmail push stays off until set.
-                googlePubsubServiceAccount = env("GOOGLE_PUBSUB_SERVICE_ACCOUNT", "")
+                googlePubsubServiceAccount = env("GOOGLE_PUBSUB_SERVICE_ACCOUNT", ""),
+                ownerEmail = ownerEmail()
             ),
             app = AppSettings(
                 port = env("PORT", "8080").toInt(),
@@ -78,6 +79,23 @@ data class AppConfig(
             return dev()
         }
 
+        /**
+         * `OWNER_EMAIL`, the owner's Google email (AOS-614). With a database it is required and must look
+         * like an email, so a real deployment can never start open to everyone. In in-memory dev mode it may
+         * be blank, and then nobody can sign in (logged).
+         */
+        internal fun ownerEmail(getenv: (String) -> String? = System::getenv): String {
+            val value = getenv("OWNER_EMAIL")?.trim().orEmpty()
+            if (value.isNotEmpty()) {
+                require(dev.adminos.api.domain.identity.OwnerPolicy.isValid(value)) { "OWNER_EMAIL must be an email address" }
+                return value
+            }
+            check(getenv("DATABASE_URL").isNullOrBlank()) { "OWNER_EMAIL is required when DATABASE_URL is set: the Google email allowed to sign in" }
+            org.slf4j.LoggerFactory.getLogger(AppConfig::class.java)
+                .warn("OWNER_EMAIL not set: nobody can sign in with Google (in-memory dev mode).")
+            return ""
+        }
+
         private val PLACEHOLDER = Regex("(?i)^(change[-_]?me|generate[-_]|your[-_])")
         internal fun isPlaceholder(value: String) = PLACEHOLDER.containsMatchIn(value)
     }
@@ -110,7 +128,9 @@ data class AuthConfig(
     val googleClientId: String,
     val googleClientSecret: String,
     val googlePubsubAudience: String,
-    val googlePubsubServiceAccount: String = ""
+    val googlePubsubServiceAccount: String = "",
+    /** The only Google account that may sign in (AOS-614, D-91). Blank = nobody can. */
+    val ownerEmail: String = ""
 )
 
 data class AppSettings(
