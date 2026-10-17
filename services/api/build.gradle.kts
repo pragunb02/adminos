@@ -160,6 +160,24 @@ tasks.register<JavaExec>("aiBakeOff") {
     }
 }
 
+// "Ask your money" eval (AOS-712, D-68): ./gradlew -q askEvalReport prints tool-choice, argument, abstention and
+// number-grounding scores on the synthetic eval set and seeded DB, and writes build/reports/ask/report.json.
+// -PwriteEvalRecord records them in src/main/resources/ai/evals.json (the start-up gate); -PdumpResults writes each
+// question's expected tool results to build/reports/ask/results.json (for writing recorded answers).
+tasks.register<JavaExec>("askEvalReport") {
+    group = "verification"
+    description = "Evaluate Ask your money on its eval set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.ask.eval.AskEvalReportKt")
+    args("--out", layout.buildDirectory.file("reports/ask/report.json").get().asFile.path)
+    if (project.hasProperty("writeEvalRecord")) {
+        args("--write-eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+    if (project.hasProperty("dumpResults")) {
+        args("--dump-results", layout.buildDirectory.file("reports/ask/results.json").get().asFile.path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"

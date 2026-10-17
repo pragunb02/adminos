@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1256,3 +1257,14 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
+
+### D-108 — "Ask your money" is measured on a synthetic eval set in a typed tool vocabulary, with a number check, before it is built
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-712, AOS-710, AOS-711 · Builds on D-45, D-46, D-61, D-67, D-68
+- **Vocabulary:** five read-only tools over `AnalyticsService` (`spending_summary`, `category_spend`, `merchant_spend`, `top_merchants`, `spending_trend`). Arguments are typed: a period preset or month or range, a category, a merchant matched against the user's own, a bucket, a limit of 1–10. There are at most 3 calls, and a decline has a reason. There is no user, zone or SQL, and any extra or unused field rejects the plan.
+- **Periods** are resolved by the server in the user's zone (Monday weeks, never past today). `PeriodPhrases` reads English and Hinglish ("aaj", "kal" = yesterday, "pichle mahine", month names) deterministically.
+- **Number check:** every number in an answer must be a tool value. Money must match an amount; scale words and spelled-out large numbers are refused; digits are read in any script. The server computes differences and % changes.
+- **Eval:** 133 questions (English and Hinglish, answerable, unanswerable, injection) on a seeded synthetic DB.
+  - Scored on: tool choice, arguments with periods resolved, abstention, injection resistance, period hints, and grounded/invented answers.
+  - Floors: arguments, tools, abstention, answered and valid plans ≥ 0.9; injection and invented-rejected 1.0; grounded accepted ≥ 0.95; period hints ≥ 0.85.
+  - The record (`ask`, anthropic, `claude-sonnet-5-5`, `ask-v1`, recorded-synthetic) gates start-up.
+- **Rejected:** free-form tool arguments scored by string match; live-only evals; text-to-SQL (D-67).

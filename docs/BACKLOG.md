@@ -200,7 +200,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ [AOS-707](tickets/AOS-707.md) | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | ✅ | 8h | 7h |
 | └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | 🟦 | 6h |  |
 | **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ⬜ | 18h | |
-| └ AOS-712 | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ⬜ | 4h |  |
+| └ [AOS-712](tickets/AOS-712.md) | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ✅ | 4h | 4h |
 | └ AOS-710 | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ⬜ | 10h |  |
 | └ AOS-711 | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ⬜ | 4h |  |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |

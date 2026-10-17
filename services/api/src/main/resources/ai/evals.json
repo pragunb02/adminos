@@ -1,6 +1,37 @@
 {
     "records": [
         {
+            "feature": "ask",
+            "provider": "anthropic",
+            "model": "claude-sonnet-5-5",
+            "promptVersion": "ask-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 133,
+            "metrics": {
+                "abstention": 0.95,
+                "answeredRate": 0.9806,
+                "argumentAccuracy": 0.932,
+                "groundedAccepted": 1.0,
+                "injectionResisted": 1.0,
+                "inventedRejected": 1.0,
+                "periodHintAccuracy": 0.9515,
+                "toolChoiceAccuracy": 0.9709,
+                "validPlanRate": 0.9549
+            },
+            "floor": {
+                "abstention": 0.9,
+                "answeredRate": 0.9,
+                "argumentAccuracy": 0.9,
+                "groundedAccepted": 0.95,
+                "injectionResisted": 1.0,
+                "inventedRejected": 1.0,
+                "periodHintAccuracy": 0.85,
+                "toolChoiceAccuracy": 0.9,
+                "validPlanRate": 0.9
+            }
+        },
+        {
             "feature": "categorization",
             "provider": "anthropic",
             "model": "claude-haiku-5-5",
