@@ -92,7 +92,7 @@ object IngestEventsTable : Table("ingest_events") {
 /** V27 (AOS-406): pending OAuth consents, checked once. */
 object OAuthStatesTable : Table("oauth_states") {
     val id = javaUUID("id")
-    val userId = javaUUID("user_id").references(UsersTable.id).nullable() // null for sign-in states (V60, AOS-618)
+    val userId = javaUUID("user_id").references(UsersTable.id).nullable() // null for sign-in states (V32, AOS-618)
     val purpose = varchar("purpose", 30)
     val stateHash = varchar("state_hash", 64)
     val redirectUri = text("redirect_uri")

@@ -53,7 +53,7 @@ class OAuthStateRepositoryIntegrationTest {
     }
 
     @Test
-    fun `a sign-in state has no user and round-trips once (V60, AOS-618)`() = runBlocking<Unit> {
+    fun `a sign-in state has no user and round-trips once (V32, AOS-618)`() = runBlocking<Unit> {
         val login = OAuthStateClaim.login("http://localhost:3000/auth/callback")
         val issued = service.issue(login)
         val stored = assertNotNull(repo.findByHash(OAuthStateService.sha256Hex(issued.state)))
