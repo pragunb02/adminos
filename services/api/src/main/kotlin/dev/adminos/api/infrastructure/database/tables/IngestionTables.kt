@@ -88,3 +88,17 @@ object IngestEventsTable : Table("ingest_events") {
     val processedAt = timestamp("processed_at").nullable()
     override val primaryKey = PrimaryKey(id)
 }
+
+/** V27 (AOS-406): pending OAuth consents, checked once. */
+object OAuthStatesTable : Table("oauth_states") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val purpose = varchar("purpose", 30)
+    val stateHash = varchar("state_hash", 64)
+    val redirectUri = text("redirect_uri")
+    val codeVerifier = text("code_verifier")
+    val createdAt = timestamp("created_at")
+    val expiresAt = timestamp("expires_at")
+    val usedAt = timestamp("used_at").nullable()
+    override val primaryKey = PrimaryKey(id)
+}

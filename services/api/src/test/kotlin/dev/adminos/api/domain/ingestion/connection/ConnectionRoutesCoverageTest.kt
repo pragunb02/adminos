@@ -44,13 +44,34 @@ class ConnectionRoutesCoverageTest {
     @AfterTest
     fun stop() = google.close()
 
-    private fun routesTest(oauth: GoogleOAuthClient? = google.client(config.auth), block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
+    private val states = InMemoryOAuthStateRepository()
+    private val stateClock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.now())
+    private val oauthStates = OAuthStateService(states, encryptor, stateClock)
+
+    private fun routesTest(oauth: GoogleOAuthClient? = google.client(dev.adminos.api.domain.identity.identityTestAuthConfig()), block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { this.config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwt)
-            routing { route("/api/v1") { connectionRoutes(service, AuditService(audit, CoroutineScope(Dispatchers.Unconfined)), oauth) } }
+            routing { route("/api/v1") { connectionRoutes(service, AuditService(audit, CoroutineScope(Dispatchers.Unconfined)), oauth?.let { GmailOAuth(it, oauthStates) }) } }
         }
         block()
+    }
+
+    /** Asks for the consent URL as the web does, and returns its query (incl. the state). */
+    private suspend fun ApplicationTestBuilder.consent(redirectUri: String = redirect, bearer: String = token): Map<String, String> {
+        val res = client.get("/api/v1/connections/gmail/authorize-url") { bearerAuth(bearer); parameter("redirectUri", redirectUri) }
+        assertEquals(HttpStatusCode.OK, res.status)
+        val url = java.net.URI(res.json()["data"]!!.jsonObject["url"]!!.jsonPrimitive.content)
+        return url.rawQuery.split('&').associate {
+            val (k, v) = it.split('=', limit = 2)
+            k to java.net.URLDecoder.decode(v, Charsets.UTF_8)
+        }
+    }
+
+    /** The whole Connect Gmail round trip: consent URL, then the code with its state. */
+    private suspend fun ApplicationTestBuilder.connectGmail(code: String = "4/0AbCdEf", state: String? = null): HttpResponse {
+        val s = state ?: consent().getValue("state")
+        return create("""{"sourceType":"gmail","code":"$code","redirectUri":"$redirect","state":"$s"}""")
     }
 
     private suspend fun ApplicationTestBuilder.create(body: String) = client.post("/api/v1/connections") {
@@ -109,7 +130,7 @@ class ConnectionRoutesCoverageTest {
 
     @Test
     fun `connecting gmail with a code stores google's address and encrypted tokens`() = routesTest {
-        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+        val res = connectGmail()
 
         assertEquals(HttpStatusCode.Created, res.status)
         assertEquals("pragun.b@gmail.com", res.json()["data"]!!.jsonObject["gmailAddress"]!!.jsonPrimitive.content)
@@ -121,7 +142,7 @@ class ConnectionRoutesCoverageTest {
 
     @Test
     fun `connecting gmail stores when the access token expires and what was granted`() = routesTest {
-        create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+        connectGmail()
 
         val stored = assertNotNull(service.findByGmailAddress("pragun.b@gmail.com"))
         val expires = assertNotNull(stored.tokenExpiresAt)
@@ -133,7 +154,7 @@ class ConnectionRoutesCoverageTest {
     fun `a google grant without gmail read access is CONN_007 and nothing is stored`() = routesTest {
         google.tokenBody = """{"access_token":"ya29.a0-test-access","expires_in":3599,"refresh_token":"1//0g-test-refresh","scope":"openid email"}"""
 
-        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+        val res = connectGmail()
 
         assertEquals(HttpStatusCode.BadRequest, res.status)
         assertEquals("CONN_007", res.errorCode())
@@ -144,7 +165,7 @@ class ConnectionRoutesCoverageTest {
     fun `a google grant without offline access is CONN_008`() = routesTest {
         google.tokenBody = """{"access_token":"ya29.a0-test-access","expires_in":3599,"scope":"openid email $GMAIL_READONLY_SCOPE"}"""
 
-        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+        val res = connectGmail()
 
         assertEquals(HttpStatusCode.BadRequest, res.status)
         assertEquals("CONN_008", res.errorCode())
@@ -193,7 +214,7 @@ class ConnectionRoutesCoverageTest {
 
     @Test
     fun `the gmail connect response never contains the oauth tokens`() = routesTest {
-        val body = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""").bodyAsText()
+        val body = connectGmail().bodyAsText()
 
         assertFalse("ya29" in body || "1//0g" in body)
     }
@@ -212,7 +233,7 @@ class ConnectionRoutesCoverageTest {
         google.tokenStatus = 400
         google.tokenBody = """{"error":"invalid_grant"}"""
 
-        val res = create("""{"sourceType":"gmail","code":"4/expired","redirectUri":"$redirect"}""")
+        val res = connectGmail("4/expired")
 
         assertNotEquals(HttpStatusCode.InternalServerError, res.status)
         assertEquals("CONN_002", res.errorCode())
@@ -220,7 +241,7 @@ class ConnectionRoutesCoverageTest {
 
     @Test
     fun `connecting gmail without an oauth code is rejected`() = routesTest(oauth = null) {
-        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+        val res = connectGmail(state = "no-consent-was-started")
 
         assertEquals(HttpStatusCode.BadRequest, res.status)
         assertNull(service.findByGmailAddress("user@gmail.com"))
@@ -293,5 +314,115 @@ class ConnectionRoutesCoverageTest {
 
         assertEquals(HttpStatusCode.TooManyRequests, res.status)
         assertEquals("RATE_001", res.errorCode())
+    }
+
+    // --- AOS-406: the OAuth state (CSRF) and PKCE on Connect Gmail ---
+
+    @Test
+    fun `the authorize url carries a fresh state and an S256 pkce challenge`() = routesTest {
+        val first = consent()
+        val second = consent()
+
+        assertTrue(first.getValue("state").length >= 43, "32 random bytes, base64url")
+        assertNotEquals(first["state"], second["state"])
+        assertEquals("S256", first["code_challenge_method"])
+        assertEquals(43, first.getValue("code_challenge").length)
+        assertNotNull(states.findByHash(OAuthStateService.sha256Hex(first.getValue("state"))), "stored as a hash")
+        assertNull(states.findByHash(first.getValue("state")), "never in plain text")
+    }
+
+    @Test
+    fun `the code is exchanged with the pkce verifier that matches the challenge`() = routesTest {
+        val query = consent()
+
+        connectGmail(state = query.getValue("state"))
+
+        val verifier = assertNotNull(google.lastTokenForm()["code_verifier"])
+        assertEquals(query["code_challenge"], OAuthStateService.codeChallenge(verifier))
+    }
+
+    @Test
+    fun `connecting gmail without a state is CONN_010 and google is not called`() = routesTest {
+        val res = create("""{"sourceType":"gmail","code":"4/0AbCdEf","redirectUri":"$redirect"}""")
+
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertEquals("CONN_010", res.errorCode())
+        assertTrue(google.tokenRequests.isEmpty())
+    }
+
+    @Test
+    fun `an unknown state is CONN_010 and google is not called`() = routesTest {
+        consent()
+
+        val res = connectGmail(state = "forged-${UUID.randomUUID()}")
+
+        assertEquals("CONN_010", res.errorCode())
+        assertTrue(google.tokenRequests.isEmpty())
+        assertNull(service.findByGmailAddress("pragun.b@gmail.com"))
+    }
+
+    @Test
+    fun `a state started by another user is CONN_010 and stays usable by its owner`() = routesTest {
+        val other = User(id = UUID.randomUUID(), email = "other@example.com", googleId = "g-other")
+        val theirs = consent(bearer = jwt.generateAccessToken(other)).getValue("state")
+
+        val res = connectGmail(state = theirs)
+
+        assertEquals("CONN_010", res.errorCode())
+        assertTrue(google.tokenRequests.isEmpty())
+        assertNull(states.findByHash(OAuthStateService.sha256Hex(theirs))?.usedAt, "a mismatch never uses up the owner's state")
+    }
+
+    @Test
+    fun `a state issued for another redirect uri is CONN_010`() = routesTest {
+        val state = consent(redirectUri = "http://localhost:3000/elsewhere").getValue("state")
+
+        assertEquals("CONN_010", connectGmail(state = state).errorCode())
+    }
+
+    @Test
+    fun `a state can be used once, the second time is CONN_012`() = routesTest {
+        val state = consent().getValue("state")
+        assertEquals(HttpStatusCode.Created, connectGmail(state = state).status)
+
+        val again = connectGmail(state = state)
+
+        assertEquals(HttpStatusCode.BadRequest, again.status)
+        assertEquals("CONN_012", again.errorCode())
+        assertEquals(1, google.tokenRequests.size)
+    }
+
+    @Test
+    fun `a state older than 10 minutes is CONN_011`() = routesTest {
+        val state = consent().getValue("state")
+        stateClock.advance(java.time.Duration.ofMinutes(10))
+
+        val res = connectGmail(state = state)
+
+        assertEquals("CONN_011", res.errorCode())
+        assertTrue(google.tokenRequests.isEmpty())
+    }
+
+    @Test
+    fun `a code google rejects still uses up its state`() = routesTest {
+        google.tokenStatus = 400
+        google.tokenBody = """{"error":"invalid_grant"}"""
+        val state = consent().getValue("state")
+        assertEquals("CONN_002", connectGmail(state = state).errorCode())
+
+        assertEquals("CONN_012", connectGmail(state = state).errorCode())
+    }
+
+    @Test
+    fun `the connection list shows the last error and until when push is on`() = routesTest {
+        val conn = connect(me.id)
+        connections.markError(conn.id, "gmail access revoked: reconnect Gmail")
+        val until = java.time.Instant.parse("2026-10-24T06:00:00Z")
+        connections.updateWatch(conn.id, GmailWatch(expiresAt = until))
+
+        val row = client.get("/api/v1/connections") { bearerAuth(token) }.json()["data"]!!.jsonArray.single().jsonObject
+
+        assertEquals("gmail access revoked: reconnect Gmail", row["lastError"]?.jsonPrimitive?.content)
+        assertEquals(until.toString(), row["watchExpiresAt"]?.jsonPrimitive?.content)
     }
 }

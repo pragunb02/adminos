@@ -18,6 +18,9 @@ import dev.adminos.api.domain.ingestion.connection.GmailWatchService
 import dev.adminos.api.domain.ingestion.connection.GmailWatchSettings
 import dev.adminos.api.infrastructure.google.HttpGmailPushApi
 import dev.adminos.api.domain.ingestion.connection.InMemoryConnectionRepository
+import dev.adminos.api.domain.ingestion.connection.InMemoryOAuthStateRepository
+import dev.adminos.api.domain.ingestion.connection.OAuthStateRepository
+import dev.adminos.api.domain.ingestion.connection.OAuthStateService
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.IngestionService
 import dev.adminos.api.domain.ingestion.sync.SyncSessionRepository
@@ -82,6 +85,7 @@ internal fun buildAppModule(
         single<DeviceRepository> { ExposedDeviceRepository() }
         // Ingestion
         single<ConnectionRepository> { ExposedConnectionRepository() }
+        single<OAuthStateRepository> { ExposedOAuthStateRepository() }
         single<SyncSessionRepository> { ExposedSyncSessionRepository() }
         single<IngestEventRepository> { ExposedIngestEventRepository() }
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
@@ -113,6 +117,7 @@ internal fun buildAppModule(
         single<SessionRepository> { InMemorySessionRepository() }
         single<DeviceRepository> { InMemoryDeviceRepository() }
         single<ConnectionRepository> { InMemoryConnectionRepository() }
+        single<OAuthStateRepository> { InMemoryOAuthStateRepository() }
         single<SyncSessionRepository> { InMemorySyncSessionRepository() }
         single<IngestEventRepository> { InMemoryIngestEventRepository() }
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
@@ -200,6 +205,8 @@ internal fun buildAppModule(
     single { GmailAccessTokens(get(), get<GoogleOAuthClient>(), get()) }
     single { GmailWatchService(get(), get(), get(), GmailWatchSettings(get<AppConfig>().google.gmailPubsubTopic)) }
     single { ConnectionService(get(), get(), get(), get(), get()) }
+    // OAuth state (CSRF) + PKCE for Connect Gmail (AOS-406, D-64)
+    single { OAuthStateService(get(), get()) }
     single { GmailCronService(get(), get(), get()) }
 
     // Financial Services

@@ -22,7 +22,10 @@ import io.ktor.server.routing.*
 import java.time.Instant
 import java.util.UUID
 
-fun Route.connectionRoutes(connectionService: ConnectionService, auditService: AuditService, googleOAuthClient: GoogleOAuthClient? = null) {
+/** Connecting Gmail with Google's consent: the OAuth client and the state (CSRF) + PKCE store (AOS-406). */
+class GmailOAuth(val google: GoogleOAuthClient, val states: OAuthStateService)
+
+fun Route.connectionRoutes(connectionService: ConnectionService, auditService: AuditService, gmailOAuth: GmailOAuth? = null) {
 
     authenticate("auth-jwt") {
 
@@ -38,12 +41,15 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
             }
 
             // Where to send the user to connect Gmail (AOS-401): Google's consent page for read-only
-            // Gmail with offline access. The code it returns is then POSTed to /connections.
+            // Gmail with offline access. It carries a fresh single-use state bound to this user and
+            // redirect URI, and a PKCE challenge (AOS-406, D-64). The code it returns, with the
+            // state, is then POSTed to /connections.
             get("/gmail/authorize-url") {
                 val redirectUri = call.request.queryParameters["redirectUri"]?.takeIf { it.isNotBlank() }
                     ?: throw ApiException(HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri is required"))
-                val url = googleOAuthClient?.gmailConsentUrl(redirectUri)
-                    ?: throw ApiException(HttpStatusCode.ServiceUnavailable, ApiError("CONN_009", "Google sign-in is not configured"))
+                val oauth = gmailOAuth?.takeIf { it.google.isConfigured } ?: throw googleNotConfigured()
+                val issued = oauth.states.issue(OAuthStateClaim(call.userPrincipal.userId, OAuthPurpose.GMAIL_CONNECT, redirectUri))
+                val url = oauth.google.gmailConsentUrl(redirectUri, issued.state, issued.codeChallenge) ?: throw googleNotConfigured()
                 call.respond(HttpStatusCode.OK, ApiResponse.success(GmailAuthorizeUrlResponse(url), call.requestId))
             }
 
@@ -60,14 +66,21 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
 
                 val connection = if (sourceType == SourceType.GMAIL) {
                     // Gmail is only connected with a real OAuth grant: never a placeholder address (AOS-613).
-                    if (request.code == null || googleOAuthClient == null) throw ApiException(
+                    if (request.code == null || gmailOAuth == null) throw ApiException(
                         HttpStatusCode.BadRequest, ApiError("CONN_006", "Connecting Gmail needs a Google sign-in (OAuth code)")
                     )
                     val redirectUri = request.redirectUri ?: throw ApiException(
                         HttpStatusCode.BadRequest, ApiError("CONN_005", "redirectUri is required for OAuth code exchange")
                     )
+                    // The state is checked (and used up) before the code is sent to Google, so a code
+                    // planted by another site (login CSRF) is never redeemed (AOS-406, D-64).
+                    val codeVerifier = try {
+                        gmailOAuth.states.consume(request.state, OAuthStateClaim(principal.userId, OAuthPurpose.GMAIL_CONNECT, redirectUri))
+                    } catch (e: OAuthStateException) {
+                        throw ApiException(HttpStatusCode.BadRequest, stateError(e))
+                    }
                     val (tokens, userInfo) = try {
-                        googleOAuthClient.exchangeCodeForTokens(request.code, redirectUri)
+                        gmailOAuth.google.exchangeCodeForTokens(request.code, redirectUri, codeVerifier)
                     } catch (e: Exception) {
                         // Google refused the code (expired, reused, wrong redirect): the user's problem, not a 500 (AOS-613).
                         throw ApiException(HttpStatusCode.BadRequest, ApiError.OAUTH_FAILED)
@@ -143,4 +156,13 @@ fun Route.connectionRoutes(connectionService: ConnectionService, auditService: A
             }
         }
     }
+}
+
+private fun googleNotConfigured() = ApiException(HttpStatusCode.ServiceUnavailable, ApiError("CONN_009", "Google sign-in is not configured"))
+
+/** One code per reason, so the Connect Gmail screen can say what happened (AOS-406). */
+private fun stateError(e: OAuthStateException) = when (e) {
+    is OAuthStateException.Mismatch -> ApiError("CONN_010", "This Gmail sign-in doesn't match your session. Start connecting Gmail again.")
+    is OAuthStateException.Expired -> ApiError("CONN_011", "This Gmail sign-in took longer than 10 minutes. Start connecting Gmail again.")
+    is OAuthStateException.Reused -> ApiError("CONN_012", "This Gmail sign-in was already used. Start connecting Gmail again.")
 }

@@ -1,6 +1,7 @@
 import { http } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { browser } from "@/lib/gmail";
 import { server } from "../../../test/msw/server";
 import { fail, ok } from "../../../test/msw/envelope";
 import { fx } from "../../../test/fixtures";
@@ -83,22 +84,82 @@ describe("Settings", () => {
   });
 
   it("sync, reconnect and disconnect call the API; disconnect refreshes", async () => {
-    let connections = [fx.connection({ status: "error" })];
+    let connections = [fx.connection(), fx.connection({ id: "c-2", sourceType: "sms", status: "error" })];
     const calls: string[] = [];
     routes();
     server.use(
       http.get("/api/v1/connections", () => ok(connections)),
       http.post("/api/v1/connections/c-1/sync", () => { calls.push("sync"); return ok({}); }),
-      http.post("/api/v1/connections", async ({ request }) => { calls.push(`reconnect:${((await request.json()) as { sourceType: string }).sourceType}`); return ok({ id: "c-1" }); }),
+      http.post("/api/v1/connections", async ({ request }) => { calls.push(`reconnect:${((await request.json()) as { sourceType: string }).sourceType}`); return ok({ id: "c-2" }); }),
       http.delete("/api/v1/connections/c-1", () => { calls.push("disconnect"); connections = []; return ok({}); }),
     );
     const { user } = renderWithQuery(<SettingsPage />);
-    const row = (await screen.findByText("gmail")).closest(".flex.items-center.justify-between") as HTMLElement;
-    await user.click(within(row).getByRole("button", { name: "Sync" }));
-    await user.click(within(row).getByRole("button", { name: "Reconnect" }));
-    await user.click(within(row).getByRole("button", { name: "Disconnect" }));
+    const gmail = await screen.findByRole("listitem", { name: "gmail connection" });
+    const sms = screen.getByRole("listitem", { name: "sms connection" });
+    expect(within(sms).queryByRole("button", { name: "Sync" })).not.toBeInTheDocument();
+    await user.click(within(gmail).getByRole("button", { name: "Sync" }));
+    await user.click(within(sms).getByRole("button", { name: "Reconnect" }));
+    await user.click(within(gmail).getByRole("button", { name: "Disconnect" }));
     expect(await screen.findByText("No data sources connected yet.")).toBeInTheDocument();
-    expect(calls).toEqual(["sync", "reconnect:gmail", "disconnect"]);
+    expect(calls).toEqual(["sync", "reconnect:sms", "disconnect"]);
+  });
+
+  // --- Connect Gmail (AOS-406) ---
+
+  const consentAt = (calls: string[]) =>
+    http.get("/api/v1/connections/gmail/authorize-url", ({ request }) => {
+      calls.push(new URL(request.url).searchParams.get("redirectUri") ?? "");
+      return ok({ url: "https://accounts.google.com/o/oauth2/v2/auth?state=s-1" });
+    });
+
+  it("without gmail, Connect Gmail asks the API for the consent url and goes to Google", async () => {
+    const go = vi.spyOn(browser, "go").mockImplementation(() => {});
+    const asked: string[] = [];
+    routes({ connections: [fx.connection({ id: "c-2", sourceType: "sms" })] });
+    server.use(consentAt(asked));
+    const { user } = renderWithQuery(<SettingsPage />);
+    await user.click(await screen.findByRole("button", { name: "Connect Gmail" }));
+    await waitFor(() => expect(go).toHaveBeenCalledWith("https://accounts.google.com/o/oauth2/v2/auth?state=s-1"));
+    expect(asked).toEqual(["http://localhost:3000/connections/gmail/callback"]);
+    expect(screen.getByRole("button", { name: "Opening Google…" })).toBeDisabled();
+  });
+
+  it("when Google sign-in isn't configured, Connect Gmail says so", async () => {
+    routes({ connections: [] });
+    server.use(http.get("/api/v1/connections/gmail/authorize-url", () => fail(503, "CONN_009", "Google sign-in is not configured")));
+    const { user } = renderWithQuery(<SettingsPage />);
+    await user.click(await screen.findByRole("button", { name: "Connect Gmail" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Google sign-in isn't set up");
+    expect(screen.getByRole("button", { name: "Connect Gmail" })).toBeEnabled();
+  });
+
+  it("a gmail in error shows its last error and reconnects through Google", async () => {
+    const go = vi.spyOn(browser, "go").mockImplementation(() => {});
+    routes({ connections: [fx.connection({ status: "error", gmailAddress: "pragun.b@gmail.com", lastError: "gmail access revoked: reconnect Gmail" })] });
+    server.use(consentAt([]));
+    const { user } = renderWithQuery(<SettingsPage />);
+    const row = await screen.findByRole("listitem", { name: "gmail connection" });
+    expect(within(row).getByText("pragun.b@gmail.com")).toBeInTheDocument();
+    expect(within(row).getByText("Last error: gmail access revoked: reconnect Gmail")).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "Sync" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect Gmail" })).not.toBeInTheDocument();
+    await user.click(within(row).getByRole("button", { name: "Reconnect" }));
+    await waitFor(() => expect(go).toHaveBeenCalledTimes(1));
+  });
+
+  it("a disconnected gmail offers Reconnect and no Disconnect", async () => {
+    routes({ connections: [fx.connection({ status: "disconnected" })] });
+    renderWithQuery(<SettingsPage />);
+    const row = await screen.findByRole("listitem", { name: "gmail connection" });
+    expect(within(row).getByRole("button", { name: "Reconnect" })).toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
+  });
+
+  it("a connected gmail says whether updates are instant or daily", async () => {
+    routes({ connections: [fx.connection({ watchExpiresAt: "2999-10-24T06:00:00Z" }), fx.connection({ id: "c-3", watchExpiresAt: "2020-01-01T00:00:00Z" })] });
+    renderWithQuery(<SettingsPage />);
+    expect(await screen.findByText(/^Instant updates on until/)).toBeInTheDocument();
+    expect(screen.getByText("Checked once a day")).toBeInTheDocument();
   });
 
   it("a failed action is shown", async () => {

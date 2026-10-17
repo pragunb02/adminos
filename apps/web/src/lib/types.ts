@@ -229,6 +229,12 @@ export interface UserConnection {
   totalSynced: number;
   lastSyncStatus: string | null;
   createdAt: string;
+  /** The connected mailbox (Gmail only). */
+  gmailAddress?: string | null;
+  /** Why the last sync failed or the connection is in error; short and content-free (AOS-406). */
+  lastError?: string | null;
+  /** Until when Gmail push is registered (AOS-405); null when it isn't. */
+  watchExpiresAt?: string | null;
 }
 
 export interface NotificationPreferences {
