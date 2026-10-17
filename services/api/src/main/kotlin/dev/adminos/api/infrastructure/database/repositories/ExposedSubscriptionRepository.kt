@@ -43,6 +43,8 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
             it[cancellationDraft] = subscription.cancellationDraft
             it[cancellationDraftGeneratedAt] = subscription.cancellationDraftGeneratedAt
             it[metadata] = subscription.metadata?.let { m -> JsonColumns.encode(m) }
+            it[renewalRemindedFor] = subscription.renewalRemindedFor
+            it[renewalReminderDaysSent] = encodeDays(subscription.renewalReminderDaysSent)
             it[createdAt] = subscription.createdAt
             it[updatedAt] = subscription.updatedAt
         }
@@ -87,6 +89,14 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
         }.singleOrNull()?.toSubscription()
     }
 
+    override suspend fun findRenewingBetween(from: java.time.LocalDate, to: java.time.LocalDate): List<Subscription> = dbQuery {
+        val t = SubscriptionsTable
+        t.selectAll().where {
+            (t.status inList listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL).map { it.name.lowercase() }) and
+                (t.nextBillingDate greaterEq from) and (t.nextBillingDate lessEq to)
+        }.orderBy(t.nextBillingDate to SortOrder.ASC).map { it.toSubscription() }
+    }
+
     override suspend fun update(subscription: Subscription): Subscription = dbQuery {
         val now = Instant.now()
         SubscriptionsTable.update({ SubscriptionsTable.id eq subscription.id }) {
@@ -112,6 +122,9 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
                 ?.joinToString(",") { uuid -> uuid.toString() }
             it[cancellationDraft] = subscription.cancellationDraft
             it[cancellationDraftGeneratedAt] = subscription.cancellationDraftGeneratedAt
+            it[metadata] = subscription.metadata?.let { m -> JsonColumns.encode(m) } // was dropped on update (as bills were, AOS-508)
+            it[renewalRemindedFor] = subscription.renewalRemindedFor
+            it[renewalReminderDaysSent] = encodeDays(subscription.renewalReminderDaysSent)
             it[updatedAt] = now
         }
         subscription.copy(updatedAt = now)
@@ -150,6 +163,8 @@ class ExposedSubscriptionRepository : SubscriptionRepository {
         metadata = this[SubscriptionsTable.metadata]?.let {
             JsonColumns.decode(it)
         },
+        renewalRemindedFor = this[SubscriptionsTable.renewalRemindedFor],
+        renewalReminderDaysSent = decodeDays(this[SubscriptionsTable.renewalReminderDaysSent]) ?: emptySet(),
         createdAt = this[SubscriptionsTable.createdAt],
         updatedAt = this[SubscriptionsTable.updatedAt]
     )

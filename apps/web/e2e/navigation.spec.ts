@@ -1,3 +1,4 @@
+import { fx } from "../test/fixtures";
 import { expect, isMobile, mainNav, test } from "./support/fixtures";
 import type { Page } from "@playwright/test";
 
@@ -12,7 +13,7 @@ const MAIN: { tab: "Home" | "Spending" | "Activity" | "Review" | "More"; path: s
 /** Under More (a list on phones, expanded in the desktop rail). */
 const SECONDARY = [
   { label: "Import statement", path: "/import", heading: "Import a bank statement" },
-  { label: "Bills", path: "/bills", heading: "Upcoming Bills" },
+  { label: "Bills", path: "/bills", heading: "Dues & renewals" },
   { label: "Subscriptions", path: "/subscriptions", heading: "Subscriptions" },
   { label: "Briefings", path: "/briefings", heading: "Briefings" },
   { label: "Settings", path: "/settings", heading: "Settings" },
@@ -160,9 +161,9 @@ test.describe("route guard and session", () => {
 
   test("an expired session that refreshes keeps you where you were", async ({ signedIn: page, api }) => {
     let first = true;
-    api.on("GET /api/v1/bills/upcoming", () => (first ? ((first = false), { status: 401, error: { code: "AUTH_001", message: "Token expired" } }) : { data: [] }));
+    api.on("GET /api/v1/dues", () => (first ? ((first = false), { status: 401, error: { code: "AUTH_001", message: "Token expired" } }) : { data: fx.duesMonth({ items: [] }) }));
     await page.goto("/bills");
-    await expect(page.getByText("No upcoming bills")).toBeVisible();
+    await expect(page.getByText("Nothing due in October 2026.")).toBeVisible();
   });
 
   test("log out (More on phones, the rail on desktop) ends the session", async ({ signedIn: page, api }) => {

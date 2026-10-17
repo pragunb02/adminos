@@ -89,6 +89,8 @@ object SubscriptionsTable : Table("subscriptions") {
     val transactionIds = text("transaction_ids").nullable() // UUID[] stored as text
     val cancellationDraft = text("cancellation_draft").nullable()
     val cancellationDraftGeneratedAt = timestamp("cancellation_draft_generated_at").nullable()
+    val renewalRemindedFor = date("renewal_reminded_for").nullable() // V21
+    val renewalReminderDaysSent = text("renewal_reminder_days_sent").nullable()
     val metadata = text("metadata").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
@@ -115,6 +117,7 @@ object BillsTable : Table("bills") {
     val sourceRef = varchar("source_ref", 255).nullable()
     val reminderSent3d = bool("reminder_sent_3d").default(false)
     val reminderSent1d = bool("reminder_sent_1d").default(false)
+    val reminderDaysSent = text("reminder_days_sent").nullable() // V21, "7,3,1"
     val metadata = text("metadata").nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")

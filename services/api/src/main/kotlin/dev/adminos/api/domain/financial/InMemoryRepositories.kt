@@ -204,6 +204,14 @@ class InMemorySubscriptionRepository : SubscriptionRepository {
         store[subscription.id] = subscription.copy(updatedAt = Instant.now())
         return store[subscription.id]!!
     }
+
+    override suspend fun findRenewingBetween(from: LocalDate, to: LocalDate): List<Subscription> = store.values.filter { s ->
+        s.status in RENEWING && s.nextBillingDate?.let { it >= from && it <= to } == true
+    }.sortedBy { it.nextBillingDate }
+
+    private companion object {
+        val RENEWING = setOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL)
+    }
 }
 
 // ── In-Memory Bill Repository ──

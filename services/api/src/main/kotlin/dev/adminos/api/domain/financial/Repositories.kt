@@ -99,6 +99,8 @@ interface SubscriptionRepository {
         billingCycle: BillingCycle
     ): Subscription?
     suspend fun update(subscription: Subscription): Subscription
+    /** Active and trial subscriptions of every user whose next billing date is in [from]..[to] (renewal reminders, AOS-503). */
+    suspend fun findRenewingBetween(from: LocalDate, to: LocalDate): List<Subscription>
 }
 
 // ── Bill Repository ──

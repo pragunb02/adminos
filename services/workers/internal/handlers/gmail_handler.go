@@ -47,6 +47,7 @@ type ExtractedFinancialData struct {
 	Date         string  `json:"date"`
 	BillerName   string  `json:"biller_name,omitempty"`
 	BillDueDate  string  `json:"bill_due_date,omitempty"`
+	BillType     string  `json:"bill_type,omitempty"`
 	AccountLast4 string  `json:"account_last4,omitempty"`
 	Confidence   float64 `json:"confidence"`
 	// Direction is "debit" or "credit" for transactions; "" when the email doesn't say clearly (D-43).
@@ -316,10 +317,16 @@ func truncate(s string, n int) string {
 }
 
 func (h *GmailHandler) processBill(userID string, data *ExtractedFinancialData, result *GmailResult) {
-	fp := normalizer.ComputeFingerprint(
-		userID, data.Amount, data.BillerName,
-		parseDateOrNow(data.BillDueDate), "bill",
-	)
+	// bills.due_date is NOT NULL: a bill without a readable due date used to fail the whole batch
+	// (every email in it, AOS-503). Skip just that bill, without logging its content.
+	dueDate, ok := normalizeDueDate(data.BillDueDate)
+	if !ok {
+		log.Printf("[gmail] Bill skipped: no readable due date")
+		result.FailedItems++
+		return
+	}
+	due, _ := time.Parse("2006-01-02", dueDate)
+	fp := normalizer.ComputeFingerprint(userID, data.Amount, data.BillerName, due, "bill")
 
 	isDupe, err := h.isDuplicate(context.Background(), userID, fp)
 	if err != nil {
@@ -355,9 +362,11 @@ func (h *GmailHandler) processBill(userID string, data *ExtractedFinancialData, 
 		BillerName: data.BillerName,
 		Amount:     data.Amount,
 		Currency:   "INR",
-		DueDate:    data.BillDueDate,
+		DueDate:    dueDate,
 		Status:     "upcoming",
 		SourceType: "gmail",
+		BillType:   billTypeOrOther(data.BillType),
+		AccountRef: optional(data.AccountLast4, ""),
 	})
 	result.Fingerprints = append(result.Fingerprints, FingerprintRecord{
 		UserID:      userID,
@@ -367,9 +376,7 @@ func (h *GmailHandler) processBill(userID string, data *ExtractedFinancialData, 
 		EntityID:    billID,
 	})
 
-	log.Printf("[gmail] Bill: %s ₹%.2f due=%s (conf=%.2f)",
-		data.BillerName, data.Amount, data.BillDueDate, data.Confidence,
-	)
+	log.Printf("[gmail] Bill found: due=%s type=%s (conf=%.2f)", dueDate, billTypeOrOther(data.BillType), data.Confidence)
 
 	result.NetNewItems++
 }
@@ -427,10 +434,10 @@ func (h *GmailHandler) Persist(ctx context.Context, result any) error {
 	for _, bill := range r.Bills {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO bills (id, user_id, bill_type, biller_name, amount, currency,
-				due_date, status, detection_source, created_at, updated_at)
-			VALUES ($1, $2, 'other', $3, $4, $5, $6, $7, $8, now(), now())`,
+				due_date, status, detection_source, account_ref, created_at, updated_at)
+			VALUES ($1, $2, $9::bill_type, $3, $4, $5, $6, $7, $8, $10, now(), now())`,
 			bill.ID, bill.UserID, bill.BillerName, bill.Amount, bill.Currency,
-			bill.DueDate, bill.Status, bill.SourceType)
+			bill.DueDate, bill.Status, bill.SourceType, billTypeOrOther(bill.BillType), bill.AccountRef)
 		if err != nil {
 			return fmt.Errorf("insert bill: %w", err)
 		}
@@ -582,7 +589,7 @@ func parseFinancialEmail(email GmailEmail) *ExtractedFinancialData {
 		confidence := computeEmailConfidence(amount, amountConf, billerName, dueDate)
 		return &ExtractedFinancialData{
 			Type: "bill", Merchant: billerName, Amount: amount, Date: date,
-			BillerName: billerName, BillDueDate: dueDate,
+			BillerName: billerName, BillDueDate: dueDate, BillType: detectBillType(contentLower),
 			AccountLast4: accountLast4, Confidence: confidence,
 		}
 	}
@@ -733,3 +740,77 @@ func occurredAt(header, bodyDate string) time.Time {
 	}
 	return time.Time{}
 }
+
+// dueDateLayouts are the due-date forms bills use (dueDatePatterns). Numeric dates are Indian: day first.
+var dueDateLayouts = []string{"2006-01-02", "02/01/2006", "2/1/2006", "02-01-2006", "2-1-2006", "2 January 2006", "2 Jan 2006", "January 2, 2006", "Jan 2, 2006"}
+
+// normalizeDueDate turns an extracted due date into yyyy-mm-dd, or reports that it can't (AOS-503).
+// Postgres would read "05/11/2026" month-first, so dates are never passed through as written.
+func normalizeDueDate(raw string) (string, bool) {
+	raw = strings.Join(strings.Fields(raw), " ")
+	if raw == "" {
+		return "", false
+	}
+	for _, layout := range dueDateLayouts {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.Format("2006-01-02"), true
+		}
+	}
+	return "", false
+}
+
+// billTypes maps the words a bill email uses to bills.bill_type, most specific first.
+var billTypes = []struct {
+	kind  string
+	words []string
+}{
+	{"credit_card", []string{"credit card", "card statement", "card account"}},
+	{"electricity", []string{"electricity", "power bill", "bescom", "tata power", "adani electricity", "msedcl"}},
+	{"internet", []string{"broadband", "fiber", "fibre", "internet"}},
+	{"mobile", []string{"postpaid", "mobile bill", "phone bill"}},
+	{"insurance", []string{"insurance", "premium"}},
+	{"emi", []string{"emi", "loan"}},
+	{"water", []string{"water bill"}},
+	{"gas", []string{"gas bill", "piped gas", "lpg"}},
+	{"rent", []string{"rent"}},
+}
+
+// billTypePatterns are billTypes as whole-word patterns ("emi" must not match "premium"), compiled once.
+var billTypePatterns = func() []struct {
+	kind string
+	re   *regexp.Regexp
+} {
+	var out []struct {
+		kind string
+		re   *regexp.Regexp
+	}
+	for _, bt := range billTypes {
+		quoted := make([]string, len(bt.words))
+		for i, w := range bt.words {
+			quoted[i] = regexp.QuoteMeta(w)
+		}
+		out = append(out, struct {
+			kind string
+			re   *regexp.Regexp
+		}{bt.kind, regexp.MustCompile(`\b(?:` + strings.Join(quoted, "|") + `)\b`)})
+	}
+	return out
+}()
+
+// detectBillType guesses the bill's type from its (lower-case) text; "" when nothing fits.
+func detectBillType(contentLower string) string {
+	for _, p := range billTypePatterns {
+		if p.re.MatchString(contentLower) {
+			return p.kind
+		}
+	}
+	return ""
+}
+
+func billTypeOrOther(kind string) string {
+	if kind == "" {
+		return "other"
+	}
+	return kind
+}
+

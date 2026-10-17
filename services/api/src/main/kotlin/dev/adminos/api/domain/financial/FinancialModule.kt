@@ -26,6 +26,7 @@ fun Application.financialModule() {
     val insightRepository: InsightRepository by inject()
     val suggestionService: dev.adminos.api.domain.financial.links.SuggestionService by inject()
     val analyticsService: dev.adminos.api.domain.analytics.AnalyticsService by inject()
+    val duesService: DuesService by inject()
 
     routing {
         route("/api/v1") {
@@ -35,6 +36,7 @@ fun Application.financialModule() {
             accountRoutes(accountDiscoveryService)
             subscriptionRoutes(subscriptionRepository)
             billRoutes(billTrackingService)
+            duesRoutes(duesService)
             dashboardRoutes(
                 transactionRepository,
                 subscriptionRepository,

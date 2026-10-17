@@ -97,6 +97,30 @@ export interface SubscriptionSummary {
 
 // ── Bills ──
 
+/** One thing to pay on a day: a bill, or an expected subscription renewal (AOS-503, GET /api/v1/dues). */
+export interface DueItem {
+  kind: "bill" | "renewal";
+  id: string;
+  name: string;
+  amount: string;
+  minimumDue: string | null;
+  date: string;
+  /** Bills: upcoming | due | overdue | paid. Renewals: expected. */
+  status: string;
+  /** Bill type (credit_card…) or billing cycle (monthly…). */
+  detail: string;
+  trial: boolean;
+}
+
+export interface DuesMonth {
+  month: string;
+  /** The user's own date (the server decides it). */
+  today: string;
+  items: DueItem[];
+  overdue: DueItem[];
+  totals: { open: string; paid: string; renewals: string };
+}
+
 export interface Bill {
   id: string;
   billType: string;

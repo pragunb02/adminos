@@ -40,6 +40,35 @@ class FinancialRepositoriesIntegrationTest {
     // ── Transactions ──
 
     @Test
+    fun `reminder days and renewal bookkeeping survive a round trip, and renewals are found by date and status (AOS-503)`() = runBlocking<Unit> {
+        val owner = PostgresTestDatabase.newUser()
+        val bills = ExposedBillRepository()
+        val subs = ExposedSubscriptionRepository()
+        val b = bills.save(Bill(userId = owner, billerName = "Tata Power", amount = java.math.BigDecimal("2350.00"), dueDate = java.time.LocalDate.of(2030, 1, 20),
+            sentReminderDays = setOf(7)))
+        assertEquals(setOf(7), bills.findById(b.id)!!.sentReminderDays)
+        bills.update(b.copy(sentReminderDays = setOf(7, 3, 14)))
+        assertEquals(setOf(3, 7, 14), bills.findById(b.id)!!.sentReminderDays)
+        bills.update(b.copy(sentReminderDays = null))
+        assertEquals(null, bills.findById(b.id)!!.sentReminderDays)
+
+        val renewing = subs.save(Subscription(userId = owner, name = "Netflix", merchantName = "netflix-503", amount = java.math.BigDecimal("649.00"),
+            billingCycle = BillingCycle.MONTHLY, nextBillingDate = java.time.LocalDate.of(2030, 1, 22)))
+        subs.save(Subscription(userId = owner, name = "Gone", merchantName = "gone-503", amount = java.math.BigDecimal("99.00"),
+            billingCycle = BillingCycle.MONTHLY, nextBillingDate = java.time.LocalDate.of(2030, 1, 22), status = SubscriptionStatus.CANCELLED))
+        subs.save(Subscription(userId = owner, name = "Later", merchantName = "later-503", amount = java.math.BigDecimal("99.00"),
+            billingCycle = BillingCycle.YEARLY, nextBillingDate = java.time.LocalDate.of(2030, 6, 1)))
+        val found = subs.findRenewingBetween(java.time.LocalDate.of(2030, 1, 15), java.time.LocalDate.of(2030, 1, 31)).filter { it.userId == owner }
+        assertEquals(listOf("Netflix"), found.map { it.name })
+
+        subs.update(renewing.copy(renewalRemindedFor = java.time.LocalDate.of(2030, 1, 22), renewalReminderDaysSent = setOf(3, 1), metadata = mapOf("k" to "v")))
+        val back = subs.findById(renewing.id)!!
+        assertEquals(java.time.LocalDate.of(2030, 1, 22), back.renewalRemindedFor)
+        assertEquals(setOf(1, 3), back.renewalReminderDaysSent)
+        assertEquals(mapOf("k" to "v"), back.metadata, "metadata used to be dropped on update")
+    }
+
+    @Test
     fun `transaction round-trips all fields`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
         val t = transactions.save(txn(userId))

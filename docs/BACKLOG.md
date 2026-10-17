@@ -122,7 +122,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-510](tickets/AOS-510.md) | Web Push for iPhone (Home Screen app), Android, desktop: RFC 8291/8292, service worker, Settings (D-52) | Claude | ✅ | — | 3h |
 | **[AOS-S5.2](tickets/AOS-S5.2.md)** | **Recurring payments & dues** | | 🟦 | 8h | |
 | └ AOS-502 | Recurring / UPI AutoPay mandate tracker | Claude | ⬜ | 4h |  |
-| └ AOS-503 | Dues & renewals calendar + reminders (fix: custom reminder days persisted, user-zone dates, Gmail bills without a due date) | Claude | ⬜ | 4h |  |
+| └ [AOS-503](tickets/AOS-503.md) | Dues & renewals calendar, renewal reminders; fixes: reminder days stored, user-zone dates, Gmail bills without a due date (D-55) | Claude | ✅ | 4h | 2.5h |
 | └ [AOS-508](tickets/AOS-508.md) | Bill-payment matching after each transaction + daily sweep, incl. card bills paid by transfer (D-54) | Claude | ✅ | — | 1.5h |
 | **[AOS-S5.3](tickets/AOS-S5.3.md)** | **Alerts & weekly briefing** | | 🟦 | 5h | |
 | └ [AOS-505](tickets/AOS-505.md) | Unusual-charge alerts: every new spend checked against its own past; alert if confident and recent (D-53) | Claude | ✅ | 2h | 1.5h |

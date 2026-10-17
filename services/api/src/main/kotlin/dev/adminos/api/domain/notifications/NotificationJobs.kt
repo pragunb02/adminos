@@ -13,26 +13,29 @@ import java.time.LocalTime
 import java.time.ZoneId
 
 /**
- * Daily: first marks bills paid whose payment was recorded before the bill arrived (AOS-508), so
- * nobody is reminded of a paid bill; then marks overdue bills and sends reminders (AOS-501).
+ * Daily at 09:00: first marks bills paid whose payment was recorded before the bill arrived
+ * (AOS-508), so nobody is reminded of a paid bill; then overdue bills and bill reminders (AOS-501),
+ * then subscription renewal reminders (AOS-503).
  */
 class BillRemindersJob(
-    private val engine: ReminderEngine,
-    zone: ZoneId,
-    private val bills: dev.adminos.api.domain.financial.BillRepository,
-    private val billing: dev.adminos.api.domain.financial.BillTrackingService
+    private val reminders: ReminderEngine,
+    private val renewals: RenewalReminders,
+    private val billing: dev.adminos.api.domain.financial.BillTrackingService,
+    zone: ZoneId
 ) : ScheduledJob {
     override val name = JobName("bill-reminders")
     override val schedule = Schedule.Daily(LocalTime.of(9, 0), zone)
 
     override suspend fun run(): JobResult {
-        val paidBySweep = billing.matchEarlierPayments((bills.findUpcoming(7) + bills.findOverdue()).distinctBy { it.id })
-        val summary = engine.runReminders()
+        val paidBySweep = billing.matchEarlierPayments()
+        val bills = reminders.runReminders()
+        val subs = renewals.run()
         return JobResult.of(
             "paidBySweep" to paidBySweep,
-            "overdueMarked" to summary.overdueMarked,
-            "remindersSent" to summary.remindersSent,
-            "failed" to summary.failed
+            "overdueMarked" to bills.overdueMarked,
+            "remindersSent" to bills.remindersSent,
+            "renewalRemindersSent" to subs.remindersSent,
+            "failed" to bills.failed + subs.failed
         )
     }
 }

@@ -59,3 +59,33 @@ func TestGmailPersistWritesIngestEvents_Integration(t *testing.T) {
 		t.Errorf("the worker must not write transactions directly; found %d", txns)
 	}
 }
+
+// AOS-503: an email bill is stored with its ISO due date, its type and the card's last 4.
+func TestGmailPersistWritesTypedBills_Integration(t *testing.T) {
+	pool := testPool(t)
+	defer pool.Close()
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+	connID := createTestConnection(t, ctx, pool, userID)
+	sessionID := uuid.New().String()
+	if _, err := pool.Exec(ctx, `INSERT INTO sync_sessions (id, user_id, connection_id, sync_type) VALUES ($1, $2, $3, 'manual')`,
+		sessionID, userID, connID); err != nil {
+		t.Fatalf("create sync session: %v", err)
+	}
+	last4 := "4521"
+	billID := uuid.New().String()
+	result := &GmailResult{SyncSessionID: sessionID, UserID: userID, ConnectionID: connID, TotalEmails: 1, BillsFound: 1,
+		Bills: []BillRecord{{ID: billID, UserID: userID, BillerName: "HDFC Bank Credit Card", Amount: 18450, Currency: "INR",
+			DueDate: "2026-11-05", Status: "upcoming", SourceType: "gmail", BillType: "credit_card", AccountRef: &last4}}}
+	if err := NewGmailHandler(pool, nil, "", "").Persist(ctx, result); err != nil {
+		t.Fatalf("persist: %v", err)
+	}
+	var billType, due string
+	var ref *string
+	if err := pool.QueryRow(ctx, `SELECT bill_type::text, due_date::text, account_ref FROM bills WHERE id = $1`, billID).Scan(&billType, &due, &ref); err != nil {
+		t.Fatalf("query bill: %v", err)
+	}
+	if billType != "credit_card" || due != "2026-11-05" || ref == nil || *ref != "4521" {
+		t.Errorf("bill: type=%s due=%s ref=%v", billType, due, ref)
+	}
+}

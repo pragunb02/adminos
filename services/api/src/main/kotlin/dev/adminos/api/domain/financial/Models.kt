@@ -122,6 +122,9 @@ data class Subscription(
     val transactionIds: List<UUID> = emptyList(),
     val cancellationDraft: String? = null,
     val cancellationDraftGeneratedAt: Instant? = null,
+    /** The renewal date the reminders in [renewalReminderDaysSent] were sent for (AOS-503). */
+    val renewalRemindedFor: LocalDate? = null,
+    val renewalReminderDaysSent: Set<Int> = emptySet(),
     val metadata: Map<String, Any?>? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()

@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-55 | Product | Dues calendar = bills by due date + renewals projected from next billing date (today on, ≤ 1 year, daily = next only, month-ends kept); renewal reminders on the bill-reminder days, once per date; every reminder and overdue judged on the user's own date | Accepted | AOS-503 |
 | D-54 | Product | Bill paid = a spend or card-bill transfer of the full amount (±5%) or minimum due (±1%), in the bill's window (period end or 40 days before due → 15 days after), with evidence (card/account number, biller name, or the only card bill); ties match nothing; daily sweep for payments seen first | Accepted | AOS-508 |
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
 | D-52 | Architecture | Web Push implemented from RFC 8291/8292 with JDK crypto + Nimbus (no Web Push library: outdated vulnerable deps); endpoints limited to known push services; PWA static files public | Accepted | AOS-510 |
@@ -580,4 +581,12 @@ Proposed
   - there is evidence it's this biller: the bill's last 4 digits in the payment (whole digits), a similar payee name, or — for a card-bill transfer — the only credit-card bill that fits.
 - **Ranking:** stronger evidence, then the closer amount, then the nearer due date. An exact tie marks nothing paid, so nothing is guessed.
 - **Both directions:** each new transaction is matched by a post-commit listener (D-53's hook), and the daily reminders job first sweeps open bills against payments already recorded, so a paid bill is never reminded.
+
+### D-55 — Dues calendar and renewal reminders
+2026-10-17 · Accepted (Pragun: "continue and go ahead") · Type: Product · Tasks: AOS-503
+- **One month view** of bills (by due date) and expected renewals. Renewals are projected from the next billing date by cycle, from today on, at most a year ahead; daily subscriptions show only their next date; month-end renewals stay on month ends. Overdue bills from earlier months come with the current month.
+- **Totals:** to pay (unpaid bills + earlier overdue), paid, expected renewals.
+- **The user's calendar:** "today", "N days before" and "overdue" mean the user's own date, in the API and on the page (the page uses the API's `today`, not the browser clock).
+- **Renewal reminders** use the bill-reminder setting and days. Each (renewal date, day) is sent once, stored with the subscription; the text says the date is expected from past payments.
+- **Gmail bills** without a readable due date are skipped (counted), never failing a batch. Numeric dates are read day-first.
 
