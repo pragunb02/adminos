@@ -7,6 +7,7 @@ import AppShell from "@/components/AppShell";
 import { Skeleton } from "@/components/console/Section";
 import { formatInr } from "@/lib/money";
 import { errorMessage, getData } from "@/lib/query";
+import { RAIL } from "@/components/Mandates";
 import type { DueItem, DuesMonth } from "@/lib/types";
 
 /** YYYY-MM, or null when the URL holds something else (then this month is shown). */
@@ -25,6 +26,7 @@ const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T
 /** The words for where an item stands, from the user's own "today" (never the browser clock). */
 export function standing(item: DueItem, today: string): { text: string; tone: "done" | "late" | "soon" | "calm" } {
   if (item.kind === "renewal") return { text: item.trial ? "Trial ends" : "Expected", tone: "calm" };
+  if (item.kind === "mandate") return { text: "AutoPay", tone: "calm" };
   if (item.status === "paid") return { text: "Paid", tone: "done" };
   const days = daysBetween(today, item.date);
   if (item.status === "overdue" || days < 0) return { text: days < 0 ? `${-days}d overdue` : "Overdue", tone: "late" };
@@ -36,6 +38,7 @@ export function standing(item: DueItem, today: string): { text: string; tone: "d
 const TONE = { done: "text-positive", late: "font-semibold text-negative", soon: "font-semibold text-ink", calm: "text-ink-muted" } as const;
 
 function describe(item: DueItem): string {
+  if (item.kind === "mandate") return `${RAIL[item.detail as keyof typeof RAIL] ?? "Mandate"} · taken automatically`;
   const kind = item.detail.replace(/_/g, " ");
   if (item.kind === "renewal") return `${kind.charAt(0).toUpperCase()}${kind.slice(1)} ${item.trial ? "trial" : "renewal"} · from your past payments`;
   const min = item.minimumDue && item.minimumDue !== item.amount ? ` · minimum ${formatInr(item.minimumDue)}` : "";

@@ -47,7 +47,7 @@ class DeviceTokenSecurityTest {
             routing {
                 route("/api/v1") {
                     deviceTokenRoutes(service)
-                    rawSmsRoutes(SmsIntake(SmsParserRegistry(), IngestEventService(events)))
+                    rawSmsRoutes(SmsIntake(SmsParserRegistry(), IngestEventService(events), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository())))
                     authenticate("auth-jwt") { get("/me") { call.respondText(call.userPrincipal.userId.toString()) } }
                 }
             }

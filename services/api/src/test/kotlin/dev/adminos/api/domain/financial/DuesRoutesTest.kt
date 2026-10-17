@@ -33,7 +33,7 @@ class DuesRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
-            routing { route("/api/v1") { duesRoutes(DuesService(bills, InMemorySubscriptionRepository())) } }
+            routing { route("/api/v1") { duesRoutes(DuesService(bills, InMemorySubscriptionRepository(), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), InMemoryTransactionRepository()))) } }
         }
         block()
     }

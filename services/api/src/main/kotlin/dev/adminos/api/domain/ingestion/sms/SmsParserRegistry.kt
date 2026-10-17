@@ -13,20 +13,29 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
         val sender = SenderId.parse(message.sender)
             ?: return SmsParseResult.Ignored("sender is not a registered business header")
         if (sender.isPromotional) return SmsParseResult.Ignored("promotional sender")
+        val parser = byHeader[sender.header]
+        // OTPs and failures are never anything; mandate notices come before the "upcoming payment" drop rule,
+        // because a pre-debit notice is exactly that (AOS-502).
+        BEFORE_MANDATES.firstOrNull { (re, _) -> re.containsMatchIn(message.text) }?.let { return SmsParseResult.Ignored(it.second) }
+        MandateSmsParser.parse(message.text, parser?.bankCode)?.let { return SmsParseResult.Mandate(it) }
         DROP_RULES.firstOrNull { (re, _) -> re.containsMatchIn(message.text) }?.let { return SmsParseResult.Ignored(it.second) }
 
-        val parsed = byHeader[sender.header]?.parse(message.text) ?: generic.parse(message.text)
+        val parsed = parser?.parse(message.text) ?: generic.parse(message.text)
             ?: return SmsParseResult.Ignored("not a recognised transaction message")
-        return SmsParseResult.Transaction(parsed)
+        return SmsParseResult.Transaction(parsed.copy(markers = MandateDebitMarker.metadataFor(message.text)))
     }
 
     companion object {
         private val I = RegexOption.IGNORE_CASE
 
-        /** Checked before parsing. Order matters only for the reason reported. */
-        private val DROP_RULES: List<Pair<Regex, String>> = listOf(
+        /** Never anything, not even a mandate notice. */
+        private val BEFORE_MANDATES: List<Pair<Regex, String>> = listOf(
             Regex("\\b(OTP|one[ -]time password|verification code)\\b", I) to "one-time password",
-            Regex("\\b(declined|failed|unsuccessful|could not be processed)\\b", I) to "failed or declined transaction",
+            Regex("\\b(declined|failed|unsuccessful|could not be processed)\\b", I) to "failed or declined transaction"
+        )
+
+        /** Checked before parsing transactions. Order matters only for the reason reported. */
+        private val DROP_RULES: List<Pair<Regex, String>> = listOf(
             Regex("\\b(collect request|has requested (money|Rs|INR)|requested money)\\b", I) to "payment request, not a payment",
             Regex("\\b(will be debited|is due|due on|auto-?debit (is )?scheduled|reminder)\\b", I) to "upcoming payment notice",
             Regex("^(?!.*\\b(debited|credited|spent|sent|paid|received)\\b).*\\b(available balance|avl bal)\\b", setOf(I, RegexOption.DOT_MATCHES_ALL)) to "balance alert"

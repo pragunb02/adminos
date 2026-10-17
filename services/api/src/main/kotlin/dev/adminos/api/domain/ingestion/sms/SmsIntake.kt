@@ -8,6 +8,8 @@ import java.util.UUID
 
 sealed interface SmsIntakeResult {
     data object Accepted : SmsIntakeResult
+    /** A mandate notice, applied to the user's mandates (AOS-502). */
+    data object Mandate : SmsIntakeResult
     data object Duplicate : SmsIntakeResult
     data class Ignored(val reason: String) : SmsIntakeResult
 }
@@ -16,11 +18,19 @@ sealed interface SmsIntakeResult {
  * Raw SMS (from any transport) → parsed → common intake. The text exists only inside this call (D-33).
  * The same message always maps to the same `sourceRef`, so a resent SMS is a duplicate.
  */
-class SmsIntake(private val parsers: SmsParserRegistry, private val intake: IngestEventService) {
+class SmsIntake(
+    private val parsers: SmsParserRegistry,
+    private val intake: IngestEventService,
+    private val mandates: dev.adminos.api.domain.financial.mandates.MandateService
+) {
 
     suspend fun accept(userId: UUID, message: SmsMessage): SmsIntakeResult =
         when (val result = parsers.parse(message)) {
             is SmsParseResult.Ignored -> SmsIntakeResult.Ignored(result.reason)
+            is SmsParseResult.Mandate -> {
+                mandates.record(userId, result.notice, message.receivedAt, fingerprint(message))
+                SmsIntakeResult.Mandate
+            }
             is SmsParseResult.Transaction -> {
                 val p = result.parsed
                 val event = IngestEvent(
@@ -35,7 +45,7 @@ class SmsIntake(private val parsers: SmsParserRegistry, private val intake: Inge
                     paymentMethod = p.paymentMethod,
                     upiVpa = p.upiVpa,
                     paymentRef = p.reference,
-                    metadata = p.bankCode?.let { mapOf("bank" to it) }
+                    metadata = (listOfNotNull(p.bankCode?.let { "bank" to it }) + p.markers.toList()).toMap().takeIf { it.isNotEmpty() }
                 )
                 if (intake.ingest(listOf(event)).accepted == 1) SmsIntakeResult.Accepted else SmsIntakeResult.Duplicate
             }

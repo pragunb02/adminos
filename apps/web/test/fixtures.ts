@@ -122,4 +122,10 @@ export const fx = {
     totals: { open: "20800.00", paid: "599.00", renewals: "649.00" },
     ...over,
   }),
+  /** A mandate from bank SMS (AOS-502). */
+  mandate: (over: Partial<import("@/lib/types").Mandate> = {}): import("@/lib/types").Mandate => ({
+    id: "m-1", payee: "BAJAJ FINANCE LTD", rail: "nach", amount: "5400.00", frequency: "monthly", status: "active",
+    nextDebitOn: "2026-11-05", nextDebitAmount: "5400.00", lastDebitAt: "2026-10-05T04:00:00Z", lastDebitAmount: "5400.00",
+    validUntil: "2030-03-05", dormant: false, hasReference: true, ...over,
+  }),
 };

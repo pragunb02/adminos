@@ -89,6 +89,13 @@ describe("Dues & renewals (AOS-503)", () => {
     expect(standing(fx.due({ kind: "renewal", trial: true }), today)).toEqual({ text: "Trial ends", tone: "calm" });
   });
 
+  it("mandate debits read as AutoPay", async () => {
+    server.use(dues(fx.duesMonth({ items: [fx.due({ kind: "mandate", id: "m-1", name: "NETFLIX", amount: "649.00", status: "expected", detail: "upi_autopay" })] })));
+    renderWithQuery(<DuesPage />);
+    expect(await screen.findByText("UPI AutoPay · taken automatically")).toBeInTheDocument();
+    expect(standing(fx.due({ kind: "mandate" }), "2026-10-16")).toEqual({ text: "AutoPay", tone: "calm" });
+  });
+
   it("months roll over the year both ways", () => {
     expect(shiftMonth("2026-12", 1)).toBe("2027-01");
     expect(shiftMonth("2026-01", -1)).toBe("2025-12");

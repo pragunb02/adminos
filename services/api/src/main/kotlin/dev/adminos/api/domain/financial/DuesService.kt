@@ -5,7 +5,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 
-enum class DueKind { BILL, RENEWAL }
+enum class DueKind { BILL, RENEWAL, MANDATE }
 
 /** One thing to pay on a day: a bill (from email) or an expected subscription renewal (AOS-503). */
 data class DueItem(
@@ -18,7 +18,7 @@ data class DueItem(
     val date: LocalDate,
     /** A bill's status (upcoming, due, overdue, paid); renewals are "expected". */
     val status: String,
-    /** Bill type (credit_card, electricity…) or billing cycle (monthly…). */
+    /** Bill type (credit_card, electricity…), billing cycle (monthly…), or mandate rail (upi_autopay…). */
     val detail: String,
     val trial: Boolean = false
 )
@@ -40,7 +40,8 @@ data class DuesMonth(val month: YearMonth, val today: LocalDate, val items: List
  */
 class DuesService(
     private val bills: BillRepository,
-    private val subscriptions: SubscriptionRepository
+    private val subscriptions: SubscriptionRepository,
+    private val mandates: dev.adminos.api.domain.financial.mandates.MandateService
 ) {
     suspend fun month(userId: UUID, month: YearMonth, today: LocalDate): DuesMonth {
         val first = month.atDay(1)
@@ -49,9 +50,14 @@ class DuesService(
         val billItems = bills.findByUserId(userId, from = first, to = last, limit = MAX_ITEMS)
             .filter { it.status != BillStatus.CANCELLED }
             .map { it.toItem() }
+        // Mandate debits (AOS-502) are the precise version of a renewal: when a subscription is paid by one, show only the mandate.
+        val mandateViews = mandates.list(userId, today).filter { it.status == dev.adminos.api.domain.financial.mandates.MandateStatus.ACTIVE }
+        val mandateItems = mandateViews.flatMap { v -> mandateDates(v, first, last, today).mapNotNull { d -> v.toItem(d) } }
+        val paidByMandate = mandateViews.map { dev.adminos.api.domain.financial.mandates.MandateService.normalize(it.mandate.payee) }.filter { it.isNotEmpty() }
         val renewalItems = subscriptions.findByUserId(userId, limit = MAX_ITEMS)
             .filter { it.status == SubscriptionStatus.ACTIVE || it.status == SubscriptionStatus.TRIAL }
-            .flatMap { s -> renewalDates(s, first, last, today).map { d -> s.toItem(d) } }
+            .filterNot { s -> coveredByMandate(s, paidByMandate) }
+            .flatMap { s -> renewalDates(s, first, last, today).map { d -> s.toItem(d) } } + mandateItems
         val overdue = if (month == YearMonth.from(today)) {
             bills.findByUserId(userId, status = BillStatus.OVERDUE, limit = MAX_ITEMS).filter { it.dueDate.isBefore(first) }.map { it.toItem() }
         } else emptyList()
@@ -73,8 +79,27 @@ class DuesService(
         date = date, status = "expected", detail = billingCycle.name.lowercase(), trial = status == SubscriptionStatus.TRIAL
     )
 
+    private fun dev.adminos.api.domain.financial.mandates.MandateView.toItem(date: LocalDate): DueItem? {
+        val amount = (if (date == mandate.nextDebitOn) mandate.nextDebitAmount else null) ?: mandate.amount ?: mandate.lastDebitAmount ?: return null
+        return DueItem(kind = DueKind.MANDATE, id = mandate.id, name = mandate.payee, amount = amount, date = date,
+            status = "expected", detail = mandate.rail.name.lowercase())
+    }
+
     companion object {
         private const val MAX_ITEMS = 500
+
+        private fun coveredByMandate(s: Subscription, payees: List<String>): Boolean {
+            val names = listOfNotNull(s.name, s.merchantName).map { dev.adminos.api.domain.financial.mandates.MandateService.normalize(it) }.filter { it.isNotEmpty() }
+            return names.any { n -> payees.any { p -> p == n || p in n || n in p } }
+        }
+
+        /** A mandate's debits within the month, from today on, at most a year ahead; unscheduled ones only on the announced date. */
+        internal fun mandateDates(v: dev.adminos.api.domain.financial.mandates.MandateView, first: LocalDate, last: LocalDate, today: LocalDate): List<LocalDate> {
+            val next = v.nextDebitOn ?: return emptyList()
+            val horizon = minOf(last, today.plusYears(1))
+            val dates = generateSequence(next) { v.mandate.frequency.after(it) }.takeWhile { !it.isAfter(horizon) }.take(400).toList()
+            return dates.filter { !it.isBefore(first) && !it.isAfter(last) && !it.isBefore(today) }
+        }
 
         /** Renewal dates of [s] within [first]..[last], from [today] on, at most a year ahead. */
         internal fun renewalDates(s: Subscription, first: LocalDate, last: LocalDate, today: LocalDate): List<LocalDate> {

@@ -14,7 +14,8 @@ class DuesServiceTest {
     private val userId = UUID.randomUUID()
     private val bills = InMemoryBillRepository()
     private val subscriptions = InMemorySubscriptionRepository()
-    private val dues = DuesService(bills, subscriptions)
+    private val mandateRepo = dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository()
+    private val dues = DuesService(bills, subscriptions, dev.adminos.api.domain.financial.mandates.MandateService(mandateRepo, InMemoryTransactionRepository()))
     private val today = LocalDate.of(2026, 10, 16)
     private val october = YearMonth.of(2026, 10)
 

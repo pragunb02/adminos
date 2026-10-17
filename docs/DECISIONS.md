@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-56 | Architecture | Mandates (UPI AutoPay, e-NACH, card SI) are their own model, learnt from bank SMS notices (never the text), identified by UMN or payee+rail, robust to late/duplicate messages; debits matched after commit and marked recurring; dormant mandates flagged; shown on Subscriptions and the dues calendar | Accepted | AOS-502 |
 | D-55 | Product | Dues calendar = bills by due date + renewals projected from next billing date (today on, ≤ 1 year, daily = next only, month-ends kept); renewal reminders on the bill-reminder days, once per date; every reminder and overdue judged on the user's own date | Accepted | AOS-503 |
 | D-54 | Product | Bill paid = a spend or card-bill transfer of the full amount (±5%) or minimum due (±1%), in the bill's window (period end or 40 days before due → 15 days after), with evidence (card/account number, biller name, or the only card bill); ties match nothing; daily sweep for payments seen first | Accepted | AOS-508 |
 | D-53 | Product | Unusual charges: every new spend is checked against its own past (30-day category average ≥3 spends, ₹2,000 minimum; 24 h duplicates; user-zone odd hours); one anomaly per transaction; alert only if confidence ≥ 0.7 and the spend is from the last 3 days | Accepted | AOS-505 |
@@ -589,4 +590,13 @@ Proposed
 - **The user's calendar:** "today", "N days before" and "overdue" mean the user's own date, in the API and on the page (the page uses the API's `today`, not the browser clock).
 - **Renewal reminders** use the bill-reminder setting and days. Each (renewal date, day) is sent once, stored with the subscription; the text says the date is expected from past payments.
 - **Gmail bills** without a readable due date are skipped (counted), never failing a batch. Numeric dates are read day-first.
+
+### D-56 — Mandates from bank SMS
+2026-10-17 · Accepted (Pragun: "go go") · Type: Architecture · Tasks: AOS-502
+- **A model of their own:** money pulled by UPI AutoPay, e-NACH or a card standing instruction isn't a subscription (loans, insurance and "as presented" utilities don't fit). It gets its own model, with its own status from the bank.
+- **Source:** bank SMS notices for set-up, pre-debit, pause, resume and revoke. A pre-debit notice is a mandate notice, not a dropped "upcoming payment". Only the extracted fields are kept (D-33).
+- **Identity:** the UMN/UMRN; otherwise the same payee on the same rail.
+- **Robust to history:** the same message twice changes nothing; an older message never undoes a newer status; pre-debit dates only move forward.
+- **Debits:** matched after the commit (D-53's hook), by the UMN, or by payee + amount within the limit + (the mandate marker or the expected date ±3 days). Ties match nothing. A matched debit marks its transaction recurring.
+- **What the user sees:** status (including expired), the next debit, and dormant (nothing taken for two cycles: "revoke it in your UPI app or bank"). On the dues calendar a mandate replaces the same subscription's renewal. The UMN is never shown.
 

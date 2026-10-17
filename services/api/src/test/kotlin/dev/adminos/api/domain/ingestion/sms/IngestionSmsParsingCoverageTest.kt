@@ -185,7 +185,7 @@ class IngestionSmsParsingCoverageTest {
     // ── Intake ──
 
     private val events = InMemoryIngestEventRepository()
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events))
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()))
     private val owner = user()
 
     @Test

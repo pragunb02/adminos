@@ -98,6 +98,7 @@ internal fun buildAppModule(
         single<AuditRepository> { ExposedAuditRepository() }
         // Scheduling
         single<JobRunRepository> { ExposedJobRunRepository() }
+        single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
     } else {
         // InMemory fallback for local dev / testing
@@ -122,6 +123,7 @@ internal fun buildAppModule(
         single<NotificationRepository> { InMemoryNotificationRepository() }
         single<AuditRepository> { InMemoryAuditRepository() }
         single<JobRunRepository> { InMemoryJobRunRepository() }
+        single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
     }
 
@@ -168,7 +170,7 @@ internal fun buildAppModule(
     // SMS intake (AOS-203): device tokens + parser registry
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
-    single { SmsIntake(get(), get()) }
+    single { SmsIntake(get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
 
     // Statement import (AOS-202, D-37)
@@ -186,13 +188,15 @@ internal fun buildAppModule(
     single { AccountDiscoveryService(get(), get()) }
     single { SubscriptionDetectorService(get(), get()) }
     single { BillTrackingService(get(), get()) }
-    single { DuesService(get(), get()) }
+    single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
+    single { DuesService(get(), get(), get()) }
 
     // Agent Services
     single { AnomalyDetectorService(get(), get(), get()) }
     // Reactions to each new transaction (AOS-505); a new one is one `bind TransactionCreatedListener::class` line.
     single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
     single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
+    single { dev.adminos.api.domain.financial.mandates.MandateDebitListener(get()) } bind TransactionCreatedListener::class
 
     // Notification Services
     // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.

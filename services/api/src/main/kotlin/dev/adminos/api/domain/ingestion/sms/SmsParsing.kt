@@ -14,11 +14,15 @@ data class ParsedSmsTransaction(
     val paymentMethod: PaymentMethod?,
     val bankCode: String?,
     /** UPI/IMPS reference number (RRN), when the SMS shows one. */
-    val reference: String? = null
+    val reference: String? = null,
+    /** Set when the debit pays a mandate: "mandate" (and "umn" when shown), AOS-502. */
+    val markers: Map<String, String> = emptyMap()
 )
 
 sealed interface SmsParseResult {
     data class Transaction(val parsed: ParsedSmsTransaction) : SmsParseResult
+    /** About a mandate (set up, pre-debit, paused, resumed, revoked), not a transaction (AOS-502). */
+    data class Mandate(val notice: dev.adminos.api.domain.financial.mandates.MandateNotice) : SmsParseResult
     /** Valid SMS that must not become a transaction. [reason] never quotes the text. */
     data class Ignored(val reason: String) : SmsParseResult
 }

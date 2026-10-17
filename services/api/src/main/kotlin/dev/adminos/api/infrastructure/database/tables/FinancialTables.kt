@@ -123,3 +123,28 @@ object BillsTable : Table("bills") {
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Maps to db/migration/V22__mandates.sql (AOS-502). */
+object MandatesTable : Table("mandates") {
+    val id = javaUUID("id")
+    val userId = javaUUID("user_id").references(UsersTable.id)
+    val rail = varchar("rail", 16)
+    val payee = varchar("payee", 100)
+    val umn = varchar("umn", 100).nullable()
+    val amount = decimal("amount", 12, 2).nullable()
+    val frequency = varchar("frequency", 16)
+    val status = varchar("status", 16)
+    val statusChangedAt = timestamp("status_changed_at")
+    val createdOn = date("created_on").nullable()
+    val validUntil = date("valid_until").nullable()
+    val nextDebitOn = date("next_debit_on").nullable()
+    val nextDebitAmount = decimal("next_debit_amount", 12, 2).nullable()
+    val lastDebitAt = timestamp("last_debit_at").nullable()
+    val lastDebitAmount = decimal("last_debit_amount", 12, 2).nullable()
+    val lastDebitTxnId = javaUUID("last_debit_txn_id").nullable()
+    val bank = varchar("bank", 20).nullable()
+    val lastMessageRef = varchar("last_message_ref", 64).nullable()
+    val createdAt = timestamp("created_at")
+    val updatedAt = timestamp("updated_at")
+    override val primaryKey = PrimaryKey(id)
+}
