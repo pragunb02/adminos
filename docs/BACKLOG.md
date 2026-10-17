@@ -211,7 +211,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
-| └ AOS-718 | Cash quick-add from free text or dictation | Claude (agent) | 🟦 | 5h |  |
+| └ [AOS-718](tickets/AOS-718.md) | Cash quick-add from free text or dictation | Claude (agent) | ✅ | 5h | 6h |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
 
 ## 🟦 [AOS-E9](tickets/AOS-E9.md) — Spending coach · P0 · ETA 47h

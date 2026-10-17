@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1256,3 +1257,31 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
+
+### D-77 — Cash from words: a deterministic grammar first, previewed, with a grounded fallback port
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-718 · Builds on D-41, D-42, D-44, D-61, D-67, D-100
+- **What:**
+  - free text or keyboard dictation ("200 chai and 150 auto yesterday") becomes cash entries to preview;
+  - the user checks, edits or removes each entry, and only confirmed entries are saved, each through the existing cash intake with its own `clientRef` and day (D-42);
+  - the text itself is never stored or logged.
+- **How it reads:**
+  - a deterministic grammar normalizes the text (digits, number words, grouping, invisible characters), splits it into entries, and takes out dates (the user's zone; "kal"/"parso" read as the past and flagged; nothing after today) and times;
+  - it pairs amounts with words, including quantities and "15 x 2";
+  - categories come in the D-41 order: remembered → catalogue → cash keywords (data, `cash/keywords.json`) → patterns → Other (flagged).
+- **What it refuses, with the reason:** no amount, zero, negative, over ₹1 crore, over-precise, future or impossible dates.
+- **Extension point:**
+  - the `CashPhraseParser` port, with `FallbackCashPhraseParser(rules, fallback)` for a later AI parser (AOS-702);
+  - the fallback sees only what the rules left open, may add an entry only when its amount is written in that text, may fill only an undecided category, and never proposes Transfer or changes a rule-decided entry (D-67).
+- **Measured (D-61 style):**
+  - 165 synthetic phrases (40 held out) with `cash/baseline.json`, which a test enforces;
+  - today: 99.4% of phrases exactly right overall, 97.5% held out, against 7.9% for "every number is an entry".
+- **Security (D-100):**
+  - the routes are authenticated;
+  - the parse route accepts JSON only (CSRF), caps text at 500 characters and allows 30 previews a minute per user;
+  - it is per-user (no cross-user rules);
+  - it renders as text.
+- **Rejected:**
+  - an LLM for every entry (privacy, and it needs AOS-702);
+  - a trained tagger (no labelled data);
+  - a batch save endpoint (it duplicates the intake);
+  - server-side audio (dictation is free and keeps audio off our server).
