@@ -17,7 +17,7 @@ import java.time.temporal.ChronoUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** AOS-910 on Postgres (V52): bookings merge like the worker's upsert; edits round-trip; a trip is computed from both. */
+/** AOS-910 on Postgres (V40): bookings merge like the worker's upsert; edits round-trip; a trip is computed from both. */
 @Tag("integration")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TripsIntegrationTest {

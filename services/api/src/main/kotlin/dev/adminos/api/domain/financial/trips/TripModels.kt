@@ -12,7 +12,7 @@ enum class TravelMode { FLIGHT, TRAIN, BUS }
 enum class BookingSource { GMAIL, SMS }
 
 /**
- * A travel booking read from an email or SMS (AOS-910, V52): the brand, mode, journey date and amount.
+ * A travel booking read from an email or SMS (AOS-910, V40): the brand, mode, journey date and amount.
  * The PNR is only a hash ([refHash]); no names, seats or stations (D-33).
  */
 data class TravelBooking(

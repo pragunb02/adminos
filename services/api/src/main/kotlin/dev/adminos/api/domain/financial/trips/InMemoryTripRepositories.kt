@@ -4,7 +4,7 @@ import dev.adminos.api.domain.common.TimeRange
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/** In-memory [TravelBookingRepository]: the same merge rules as the Postgres upsert (V52). */
+/** In-memory [TravelBookingRepository]: the same merge rules as the Postgres upsert (V40). */
 class InMemoryTravelBookingRepository : TravelBookingRepository {
     private val store = ConcurrentHashMap<Triple<UUID, String, String>, TravelBooking>()
 

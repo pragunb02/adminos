@@ -1,6 +1,5 @@
--- V52 (AOS-910, D-90): travel bookings (from email and SMS) and the user's edits to trips.
+-- V40 (AOS-910, D-90): travel bookings (from email and SMS) and the user's edits to trips.
 -- Trips themselves are computed on read from transactions and bookings; only edits are stored.
--- Tentative number: the integrator renumbers at merge.
 
 CREATE TABLE travel_bookings (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

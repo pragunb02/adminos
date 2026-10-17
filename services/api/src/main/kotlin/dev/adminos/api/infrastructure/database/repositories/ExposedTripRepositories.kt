@@ -10,7 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.*
 import java.time.Instant
 import java.util.UUID
 
-/** Postgres [TravelBookingRepository] (V52, AOS-910). The Gmail worker writes the same table with the same merge rules. */
+/** Postgres [TravelBookingRepository] (V40, AOS-910). The Gmail worker writes the same table with the same merge rules. */
 class ExposedTravelBookingRepository : TravelBookingRepository {
     override suspend fun upsert(booking: TravelBooking): TravelBooking = dbQuery {
         val known = B.selectAll().where { (B.userId eq booking.userId) and (B.brand eq booking.brand) and (B.refHash eq booking.refHash) }
@@ -46,7 +46,7 @@ class ExposedTravelBookingRepository : TravelBookingRepository {
     )
 }
 
-/** Postgres [TripEditRepository] (V52). */
+/** Postgres [TripEditRepository] (V40). */
 class ExposedTripEditRepository : TripEditRepository {
     override suspend fun findByUser(userId: UUID): List<TripEdit> = dbQuery {
         E.selectAll().where { E.userId eq userId }.map {

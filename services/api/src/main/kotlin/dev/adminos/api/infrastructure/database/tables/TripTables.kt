@@ -5,7 +5,7 @@ import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.javatime.timestamp
 
-/** Maps to db/migration/V52__trips.sql (AOS-910). The Gmail worker writes bookings too. */
+/** Maps to db/migration/V40__trips.sql (AOS-910). The Gmail worker writes bookings too. */
 object TravelBookingsTable : Table("travel_bookings") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)

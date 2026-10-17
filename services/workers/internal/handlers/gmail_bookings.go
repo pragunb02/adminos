@@ -14,7 +14,7 @@ import (
 	"github.com/adminos/adminos/workers/internal/receipts"
 )
 
-// BookingRecord is one travel booking for travel_bookings (V52, AOS-910): structured fields only.
+// BookingRecord is one travel booking for travel_bookings (V40, AOS-910): structured fields only.
 type BookingRecord struct {
 	UserID      string
 	SourceRef   string
