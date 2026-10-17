@@ -12,6 +12,10 @@ It is **always a personal project**: single user (me), self-hosted, and secured 
 (D-78). It is not a product and will not open to the public. Clean architecture still matters,
 so new sources, asset types and rules stay easy to add.
 
+**The why (D-80):** build wealth in three steps: **spend less → save more → invest well**. The savings
+rate (income − spend) / income is the one number that links them. The app should change habits, not
+just record them: it shows where money leaks and tells me without my having to open it.
+
 **North star:** _I open the console and within 10 seconds I know what I spent today, this
 month, and on what — without reading a single SMS, email, WhatsApp message, or statement,
 and without typing anything in._
@@ -89,6 +93,11 @@ the suffix `-T`/`-S` means keep and `-P` means promotional (drop).
 - **Guidance:** rules from **my own investment policy** (allocation and rebalancing, emergency fund, concentration, fees, goals), each with "how we got this".
   An AI may explain the why, but numbers come from code and it never picks securities (D-67). This is planning support for me, not regulated advice.
 
+### 5.6 Spending coach (P0, D-80, Epic E9)
+- **Where it leaks:** habit lenses (quick commerce, food delivery, nights out, shopping, pay-later, trips home): spend, orders, average order, late-night share, hidden fees, trend.
+- **Limits and nudges:** my own limits with pushes at 50/80/100%; an evening digest; a Sunday report card with one suggestion.
+- **Goals and savings rate:** "cut X by 30%" with streaks; the savings rate as the Home headline; a monthly leak shown as what it could become if invested (assumptions shown).
+
 ## 6. Milestones
 
 | # | Milestone | Outcome |
@@ -101,6 +110,7 @@ the suffix `-T`/`-S` means keep and `-P` means promotional (drop).
 | 6 | **Hardening.** Security, backups, hosting for me (public items parked, D-78) | My data is safe |
 | 7 | **Smart features.** Learned categories, smarter alerts, forecast, Ask your money (E7) | The app gets smarter as I correct it |
 | 8 | **Wealth.** Portfolio, net worth, policy-based guidance (E8) | I know what I own and what to do next |
+| 9 | **Spending coach.** Leaks, limits, nudges, goals, savings rate (E9; built before E8) | I spend less and save more |
 
 ## 7. Non-functional requirements
 
