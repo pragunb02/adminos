@@ -65,7 +65,7 @@ object CoachDigestsSentTable : Table("coach_digests_sent") {
     override val primaryKey = PrimaryKey(userId, kind, day)
 }
 
-/** Maps to db/migration/V43__coach_goals.sql (AOS-907). */
+/** Maps to db/migration/V37__coach_goals.sql (AOS-907). */
 object CoachGoalsTable : Table("coach_goals") {
     val id = javaUUID("id")
     val userId = javaUUID("user_id").references(UsersTable.id)

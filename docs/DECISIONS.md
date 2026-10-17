@@ -10,6 +10,7 @@
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
+| D-86 | Product | Goals on habit lenses: cut by X% vs a baseline frozen at creation (the 3 full months before) or keep under ₹Y, weekly or monthly, one per lens; progress per period with refunds netted; streaks are consecutive no-order days; goals never push | Accepted | AOS-907 |
 | D-85 | Architecture / Product | The Sunday report card is a BriefingSection of the weekly briefing (one notification, format weekly-v2): week vs the usual week, best and worst lens, limit outcomes, suggested limit ready, and exactly one rule-based suggestion (first rule that applies wins) | Accepted | AOS-906 |
 | D-84 | Product / Architecture | Evening digest: polled every 15 minutes, sent once per local day at or after the owner's time (default 21:30, never the next morning) via a claim row; today's spent, top two lenses and limits, deterministic text; optional skip on a zero day; a COACH notification under quiet hours | Accepted | AOS-905 |
 | D-83 | Product / Architecture | Limits: no limits during a 30-day learning month; per-lens suggested weekly limits (median of 4 weeks − 10%, rounded down to ₹50) that only push once accepted; lens, merchant or category, weekly or monthly; one push per (limit, period, threshold) at 50/80/100% via a claim ledger | Accepted | AOS-904 |
@@ -1274,3 +1275,12 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Suggestion rules, first that applies wins:** (1) would-have-saved: the biggest lens with ≥ 3 orders above its cap (accepted weekly limit, else usual − 10% down to ₹50, ≥ ₹100); (2) late night: ≥ 3 orders after the late-night start, with their total; (3) below usual by ≥ 10%: the saving and its monthly equivalent (× 4); (4) steady: the week's habit total (always applies).
 - **"Sunday":** the briefing's 7 days; by default Mon–Sun, delivered Monday 08:00.
 - **Rejected:** a separate weekly push (more nudges, duplicate scheduling); the briefing calling coach services directly (couples domains); AI-written suggestions (D-67, D-80).
+
+### D-86 — Goals freeze their baseline; streaks are no-order days
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product · Tasks: AOS-907 · Builds on D-46, D-80, D-82
+- **Kinds:** cut a lens by X% (1..90) vs the 3 full months before the goal began, or keep it under ₹Y; weekly (Mon–Sun) or monthly, in the user's zone; one goal per lens.
+- **Baseline frozen at creation** (per week = total × 7 ÷ days; per month = total ÷ 3); target rounded down to the rupee. A cut with nothing to cut from is refused.
+- **Progress:** up to 12 periods since the start; refunds net off; met = spent ≤ target.
+- **Streak:** consecutive days without an order in the lens ending today, and the best run in the last year since the first day with data; refunds don't break it.
+- **Shown** on the leaks page and Home; goals don't push (limits do, D-83).
+- **Rejected:** goals as flagged limits; a moving baseline.
