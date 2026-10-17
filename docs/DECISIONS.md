@@ -56,6 +56,7 @@
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
 | D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
+| D-66 | Architecture | WhatsApp chat export import: only bank senders (by display name) are parsed, through the same SMS rules (`parseFromBank`); fingerprint of sender, time and text makes re-import idempotent; day/month order read from the file (default day first); user-zone times; text never kept (D-33) | Accepted | AOS-403 |
 | D-65 | Product | Subscription detection looks back 400 days, uses the user's dates and calendar steps, takes the catalogue's category, and marks a subscription ended (reversibly) after two cycles without a charge; "cancel" gives honest steps (via the AutoPay mandate when one pays it), never a fake "queued" | Accepted | AOS-513 |
 | D-60 | Architecture | Documents vault: user-chosen files stored in Cloudflare R2 (any S3), envelope-encrypted in the app (per-file AES-256-GCM key wrapped with the app key); owner-only access via the API; extends D-37 (imported statements are still never kept) | Accepted | AOS-507 |
 | D-58 | Product | Subscription waste score in Kotlin from signals we have (price rise, duplicate service, cost share, long-running, dormant AutoPay, trial ending, marked unused); usage never guessed; ≥ 0.70 flags with reasons; "keep" remembers seen factors | Accepted | AOS-509 |
@@ -689,4 +690,14 @@ Proposed
   - the category from the merchant catalogue, then the charges, then Other.
 - **Ending:** no charge for two cycles plus 7 days marks a subscription cancelled with a reason; a new charge reverses it.
 - **Cancelling:** AdminOS can't cancel anything, so "how to cancel" gives real steps. When a mandate pays it, revoke the mandate first (the UPI app, bank e-mandates, or card standing instructions), then cancel with the service. Nothing pretends work was queued.
+
+### D-66 — WhatsApp chat export import
+2026-10-17 · Accepted (Pragun: "also start next task thinking and all") · Type: Architecture · Tasks: AOS-403
+- **Input:** a WhatsApp "Export chat" file, `.txt` (Android) or `.zip` with `_chat.txt` (iPhone), up to 20 MB, with at most 10 MB of chat text (capped while reading, so a zip bomb never inflates fully).
+- **Who is read:** only senders whose display name is a bank: known banks (HDFC, SBI, ICICI, Axis, Kotak) get their own parser; other names with bank/card/credit/finance get the generic one. People and groups are never parsed.
+- **How:** each bank message goes through the SMS registry's rules via `parseFromBank(text, bankCode)`: OTP and failed first, then mandate notices, then drop rules, then the bank parser. One rule set for SMS and WhatsApp.
+- **Dates:** day/month order is read from the file (a number over 12 decides), else day first. Times are in the user's zone; a message dated in the future is skipped with a reason.
+- **Idempotent:** `sourceRef` = SHA-256 of sender, time and normalised text. Re-importing, or importing a longer export, adds only new messages. The same alert received by SMS is matched by the pipeline's cross-source dedup.
+- **Privacy:** the chat is used in memory only; nothing about it is stored or logged (D-33).
+- **Rejected:** parsing every sender (a friend's "I paid 500" would become a transaction); a separate WhatsApp rule set (drift); storing the file.
 

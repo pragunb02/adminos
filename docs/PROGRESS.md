@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-16 by a Claude session. Update this file at the end of every session._
+_Last updated: 2026-10-17 by a Claude session. Update this file at the end of every session._
 
 ## Where we are
 
@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 code complete (S5.1–S5.4 ✅; AOS-509 merged). ~~AOS-401~~ Gmail sync merged (🟨 until a live Google check). Then: proposed (awaiting Pragun) AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other"; follow-ups from the agents (Gmail `users.watch`, a web "Connect Gmail" screen, subscription-detector fixes). Pragun: Cloudflare R2 bucket + token (`DOCS_S3_*`), VAPID keys and SMTP settings in `.env`; back up `TOKEN_ENCRYPTION_KEY`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
+**Next step:** AOS-403 WhatsApp export merged; AOS-402 (bot) needs Pragun's WhatsApp Cloud API setup. Integrate the agents' PRs (AOS-511/512, AOS-405/406, AOS-701 research + E7). Earlier: Epic E5 code complete (S5.1–S5.4 ✅; AOS-509 merged). ~~AOS-401~~ Gmail sync merged (🟨 until a live Google check). Then: proposed (awaiting Pragun) AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other"; follow-ups from the agents (Gmail `users.watch`, a web "Connect Gmail" screen, subscription-detector fixes). Pragun: Cloudflare R2 bucket + token (`DOCS_S3_*`), VAPID keys and SMTP settings in `.env`; back up `TOKEN_ENCRYPTION_KEY`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -88,6 +88,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 13. ~~AOS-505 anomaly windows used "now"~~ fixed. ~~AOS-508 card bills never matched~~ fixed (also: Postgres bill update dropped metadata, fixed). ~~AOS-506 `AsynqPublisher` stringified payloads~~ fixed. (was: turns every payload value into a string.
 14. `GET /notifications` lists every channel's record, so one reminder appears up to 3 times; an inbox should list in-app only (with the inbox screen task).
 15. ~~Subscription detector issues (found by AOS-509) and the fake cancel~~ fixed in AOS-513; also yearly plans were undetectable (90-day window) and next dates drifted (+30 days).
+16. Flaky e2e (seen in AOS-403, once on iphone-safari): `activity.spec.ts` "a Home period opens Activity with that date range" checks `api.calls` right after the filter appears, without waiting for the request; it passed 80/80 on repeat. Fix: wait with `expect.poll`.
 10. AOS-606 — `npm audit`: 5 high, dev-only (ESLint chain → `braces`); the only fix npm offers is a breaking downgrade.
 
 ## Uncommitted changes on `feat/personal-console` (AOS-002…004 docs, AOS-100 schema)
@@ -107,6 +108,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-17:**
+  - AOS-403: WhatsApp chat export import (D-66): `.txt`/`.zip` (iPhone + Android formats, multi-line, day/month detection, user-zone times), bank senders only by display name, same SMS rules via `SmsParserRegistry.parseFromBank`, idempotent fingerprints, 10 MB text cap also in zips; `POST /api/v1/imports/whatsapp`; web section on Import. API unit 1,331 / integration 116; web 334 (coverage 98.4% lines); Playwright 250 + 7 skips (one unrelated flake, known issue 16). Started in a background agent: AOS-701 AI/ML research and Epic E7.
   - AOS-513: subscription detection fixes (D-65) + honest "how to cancel" (dialog with steps, via the mandate when one pays it); review logic moved into `SubscriptionReviewService`. API unit 1,312 / integration 116; web 330; Playwright 247 + 7 skips. In parallel: background agents on AOS-511/512 (categorization eval + AI fallback) and AOS-403/404 (Gmail watch + Connect Gmail).
   - AOS-401 (background agent, reviewed + merged): Gmail sync (D-59): real history IDs, filtered 30-day fallback, financial senders only, full body in memory, Go reads/writes TokenEncryptor v2 (shared vector), connect flow checks the grant, manual sync really queued, daily `gmail-fallback-sync` with 24 h skip rule. Fixed 7 latent bugs (e.g. the old cron would have disconnected every connection with an expired access token). Follow-ups: `users.watch`, web Connect Gmail with OAuth state.
   - AOS-507: documents vault (D-60): envelope encryption in the app (per-file AES-256-GCM, key wrapped with the app key, SHA-256 checked), Cloudflare R2 / S3 adapter (AWS SDK, URL-connection client), owner-only API, expiry reminders, web /documents with Undo delete; V23. **Found:** over-limit multipart uploads were 500s (statements too) — now 413 globally. MinIO images gone → tests use Adobe S3Mock. API unit 1,283 / integration 114; web 330, Playwright 247 + 7 skips.

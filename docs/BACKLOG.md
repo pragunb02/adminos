@@ -100,15 +100,15 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-307](tickets/AOS-307.md) | Activity: search, filters in URL, edit sheet, re-categorize + undo; feed paging fix | Claude | ✅ | 3h | 2h |
 | └ [AOS-309](tickets/AOS-309.md) | Review: confirm or reject duplicates / transfers / refunds, Undo before sending (D-45, D-49) | Claude | ✅ | 2h | 1.25h |
 
-## ⬜ [AOS-E4](tickets/AOS-E4.md) — More sources · P1 · ETA 18h
+## 🟦 [AOS-E4](tickets/AOS-E4.md) — More sources · P1 · ETA 18h
 
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S4.1](tickets/AOS-S4.1.md)** | **Gmail import** | | ⬜ | 6h | |
 | └ [AOS-401](tickets/AOS-401.md) | Gmail incremental sync (real history ID), full body, sender filters, encrypted tokens, connect flow, daily fallback with skip rule (D-59) — live check needs AOS-111 | Claude (agent) | 🟨 | 5h | 4.5h |
-| **[AOS-S4.2](tickets/AOS-S4.2.md)** | **WhatsApp capture** | | ⬜ | 9h | |
+| **[AOS-S4.2](tickets/AOS-S4.2.md)** | **WhatsApp capture** | | 🟦 | 9h | |
 | └ AOS-402 | WhatsApp forward-to-bot (Cloud API) | Claude + Pragun | ⬜ | 6h |  |
-| └ AOS-403 | WhatsApp export `.txt` import | Claude | ⬜ | 3h |  |
+| └ [AOS-403](tickets/AOS-403.md) | WhatsApp chat export import (`.txt` / `.zip`), bank senders only, same rules as SMS (D-66) | Claude | ✅ | 3h | 2h |
 | **[AOS-S4.3](tickets/AOS-S4.3.md)** | **SMS history backfill** | | ⬜ | 3h | |
 | └ AOS-404 | Mac chat.db SMS backfill (delivered in AOS-203: `--backfill-days`) | Claude | ✅ | 3h | 0h |
 
