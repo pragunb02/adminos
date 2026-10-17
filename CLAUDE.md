@@ -19,7 +19,7 @@ architecture clean and extensible, but build nothing for other users.
 - Work in small steps on a feature branch; never commit to `main` directly.
 - Commit, push, open PRs and merge to `main` are allowed for this repo (Pragun, 2026-10-16), one PR per task.
   - Use `gh auth switch --hostname github.com --user pragunb02` first.
-  - **Merge only after the security check has reported success**, using `scripts/merge-pr.sh N`.
+  - **Merge only after the security check has reported success**, using main's copy of the merge script: `git fetch origin && git show origin/main:scripts/merge-pr.sh | bash -s -- N` (a PR can't change its own gate, D-101).
     - It waits for every check to complete, merges only if all are `success`, and otherwise exits without merging (including on a timeout).
     - Never hand-roll a wait loop: one that waited for "success" and then merged after a timeout let a failed check through (2026-10-16, PR #43).
 - **Tickets (D-25):** Epic `AOS-E<n>` → Story `AOS-S<n>.<m>` → Task `AOS-<n><nn>`. New tickets copy `docs/tickets/_templates/`.
@@ -37,8 +37,8 @@ architecture clean and extensible, but build nothing for other users.
   - no new public exposure.
   A security finding blocks the merge.
 - **Every PR gets a code review and a security review before merge (`docs/ENGINEERING.md` §4b, D-101):**
-  - two independent reviewer agents, each setting `review/code` / `review/security` on the head commit with `scripts/review-status.sh`;
-  - `scripts/merge-pr.sh` refuses to merge without both, and a new push needs a fresh review.
+  - two independent reviewer agents, each setting `review/code` / `review/security` on the commit it reviewed with `scripts/review-status.sh`;
+  - GitHub branch protection and the merge script refuse to merge without both; a new push needs a fresh review.
 - If you find a bug, report it and mention it in PROGRESS.md; don't silently fix things outside the agreed step.
 
 ## Stack

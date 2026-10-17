@@ -929,6 +929,10 @@ Type: Architecture / Security · Tasks: AOS-616 · Builds on D-91, D-32, D-59
 2026-10-18 · Accepted (Pragun: "add a review step (code and security reviewers) on every PR before merge") · Type: Process · Tasks: AOS-013 · Builds on D-91, D-100
 - **Who:** two reviewer agents that did not write the change: code (correctness, layers, coding rules, tests) and security (the D-100 gate and the threat model). They use `/code-review` and `/security-review` with the ticket and ENGINEERING.md.
 - **Verdict:** a PR comment with findings, and a commit status on the head SHA set with `scripts/review-status.sh`. Blocking: any correctness bug, any security finding, missing tests for an acceptance criterion, a broken layer rule.
-- **Enforced:** `scripts/merge-pr.sh` refuses to merge unless every check run and both review statuses are `success` on the head commit. A new push has no status, so it needs a fresh review.
+- **Enforced:**
+  - GitHub branch protection on `main` (admins included) requires GitGuardian and both review statuses on an up-to-date head.
+  - `scripts/merge-pr.sh`, always run from main's copy, also requires every check run, takes the newest status per context and only if the owner's account created it, and pins the merge to the reviewed SHA.
+  - A new push has no status, so it needs a fresh review.
+  - The statuses come from the owner's own token: they record that the process ran; they are not cryptographic proof.
 - **Rejected:** GitHub required approvals (the author can't approve their own PRs, and every PR comes from one account); a checklist-only review.
 
