@@ -41,7 +41,7 @@ data class AppConfig(
                 port = env("PORT", "8080").toInt(),
                 // Loopback by default; the Docker image sets 0.0.0.0, where the 127.0.0.1-only publish is the boundary.
                 bindHost = env("BIND_HOST", "127.0.0.1"),
-                appUrl = env("APP_URL", "http://localhost:3000"),
+                appUrl = appUrl(),
                 apiUrl = env("API_URL", "http://localhost:8080")
             ),
             security = SecurityConfig(
@@ -94,6 +94,26 @@ data class AppConfig(
             org.slf4j.LoggerFactory.getLogger(AppConfig::class.java)
                 .warn("OWNER_EMAIL not set: nobody can sign in with Google (in-memory dev mode).")
             return ""
+        }
+
+        /**
+         * `APP_URL`, the one origin the browser uses (D-32), e.g. `https://adminos.<tailnet>.ts.net` (AOS-616).
+         * Fail closed: it must be a bare origin (no path, query, fragment or credentials), and plain `http` is
+         * allowed only for a loopback host. Anything else stops start-up, so cookies are never sent without
+         * `Secure` and the OAuth redirect never points at a cleartext or malformed address.
+         */
+        internal fun appUrl(getenv: (String) -> String? = System::getenv): String {
+            val raw = getenv("APP_URL")?.trim()?.removeSuffix("/").orEmpty()
+            if (raw.isEmpty()) return "http://localhost:3000"
+            val uri = runCatching { java.net.URI(raw) }.getOrNull()
+            require(
+                uri != null && uri.scheme?.lowercase() in setOf("http", "https") && !uri.host.isNullOrBlank() &&
+                    uri.rawUserInfo == null && uri.rawPath.isNullOrEmpty() && uri.rawQuery == null && uri.rawFragment == null
+            ) { "APP_URL must be an origin like https://adminos.example.ts.net (no path, query or credentials)" }
+            require(uri.scheme.equals("https", ignoreCase = true) || dev.adminos.api.domain.identity.isLocalDevUrl(raw)) {
+                "APP_URL must use https unless the host is localhost, 127.0.0.1 or ::1 (got ${uri.scheme}://${uri.host})"
+            }
+            return raw
         }
 
         private val PLACEHOLDER = Regex("(?i)^(change[-_]?me|generate[-_]|your[-_])")

@@ -1,0 +1,50 @@
+# Private access over Tailscale, as a sidecar (AOS-616, D-91). Optional: on the owner's Mac the Tailscale app
+# with `tailscale serve` does the same job (docs/guides/PRIVATE-ACCESS.md). Use this on a server/VPS:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tailnet.yml --profile full up -d
+#
+# What it does: joins the tailnet as `adminos` and serves https://adminos.<tailnet>.ts.net (a Let's Encrypt
+# certificate Tailscale provisions) to the web app over the compose network. Tailnet only: Funnel is off in
+# serve.json, and nothing here publishes a host port. Who may connect is decided by the tailnet policy
+# (only the owner's devices; see the guide).
+#
+# TS_AUTHKEY: a one-off (not reusable), pre-tagged `tag:adminos` auth key from the Tailscale admin console.
+# After the first start the node's state lives in the `tailscale_state` volume and the key is no longer used
+# (TS_AUTH_ONCE), so it can be removed from .env.
+services:
+  tailscale:
+    profiles: ["full"]           # runs with the web app and API it fronts
+    image: tailscale/tailscale:v1.104.1@sha256:87c55d6be56ad85b3d8bceca5f87f73de288c609131460dd1be1874c250cc41d
+    hostname: adminos
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?}
+      TS_AUTH_ONCE: "true"
+      TS_HOSTNAME: adminos
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "true"            # no /dev/net/tun and no NET_ADMIN: the container needs no privileges
+      TS_ACCEPT_DNS: "false"
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_EXTRA_ARGS: --advertise-tags=tag:adminos
+      TS_ENABLE_HEALTH_CHECK: "true"
+      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002   # health/metrics on the container's own loopback only
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+      - ./deploy/tailscale/serve.json:/config/serve.json:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      web-app:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9002/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  tailscale_state:
