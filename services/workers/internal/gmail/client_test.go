@@ -3,18 +3,21 @@ package gmail
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
 
-// newTestClient creates a Client pointing at the given mock server URL.
+// newTestClient creates a Client pointing at the given mock server URL, without retries.
 func newTestClient(gmailURL, tokenURL string) *Client {
 	return &Client{
 		httpClient:   &http.Client{Timeout: 5 * time.Second},
 		gmailBaseURL: gmailURL,
 		tokenURL:     tokenURL,
+		retry:        RetryPolicy{Attempts: 1},
+		sleep:        sleepCtx,
 	}
 }
 
@@ -148,8 +151,8 @@ func TestRefreshToken_Revoked(t *testing.T) {
 		t.Fatal("expected error for revoked token")
 	}
 
-	_, ok := err.(*TokenRevokedError)
-	if !ok {
+	var revoked *TokenRevokedError
+	if !errors.As(err, &revoked) {
 		t.Fatalf("expected *TokenRevokedError, got %T: %v", err, err)
 	}
 }
@@ -167,8 +170,8 @@ func TestListMessages_RateLimit429(t *testing.T) {
 		t.Fatal("expected error for 429 response")
 	}
 
-	retryErr, ok := err.(*RetryableError)
-	if !ok {
+	var retryErr *RetryableError
+	if !errors.As(err, &retryErr) {
 		t.Fatalf("expected *RetryableError, got %T: %v", err, err)
 	}
 	if retryErr.StatusCode != 429 {
@@ -189,8 +192,8 @@ func TestGetMessage_AuthError401(t *testing.T) {
 		t.Fatal("expected error for 401 response")
 	}
 
-	_, ok := err.(*PermanentError)
-	if !ok {
+	var permanent *PermanentError
+	if !errors.As(err, &permanent) {
 		t.Fatalf("expected *PermanentError, got %T: %v", err, err)
 	}
 }

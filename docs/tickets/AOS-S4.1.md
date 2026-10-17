@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E4](AOS-E4.md) |
-| **Status** | ⬜ Todo |
+| **Status** | 🟦 In progress |
 | **Priority** | P1 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 6h |
@@ -21,7 +21,7 @@
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-401 | Gmail incremental sync, full body, sender filters, encrypted tokens | Claude | ⬜ | 6h |  |
+| [AOS-401](AOS-401.md) | Gmail incremental sync, full body, sender filters, encrypted tokens, fallback job | Claude (agent) | 🟨 | 6h | 4.5h |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -30,3 +30,4 @@ A new receipt email appears
 
 ## Activity log
 - 2026-10-16 — Claude: story created (AOS-004).
+- 2026-10-17 — Claude: AOS-401 merged (🟨 until a live Google check, AOS-111). Follow-ups: `users.watch` registration/renewal; web "Connect Gmail" with OAuth state check.

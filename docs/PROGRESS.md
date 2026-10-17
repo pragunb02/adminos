@@ -16,7 +16,7 @@ _Last updated: 2026-10-16 by a Claude session. Update this file at the end of ev
 **Active branch:** `feat/personal-console`, not committed. The changes on it are in
 "Uncommitted changes" below.
 
-**Next step:** Epic E5 code complete (S5.1–S5.4 ✅; AOS-509 merged). AOS-401 Gmail sync PR to review and merge. Then: proposed (awaiting Pragun) AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other"; follow-ups from the agents (Gmail `users.watch`, a web "Connect Gmail" screen, subscription-detector fixes). Pragun: Cloudflare R2 bucket + token (`DOCS_S3_*`), VAPID keys and SMTP settings in `.env`; back up `TOKEN_ENCRYPTION_KEY`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
+**Next step:** Epic E5 code complete (S5.1–S5.4 ✅; AOS-509 merged). ~~AOS-401~~ Gmail sync merged (🟨 until a live Google check). Then: proposed (awaiting Pragun) AOS-511 categorization eval harness, AOS-512 AI fallback categorizer for "Other"; follow-ups from the agents (Gmail `users.watch`, a web "Connect Gmail" screen, subscription-detector fixes). Pragun: Cloudflare R2 bucket + token (`DOCS_S3_*`), VAPID keys and SMTP settings in `.env`; back up `TOKEN_ENCRYPTION_KEY`; iPhone → Add to Home Screen → Settings → Turn on notifications; AOS-111 OAuth client; AOS-211/212 real SMS and statements; GitGuardian incidents 38276594, 38288540, 38289280 → false positive.
 Board: `docs/BACKLOG.md`. Tickets: `docs/tickets/` (Epic → Story → Task, D-25).
 
 **BRD status:** v2 approved 2026-10-16. Revised with research; decisions D-15 to D-22.
@@ -39,7 +39,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 | Google login | ✅ | 🟡 | Web↔API path verified live; needs Pragun's OAuth client (AOS-111) for the real check (AOS-112) |
 | API → worker queue | ✅ | ❌ | `AsynqPublisher` stringifies payload values; split workers drop task types; manual sync never enqueues |
 | SMS ingest (API + Go) | ✅ | ❌ | Payload bug; every transaction saved as `debit`; no phone app |
-| Gmail ingest (Go → pipeline) | 🟡 | ❌ | Writes `ingest_events` (AOS-205), so dedup/transfers/refunds/categories apply. Still: snippet only, fake history ID, no Pub/Sub watch (AOS-401). Needs login + OAuth (AOS-111) |
+| Gmail ingest (Go → pipeline) | ✅ | 🟡 | Incremental sync from real history IDs, financial senders only, encrypted tokens, daily fallback (AOS-401, D-59). Still: no `users.watch` (push), needs login + OAuth (AOS-111) |
 | Statement import (API → parser) | ✅ | ✅ | PDF/CSV/Excel, passwords; files never stored (D-37) |
 | Statement parser (Python) | ✅ | ✅ | Called by the API; 31 tests |
 | Cash quick-add (AOS-204) | ✅ | 🟡 | `POST /transactions/cash` + "+ Cash" button; through the pipeline; tested (unit, route, Postgres). Not yet used live: needs login (AOS-112) |
@@ -79,8 +79,8 @@ Verified on 2026-10-16 on `main` (before branch changes):
 3. ~~AOS-201~~ SMS no longer crosses Kotlin→Go (D-34). Gmail/PDF Go paths → AOS-401/202.
 4. ~~AOS-110 missing API Dockerfile~~ fixed; the whole stack runs.
 5. ~~AOS-205~~ fixed: Gmail now writes ingest events with a detected direction (D-43); no Go path writes `transactions` any more.
-7. AOS-401 — the Gmail worker stores a made-up `history_id` (`history_<unix time>`) after each sync, so incremental sync can't work yet.
-6. AOS-601 — Gmail tokens stored in plain text (`gmail_handler.go:185`).
+7. ~~AOS-401 fake `history_id`~~ fixed: real history IDs, history.list, 30-day filtered fallback (D-59).
+6. ~~AOS-601 Gmail tokens in plain text~~ fixed in AOS-401: the worker shares the API's TokenEncryptor v2 format.
 8. ~~AOS-307 float amounts / missing nature~~ fixed in AOS-611.
 9. Onboarding copy still describes an Android SMS app (D-19: iPhone); the subscriptions "cancellation draft" modal can never open (dead code). Fold into the console redesign (AOS-302…).
 11. ~~AOS-607~~ fixed: the whole `JWT_SECRET` is the HMAC key. Existing sessions and device tokens must be re-issued once (sign in again; new Mac SMS reader token).
@@ -107,6 +107,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-17:**
+  - AOS-401 (background agent, reviewed + merged): Gmail sync (D-59): real history IDs, filtered 30-day fallback, financial senders only, full body in memory, Go reads/writes TokenEncryptor v2 (shared vector), connect flow checks the grant, manual sync really queued, daily `gmail-fallback-sync` with 24 h skip rule. Fixed 7 latent bugs (e.g. the old cron would have disconnected every connection with an expired access token). Follow-ups: `users.watch`, web Connect Gmail with OAuth state.
   - AOS-507: documents vault (D-60): envelope encryption in the app (per-file AES-256-GCM, key wrapped with the app key, SHA-256 checked), Cloudflare R2 / S3 adapter (AWS SDK, URL-connection client), owner-only API, expiry reminders, web /documents with Undo delete; V23. **Found:** over-limit multipart uploads were 500s (statements too) — now 413 globally. MinIO images gone → tests use Adobe S3Mock. API unit 1,283 / integration 114; web 330, Playwright 247 + 7 skips.
   - AOS-509 (background agent, reviewed + merged): waste score (D-58), V24; follow-ups reported: detector always saves category OTHER, never ends stopped subscriptions, uses `!!` and UTC dates; SubscriptionAgentRoutes calls the repository from a route; cancel route still a stub.
   - AOS-506: weekly briefing (D-57): deterministic, from analytics + dues + anomalies + flagged subs + dormant mandates; user's day/time/zone; once per week with catch-up; BRIEFING notification; `formatInr()`; queue payloads typed. API unit 1,229 / integration 108.

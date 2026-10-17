@@ -55,6 +55,7 @@
 | D-48 | Process | API coverage gate: Kover over the whole API (incl. legacy modules) at 90% lines / 85% branches; legacy MVP modules are kept as live code and brought to the bar | Accepted | AOS-312, AOS-608…613 |
 | D-49 | Product | Console design: minimal and calm; 5 tabs (Home, Spending, Activity, Review, More); bars/lines only, no pies; undo over confirm; colour never the only signal; Indian number formatting | Accepted | AOS-302…309 |
 | D-50 | Architecture | Scheduled jobs run in-process in the API; each (job, slot) is claimed in `job_runs` so it runs once across instances and restarts; bounded retries; a job is one registered class | Accepted | AOS-501 |
+| D-59 | Architecture | Gmail sync starts from the stored history ID (never the push's), falls back to a 30-day filtered full sync, reads only financial senders, worker shares the API's TokenEncryptor v2 tokens, daily fallback with a 24 h push/manual skip rule | Accepted | AOS-401 |
 | D-60 | Architecture | Documents vault: user-chosen files stored in Cloudflare R2 (any S3), envelope-encrypted in the app (per-file AES-256-GCM key wrapped with the app key); owner-only access via the API; extends D-37 (imported statements are still never kept) | Accepted | AOS-507 |
 | D-58 | Product | Subscription waste score in Kotlin from signals we have (price rise, duplicate service, cost share, long-running, dormant AutoPay, trial ending, marked unused); usage never guessed; ≥ 0.70 flags with reasons; "keep" remembers seen factors | Accepted | AOS-509 |
 | D-57 | Product | Weekly briefing is deterministic: made in the API from the console's analytics and dues, written by a template (no LLM for numbers); on the user's day/time/zone, once per week, catch-up within the week; queue payloads keep JSON types | Accepted | AOS-506 |
@@ -652,4 +653,29 @@ Proposed
 - **Access:** only through the API, after sign-in, and only to the owner. Anyone else gets 404, and secrets are never returned.
 - **Without storage settings:** dev mode keeps files in memory (logged loudly). With a database, uploads are refused (503) rather than stored somewhere unsafe.
 - **Consequence:** the vault is as safe as `TOKEN_ENCRYPTION_KEY`, which must be backed up.
+
+### D-59 — Gmail sync: start point, filters, shared token encryption, daily fallback
+2026-10-17 · Accepted (built in parallel by a background agent at Pragun's request, reviewed and merged by Claude) · Type: Architecture · Tasks: AOS-401
+- **Start point:** a sync always starts from the history ID **stored on the connection** (`users.history.list`, messages added). The push notification's history ID is informational, because it is the mailbox's new position.
+  - After a sync the connection stores Gmail's real history ID: from `history.list`, or from `users.getProfile` read before a full sync starts.
+  - It only moves forward (numeric compare), and only on a successful sync.
+- **Fallback:** with no usable history ID (none, or not a Gmail number), or when Gmail answers 404 (expired), a full sync runs over the last 30 days, at most 500 messages, with the filtered search.
+- **Only financial mail is read:** a data list of sender domains (incl. `bank.in`), addresses and subject phrases.
+  - A full sync searches `newer_than:30d (from:(…) OR subject:(…))`.
+  - An incremental sync reads only From/Subject of each new message, and fetches the full body only when they match. Spam, trash, drafts and chats are never read.
+- **Body:** text/plain, else HTML stripped to text, max 64 KB. It is used in memory for extraction only; it is never stored, serialised or logged, and Gmail errors carry statuses, not bodies (D-33).
+- **Tokens:** the worker reads and writes the API's `TokenEncryptor` v2 format: `v2:` + base64(iv‖ct‖tag), AES-256-GCM, AAD `user_connections:<id>:<field>`, key `TOKEN_ENCRYPTION_KEY`.
+  - Plain-text legacy tokens are read once and re-encrypted; pre-AOS-608 ciphertext is refused.
+  - A shared vector (key = SHA-256 of a public seed, computed at test time) is tested by both services.
+  - The Gmail worker refuses to start without the key.
+- **Connect:** Gmail is connected only with `gmail.readonly` granted and a refresh token. The expiry and scopes are stored, and the first full sync is queued.
+- **Retries:** 429, 5xx and network errors are retried with exponential backoff (4 tries); 401/403/404 are not. A failed sync is recorded on the session and the connection with a short reason; a revoked grant puts the connection in `error`.
+- **Daily fallback:** the `gmail-fallback-sync` scheduled job (06:00, D-50) queues a sync for every connected Gmail connection, unless a push or manual sync of it completed in the last 24 h.
+  - The fallback's own syncs don't count, so a connection without push syncs daily.
+  - An expired access token is never a reason to disconnect.
+- **Rejected:**
+  - starting from the notification's history ID;
+  - date-window searches instead of history;
+  - the API refreshing tokens for the worker (a new internal endpoint);
+  - an Asynq periodic task for the fallback.
 

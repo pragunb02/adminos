@@ -105,7 +105,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S4.1](tickets/AOS-S4.1.md)** | **Gmail import** | | ⬜ | 6h | |
-| └ AOS-401 | Gmail incremental sync (real history ID), full body, sender filters, encrypted tokens, OAuth connect flow, cron skip rule (pipeline hand-off ✅ AOS-205) | Claude | ⬜ | 5h |  |
+| └ [AOS-401](tickets/AOS-401.md) | Gmail incremental sync (real history ID), full body, sender filters, encrypted tokens, connect flow, daily fallback with skip rule (D-59) — live check needs AOS-111 | Claude (agent) | 🟨 | 5h | 4.5h |
 | **[AOS-S4.2](tickets/AOS-S4.2.md)** | **WhatsApp capture** | | ⬜ | 9h | |
 | └ AOS-402 | WhatsApp forward-to-bot (Cloud API) | Claude + Pragun | ⬜ | 6h |  |
 | └ AOS-403 | WhatsApp export `.txt` import | Claude | ⬜ | 3h |  |

@@ -20,6 +20,7 @@ import (
 	"github.com/adminos/adminos/workers/internal/config"
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/handlers"
+	"github.com/adminos/adminos/workers/internal/tokencrypt"
 	"github.com/adminos/adminos/workers/internal/workflow"
 )
 
@@ -70,14 +71,22 @@ func main() {
 	// Initialize Gmail API client
 	gmailClient := gmail.NewClient()
 
-	registerHandlers(router, cfg.WorkerType, db, claudeClient, gmailClient, cfg.GoogleClientID, cfg.GoogleClientSecret)
+	gmailCfg, err := gmailConfig(cfg)
+	if err != nil {
+		log.Fatalf("Refusing to start: %v", err)
+	}
+	if gmailCfg == nil && cfg.WorkerType == "gmail" {
+		log.Fatalf("Refusing to start the Gmail worker: TOKEN_ENCRYPTION_KEY is not set (%s)", tokencrypt.KeyHelp)
+	}
+
+	registerHandlers(router, cfg.WorkerType, db, claudeClient, gmailClient, gmailCfg)
 
 	// Create Asynq server
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		asynq.Config{
-			Concurrency: 10,
-			Queues:      map[string]int{"default": 1},
+			Concurrency:    10,
+			Queues:         map[string]int{"default": 1},
 			RetryDelayFunc: asynq.DefaultRetryDelayFunc,
 		},
 	)
@@ -119,16 +128,35 @@ func main() {
 
 // registerHandlers registers job handlers based on worker type.
 // SMS and statements are no longer processed here: the API's ingest pipeline owns them (D-34, D-37).
-func registerHandlers(router *workflow.Router, workerType string, db *pgxpool.Pool, claudeClient *claude.Client, gmailClient *gmail.Client, googleClientID, googleClientSecret string) {
+// gmailConfig builds the Gmail handler's settings: nil when TOKEN_ENCRYPTION_KEY is unset (Gmail
+// ingestion is then off, and says so), an error when it is set but malformed.
+func gmailConfig(cfg *config.Config) (*handlers.GmailConfig, error) {
+	if cfg.TokenEncryptionKey == "" {
+		log.Println("TOKEN_ENCRYPTION_KEY not set — Gmail ingestion is OFF (its OAuth tokens can't be read)")
+		return nil, nil
+	}
+	cipher, err := tokencrypt.New(cfg.TokenEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+	return &handlers.GmailConfig{ClientID: cfg.GoogleClientID, ClientSecret: cfg.GoogleClientSecret, Cipher: cipher}, nil
+}
+
+func registerHandlers(router *workflow.Router, workerType string, db *pgxpool.Pool, claudeClient *claude.Client, gmailClient *gmail.Client, gmailCfg *handlers.GmailConfig) {
+	registerGmail := func() {
+		if gmailCfg != nil {
+			router.Register(handlers.NewGmailHandler(db, gmailClient, *gmailCfg))
+		}
+	}
 	switch workerType {
 	case "gmail":
-		router.Register(handlers.NewGmailHandler(db, gmailClient, googleClientID, googleClientSecret))
+		registerGmail()
 	case "agent":
 		router.Register(handlers.NewBriefingHandler(db, claudeClient))
 		router.Register(handlers.NewAnomalyExplainHandler(db, claudeClient))
 		router.Register(handlers.NewWasteScoringHandler(db))
 	case "all":
-		router.Register(handlers.NewGmailHandler(db, gmailClient, googleClientID, googleClientSecret))
+		registerGmail()
 		router.Register(handlers.NewBriefingHandler(db, claudeClient))
 		router.Register(handlers.NewAnomalyExplainHandler(db, claudeClient))
 		router.Register(handlers.NewWasteScoringHandler(db))

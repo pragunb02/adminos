@@ -83,6 +83,24 @@ class GoogleOAuthClient(
     }
 
     /**
+     * Google's consent page for connecting Gmail (AOS-401): read-only Gmail plus the address,
+     * offline access (a refresh token) and a fresh consent so Google always returns one.
+     * Null when no Google client is configured.
+     */
+    fun gmailConsentUrl(redirectUri: String): String? {
+        if (config.googleClientId.isBlank()) return null
+        return "https://accounts.google.com/o/oauth2/v2/auth?" + formEncode(
+            "client_id" to config.googleClientId,
+            "redirect_uri" to redirectUri,
+            "response_type" to "code",
+            "scope" to "openid email ${dev.adminos.api.domain.ingestion.connection.GMAIL_READONLY_SCOPE}",
+            "access_type" to "offline",
+            "prompt" to "consent",
+            "include_granted_scopes" to "true"
+        )
+    }
+
+    /**
      * Legacy method — exchanges code and returns only user info.
      */
     suspend fun exchangeCode(code: String, redirectUri: String): GoogleUserInfo {

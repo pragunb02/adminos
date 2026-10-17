@@ -53,8 +53,8 @@ val testAppModule = module {
     single { AuditService(get(), kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())) }
     single { AuthService(get(), get(), get(), get(), get<AppConfig>().auth) }
     single { IngestionService(IngestEventService(InMemoryIngestEventRepository()), get()) }
-    single { ConnectionService(get(), get(), get()) }
-    single { GmailCronService(get(), get()) }
+    single { ConnectionService(get(), get(), get(), get()) }
+    single { GmailCronService(get(), get(), get()) }
     single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
     single { CategorizationService(get()) }
     single { CategoryCorrectionService(get(), get()) }

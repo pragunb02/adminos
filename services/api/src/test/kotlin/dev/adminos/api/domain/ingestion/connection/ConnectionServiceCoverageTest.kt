@@ -51,6 +51,93 @@ class ConnectionServiceCoverageTest {
         assertEquals(null, again.historyId)
     }
 
+    // --- AOS-401: connecting Gmail from a Google grant, and Gmail syncs ---
+
+    private val ingestion = dev.adminos.api.domain.ingestion.sync.IngestionService(
+        dev.adminos.api.domain.ingestion.events.IngestEventService(dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository()), syncSessions
+    )
+    private val withQueue = ConnectionService(connections, syncSessions, encryptor, ingestion)
+    private val issuedAt = Instant.parse("2026-10-17T06:00:00Z")
+    private fun grant(scope: String? = "openid email $GMAIL_READONLY_SCOPE", refresh: String? = "1//0g-refresh") =
+        OAuthGrant.fromGoogle("ya29.access", refresh, 3599, scope, issuedAt)
+
+    @Test
+    fun `connecting gmail stores encrypted tokens with their expiry and scopes and queues the first sync`() = runBlocking<Unit> {
+        val conn = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+
+        val stored = assertNotNull(connections.findById(conn.id))
+        assertEquals("ya29.access", encryptor.decrypt(stored.accessToken!!, "user_connections:${conn.id}:access_token"))
+        assertEquals("1//0g-refresh", encryptor.decrypt(stored.refreshToken!!, "user_connections:${conn.id}:refresh_token"))
+        assertEquals(issuedAt.plusSeconds(3599), stored.tokenExpiresAt)
+        assertEquals(listOf("openid", "email", GMAIL_READONLY_SCOPE), stored.oauthScope)
+        val first = syncSessions.findByUserId(userId).single()
+        assertEquals(dev.adminos.api.domain.ingestion.sync.SyncType.HISTORICAL, first.syncType)
+        assertEquals(conn.id, first.connectionId)
+    }
+
+    @Test
+    fun `connecting gmail again while connected queues nothing more`() = runBlocking<Unit> {
+        withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+
+        withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+
+        assertEquals(1, syncSessions.findByUserId(userId).size)
+    }
+
+    @Test
+    fun `reconnecting a disconnected gmail queues a new first sync`() = runBlocking<Unit> {
+        val old = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        withQueue.disconnect(userId, old.id)
+
+        val again = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+
+        assertEquals(old.id, again.id)
+        assertEquals(2, syncSessions.findByUserId(userId).size)
+    }
+
+    @Test
+    fun `a grant without gmail read access is refused`() = runBlocking<Unit> {
+        for (scope in listOf("openid email", null)) {
+            assertFailsWith<GmailGrantException.ReadAccessMissing> { withQueue.connectGmail(userId, "pragun.b@gmail.com", grant(scope = scope)) }
+        }
+        assertNull(connections.findByUserAndSource(userId, SourceType.GMAIL))
+    }
+
+    @Test
+    fun `a grant without a refresh token is refused`() = runBlocking<Unit> {
+        for (refresh in listOf(null, " ")) {
+            assertFailsWith<GmailGrantException.OfflineAccessMissing> { withQueue.connectGmail(userId, "pragun.b@gmail.com", grant(refresh = refresh)) }
+        }
+        assertTrue(syncSessions.findByUserId(userId).isEmpty())
+    }
+
+    @Test
+    fun `a grant never prints its tokens and needs an access token`() {
+        val g = grant()
+        assertFalse("ya29" in g.toString() || "1//0g" in g.toString())
+        assertNull(OAuthGrant.fromGoogle("ya29.x", null, null, null, issuedAt).expiresAt)
+        assertFailsWith<IllegalArgumentException> { OAuthGrant(" ", null, null, emptyList()) }
+        assertEquals("Gmail read access was not granted", GmailGrantException.ReadAccessMissing().message)
+    }
+
+    @Test
+    fun `a manual gmail sync is queued for the worker as manual`() = runBlocking<Unit> {
+        val conn = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+
+        val session = withQueue.triggerManualSync(userId, conn.id)
+
+        assertEquals(dev.adminos.api.domain.ingestion.sync.SyncType.MANUAL, session.syncType)
+        assertEquals(dev.adminos.api.domain.ingestion.sync.SyncSessionStatus.QUEUED, session.status)
+        assertEquals(session.id, syncSessions.findById(session.id)?.id)
+    }
+
+    @Test
+    fun `a manual sync of another source is only recorded`() = runBlocking<Unit> {
+        val sms = withQueue.createConnection(userId, SourceType.SMS)
+
+        assertEquals(dev.adminos.api.domain.ingestion.sync.SyncType.MANUAL, withQueue.triggerManualSync(userId, sms.id).syncType)
+    }
+
     @Test
     fun `disconnecting an unknown connection is not found`() = runBlocking<Unit> {
         assertFailsWith<ConnectionNotFoundException> { service.disconnect(userId, UUID.randomUUID()) }

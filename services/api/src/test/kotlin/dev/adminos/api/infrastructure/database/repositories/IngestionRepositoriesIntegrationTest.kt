@@ -88,4 +88,24 @@ class IngestionRepositoriesIntegrationTest {
         }
         assertEquals(SyncType.entries.size, syncSessions.findByUserId(userId).size)
     }
+
+    @Test
+    fun `last completed time counts only completed sessions of the given types for that connection`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val connection = newConnection(userId)
+        val other = newConnection(PostgresTestDatabase.newUser())
+        val at = { h: Long -> java.time.Instant.parse("2026-10-16T00:00:00Z").plusSeconds(h * 3600) }
+        suspend fun session(conn: UserConnection, type: SyncType, status: SyncSessionStatus, completed: java.time.Instant?) =
+            syncSessions.save(SyncSession(userId = conn.userId, connectionId = conn.id, syncType = type, status = status, completedAt = completed))
+        session(connection, SyncType.MANUAL, SyncSessionStatus.COMPLETED, at(1))
+        session(connection, SyncType.INCREMENTAL, SyncSessionStatus.COMPLETED, at(5))
+        session(connection, SyncType.INCREMENTAL, SyncSessionStatus.FAILED, at(9))          // not completed
+        session(connection, SyncType.CRON_FALLBACK, SyncSessionStatus.COMPLETED, at(12))    // not asked for
+        session(other, SyncType.MANUAL, SyncSessionStatus.COMPLETED, at(20))                // another connection
+
+        assertEquals(at(5), syncSessions.lastCompletedAt(connection.id, setOf(SyncType.MANUAL, SyncType.INCREMENTAL)))
+        assertEquals(at(12), syncSessions.lastCompletedAt(connection.id, setOf(SyncType.CRON_FALLBACK)))
+        assertEquals(null, syncSessions.lastCompletedAt(connection.id, setOf(SyncType.HISTORICAL)))
+        assertEquals(null, syncSessions.lastCompletedAt(connection.id, emptySet()))
+    }
 }

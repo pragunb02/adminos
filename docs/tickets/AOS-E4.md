@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | **Type** | Epic |
-| **Status** | ⬜ Todo |
+| **Status** | 🟦 In progress |
 | **Priority** | P1 |
 | **Owner** | Pragun |
 | **ETA (rollup)** | 18h |
@@ -38,3 +38,4 @@ Gmail, WhatsApp and SMS history are captured too, so nothing is missed.
 
 ## Activity log
 - 2026-10-16 — Claude: epic created (AOS-004).
+- 2026-10-17 — Claude: AOS-401 merged (D-59).
