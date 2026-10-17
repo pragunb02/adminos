@@ -145,5 +145,25 @@ services:
       api-server:
         condition: service_healthy
 
+  ollama:
+    # Local models for the AI layer (AOS-703, D-69). Opt-in: `docker compose --profile ollama up -d ollama`, then
+    # `docker compose exec ollama ollama pull <model>`. Ollama has no authentication, so it is published on the
+    # loopback interface only (for the bake-off from the host); never a bare host port. The API reaches it on
+    # the compose network: OLLAMA_BASE_URL=http://ollama:11434.
+    profiles: ["ollama"]
+    image: ollama/ollama:0.40.6
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama   # model files (1–3 GB each), kept across restarts
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}   # unload an idle model after this, freeing its RAM
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
+  ollama_models:

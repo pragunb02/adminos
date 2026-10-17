@@ -40,6 +40,92 @@
                 "ruleDecidedUnchanged": 1.0,
                 "subcategoryAccuracy": 0.7246
             }
+        },
+        {
+            "feature": "categorization",
+            "provider": "ollama",
+            "model": "gemma3:4b",
+            "promptVersion": "categorize-merchant-v1",
+            "answers": "live",
+            "evaluatedOn": "2026-10-17",
+            "goldenRows": 288,
+            "metrics": {
+                "accuracy": 0.8924,
+                "f1.EDUCATION": 0.8695,
+                "f1.EMI": 0.8,
+                "f1.ENTERTAINMENT": 0.75,
+                "f1.FOOD": 0.9444,
+                "f1.HEALTH": 0.973,
+                "f1.OTHER": 0.7755,
+                "f1.SHOPPING": 0.9398,
+                "f1.SUBSCRIPTION": 0.8667,
+                "f1.TRANSFER": 0.9565,
+                "f1.TRANSPORT": 0.973,
+                "f1.UTILITIES": 0.9123,
+                "ruleDecidedUnchanged": 1.0,
+                "subcategoryAccuracy": 0.7246,
+                "validAnswerRate": 1.0
+            },
+            "floor": {
+                "accuracy": 0.8264,
+                "f1.EDUCATION": 0.7619,
+                "f1.EMI": 0.7272,
+                "f1.ENTERTAINMENT": 0.5714,
+                "f1.FOOD": 0.9276,
+                "f1.HEALTH": 0.8824,
+                "f1.OTHER": 0.6308,
+                "f1.SHOPPING": 0.8974,
+                "f1.SUBSCRIPTION": 0.851,
+                "f1.TRANSFER": 0.9565,
+                "f1.TRANSPORT": 0.973,
+                "f1.UTILITIES": 0.9123,
+                "ruleDecidedUnchanged": 1.0,
+                "subcategoryAccuracy": 0.7246,
+                "validAnswerRate": 0.9
+            }
+        },
+        {
+            "feature": "categorization",
+            "provider": "ollama",
+            "model": "qwen3:4b",
+            "promptVersion": "categorize-merchant-v1",
+            "answers": "live",
+            "evaluatedOn": "2026-10-17",
+            "goldenRows": 288,
+            "metrics": {
+                "accuracy": 0.8993,
+                "f1.EDUCATION": 0.9167,
+                "f1.EMI": 0.75,
+                "f1.ENTERTAINMENT": 0.72,
+                "f1.FOOD": 0.9429,
+                "f1.HEALTH": 0.973,
+                "f1.OTHER": 0.7647,
+                "f1.SHOPPING": 0.9383,
+                "f1.SUBSCRIPTION": 0.9286,
+                "f1.TRANSFER": 0.9565,
+                "f1.TRANSPORT": 0.973,
+                "f1.UTILITIES": 0.9667,
+                "ruleDecidedUnchanged": 1.0,
+                "subcategoryAccuracy": 0.7246,
+                "validAnswerRate": 1.0
+            },
+            "floor": {
+                "accuracy": 0.8264,
+                "f1.EDUCATION": 0.7619,
+                "f1.EMI": 0.7272,
+                "f1.ENTERTAINMENT": 0.5714,
+                "f1.FOOD": 0.9276,
+                "f1.HEALTH": 0.8824,
+                "f1.OTHER": 0.6308,
+                "f1.SHOPPING": 0.8974,
+                "f1.SUBSCRIPTION": 0.851,
+                "f1.TRANSFER": 0.9565,
+                "f1.TRANSPORT": 0.973,
+                "f1.UTILITIES": 0.9123,
+                "ruleDecidedUnchanged": 1.0,
+                "subcategoryAccuracy": 0.7246,
+                "validAnswerRate": 0.9
+            }
         }
     ]
 }

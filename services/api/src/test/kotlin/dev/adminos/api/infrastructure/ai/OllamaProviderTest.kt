@@ -81,6 +81,15 @@ class OllamaProviderTest {
     }
 
     @Test
+    fun `a thread count is sent only when set`() = runBlocking<Unit> {
+        assertEquals(null, OllamaProvider.body(request).getValue("options").jsonObject["num_thread"])
+        replies += Reply(200, chat("{}"))
+        OllamaProvider(URI("http://127.0.0.1:${server.address.port}"), Duration.ofSeconds(5), numThread = 4).complete(request)
+        assertEquals("4", Json.parseToJsonElement(seen.single().body).jsonObject.getValue("options").jsonObject["num_thread"].toString())
+        assertFailsWith<IllegalArgumentException> { OllamaProvider(URI("http://ollama"), Duration.ofSeconds(1), numThread = 0) }
+    }
+
+    @Test
     fun `an answer cut off at the output limit is truncated`() = runBlocking<Unit> {
         replies += Reply(200, chat("{\"category\":", done = "length"))
         assertEquals(AiCompletion.Truncated(AiUsage(85, 19)), provider().complete(request))

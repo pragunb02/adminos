@@ -1,0 +1,38 @@
+# AOS-703 bake-off answers from the local model gemma3:4b (Ollama). Only these golden-set merchant names were sent, locally.
+merchant,category,confidence,reason
+A2b Adyar Ananda Bhavan,FOOD,0.95,A2b is a popular South Indian restaurant chain; primarily selling food.
+Bajaj Finance,EMI,0.95,Bajaj Finance primarily offers loan EMIs for various purchases; aligning with the EMI category.
+Barbeque Nation Hospitality,FOOD,0.95,Barbeque Nation is a restaurant specializing in grilled dishes and food.
+Cred Rentpay,OTHER,0.8,Cred Rentpay facilitates rent payments; not directly falling into typical finance categories.
+Dropbox Subscription,SUBSCRIPTION,0.95,Dropbox is a cloud storage service; fitting the subscription category.
+Duolingo,SUBSCRIPTION,0.95,Duolingo is a language learning app; a recurring subscription service.
+Ergo General Insurance,OTHER,0.3,Insurance is not typically a purchase category; but a service.
+Fortis Healthcare,HEALTH,0.95,Fortis Healthcare is a healthcare provider; encompassing hospitals and medical services.
+Fresh Mart Supermarket,SHOPPING,0.95,Fresh Mart is a supermarket; primarily selling groceries and household items.
+Github,SUBSCRIPTION,0.95,Github is a software platform; fitting within subscription services for developers.
+Hdb Financial Services,EMI,0.8,Hdb Financial Services is a lender; primarily dealing with loan repayments.
+Healthifyme,HEALTH,0.9,Healthifyme is a wellness and fitness app; directly related to health.
+Lifestyle International,SHOPPING,0.95,Lifestyle International is a retail store selling clothing; footwear; and accessories.
+Linkedin Premium,SUBSCRIPTION,0.95,LinkedIn Premium is a recurring subscription service for professional networking.
+Medplus Health Services,HEALTH,0.95,Medplus is a pharmacy and healthcare services provider; aligning with the health category.
+Microsoft*365 Personal,SUBSCRIPTION,0.95,Microsoft 365 is a recurring software subscription service.
+Motorola Mobility Store,SHOPPING,0.95,Motorola sells electronics; primarily phones and accessories; fitting within the shopping category.
+Nippon India Mf,EMI,0.95,Nippon India MF is a mutual fund; representing investment payments.
+Notion Labs,SUBSCRIPTION,0.8,Notion is a productivity app subscription service.
+Payu Payments,OTHER,0.8,Payu Payments is a payment gateway; not a specific retailer or service.
+Physicswallah,SUBSCRIPTION,0.95,Physicswallah is an online education platform offering subscription-based courses.
+Playstation Network,SUBSCRIPTION,0.95,Playstation Network primarily offers digital subscriptions for games and content.
+Prestige Apartment Owners Assn,OTHER,0.8,Apartment associations typically handle maintenance fees; not direct food or entertainment purchases.
+Raj Mobile Recharge,SUBSCRIPTION,0.95,Mobile recharge services typically involve subscriptions for data plans or content.
+Salon Style Studio,SHOPPING,0.85,Salons offer beauty products and services; aligning with shopping for personal care.
+Sapna Book House,EDUCATION,0.95,Sapna Book House primarily sells books for study and learning materials.
+Shree Ganesh Kirana,FOOD,0.95,Kirana stores primarily sell food items and groceries.
+Smaaash Entertainment,ENTERTAINMENT,0.95,Smaaash is an entertainment venue offering games and activities.
+Sri Lakshmi General Stores,SHOPPING,0.85,General stores typically sell groceries and household items; aligning with shopping.
+Steam,SUBSCRIPTION,0.95,Steam is a digital distribution platform for games; representing a subscription service.
+Subhash Cable Tv,SUBSCRIPTION,0.95,Cable TV services are typically a recurring subscription payment.
+The Hindu E Paper Subscription,SUBSCRIPTION,0.95,It's a subscription to a newspaper; directly aligning with the allowed categories.
+Timezone Gaming,ENTERTAINMENT,0.95,Timezone Gaming is a gaming arena and entertainment center.
+Upgrad Education,EDUCATION,0.95,Upgrad Education is an educational platform; aligning with the 'EDUCATION' category.
+Urban Company,SUBSCRIPTION,0.95,Urban Company provides services like cleaning and beauty; which are typically subscription-based.
+Wonderla Holidays,ENTERTAINMENT,0.95,Wonderla Holidays is a theme park; primarily offering recreational entertainment experiences.

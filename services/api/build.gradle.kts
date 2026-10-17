@@ -135,6 +135,22 @@ tasks.register<JavaExec>("categorizationReport") {
     }
 }
 
+// Local-model bake-off (AOS-703, D-69): ./gradlew -q aiBakeOff -Pmodels=qwen3:4b,gemma3:4b runs each Ollama model
+// (OLLAMA_BASE_URL, default http://127.0.0.1:11434: start it with `docker compose --profile ollama up -d ollama`)
+// through the categorisation golden set via the AI port and prints a comparison with the rules and the recorded
+// Claude answers. -PwriteEvalRecord adds passing models to src/main/resources/ai/evals.json (the eval gate, D-68).
+tasks.register<JavaExec>("aiBakeOff") {
+    group = "verification"
+    description = "Compare local models on the categorisation golden set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.evaluation.AiBakeOffKt")
+    args("--models", (project.findProperty("models") ?: "").toString())
+    args("--out", layout.buildDirectory.dir("reports/ai-bakeoff").get().asFile.path)
+    if (project.hasProperty("writeEvalRecord")) {
+        args("--write-eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"

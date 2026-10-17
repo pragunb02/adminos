@@ -39,6 +39,8 @@ import java.time.Duration
 class OllamaProvider(
     private val baseUrl: URI,
     private val timeout: Duration = DEFAULT_TIMEOUT,
+    /** CPU threads per request; null lets Ollama choose (one per core). Fewer help on a busy machine (the AOS-703 bake-off). */
+    private val numThread: Int? = null,
     private val http: HttpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build()
 ) : AiProvider {
     override val kind = AiProviderKind.OLLAMA
@@ -46,6 +48,7 @@ class OllamaProvider(
     init {
         require(baseUrl.scheme in setOf("http", "https") && !baseUrl.host.isNullOrBlank()) { "OLLAMA_BASE_URL must be an http(s) URL with a host" }
         require(!timeout.isNegative && !timeout.isZero) { "The Ollama timeout is positive" }
+        require(numThread == null || numThread in 1..256) { "The Ollama thread count is 1..256" }
     }
 
     /** Every local model is free to call. */
@@ -83,7 +86,7 @@ class OllamaProvider(
     internal fun httpRequest(request: AiRequest): HttpRequest = HttpRequest.newBuilder(URI.create(baseUrl.toString().trimEnd('/') + "/api/chat"))
         .timeout(timeout)
         .header("content-type", "application/json")
-        .POST(HttpRequest.BodyPublishers.ofString(body(request).toString()))
+        .POST(HttpRequest.BodyPublishers.ofString(body(request, numThread).toString()))
         .build()
 
     companion object {
@@ -96,7 +99,7 @@ class OllamaProvider(
         /** Far above any structured answer we ask for (a few hundred bytes). */
         internal const val MAX_REPLY_BYTES = 256 * 1024
 
-        internal fun body(request: AiRequest): JsonObject = JsonObject(mapOf(
+        internal fun body(request: AiRequest, numThread: Int? = null): JsonObject = JsonObject(mapOf(
             "model" to JsonPrimitive(request.model),
             "messages" to JsonArray(listOf(
                 JsonObject(mapOf("role" to JsonPrimitive("system"), "content" to JsonPrimitive(request.system))),
@@ -105,7 +108,8 @@ class OllamaProvider(
             "format" to request.schema,
             "stream" to JsonPrimitive(false),
             "think" to JsonPrimitive(false),
-            "options" to JsonObject(mapOf("temperature" to JsonPrimitive(0), "num_predict" to JsonPrimitive(request.maxOutputTokens)))
+            "options" to JsonObject(mapOf("temperature" to JsonPrimitive(0), "num_predict" to JsonPrimitive(request.maxOutputTokens)) +
+                (numThread?.let { mapOf("num_thread" to JsonPrimitive(it)) } ?: emptyMap()))
         ))
 
         /** Ollama's non-streaming chat reply: `message.content`, `done_reason`, and token counts. */
