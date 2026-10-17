@@ -61,7 +61,7 @@ run_case "only the code review: refused for the missing security review" "$ok_ru
 run_case "only the security review: refused for the missing code review" "$ok_runs" "$sec_only" 1 "review/code is missing"
 run_case "security review failed: refused" "$ok_runs" "$sec_failed" 1 "review/security is failure"
 run_case "security review pending: refused" "$ok_runs" "$sec_pending" 1 "review/security is pending"
-run_case "a failed check with passing reviews: refused" "$bad_runs" "$both" 1 "0 of 1 checks succeeded"
+run_case "a failed check with passing reviews: refused" "$bad_runs" "$both" 1 "checks not passing on $sha: GitGuardian=failure"
 run_case "a check still running at the deadline: refused on timeout" "$pending_runs" "$both" 1 "checks still pending after 1s" 1
 run_case "no check runs at all: refused on timeout" '{"total_count":0,"check_runs":[]}' "$both" 1 "checks still pending after 1s" 1
 run_case "GitHub refuses the merge (the head moved during the wait): not merged" "$ok_runs" "$both" 1 "GitHub refused the merge of $sha" 5 GitGuardian refuse-merge
@@ -72,9 +72,17 @@ two_ok=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check api comple
 run_case "all required checks reported and passed: merged" "$two_ok" "$both" 0 "MERGED #7" 5 $'# comment\nGitGuardian\n  api  \n'
 run_case "a required check never reported (CI not started): refused on timeout, named" "$ok_runs" "$both" 1 "required checks not reported: api" 1 $'GitGuardian\napi'
 run_case "several required checks missing: all named" "$ok_runs" "$both" 1 "required checks not reported: api, images" 1 $'GitGuardian\napi\nimages'
+neutral_other=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check CodeQL completed '"neutral"')")
+skipped_other=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check docs completed '"skipped"')")
+failed_other=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check CodeQL completed '"failure"')")
+neutral_required=$(runs 1 "$(check GitGuardian completed '"neutral"')")
+run_case "a neutral check that isn't required (CodeQL summary): merged (AOS-641)" "$neutral_other" "$both" 0 "MERGED #7"
+run_case "a skipped check that isn't required: merged (AOS-641)" "$skipped_other" "$both" 0 "MERGED #7"
+run_case "a failed check that isn't required: refused (AOS-641)" "$failed_other" "$both" 1 "CodeQL=failure"
+run_case "a required check that is only neutral: refused (AOS-641)" "$neutral_required" "$both" 1 "GitGuardian=neutral"
 run_case "required-checks list unreadable: refused" "$ok_runs" "$both" 1 "could not read .github/required-checks.txt" 5 "UNREADABLE"
 run_case "required-checks list empty: refused" "$ok_runs" "$both" 1 "lists no checks" 5 $'# only comments\n'
-run_case "an extra, non-required check that failed still blocks" "$(runs 2 "$(check GitGuardian completed '"success"')" "$(check extra completed '"failure"')")" "$both" 1 "1 of 2 checks succeeded"
+run_case "an extra, non-required check that failed still blocks" "$(runs 2 "$(check GitGuardian completed '"success"')" "$(check extra completed '"failure"')")" "$both" 1 "checks not passing on $sha: extra=failure"
 
 # Bad arguments never reach gh.
 for args in "" "abc" "7 soon"; do
