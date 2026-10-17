@@ -5,7 +5,9 @@ import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.domain.financial.TransactionType
 
 /**
- * Reads the labelled golden set (AOS-511): `src/test/resources/categorization/golden.csv`.
+ * Reads the labelled golden set (AOS-511): `src/main/resources/categorization/golden.csv`. It ships with the API
+ * because it is also the learned categoriser's synthetic prior (AOS-707); the evaluation never scores a model
+ * on rows it was trained on (cross-validation).
  * Plain comma-separated values, one row per case, `#` lines are comments; fields never contain commas.
  * Any malformed row fails loudly with its line number: a silently skipped row would inflate the score.
  */

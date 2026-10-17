@@ -9,6 +9,7 @@ import dev.adminos.api.domain.financial.links.suggestionRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import dev.adminos.api.domain.financial.mandates.mandateRoutes
+import dev.adminos.api.domain.financial.learning.learnedCategoryRoutes
 import org.koin.ktor.ext.inject
 
 /**
@@ -29,6 +30,7 @@ fun Application.financialModule() {
     val analyticsService: dev.adminos.api.domain.analytics.AnalyticsService by inject()
     val duesService: DuesService by inject()
     val mandateService: dev.adminos.api.domain.financial.mandates.MandateService by inject()
+    val categoryModels: dev.adminos.api.domain.financial.learning.CategoryModelTrainingService by inject()
 
     routing {
         route("/api/v1") {
@@ -40,6 +42,7 @@ fun Application.financialModule() {
             billRoutes(billTrackingService)
             duesRoutes(duesService)
             mandateRoutes(mandateService)
+            learnedCategoryRoutes(categoryModels)
             dashboardRoutes(
                 transactionRepository,
                 subscriptionRepository,

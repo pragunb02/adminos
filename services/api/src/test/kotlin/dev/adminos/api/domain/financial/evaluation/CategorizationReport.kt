@@ -13,6 +13,9 @@ import dev.adminos.api.domain.financial.ai.AiCategoryClient
 import dev.adminos.api.domain.financial.ai.AiCategoryResult
 import dev.adminos.api.domain.financial.ai.PortAiCategoryClient
 import dev.adminos.api.infrastructure.ai.AnthropicProvider
+import dev.adminos.api.domain.financial.learning.CategoryModelTrainer
+import dev.adminos.api.domain.financial.learning.LearnedOutcome
+import dev.adminos.api.domain.financial.learning.SoftmaxRegressionTrainer
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -24,6 +27,7 @@ object Baselines {
     const val RULES = "/categorization/baseline.json"
     const val RULES_AI = "/categorization/baseline-ai.json"
     const val RECORDING = "/categorization/ai-recorded.csv"
+    const val RULES_LEARNED = "/categorization/baseline-learned.json"
     val json = Json { prettyPrint = true; encodeDefaults = true }
 
     fun load(resource: String): Baseline {
@@ -56,8 +60,14 @@ fun categorizationEvalRecord(floor: Baseline = Baselines.load(Baselines.RULES_AI
     )
 )
 
+/** Evaluates rules followed by the learned categoriser (AOS-707), 5-fold cross-validated so no row is scored by a model that saw it. */
+fun rulesLearnedRun(trainer: CategoryModelTrainer = SoftmaxRegressionTrainer()): LearnedRun =
+    runBlocking { LearnedLabeller(trainer).run(GoldenSet.load()) }
+
+fun rulesLearnedReport(): EvaluationReport = CategorizationEvaluator.evaluate(rulesLearnedRun().outcomes)
+
 /**
- * `./gradlew -q categorizationReport` (AOS-511, AOS-512, AOS-702): prints both tables and writes the JSON reports.
+ * `./gradlew -q categorizationReport` (AOS-511, AOS-512, AOS-702, AOS-707): prints the tables and writes the JSON reports.
  * Args: `<report.json>`, then optionally `--write-baseline <dir> --eval-records <evals.json>` (with
  * `-PwriteBaseline`: also refreshes the categorisation record the start-up eval gate reads) or
  * `--record-ai <ai-recorded.csv>` (with `-PrecordAi`: asks the real Claude API, needs ANTHROPIC_API_KEY).
@@ -69,19 +79,27 @@ fun main(args: Array<String>) {
 
     val rules = rulesReport()
     val withAi = rulesAiReport()
+    val learnedRun = rulesLearnedRun()
+    val withLearned = CategorizationEvaluator.evaluate(learnedRun.outcomes)
     println(ReportFormatter.table("Categorization: rules (golden set, synthetic)", rules))
     println(ReportFormatter.table("Categorization: rules + AI fallback (recorded answers)", withAi))
+    println(ReportFormatter.table("Categorization: rules + learned (5-fold cross-validated, synthetic)", withLearned))
+    println(learnedSummary("softmax regression, shipped", learnedRun))
+    println(learnedSummary("naive Bayes, comparison only", rulesLearnedRun(NaiveBayesTrainer())))
 
     val out = File(args[0]).also { it.parentFile?.mkdirs() }
     out.writeText(Baselines.json.encodeToString(EvaluationReport.serializer(), rules))
     val outAi = File(out.parentFile, "report-ai.json")
     outAi.writeText(Baselines.json.encodeToString(EvaluationReport.serializer(), withAi))
-    println("JSON reports: ${out.path}, ${outAi.path}")
+    val outLearned = File(out.parentFile, "report-learned.json")
+    outLearned.writeText(Baselines.json.encodeToString(EvaluationReport.serializer(), withLearned))
+    println("JSON reports: ${out.path}, ${outAi.path}, ${outLearned.path}")
 
     val dir = arg("--write-baseline")
     if (dir != null) {
         val aiBaseline = Baseline.of("rules+ai", withAi)
         File(dir, "baseline.json").writeText(Baselines.json.encodeToString(Baseline.serializer(), Baseline.of("rules", rules)) + "\n")
+        File(dir, "baseline-learned.json").writeText(Baselines.json.encodeToString(Baseline.serializer(), Baseline.of("rules+learned", withLearned)) + "\n")
         File(dir, "baseline-ai.json").writeText(Baselines.json.encodeToString(Baseline.serializer(), aiBaseline) + "\n")
         arg("--eval-records")?.let { file ->
             val record = categorizationEvalRecord(aiBaseline, LocalDate.now(ZoneOffset.UTC).toString())
@@ -91,7 +109,9 @@ fun main(args: Array<String>) {
         println("Baselines written in ${dir.path} (commit them with the change that moved the numbers)")
         return
     }
-    for ((name, report, resource) in listOf(Triple("rules", rules, Baselines.RULES), Triple("rules+ai", withAi, Baselines.RULES_AI))) {
+    val gated = listOf(Triple("rules", rules, Baselines.RULES), Triple("rules+ai", withAi, Baselines.RULES_AI),
+        Triple("rules+learned", withLearned, Baselines.RULES_LEARNED))
+    for ((name, report, resource) in gated) {
         val baseline = Baselines.load(resource)
         RegressionGate.regressions(report, baseline).forEach { println("REGRESSION ($name): $it") }
         RegressionGate.improvements(report, baseline).forEach { println("improved ($name): $it (record with -PwriteBaseline)") }
@@ -124,4 +144,14 @@ private fun record(target: File) = runBlocking {
     target.writeText("# AOS-512 recorded AI answers, asked of $model by -PrecordAi. Only these merchant names were sent.\n" +
         "merchant,category,confidence,reason\n" + rows.joinToString("\n") + "\n")
     println("Recorded ${rows.size} answers in ${target.path}; re-run the report and -PwriteBaseline to adopt them")
+}
+
+/** The learned step's own numbers: how many rows it was asked about, what it did, and how calibrated it was. */
+private fun learnedSummary(name: String, run: LearnedRun): String {
+    val report = CategorizationEvaluator.evaluate(run.outcomes)
+    val did = LearnedOutcome.entries.associateWith { o -> run.answers.count { it.outcome == o } }.filterValues { it > 0 }
+    val applied = run.answers.filter { it.outcome == LearnedOutcome.APPLIED }
+    return "Learned ($name): accuracy ${report.accuracy}, macro-F1 ${report.macroF1}, coverage ${report.coverage}; " +
+        "asked about ${run.answers.size} rows the rules left as Other: $did; applied right ${applied.count { it.correct }}/${applied.size}; " +
+        "held-out calibration error ${run.calibrationError?.let { "%.3f".format(it) }}"
 }
