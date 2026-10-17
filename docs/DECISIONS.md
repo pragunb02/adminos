@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-72 | Product / Architecture | Review asks about the learned model's and the AI's least-sure category guesses, ordered by (1 − confidence) × amount; one tap with Undo; every answer is a remembered correction; optional scrubbed copy into a local, never-committed golden set | Accepted | AOS-708 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1256,3 +1257,30 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
+
+### D-72 — Review asks about the models' least-sure categories, biggest first; answers are remembered corrections; scrubbed copies stay local
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-708 · Builds on D-41, D-49, D-61, D-62, D-67, D-71
+- **What is asked:**
+  - the learned categoriser's and the AI's unsure suggestions (rows still Other);
+  - categories they set that nobody has touched.
+  - Spending and refunds, from the last 90 days.
+  - The order is `(1 − confidence) × amount`; of two guesses, the more confident is asked.
+  - The queue is derived from the transactions, with no queue table: answering closes a question.
+- **Answering:**
+  - one tap: "Yes", the model's next two guesses, Other, or any category;
+  - 5 s Undo before sending (D-49);
+  - always a remembered correction (D-41), audited with `via: review`;
+  - the learned model learns from it at its next training.
+- **Local golden set:**
+  - optional, per answer batch (an explicit checkbox);
+  - it keeps a cleaned business name in a synthetic narration, the method, the direction and the category;
+  - it refuses payments that look like ones to a person, transfers and income, and nameless payees;
+  - it is stored in the user's database and exported as `golden.csv`-shaped CSV marked "never commit as is";
+  - it is scored locally with `-PlocalGolden`;
+  - promotion to the repo's golden set is manual (AOS-511).
+- **Rejected:**
+  - a `review_items` table (a second source of truth);
+  - reusing `PATCH /transactions` (two calls per answer);
+  - margin or entropy ordering (the AI stores only its top answer);
+  - writing to `golden.csv` from the API, or to server disk.
+- **Consequence:** fewer, better-chosen questions, each one improving a payee at once and the model overnight, and a path for real-shaped test rows that never puts personal data in the public repo.
