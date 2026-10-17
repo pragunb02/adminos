@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
@@ -1122,3 +1123,60 @@ account-anchored phrases and Dr/Cr markers first, then one-sided verbs; when the
 is skipped with reason `direction unclear, needs review`, never guessed. This replaces "the earliest verb wins".
 Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debited from A/c X and credited to A/c Y").
 
+### D-79 — Wealth architecture and guardrails
+2026-10-17 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture / Product · Tasks: AOS-801, Epic E8 (AOS-802…821) · Builds on D-15, D-30, D-34, D-37, D-39, D-42, D-50, D-59, D-60, D-61, D-67, D-78
+- **Data in without credentials.**
+  - Holdings come only from files the owner provides: CAMS+KFintech CAS, NSDL/CDSL CAS, broker and equity-award exports, IBKR Flex files, EPF/NPS statements, crypto CSVs, and manual entries.
+  - No Account Aggregator (D-15), no broker or RTA passwords, no trading-capable tokens.
+  - Optional read-only tokens (IBKR Flex) and CAS passwords for Gmail auto-fetch are opt-in and stored encrypted.
+- **Parsing in the Python service, decisions in Kotlin.**
+  - `pdf-parser` readers (casparser, MIT, pinned; our own pdfplumber/openpyxl readers) return decimal-string JSON, with identifiers in a separate block.
+  - Files and passwords are used in memory and discarded (D-37).
+  - `pdf-parser` gets no outbound network.
+- **One append-only investment ledger.**
+  - Accounts → instruments (ISIN/AMFI code/ticker, currency, tax class) → typed transactions.
+  - Corrections are new rows. Lots (FIFO by default) and holdings are derived and rebuildable.
+  - Every import is an undoable batch and must reconcile to the statement's closing units, or the affected account is blocked and shown in Review.
+- **Exact numbers.**
+  - Money is `BigDecimal` (D-30). Quantities, unit prices and FX rates have their own types and keep the source's precision. Never `Double`.
+  - Every foreign amount stores the original currency, the INR value, and the rate with its type (FBIL, SBI TTBR, ECB) and date.
+- **Prices and FX.**
+  - End of day only, from official or free sources behind ports, preferring bulk files (AMFI, bhavcopy, ECB) so providers don't learn the holdings.
+  - Valuation uses the last price on or before the date. Stale prices are labelled, never zeroed or dropped.
+  - NSE data is uploaded by hand unless the owner enables an automated adapter.
+- **Tax as data.**
+  - Holding periods, rates, exemptions, grandfathering and s.50AA/VDA rules are rows per financial year, with the source and a verified date.
+  - A test fails when the current FY has no rows.
+  - Reports show gains by class "at the table's rates". They never claim a tax payable.
+- **No double counting.**
+  - Bank flows to and from investments are a new `INVESTMENT` nature (a transfer under D-39), matched to ledger rows.
+  - Dividends are income. Remitted sale proceeds are transfers.
+- **Net worth** is a monthly immutable snapshot (D-50 job) with accessible, locked and liabilities totals and per-line staleness. Corrections write a new version.
+- **Guidance follows the owner's policy.**
+  - Rules evaluate a structured, versioned Investment Policy Statement written by the owner.
+  - Rules name asset classes only, never securities. The one exception is pointing to the direct plan of a scheme the owner already holds, together with its switching cost.
+  - Each result stores its facts, formula, assumptions, and the policy and ledger versions, and is guarded by a golden set (D-61 style).
+  - The UI says "Planning support from your own policy. Not investment advice."
+- **AI explains only (D-67).**
+  - An optional explanation is given the rule's facts object only: no identifiers, no security names.
+  - The output is rejected if any number isn't in the facts, or if it names a security or ticker, tells the owner to buy or sell, or promises returns.
+  - Off by default and local-first.
+- **Security.**
+  - Identifiers (PAN, folio, BO ID, account numbers, UAN, PRAN, counterparties) use app-level AES-256-GCM with AAD under an HKDF-derived wealth key (reusing `TokenEncryptor` v2), plus an HMAC blind index. They are shown as the last 4 only.
+  - Nightly `pg_dump` encrypted with age to a separate R2 bucket with a write-only token, and a monthly restore drill. **Wealth data isn't stored until backups run.**
+  - Audit rows for imports, corrections, policy versions, exports, identifier reveals and backups.
+  - Re-auth for exports and reveals, and a privacy mode that hides amounts.
+- **Personal only (D-78).** No other users and no sharing of guidance. Any change re-opens the SEBI (Investment Advisers) Regulations question.
+- **Rejected:**
+  - Account Aggregator or broker APIs with login or trading scope (credential risk; D-15);
+  - scraping Yahoo or exchange sites by default (terms);
+  - Excel-style Newton XIRR (non-convergence, wrong roots), in favour of a bracketed solver;
+  - storing statement files (D-37);
+  - pgcrypto or whole-row encryption (keys in SQL; aggregation needs plaintext amounts, which disk encryption and the private network protect);
+  - the AI picking funds or computing figures (D-67);
+  - a sixth phone tab without a D-49 change.
+- **Consequences:**
+  - E8 starts with AOS-803 (backups) and AOS-802 (model).
+  - A new pipeline step (`InvestmentFlowStep`) changes spending totals for investment debits, so the D-61 golden set gains investment rows.
+  - Tax rules need a yearly verification commit.
+  - Evidence and options: `docs/research/WEALTH-RESEARCH.md`.

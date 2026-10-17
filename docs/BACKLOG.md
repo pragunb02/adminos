@@ -242,7 +242,7 @@ Research and roadmap: [`docs/research/WEALTH-RESEARCH.md`](research/WEALTH-RESEA
 | ID | Title | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | **[AOS-S8.1](tickets/AOS-S8.1.md)** | **Secure wealth foundation** | | 🟦 | 19h | 3h |
-| └ [AOS-801](tickets/AOS-801.md) | Research: wealth design; Epic E8; proposed D-79 | Claude | ✅ | 3h | 3h |
+| └ [AOS-801](tickets/AOS-801.md) | Wealth research, Epic E8 and D-79 (D-79) | Claude (agent) | ✅ | — | — |
 | └ AOS-802 | Wealth domain model + schema, exact quantity/price/FX types, encrypted identifiers + blind index | Claude | ⬜ | 8h |  |
 | └ AOS-803 | Encrypted offsite backups (pg_dump → age → separate R2 bucket), restore drill, key escrow guide | Claude + Pragun | ⬜ | 5h |  |
 | └ AOS-804 | Wealth audit events, re-auth for exports and reveals, privacy mode | Claude | ⬜ | 3h |  |
