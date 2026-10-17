@@ -119,6 +119,8 @@ kover {
 // record the current numbers as the new floor (src/test/resources/categorization/baseline.json).
 // AOS-512: it also evaluates rules + the AI fallback with recorded answers (report-ai.json, baseline-ai.json).
 // -PrecordAi re-records those answers from the real Claude API (needs ANTHROPIC_API_KEY; sends merchant names only).
+// AOS-707: and rules + the learned categoriser, 5-fold cross-validated (report-learned.json, baseline-learned.json),
+// with naive Bayes printed alongside as the comparison. All local: nothing leaves the machine.
 tasks.register<JavaExec>("categorizationReport") {
     group = "verification"
     description = "Evaluate the categorizer on the golden set"

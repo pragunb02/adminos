@@ -8,6 +8,7 @@
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
+| D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-82 | Architecture / Product | Leaks are computed from the range's transactions with the lens matcher (not SQL), range capped at 3 × 366 days; spent = spend − refunds (unclipped), late night 22:00–05:00 local; every number has its drill-down through the same filter | Accepted | AOS-902 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
@@ -1180,3 +1181,35 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - A new pipeline step (`InvestmentFlowStep`) changes spending totals for investment debits, so the D-61 golden set gains investment rows.
   - Tax rules need a yearly verification commit.
   - Evidence and options: `docs/research/WEALTH-RESEARCH.md`.
+### D-71 — A local learned categoriser fills in Other from your corrections: hand-written, calibrated, never over a rule
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-707, AOS-708 · Builds on D-41, D-50, D-61, D-62, D-67
+- **What:**
+  - a multinomial logistic regression over TF-IDF features: payee words and character 3–5-grams, UPI handle, payment method, amount bucket;
+  - one model per user, trained on their corrections plus the synthetic golden set as a prior;
+  - calibrated by temperature scaling on 5-fold held-out answers.
+  - It runs inside the API; nothing leaves the machine.
+- **Order:** rules → remembered → learned → AI → Other.
+  - It only labels rows the built-in rules left as plain Other (no subcategory, not a catalogue brand, no remembered rule), for spending and refunds.
+  - Sure guesses (≥ 0.8) set the category with source `learned`.
+  - Unsure ones (≥ 0.4) stay Other with a suggestion in `metadata.learned` for the Review queue, and the AI fallback may still answer them.
+- **Trust:**
+  - off until 20 corrected payees (cold start; a stored model is removed);
+  - a model applies guesses only if it was right ≥ 90% of the time on ≥ 5 of the user's own held-out corrections it was sure of; otherwise it only suggests;
+  - it never learns from model labels (`learned`, `ai`) or links.
+- **Runs:**
+  - as the last pipeline step;
+  - retrained nightly (03:30) and on demand (`POST /categories/model/train`), then re-scores the last 30 days' Other rows;
+  - off unless `LEARNED_CATEGORIZATION_ENABLED=true`.
+- **Stored:**
+  - `category_models`: a gzipped, versioned binary with its SHA-256, read strictly;
+  - a damaged model is ignored, logged and shown as `corrupt` until retrained.
+- **Measured (D-61):**
+  - rules + learned has its own baseline (85.1% vs 82.6%, no category's precision lower, 7/7 applied right);
+  - the golden set ships as the prior and is only ever scored by cross-validation.
+- **Rejected:**
+  - Tribuo (last release 18 months ago, 24 jars and 7.7 MB including a commons-beanutils with a CVE, and no better accuracy);
+  - naive Bayes (equally accurate, worse calibrated);
+  - a batch job only (new rows would wait for a label the model already knew);
+  - a step inside `CategorizationService` (per-user model state in the rule categoriser, and before transfers and links);
+  - JSON storage (larger and slower).
+- **Consequence:** the Review queue (AOS-708) can ask about the model's and the AI's unsure guesses, and each answer becomes a correction the model learns from.

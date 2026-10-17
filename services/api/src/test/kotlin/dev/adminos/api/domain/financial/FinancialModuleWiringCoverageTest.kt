@@ -55,6 +55,11 @@ class FinancialModuleWiringCoverageTest {
         single { AnalyticsService(InMemoryAnalyticsRepository(transactions)) }
         single { dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), transactions) }
         single { DuesService(bills, subscriptions, get()) }
+        single {
+            val store = dev.adminos.api.domain.financial.learning.CategoryModelStore(dev.adminos.api.domain.financial.learning.InMemoryCategoryModelRepository())
+            val learned = dev.adminos.api.domain.financial.learning.LearnedCategorizer(store, InMemoryCategoryRuleRepository(), transactions)
+            dev.adminos.api.domain.financial.learning.CategoryModelTrainingService(transactions, store, learned, emptyList(), enabled = false)
+        }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -96,5 +101,6 @@ class FinancialModuleWiringCoverageTest {
         assertEquals(HttpStatusCode.NotFound, getAs(token, "/api/v1/bills/${UUID.randomUUID()}").first)
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/transactions/suggestions").first)
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/analytics/categories").first)
+        assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/categories/model").first, "learned categoriser status (AOS-707)")
     }
 }

@@ -64,6 +64,8 @@ import dev.adminos.api.domain.scheduling.*
 
 val appModule = buildAppModule()
 
+private const val LEARNING_FLAG = dev.adminos.api.config.LearnedCategorizationConfig.FLAG
+
 /**
  * Builds the DI module. The defaults read the real environment; tests pass [useDatabase] and [env]
  * to build each configuration (testability seam, AOS-312).
@@ -193,11 +195,27 @@ internal fun buildAppModule(
         if (useDatabase) SuggestionService(get(), get()) { work -> dbQuery { work() } } else SuggestionService(get(), get())
     }
     single<MatchCandidateSource> { RepositoryMatchCandidates(get(), get()) }
+    // Learned categoriser (AOS-707, D-67): off unless LEARNED_CATEGORIZATION_ENABLED=true. It runs inside the API and
+    // sends nothing anywhere. When on: the last pipeline step (after every rule) and a nightly retrain.
+    val learning = dev.adminos.api.config.LearnedCategorizationConfig.enabled(env)
+    org.slf4j.LoggerFactory.getLogger("LearnedCategorization")
+        .info("Learning categories from corrections is {}", if (learning) "on (local model, nothing is sent)" else "off ($LEARNING_FLAG is not true)")
+    single<dev.adminos.api.domain.financial.learning.CategoryModelRepository> {
+        if (useDatabase) ExposedCategoryModelRepository() else dev.adminos.api.domain.financial.learning.InMemoryCategoryModelRepository()
+    }
+    single { dev.adminos.api.domain.financial.learning.CategoryModelStore(get()) }
+    single { dev.adminos.api.domain.financial.learning.LearnedCategorizer(get(), get(), get()) }
     single {
+        val prior = dev.adminos.api.domain.financial.learning.CategoryPrior.examples(
+            dev.adminos.api.domain.financial.evaluation.GoldenSet.load(), get<MerchantNormalizer>()::normalize)
+        dev.adminos.api.domain.financial.learning.CategoryModelTrainingService(get(), get(), get(), prior, learning)
+    }
+    single {
+        val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(
             ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
             TransferStep(get(), get()), RefundReversalStep(get(), get(), get())
-        ))
+        ) + learnedStep)
     }
     single<IngestOutcomeWriter> {
         if (useDatabase) RepositoryOutcomeWriter(get(), get(), get()) { work -> dbQuery { work() } }
@@ -281,6 +299,9 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { GmailWatchRenewalJob(get()) } bind ScheduledJob::class
+    if (learning) {
+        single { dev.adminos.api.domain.financial.learning.CategoryModelTrainingJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    }
     // The AI layer (AOS-702, D-67) and the AI fallback categorizer (AOS-512, D-62): every feature off by default.
     aiDefinitions(useDatabase, env)
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
