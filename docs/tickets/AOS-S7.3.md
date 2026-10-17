@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E7](AOS-E7.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ✅ Done |
 | **Priority** | P2 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 18h |
@@ -38,7 +38,7 @@ _Task tickets are created as files when this story is picked up._
 Ask a comparison question. The numbers in the answer match the Spending screen for the same periods.
 
 ## Activity log
-- 2026-10-18 — Claude (integration engineer): AOS-711 integrated onto main; D-110 recorded.
+- 2026-10-18 — Claude (integration engineer): AOS-711 integrated onto main; D-110 recorded. Story done (AOS-712, AOS-710, AOS-711).
 - 2026-10-18 — Claude (integration engineer): AOS-710 integrated onto main; D-109 recorded.
 - 2026-10-18 — Claude (integration engineer): AOS-712 integrated onto main; D-108 recorded.
 - 2026-10-17 — Claude: story created (AOS-701).
