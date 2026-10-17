@@ -2,6 +2,7 @@ import { http } from "msw";
 import { setupServer } from "msw/node";
 import { ok } from "./envelope";
 import { fx } from "../fixtures";
+import { cx } from "../coachFixtures";
 
 /**
  * One MSW server for all unit tests; each test adds its own handlers with `server.use(...)`.
@@ -15,4 +16,6 @@ export const server = setupServer(
   http.get("/api/v1/ai/features", () => ok({ features: [fx.aiFeature({ available: false, provider: null, locality: null, model: null, destination: null, evaluation: null })], monthlyCapUsd: "2.00" })),
   // Subscriptions → AutoPay & mandates (AOS-502): none unless a test says otherwise.
   http.get("/api/v1/mandates", () => ok([])),
+  // Home's "Where it leaks" card (AOS-902): nothing leaked unless a test says otherwise.
+  http.get("/api/v1/coach/leaks", () => ok(cx.emptyLeaks())),
 );

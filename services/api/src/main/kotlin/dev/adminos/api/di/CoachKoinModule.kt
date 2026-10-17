@@ -1,5 +1,6 @@
 package dev.adminos.api.di
 
+import dev.adminos.api.domain.coach.leaks.LeakService
 import dev.adminos.api.domain.coach.lenses.InMemoryLensOverrideRepository
 import dev.adminos.api.domain.coach.lenses.LensMatcher
 import dev.adminos.api.domain.coach.lenses.LensOverrideRepository
@@ -16,4 +17,5 @@ internal fun coachKoinModule(useDatabase: Boolean): Module = module {
     single<LensOverrideRepository> { if (useDatabase) ExposedLensOverrideRepository() else InMemoryLensOverrideRepository() }
     single { LensMatcher() }
     single { LensService(get(), get()) }
+    single { LeakService(get(), get()) }
 }
