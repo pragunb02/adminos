@@ -9,6 +9,7 @@ import PeriodSwitcher from "@/components/PeriodSwitcher";
 import Section, { Skeleton } from "@/components/console/Section";
 import Hero from "@/components/console/Hero";
 import ReviewBanner from "@/components/console/ReviewBanner";
+import ForecastCard from "@/components/console/ForecastCard";
 import DailyBars from "@/components/console/DailyBars";
 import CumulativeLine from "@/components/console/CumulativeLine";
 import { cumulativeByDay } from "@/lib/cumulative";
@@ -87,6 +88,9 @@ function HomeContent() {
       </div>
 
       <ReviewBanner count={reviews.data?.length ?? 0} />
+
+      {/* Month-end forecast (AOS-714): only for the month in progress, and not before there's anything at all. */}
+      {isMonth && isCurrent(period, today) && !nothingYet && <ForecastCard />}
 
       {nothingYet ? (
         <EmptyState period={period} today={today} />

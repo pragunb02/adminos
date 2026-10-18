@@ -1,0 +1,9 @@
+{
+    "subject": "rules",
+    "phrases": 165,
+    "exact": 0.9939,
+    "entryPrecision": 1.0,
+    "entryRecall": 1.0,
+    "categoryAccuracy": 1.0,
+    "refusals": 0.9231
+}

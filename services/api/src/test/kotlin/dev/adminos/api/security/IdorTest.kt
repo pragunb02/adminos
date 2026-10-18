@@ -16,9 +16,12 @@ import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.mandates.Mandate
 import dev.adminos.api.domain.financial.mandates.MandateRail
 import dev.adminos.api.domain.financial.mandates.MandateRepository
+import dev.adminos.api.domain.financial.grouping.MerchantGroupingService
 import dev.adminos.api.domain.financial.receipts.OrderReceipt
 import dev.adminos.api.domain.financial.receipts.OrderReceiptRepository
 import dev.adminos.api.domain.financial.receipts.ReceiptFixtures
+import dev.adminos.api.domain.financial.review.GoldenCandidate
+import dev.adminos.api.domain.financial.review.GoldenCandidateRepository
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
@@ -35,6 +38,7 @@ import dev.adminos.api.domain.notifications.push.PushEndpoint
 import dev.adminos.api.domain.notifications.push.PushKeys
 import dev.adminos.api.domain.notifications.push.PushSubscription
 import dev.adminos.api.domain.notifications.push.PushSubscriptionRepository
+import dev.adminos.api.domain.notifications.push.saved
 import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.security.SecurityTestKit.newUser
 import dev.adminos.api.security.SecurityTestKit.realApp
@@ -103,7 +107,7 @@ class IdorTest {
         val device = app.get<DeviceTokenService>().issue(alice.id, "Alice Mac", setOf(Scopes.INGEST_SMS))
         val session = app.get<SessionRepository>().save(Session(userId = alice.id, tokenHash = JwtService.hashToken(b64(random(32))),
             expiresAt = Instant.now().plusSeconds(86_400)))
-        val push = app.get<PushSubscriptionRepository>().upsert(PushSubscription(userId = alice.id,
+        val push = app.get<PushSubscriptionRepository>().saved(PushSubscription(userId = alice.id,
             endpoint = PushEndpoint("https://fcm.googleapis.com/fcm/send/${b64(random(24))}"),
             keys = PushKeys(b64(byteArrayOf(0x04) + random(64)), b64(random(16)))))
         val mandate = app.get<MandateRepository>().save(Mandate(userId = alice.id, rail = MandateRail.UPI_AUTOPAY, payee = "Alice Gym",
@@ -258,5 +262,49 @@ class IdorTest {
         for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
             assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
+    }
+
+    @Test
+    fun `Bob can't answer Alice's category questions or remove rows from her local golden set`() = realApp { app ->
+        val a = seed(app, client)
+        val golden = GoldenCandidate(userId = alice.id, merchantRaw = "UPI ALICE CAFE", paymentMethod = PaymentMethod.UPI,
+            direction = TransactionType.DEBIT, category = TransactionCategory.FOOD, createdAt = Instant.now())
+        app.get<GoldenCandidateRepository>().add(golden)
+        val attacks = listOf(
+            Attack(HttpMethod.Post, { "/api/v1/categories/review/$it" }, a.txn.id.toString(), """{"category":"food","addToGolden":true}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/categories/golden/$it" }, golden.id.toString()),
+        )
+        for (atk in attacks) {
+            val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
+            val fake = client.asBob(atk.method, atk.path(UUID.randomUUID().toString()), atk.body)
+            assertEquals(HttpStatusCode.NotFound, real.status, "${atk.method.value} ${atk.path("{alice}")}")
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "${atk.method.value} ${atk.path("{alice}")} answers differently for a real ID")
+        }
+        assertEquals(TransactionCategory.SHOPPING, app.get<TransactionRepository>().findById(a.txn.id)?.category)
+        assertTrue(app.get<GoldenCandidateRepository>().list(alice.id).any { it.id == golden.id }, "Alice's golden row is still there")
+        listOf("/api/v1/categories/golden", "/api/v1/categories/golden.csv", "/api/v1/categories/review").forEach { path ->
+            val text = client.asBob(HttpMethod.Get, path, null).bodyAsText()
+            assertFalse(golden.id.toString() in text || "ALICE" in text || a.txn.id.toString() in text, "$path shows Alice's data")
+        }
+    }
+
+    @Test
+    fun `Bob can't confirm or reject Alice's merchant merge proposals`() = realApp { app ->
+        val txns = app.get<TransactionRepository>()
+        for (name in listOf("Kukufm", "Kuku Fm")) {
+            txns.save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("199.00"),
+                merchantName = name, paymentMethod = PaymentMethod.CARD_CREDIT, transactedAt = Instant.now().minusSeconds(86_400)))
+        }
+        val grouping = app.get<MerchantGroupingService>()
+        val proposal = grouping.proposals(alice.id).single().id.toString()
+        for (action in listOf("confirm", "reject")) {
+            val real = client.asBob(HttpMethod.Post, "/api/v1/merchants/merge-proposals/$proposal/$action", null)
+            val fake = client.asBob(HttpMethod.Post, "/api/v1/merchants/merge-proposals/${UUID.randomUUID()}/$action", null)
+            assertEquals(HttpStatusCode.NotFound, real.status, action)
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "$action answers differently for a real ID")
+        }
+        assertEquals(proposal, grouping.proposals(alice.id).single().id.toString(), "Alice's proposal is still open")
+        val bobs = client.asBob(HttpMethod.Get, "/api/v1/merchants/merge-proposals", null).bodyAsText()
+        assertFalse(proposal in bobs || "Kuku" in bobs, "Bob's list shows Alice's proposal")
     }
 }
