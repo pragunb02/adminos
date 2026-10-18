@@ -56,7 +56,7 @@ fun Route.webhookRoutes(
             try {
                 verifier.verify(bearerToken)
             } catch (e: Exception) {
-                logger.warn("Gmail webhook: OIDC verification failed: ${e.message}")
+                logger.warn("Gmail webhook: push token refused ({})", e.javaClass.simpleName) // never the message (AOS-628)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError("WEBHOOK_006", "Invalid Pub/Sub OIDC token"))
             }
 
