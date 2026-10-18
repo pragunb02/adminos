@@ -102,7 +102,8 @@ test.describe("Where it leaks: attacks (D-100)", () => {
   });
 
   test("a payment method name from the lens list renders as text, not HTML (AOS-913)", async ({ signedIn: page, api }) => {
-    const hostile = `<img src=x onerror="window.__pwned=1">`;
+    // Labels are humanised (underscores become spaces), so this hostile name has none.
+    const hostile = `<img src=x onerror="window.pwnedLens=1">`;
     const lenses = cx.lenses();
     lenses.lenses = lenses.lenses.map((l) => (l.id === "pay_later" ? { ...l, paymentMethods: [hostile] } : l));
     api.on("GET /api/v1/coach/lenses", () => ({ data: lenses }));
@@ -110,7 +111,7 @@ test.describe("Where it leaks: attacks (D-100)", () => {
     const payLater = page.getByRole("region", { name: "Pay later" });
     await payLater.getByText("Edit Pay later").click();
     await expect(payLater.getByText(`Counts purchases paid with ${hostile}.`, { exact: false })).toBeVisible();
-    expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
+    expect(await page.evaluate(() => (window as unknown as { pwnedLens?: number }).pwnedLens)).toBeUndefined();
     expect(await page.locator("img[src='x']").count()).toBe(0);
   });
 
