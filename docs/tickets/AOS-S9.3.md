@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E9](AOS-E9.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ✅ Done (AOS-907, AOS-908) |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 9h |
@@ -27,8 +27,8 @@ Per task ticket (≥2 options each).
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| AOS-907 | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ⬜ | 5h |  |
-| AOS-908 | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ⬜ | 4h |  |
+| [AOS-907](AOS-907.md) | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ✅ | 5h |  |
+| [AOS-908](AOS-908.md) | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ✅ | 4h |  |
 
 _Task tickets are created as files when this story is picked up._
 

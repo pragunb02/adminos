@@ -178,6 +178,45 @@ describe("Where it leaks (AOS-902)", () => {
     expect(container.querySelector("img[src='x']")).toBeNull();
   });
 
+  // AOS-913: the pay-later lens is a payment-method rule (AOS-912).
+  it("the Pay later card says it counts purchases paid with pay later", async () => {
+    nav.search = new URLSearchParams("from=2026-10-12&to=2026-10-18");
+    routes();
+    const { user } = renderWithQuery(<LeaksPage />);
+    const payLater = await screen.findByRole("region", { name: "Pay later" });
+    await user.click(within(payLater).getByText("Edit Pay later"));
+    expect(await within(payLater).findByText(/Counts purchases paid with pay later\./)).toBeInTheDocument();
+    expect(within(payLater).queryByText(/only the merchants you add/)).toBeNull();
+  });
+
+  it("a lens list from an API without payment methods still reads", async () => {
+    nav.search = new URLSearchParams("from=2026-10-12&to=2026-10-18");
+    const data = cx.lenses();
+    data.lenses = data.lenses.map((l) => {
+      const old = { ...l, brands: l.id === "pay_later" ? ["LazyPay"] : l.brands };
+      delete old.paymentMethods;
+      return old;
+    });
+    routes({ lenses: () => ok(data) });
+    const { user } = renderWithQuery(<LeaksPage />);
+    const payLater = await screen.findByRole("region", { name: "Pay later" });
+    await user.click(within(payLater).getByText("Edit Pay later"));
+    expect(await within(payLater).findByText(/Counts 1 app or shop\./)).toBeInTheDocument();
+  });
+
+  it("renders a hostile payment method name as text, never as HTML", async () => {
+    nav.search = new URLSearchParams("from=2026-10-12&to=2026-10-18");
+    const hostile = "<img src=x onerror=alert(1)>";
+    const data = cx.lenses();
+    data.lenses = data.lenses.map((l) => (l.id === "pay_later" ? { ...l, paymentMethods: [hostile] } : l));
+    routes({ lenses: () => ok(data) });
+    const { user, container } = renderWithQuery(<LeaksPage />);
+    const payLater = await screen.findByRole("region", { name: "Pay later" });
+    await user.click(within(payLater).getByText("Edit Pay later"));
+    expect(await within(payLater).findByText(/Counts purchases paid with <img src=x onerror=alert\(1\)>\./)).toBeInTheDocument();
+    expect(container.querySelector("img[src='x']")).toBeNull();
+  });
+
   it("explains how the numbers are made", async () => {
     routes();
     renderWithQuery(<LeaksPage />);

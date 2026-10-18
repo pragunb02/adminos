@@ -6,10 +6,23 @@ package dev.adminos.api.domain.ai
  */
 enum class AiFeature(
     /** Stable id in configuration, the audit log, eval records and the API. Never renamed. */
-    val key: String
+    val key: String,
+    /**
+     * The provider used when `AI_<FEATURE>_PROVIDER` is unset. Features that read raw message text default to a
+     * local model (D-67): cloud is then an explicit choice, never a default.
+     */
+    val defaultProvider: AiProviderKind,
+    /** The model used on Anthropic when `AI_<FEATURE>_MODEL` is not set (D-67: Haiku for extraction, Sonnet for tool use). */
+    val defaultAnthropicModel: String
 ) {
     /** The fallback categoriser for rows the rules left as Other (AOS-512, D-62). */
-    CATEGORIZATION("categorization");
+    CATEGORIZATION("categorization", AiProviderKind.ANTHROPIC, "claude-haiku-5-5"),
+
+    /** "Ask your money": the model picks read-only analytics tools and words a short answer (AOS-S7.3, D-67). */
+    ASK("ask", AiProviderKind.ANTHROPIC, "claude-sonnet-5-5"),
+
+    /** Reads bank messages the regex parsers don't recognise; answers go to Review (AOS-705, D-106). */
+    MESSAGES("messages", AiProviderKind.OLLAMA, "claude-haiku-5-5");
 
     /** Prefix of this feature's settings: `AI_CATEGORIZATION_ENABLED`, `…_PROVIDER`, `…_MODEL`. */
     val envPrefix: String get() = "AI_$name"

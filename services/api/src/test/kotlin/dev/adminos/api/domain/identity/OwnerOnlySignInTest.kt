@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 /** AOS-614 (D-91): only the owner's Google account can sign in, and only the one first pinned for that email. */
 class OwnerOnlySignInTest {
-    private val owner = "pragun.b@gmail.com"
+    private val owner = "owner@example.com"
     private val google = FakeGoogleServer()
     private val users = InMemoryUserRepository()
     private val sessions = InMemorySessionRepository()
@@ -32,14 +32,14 @@ class OwnerOnlySignInTest {
 
     @Test
     fun `the owner signs in, with any letter case or spaces in the configured email`() = runBlocking<Unit> {
-        assertEquals(owner, login(service("  Pragun.B@Gmail.com ")).user.email)
+        assertEquals(owner, login(service("  Owner@Example.com ")).user.email)
     }
 
     @Test
     fun `any other google account is refused, and no user or session is created`() = runBlocking<Unit> {
-        google.userInfoBody = FakeGoogleServer.userInfo(sub = "stranger-1", email = "someone.else@gmail.com")
+        google.userInfoBody = FakeGoogleServer.userInfo(sub = "stranger-1", email = "someone.else@example.com")
         assertFailsWith<NotOwnerException> { login() }
-        assertEquals(null, users.findByEmail("someone.else@gmail.com"))
+        assertEquals(null, users.findByEmail("someone.else@example.com"))
     }
 
     @Test

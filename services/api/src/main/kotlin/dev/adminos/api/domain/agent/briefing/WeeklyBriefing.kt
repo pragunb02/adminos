@@ -73,7 +73,9 @@ class WeeklyBriefingService(
     private val sources: BriefingSources,
     private val briefings: BriefingRepository,
     private val notifications: NotificationService,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    /** Parts other features add, e.g. the coach's report card (AOS-906); appended in order. */
+    private val sections: List<BriefingSection> = emptyList()
 ) {
     private val logger = LoggerFactory.getLogger(WeeklyBriefingService::class.java)
 
@@ -89,10 +91,11 @@ class WeeklyBriefingService(
 
         val started = System.nanoTime()
         val facts = gather(user, period, zone, briefingDay)
-        val content = BriefingWriter.write(facts)
+        val extras = sections.mapNotNull { it.render(user.id, period, zone) }
+        val content = (listOf(BriefingWriter.write(facts)) + extras.flatMap { it.lines }).joinToString("\n")
         val briefing = briefings.save(Briefing(
             userId = user.id, periodStart = period.from, periodEnd = period.to, type = BriefingType.WEEKLY,
-            content = content, contentStructured = structured(facts),
+            content = content, contentStructured = structured(facts) + extras.associate { it.key to it.structured },
             totalSpent = facts.spent, totalIncome = facts.received,
             topCategories = facts.topCategories.map { CategoryAmount(it.category.name.lowercase(), it.spent) },
             subscriptionsFlagged = facts.flaggedSubscriptions, anomaliesDetected = facts.openAnomalies, billsUpcoming = facts.upcoming.size,
@@ -144,7 +147,8 @@ class WeeklyBriefingService(
     companion object {
         val DEFAULT_ZONE: ZoneId = ZoneId.of("Asia/Kolkata")
         const val MODEL = "deterministic"
-        const val VERSION = "weekly-v1"
+        /** v2: sections (the coach's report card, AOS-906) follow the v1 lines. */
+        const val VERSION = "weekly-v2"
 
         /** The most recent briefing day whose briefing time has passed at [now]. */
         fun latestBriefingDay(now: Instant, zone: ZoneId, day: DayOfWeek, time: LocalTime): LocalDate {
