@@ -1,4 +1,4 @@
-"""Local OCR for the documents vault (AOS-717, proposes D-140): Tesseract 5, run as a separate process.
+"""Local OCR for the documents vault (AOS-717, D-173): Tesseract 5, run as a separate process.
 
 Why Tesseract (the evidence is in docs/tickets/AOS-717.md):
 - **Licence:** Apache-2.0, packaged by Debian, so it is patched with the base image.
