@@ -12,6 +12,8 @@ import io.ktor.server.routing.*
 import dev.adminos.api.domain.financial.mandates.mandateRoutes
 import dev.adminos.api.domain.financial.learning.learnedCategoryRoutes
 import dev.adminos.api.domain.financial.receipts.receiptRoutes
+import dev.adminos.api.domain.financial.paylater.payLaterRoutes
+import dev.adminos.api.domain.financial.trips.tripRoutes
 import dev.adminos.api.domain.financial.splits.splitRoutes
 import dev.adminos.api.domain.financial.review.categoryReviewRoutes
 import dev.adminos.api.domain.forecast.forecastRoutes
@@ -37,6 +39,8 @@ fun Application.financialModule() {
     val mandateService: dev.adminos.api.domain.financial.mandates.MandateService by inject()
     val categoryModels: dev.adminos.api.domain.financial.learning.CategoryModelTrainingService by inject()
     val hiddenFees: dev.adminos.api.domain.financial.receipts.HiddenFeesService by inject()
+    val payLater: dev.adminos.api.domain.financial.paylater.PayLaterService by inject()
+    val trips: dev.adminos.api.domain.financial.trips.TripService by inject()
     val receiptMatching: dev.adminos.api.domain.financial.receipts.ReceiptMatchingService by inject()
     val splitService: dev.adminos.api.domain.financial.splits.SplitService by inject()
     val categoryReview: dev.adminos.api.domain.financial.review.CategoryReviewService by inject()
@@ -55,6 +59,8 @@ fun Application.financialModule() {
             mandateRoutes(mandateService)
             learnedCategoryRoutes(categoryModels)
             receiptRoutes(hiddenFees, receiptMatching)
+            payLaterRoutes(payLater)
+            tripRoutes(trips)
             splitRoutes(splitService)
             categoryReviewRoutes(categoryReview)
             forecastRoutes(forecastService)

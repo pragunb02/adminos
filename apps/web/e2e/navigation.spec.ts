@@ -19,6 +19,7 @@ const SECONDARY = [
   { label: "Subscriptions", path: "/subscriptions", heading: "Subscriptions" },
   { label: "Documents", path: "/documents", heading: "Documents" },
   { label: "Briefings", path: "/briefings", heading: "Briefings" },
+  { label: "Trips", path: "/trips", heading: "Trips" },
   { label: "Settings", path: "/settings", heading: "Settings" },
 ] as const;
 type Tab = (typeof MAIN)[number]["tab"];

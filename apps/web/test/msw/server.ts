@@ -20,8 +20,14 @@ export const server = setupServer(
   http.get("/api/v1/coach/leaks", () => ok(cx.emptyLeaks())),
   // Limits and coach settings (AOS-904): still learning, no limits, alerts on.
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
-  http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
+  http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Goals (AOS-907): none unless a test says otherwise.
+  http.get("/api/v1/coach/goals", () => ok([])),
+  // Savings rate on Home (AOS-908): too little data unless a test says otherwise.
+  http.get("/api/v1/coach/savings", () => ok(cx.noSavings())),
+  // Review → pay-later gaps (AOS-909): nothing owed unless a test says otherwise.
+  http.get("/api/v1/pay-later", () => ok({ outstanding: "0.00", currency: "INR", providers: [] })),
   // Splitwise (AOS-911): nothing imported unless a test says otherwise (Import and Review read these).
   http.get("/api/v1/splitwise/entries", () => ok([])),
   http.get("/api/v1/splitwise/summary", () => ok({ balances: [], counts: {} })),

@@ -24,7 +24,13 @@
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
+| D-90 | Architecture / Product | Trips are computed on read: travel bookings (transactions, booking emails, IRCTC SMS) within 7 days chain into one trip, transport and food spends in the span join it; only the owner's edits are stored; the rule is measured on a synthetic eval set with a committed baseline | Accepted | AOS-910, AOS-901 |
+| D-89 | Product / Architecture | Pay-later is counted like a card: purchases are spends at the merchant (`paymentMethod = pay_later`), the bank repayment is a transfer that pays the provider's bill (a `pay_later` bill in dues); providers are data; a bill larger than the recorded purchases shows the gap, never a guess | Accepted | AOS-909, AOS-901, AOS-902 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
+| D-87 | Product / Architecture | Savings rate (income − spent) ÷ income per calendar month from the console's analytics is the Home headline with its trend; last month's leaks shown as a monthly SIP over 5 and 10 years with the formula and editable assumptions (12% return, 6% inflation), computed in Kotlin; not advice | Accepted | AOS-908 |
+| D-86 | Product | Goals on habit lenses: cut by X% vs a baseline frozen at creation (the 3 full months before) or keep under ₹Y, weekly or monthly, one per lens; progress per period with refunds netted; streaks are consecutive no-order days; goals never push | Accepted | AOS-907 |
+| D-85 | Architecture / Product | The Sunday report card is a BriefingSection of the weekly briefing (one notification, format weekly-v2): week vs the usual week, best and worst lens, limit outcomes, suggested limit ready, and exactly one rule-based suggestion (first rule that applies wins) | Accepted | AOS-906 |
+| D-84 | Product / Architecture | Evening digest: polled every 15 minutes, sent once per local day at or after the owner's time (default 21:30, never the next morning) via a claim row; today's spent, top two lenses and limits, deterministic text; optional skip on a zero day; a COACH notification under quiet hours | Accepted | AOS-905 |
 | D-83 | Product / Architecture | Limits: no limits during a 30-day learning month; per-lens suggested weekly limits (median of 4 weeks − 10%, rounded down to ₹50) that only push once accepted; lens, merchant or category, weekly or monthly; one push per (limit, period, threshold) at 50/80/100% via a claim ledger | Accepted | AOS-904 |
 | D-99 | Architecture / Process | Supply chain and runtime: CI, OSV-Scanner, npm audit, govulncheck, Trivy and CodeQL on every PR as required checks (fail CVSS ≥ 7 or unscored, CRITICAL images or secrets); images by digest, Gradle locked + SHA-256 verified, Python hash-locked, Actions by SHA, Dependabot; containers non-root, read-only, no capabilities, limits, segmented networks; merge-pr.sh waits for every required check | Accepted | AOS-622 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
@@ -1273,6 +1279,38 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
 
+### D-84 — The evening digest: polled, once per local day, at the owner's time
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-905 · Builds on D-50, D-51, D-57, D-80, D-83
+- **When:** at or after the chosen local time (default 21:30), until local midnight; a missed evening is never sent the next day. A job polls every 15 minutes; a `coach_digests_sent` row per (user, kind, day) is the claim (claim then send, at most once).
+- **What:** today's spent (the console's number), up to two lenses with spending today (orders, late-night orders), up to two limits by use; deterministic text (D-57). A zero day says "No spending recorded today." or, with "skip on a zero day", sends nothing and claims nothing (a later payment that evening still gets a digest).
+- **How:** a `COACH` notification through the dispatcher's channels; quiet hours apply (a digest time inside quiet hours is delivered when they end).
+- **Settings:** `coach_settings.evening_digest`, `digest_time`, `digest_skip_zero_day`; Settings → Spending coach.
+- **Rejected:** `Schedule.Daily` (one time and zone for everyone); storing digests as briefings (fills the Briefings page, couples features).
+
+### D-85 — The report card is a section of the weekly briefing, with exactly one rule-based suggestion
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture / Product · Tasks: AOS-906 · Builds on D-57, D-67, D-80, D-83
+- **Where:** a `BriefingSection` (port owned by the briefing, implemented by the coach) appends the report card to the weekly briefing; one notification a week; briefing format version `weekly-v2`.
+- **What:** spent vs the usual week (median of the 8 same-weekday windows before; none with fewer than 2 weeks of data); best and worst lens vs their usual; limit outcomes on the week's last day; "A suggested limit is ready on the leaks page." when one exists; exactly one suggestion.
+- **Suggestion rules, first that applies wins:** (1) would-have-saved: the biggest lens with ≥ 3 orders above its cap (accepted weekly limit, else usual − 10% down to ₹50, ≥ ₹100); (2) late night: ≥ 3 orders after the late-night start, with their total; (3) below usual by ≥ 10%: the saving and its monthly equivalent (× 4); (4) steady: the week's habit total (always applies).
+- **"Sunday":** the briefing's 7 days; by default Mon–Sun, delivered Monday 08:00.
+- **Rejected:** a separate weekly push (more nudges, duplicate scheduling); the briefing calling coach services directly (couples domains); AI-written suggestions (D-67, D-80).
+
+### D-86 — Goals freeze their baseline; streaks are no-order days
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product · Tasks: AOS-907 · Builds on D-46, D-80, D-82
+- **Kinds:** cut a lens by X% (1..90) vs the 3 full months before the goal began, or keep it under ₹Y; weekly (Mon–Sun) or monthly, in the user's zone; one goal per lens.
+- **Baseline frozen at creation** (per week = total × 7 ÷ days; per month = total ÷ 3); target rounded down to the rupee. A cut with nothing to cut from is refused.
+- **Progress:** up to 12 periods since the start; refunds net off; met = spent ≤ target.
+- **Streak:** consecutive days without an order in the lens ending today, and the best run in the last year since the first day with data; refunds don't break it.
+- **Shown** on the leaks page and Home; goals don't push (limits do, D-83).
+- **Rejected:** goals as flagged limits; a moving baseline.
+
+### D-87 — The savings rate is computed from the console's analytics; projections show their formula and assumptions
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-908 · Builds on D-39, D-45, D-46, D-67, D-80, D-82
+- **Rate:** per calendar month in the user's zone, (income − spent) ÷ income, where income = the income nature and spent = spend − refunds (D-39/D-46), from `AnalyticsService`; no rate for a month without income; negative allowed.
+- **Headline:** this month if it has income yet, else the latest month that does; trend vs the previous month in percentage points.
+- **"What this could become":** last full month's leak total (AOS-902) as a monthly SIP, 5 and 10 years; defaults 12% return and 6% inflation, editable (0..30, 0..20); formula shown; computed in Kotlin with BigDecimal; framed as the habit's cost over time, not investment advice (E8 owns guidance).
+- **Too little data:** no month with income in the last 12 → say what's needed.
+- **Rejected:** computing in the browser (duplicate money rules, D-67); stored snapshots (drift after corrections).
 ### D-108 — "Ask your money" is measured on a synthetic eval set in a typed tool vocabulary, with a number check, before it is built
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-712, AOS-710, AOS-711 · Builds on D-45, D-46, D-61, D-67, D-68
 - **Vocabulary:** five read-only tools over `AnalyticsService` (`spending_summary`, `category_spend`, `merchant_spend`, `top_merchants`, `spending_trend`). Arguments are typed: a period preset or month or range, a category, a merchant matched against the user's own, a bucket, a limit of 1–10. There are at most 3 calls, and a decline has a reason. There is no user, zone or SQL, and any extra or unused field rejects the plan.
@@ -1283,7 +1321,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - Floors: arguments, tools, abstention, answered and valid plans ≥ 0.9; injection and invented-rejected 1.0; grounded accepted ≥ 0.95; period hints ≥ 0.85.
   - The record (`ask`, anthropic, `claude-sonnet-5-5`, `ask-v1`, recorded-synthetic) gates start-up.
 - **Rejected:** free-form tool arguments scored by string match; live-only evals; text-to-SQL (D-67).
-
 ### D-109 — Ask is two structured-output steps through the AI gateway, with the number check and a visible template fallback
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-710 · Builds on D-67, D-68, D-108
 - **Flow:**
@@ -1296,7 +1333,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Errors:** `ASK_001–007` and `RATE_001`, as 400/409/429/503. Fixed messages; the question is never echoed.
 - **Defaults:** off (`AI_ASK_ENABLED=false`); `claude-sonnet-5-5` on Anthropic with an eval record; 2,000 output tokens per step.
 - **Rejected:** native tool use through a wider port; one combined plan-and-answer call; ignoring unknown plan fields.
-
 ### D-110 — Ask is a page at `/ask` with answers you can trace, and feedback by answer id, encrypted
 2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-711 · Builds on D-47, D-49, D-67, D-108, D-109
 - **Where:** `/ask`, linked from Home and More. There is no 6th tab (D-49) and no sheet for now. The question is never put in the URL.
@@ -1444,7 +1480,43 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
-
+### D-89 — Pay-later is counted like a card; gaps are shown, not guessed
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-909, AOS-901, AOS-902 · Builds on D-39, D-54, D-55, D-59
+- **Counting:**
+  - A pay-later purchase is a spend at the merchant, with `paymentMethod = pay_later` and `metadata.payLater = <provider>`.
+  - The bank repayment to the provider is a **transfer** (`subcategory = pay_later_bill`), as card bills are (D-39), and it pays the provider's bill (D-54, both directions).
+- **Bills:**
+  - A provider's bill (SMS or email) is a bill of type `pay_later` with the provider as biller, so dues and reminders apply (D-55).
+  - The same provider and due date (or within 2 days with the same amount) is one bill, across reminders and channels.
+- **Providers are data** on both sides: LazyPay, Simpl, Amazon Pay Later, Flipkart Pay Later, ICICI PayLater, Paytm Postpaid, MobiKwik ZIP.
+  - Provider SMS are read before the drop rules, and only when the text names a provider and isn't a bank account alert or a mandate notice.
+  - Provider email is decided by the sender's domain; shared domains (Amazon, Flipkart, Paytm) also need the provider's name in the subject.
+- **The gap is visible:** a bill larger than the purchases recorded for its period shows the difference in `GET /api/v1/pay-later` and in Review. It is never filled in by guessing.
+- **Debt outstanding** = unpaid pay-later bills + pay-later purchases since the provider's latest bill.
+- **Rejected:**
+  - the cash model (category and timing lost);
+  - a separate debt ledger (a second source of truth);
+  - recognising provider SMS by sender header only (headers vary and aren't public).
+### D-90 — Trips are computed on read by a measured rule; only edits are stored
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-910, AOS-901 · Builds on D-40, D-61, D-67, D-88
+- **Legs:** each travel booking is a leg on its journey date.
+  - Bookings come from transactions to travel brands, booking emails (per-sender parsers in the worker) and IRCTC SMS.
+  - The journey date comes from the email or SMS tied to the payment by `PaymentMatcher` (auto only); otherwise it is the booking date.
+  - A booking refunded in full or cancelled is not a leg.
+- **Trips:**
+  - legs within 7 days chain into one trip;
+  - the trip spans the first to the last leg (a single leg spans its day and the next);
+  - transport and food spends in the span join it;
+  - days are the user's own.
+  The parameters are data (`TripRules`).
+- **Total** = members − their linked refunds.
+- **Edits are the only stored state** (`trip_edits`, keyed by an ID derived from the first leg): name, added (that trip only), removed (never auto-added again), dismissed.
+- **Measured** like D-61: a synthetic eval set reports assignment and pairwise precision and recall. The baseline is committed (0.9688 / 0.8857 / 0.9839 / 0.8714), and a test fails below it.
+- **Privacy:** bookings keep brand, mode, journey date, amount and a SHA-256 of the PNR only.
+- **Rejected:**
+  - materialised trips with a nightly job (stale, and hard to reconcile);
+  - a 10-day chain gap (merged separate trips on the eval);
+  - manual-only trips.
 ### D-111 — Splitwise: import the CSV export; count the owner's share; settle-ups are settlements
 2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-911 · Builds on D-38, D-39, D-46, D-64, D-78, D-80
 - **Source:** the owner's Splitwise "Export as spreadsheet" CSV, uploaded with "which column is me". No credentials. The Splitwise API (OAuth 2, no read-only scope, full-access tokens) is a later adapter behind the same port (`SharedEntry`), only if manual exports prove tedious.
@@ -1457,7 +1529,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Review and undo:** confirm, pick another transaction, reject (remembered), ignore, undo one entry or a whole import.
 - **Privacy:** descriptions and counterparties are encrypted at rest (TokenEncryptor, row-bound), never logged, and never sent to a model. Splitwise rows are never deduplicated, refunded, bill-matched, detected as subscriptions, or AI-categorised.
 - **Measured:** a seeded synthetic eval set with a committed floor (`splits/baseline.json`, enforced by `SplitEvalTest`). On it: 1.00 precision for automatic matches, 0.73 automatic and 0.93 with-Review recall, spend error from ₹30,470 to ₹1,523.
-- **Rejected:**
   - the API first (full-access token for a read need);
   - a pasted personal API key;
   - a synthetic "owed by friends" refund row;

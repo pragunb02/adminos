@@ -16,9 +16,10 @@ func TestSearchQueryIsBoundedAndFilteredBySenderOnly(t *testing.T) {
 			t.Errorf("want %q in %s", want, q)
 		}
 	}
-	// A subject never admits a message (AUD-11): the only subject clause is tied to the receipt
-	// senders (AOS-903), checked by TestSearchQueryReadsReceiptSendersOnlyWithOrderSubjects.
-	if strings.Count(q, "subject:") != 1 || !strings.Contains(q, "flipkart.com) subject:(") {
+	// A subject never admits a message (AUD-11): the only subject clauses are tied to the receipt
+	// senders (AOS-903) and the booking senders (AOS-910), checked by
+	// TestSearchQueryReadsReceiptSendersOnlyWithOrderSubjects.
+	if strings.Count(q, "subject:") != 2 || !strings.Contains(q, "flipkart.com) subject:(") || !strings.Contains(q, "redbus.in) subject:(") {
 		t.Errorf("a subject must never admit a message on its own (AUD-11): %s", q)
 	}
 }
@@ -90,8 +91,16 @@ func TestReceiptSendersAreReadOnlyForOrderSubjects(t *testing.T) {
 func TestSearchQueryReadsReceiptSendersOnlyWithOrderSubjects(t *testing.T) {
 	q := SearchQuery(30)
 	want := "OR (from:(swiggy.in OR swiggy.com OR zomato.com OR zeptonow.com OR zepto.com OR blinkit.com OR grofers.com OR amazon.in OR flipkart.com) " +
-		"subject:(order OR delivered OR receipt OR invoice OR refund OR cancelled OR canceled OR bill)))"
-	if !strings.HasSuffix(q, want) {
-		t.Errorf("want the receipt clause at the end:\n%s", q)
+		"subject:(order OR delivered OR receipt OR invoice OR refund OR cancelled OR canceled OR bill)) OR "
+	if !strings.Contains(q, want) {
+		t.Errorf("want the receipt clause:\n%s", q)
+	}
+	if !strings.HasSuffix(q, "OR (from:(goindigo.in OR airindia.com OR airindia.in OR akasaair.com OR irctc.co.in OR redbus.in) "+
+		"subject:(booking OR booked OR ticket OR itinerary OR pnr OR confirmed OR confirmation OR cancelled OR cancellation)))") {
+		t.Errorf("want the booking clause at the end:\n%s", q)
+	}
+	if bookingOrganisation(senderAddress("IndiGo <noreply@goindigo.in>"), "Your booking is confirmed") != "goindigo.in" ||
+		bookingOrganisation(senderAddress("IndiGo <noreply@goindigo.in>"), "Fly more this festive season") != "" {
+		t.Error("booking senders are read only for booking subjects")
 	}
 }

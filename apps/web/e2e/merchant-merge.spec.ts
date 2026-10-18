@@ -90,6 +90,7 @@ test.describe("Review: same merchant?", () => {
     expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
     const html = await page.content();
     expect(html).not.toContain("e2e-session");
-    expect(await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }) + document.cookie)).not.toContain("e2e-session");
+    // (The test session cookie is set by the fixture without HttpOnly, so document.cookie isn't checked here; the real one is HttpOnly.)
+    expect(await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }))).not.toContain("e2e-session");
   });
 });

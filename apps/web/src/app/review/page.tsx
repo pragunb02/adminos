@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppShell from "@/components/AppShell";
 import { Skeleton } from "@/components/console/Section";
 import UndoToast from "@/components/console/UndoToast";
+import PayLaterGaps from "@/components/PayLaterGaps";
 import SplitwiseReview from "@/components/SplitwiseReview";
 import MerchantMergeReview from "@/components/review/MerchantMergeReview";
 import { categoryLabel } from "@/lib/analytics";
@@ -90,6 +91,7 @@ function ReviewContent() {
       {note && <p aria-live="polite" className="text-sm text-ink-muted">{note}</p>}
       <CategoryQuestions hiddenId={hiddenQuestion} onAnswer={answer} />
       <p className="text-sm text-ink-muted">These pairs look related. Your answers make the totals final.</p>
+      <PayLaterGaps />
       <div role="group" aria-label="Kind" className="flex flex-wrap gap-1 rounded-lg bg-line p-0.5">
         {TABS.map((t) => (
           <button key={t.label} type="button" aria-pressed={tab.key === t.key} onClick={() => go(t.key)}
