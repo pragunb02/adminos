@@ -1,10 +1,16 @@
-"""File → raw tables (lists of string cells) plus header text, per format. No parsing of meaning here."""
+"""File → raw tables (lists of string cells) plus header text, per format. No parsing of meaning here.
+
+Every reader charges what it reads to a `Budget` and checks the page and sheet caps (AOS-626), so a hostile file is
+refused as soon as it asks for more work than any real statement needs.
+"""
 
 import csv
 import io
 from dataclasses import dataclass, field
 from typing import List
 
+from app import limits
+from app.limits import Budget
 from app.models import ParseError
 
 Table = List[List[str]]
@@ -25,7 +31,13 @@ def _clean(v) -> str:
     return " ".join(str(v).split())
 
 
-def read_csv(data: bytes) -> RawStatement:
+def _row(cells, budget: Budget) -> List[str]:
+    cells = list(cells)
+    budget.charge(len(cells))
+    return [_clean(c) for c in cells]
+
+
+def read_csv(data: bytes, budget: Budget) -> RawStatement:
     for enc in ("utf-8-sig", "cp1252", "latin-1"):
         try:
             text = data.decode(enc)
@@ -39,32 +51,41 @@ def read_csv(data: bytes) -> RawStatement:
         dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
     except csv.Error:
         dialect = csv.excel
-    rows = [[_clean(c) for c in r] for r in csv.reader(io.StringIO(text), dialect)]
+    rows = [_row(r, budget) for r in csv.reader(io.StringIO(text), dialect)]
     return RawStatement(tables=[rows], text="\n".join(" ".join(r) for r in rows[:30]))
 
 
-def read_xlsx(data: bytes) -> RawStatement:
+def read_xlsx(data: bytes, budget: Budget) -> RawStatement:
     import openpyxl
 
     try:
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     except Exception:
         raise ParseError("UNSUPPORTED_FORMAT", "Not a readable .xlsx file")
-    tables = [[[_clean(c) for c in row] for row in ws.iter_rows(values_only=True)] for ws in wb.worksheets]
+    try:
+        if len(wb.worksheets) > limits.MAX_SHEETS:
+            raise limits.too_many_sheets()
+        tables = [[_row(row, budget) for row in ws.iter_rows(values_only=True)] for ws in wb.worksheets]
+    finally:
+        wb.close()  # read-only workbooks keep the archive open
     return RawStatement(tables=tables, text="\n".join(" ".join(r) for t in tables for r in t[:30]))
 
 
-def read_xls(data: bytes) -> RawStatement:
+def read_xls(data: bytes, budget: Budget) -> RawStatement:
     import xlrd
 
     try:
         book = xlrd.open_workbook(file_contents=data)
     except Exception:
         raise ParseError("UNSUPPORTED_FORMAT", "Not a readable .xls file")
+    if book.nsheets > limits.MAX_SHEETS:
+        raise limits.too_many_sheets()
     tables = []
     for sh in book.sheets():
+        budget.check_declared(sh.nrows, sh.ncols)
         rows = []
         for r in range(sh.nrows):
+            budget.charge(sh.ncols)
             cells = []
             for c in range(sh.ncols):
                 cell = sh.cell(r, c)
@@ -77,7 +98,7 @@ def read_xls(data: bytes) -> RawStatement:
     return RawStatement(tables=tables, text="\n".join(" ".join(r) for t in tables for r in t[:30]))
 
 
-def read_pdf(data: bytes, password: str | None) -> RawStatement:
+def read_pdf(data: bytes, password: str | None, budget: Budget) -> RawStatement:
     import pdfplumber
 
     try:
@@ -90,10 +111,12 @@ def read_pdf(data: bytes, password: str | None) -> RawStatement:
             raise ParseError("PASSWORD_REQUIRED", "This statement is password-protected")
         raise ParseError("UNSUPPORTED_FORMAT", "Not a readable PDF")
     with pdf:
+        if len(pdf.pages) > limits.MAX_PAGES:
+            raise limits.too_many_pages()
         tables: List[Table] = []
         for page in pdf.pages:
             for t in page.extract_tables() or []:
-                tables.append([[_clean(c) for c in row] for row in t])
+                tables.append([_row(row, budget) for row in t])
         text = (first.extract_text() or "") if first else ""
     warnings = [] if tables else ["No tables found in the PDF; it may be a scanned image"]
     return RawStatement(tables=tables, text=text, warnings=warnings)
@@ -112,14 +135,15 @@ def _is_password_error(e: BaseException) -> bool:
     return False
 
 
-def read(data: bytes, filename: str, password: str | None) -> RawStatement:
+def read(data: bytes, filename: str, password: str | None, budget: Budget | None = None) -> RawStatement:
+    budget = budget or Budget()
     name = (filename or "").lower()
     if data[:5] == b"%PDF-" or name.endswith(".pdf"):
-        return read_pdf(data, password)
+        return read_pdf(data, password, budget)
     if data[:4] == b"PK\x03\x04" or name.endswith(".xlsx"):
-        return read_xlsx(data)
+        return read_xlsx(data, budget)
     if data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" or name.endswith(".xls"):
-        return read_xls(data)
+        return read_xls(data, budget)
     if name.endswith((".csv", ".txt")) or b"\x00" not in data[:1024]:
-        return read_csv(data)
+        return read_csv(data, budget)
     raise ParseError("UNSUPPORTED_FORMAT", "Upload a PDF, CSV, XLS or XLSX statement")

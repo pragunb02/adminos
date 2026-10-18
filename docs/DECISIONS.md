@@ -6,6 +6,10 @@
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
+| D-103 | Architecture | Redis always requires a password: REDIS_PASSWORD (hex) on the server's stdin, beside a credential-free REDIS_URL for clients (a host-run URL may carry it; both must agree); API and worker refuse to start without it and never log it | Accepted | AOS-634 |
+| D-113 | Architecture | Statement parser: each file parsed in its own spawned child, killed after 30 s, 1 GiB address space, at most 2 at once; per-file budgets (300 pages, 50 sheets, 100 000 rows, 2 000 000 cells); over a limit is 422 with a stable code | Accepted | AOS-626 |
+| D-112 | Architecture | Bank mail is admitted by sender only, and only when Gmail's topmost Authentication-Results show DMARC pass or aligned DKIM pass; SPF alone and subjects never admit; receipt senders (AOS-903) go through the same check, their order words only narrow candidates (amends D-59) | Accepted | AOS-624, AOS-903 |
+| D-102 | Architecture | Unreadable request bodies get fixed answers: 415 VALIDATION_005 for a non-JSON Content-Type, 400 VALIDATION_004 for JSON that doesn't parse or fit, 413 VALIDATION_006 for the body limit; never a 500, never decoder or library text | Accepted | AOS-633 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
@@ -1285,3 +1289,26 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+### D-103 — Redis always requires a password
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-634 · Builds on D-91, D-99
+- Redis always requires a password (`REDIS_PASSWORD`, hex, required by compose). The server gets it on stdin, never as an argument.
+- Clients get it as `REDIS_PASSWORD` beside a credential-free `REDIS_URL` (no URL in the repo carries a password, which also keeps GitGuardian green); a host-run client may put it in the URL instead, and if both are set they must agree.
+- The API and the Go worker refuse to start without it and never log or echo the URL or the password. The worker supports only the default user (no user name in the URL).
+- The hardened-stack smoke test (D-99) sets a random password per run, never a literal.
+### D-113 — Statement parser: one killable child per file, per-file budgets
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-626 · Builds on D-37, D-92, D-100
+- The statement parser runs each file in its own `spawn`ed child process, which is killed after 30 s and limited to a 1 GiB address space, with at most 2 at once.
+- Every reader charges a per-file budget: 300 pages, 50 sheets, 100 000 rows and 2 000 000 cells.
+- Over a limit, the parser answers 422 with a stable code.
+- Works inside the hardened parser container (D-99: read-only root, `/tmp` tmpfs, no capabilities, 1 GiB, 128 PIDs).
+- **Rejected:** thread timeouts (a thread can't be stopped); `SIGALRM` (main thread only); a process pool (a stuck worker stays in the pool).
+### D-112 — Bank mail is admitted by authenticated sender only
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-624, AOS-903 · Amends D-59 (sender filter) · Builds on D-63, D-33, D-91, D-100
+- Gmail mail is admitted by sender only, and only when Gmail's topmost `Authentication-Results` (`mx.google.com`) shows DMARC pass for the From domain or a DKIM pass aligned with the listed organisation; SPF alone and subject phrases never admit; every fetched message is qualified locally (`Qualify`).
+- **With AOS-903 (integration):** order-receipt senders (`ReceiptDomains`) go through the same `Qualify`: their mail must be authenticated in the same way, and the receipt subject words only narrow which of their messages are candidates (promotions stay unread); a subject never admits a message on its own. The metadata step therefore reads `From`, `Subject` and `Authentication-Results`.
+- **Rejected:** subject as a filter that admits mail on its own; verifying DKIM ourselves from raw mail.
+### D-102 — Unreadable request bodies get fixed 415 / 400 / 413 answers
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-633 · Builds on D-91, D-94
+- Request bodies the API can't read get fixed answers: 415 `VALIDATION_005` when the request's Content-Type isn't JSON (including none or an unparseable one), 400 `VALIDATION_004` "Malformed request body" for JSON that doesn't parse or fit, 413 `VALIDATION_006` for Ktor's body limit.
+- No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
+- Never a 500 for a client's body; the Content-Type sent is never echoed.

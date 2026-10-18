@@ -4,7 +4,8 @@
 # Usage (always run main's copy, never a PR branch's, so a PR can't change its own gate):
 #   f=$(mktemp) && git fetch origin && git show origin/main:scripts/merge-pr.sh > "$f" && bash "$f" <pr-number> [timeout-seconds]; rm -f "$f"
 # It merged only if it prints "MERGED #<pr-number>". MERGE_PR_POLL_SECONDS (default 5) sets the poll interval.
-# Exits non-zero WITHOUT merging on failure, cancellation, neutral, a missing conclusion, a missing or failed
+# Exits non-zero WITHOUT merging on a failure, cancellation, timeout or required action on any check, a required check
+# that is not `success` (neutral or skipped is accepted only on checks that are not required), a missing or failed
 # review, a push during the wait, or timeout.
 # Required checks (AOS-622): every name in main's .github/required-checks.txt must have reported `success` on the
 # head commit. Until all of them exist the PR keeps waiting, so a fast check (GitGuardian) finishing before CI's
@@ -40,10 +41,14 @@ while :; do
   # A required check that hasn't reported yet counts as pending.
   missing=$(jq -r --arg req "$required" '($req | split("\n")) - [.check_runs[].name] | join(", ")' <<<"$runs")
   if [[ -n "$missing" ]]; then pending=$(( pending + 1 )); fi
-  succeeded=$(jq '[.check_runs[] | select(.status == "completed" and .conclusion == "success")] | length' <<<"$runs")
   if [[ "$total" -gt 0 && "$pending" -eq 0 ]]; then
-    if [[ "$succeeded" -ne "$total" ]]; then
-      echo "NOT MERGED: $succeeded of $total checks succeeded on $sha"
+    # Every REQUIRED check must be `success` (AOS-641). Any other check may be `success`, `neutral` or `skipped`
+    # (e.g. GitHub's own "CodeQL" summary is neutral when main has no analysis to compare with yet), but a
+    # failure, cancellation, timeout or required action on ANY check still refuses the merge.
+    bad_required=$(jq -r --arg req "$required" '($req | split("\n")) as $r | [.check_runs[] | select((.name as $n | $r | index($n)) and .conclusion != "success") | "\(.name)=\(.conclusion)"] | join(", ")' <<<"$runs")
+    bad_other=$(jq -r --arg req "$required" '($req | split("\n")) as $r | [.check_runs[] | select((.name as $n | $r | index($n) | not) and .conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped") | "\(.name)=\(.conclusion)"] | join(", ")' <<<"$runs")
+    if [[ -n "$bad_required" || -n "$bad_other" ]]; then
+      echo "NOT MERGED: checks not passing on $sha: ${bad_required}${bad_required:+${bad_other:+, }}${bad_other}"
       jq -r '.check_runs[] | "\(.name): \(.conclusion) — \(.output.title)"' <<<"$runs"
       exit 1
     fi
