@@ -41,6 +41,7 @@ export class MockApi {
       .on("GET /api/v1/auth/sessions", () => ({ data: [fx.session()] }))
       .on("GET /api/v1/device-tokens", () => ({ data: [] }))
       .on("POST /api/v1/transactions/cash", () => ({ status: 202, data: { saved: true, duplicate: false } }))
+      .on("POST /api/v1/transactions/cash/parse", () => ({ data: fx.cashParse() }))
       .on("POST /api/v1/auth/refresh", () => ({ data: {} }))
       // Sign-in starts at the API (AOS-618): Google's URL with the API's state and PKCE challenge.
       .on("GET /api/v1/auth/google/start", () => ({
@@ -52,6 +53,7 @@ export class MockApi {
       .on("GET /api/v1/categories/review", () => ({ data: [] }))
       .on("GET /api/v1/categories/model", () => ({ data: { enabled: false, state: "off", corrections: 0, correctionsNeeded: 20 } }))
       .on("GET /api/v1/categories/golden", () => ({ data: [] }))
+      .on("GET /api/v1/merchants/merge-proposals", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
       // Settings → AI features (AOS-704): not set up on the server by default; e2e/ai-features.spec.ts turns it on.
       .on("GET /api/v1/ai/features", () => ({ data: { features: [fx.aiFeature({ available: false, provider: null, locality: null, model: null, destination: null, evaluation: null })], monthlyCapUsd: "2.00" } }))
@@ -75,6 +77,7 @@ export class MockApi {
         return { data: all.filter((d) => (!c || d.category === c) && (!q || d.title.toLowerCase().includes(q))) };
       })
       .on("GET /api/v1/mandates", () => ({ data: [fx.mandate(), fx.mandate({ id: "m-2", payee: "Cult.fit", rail: "upi_autopay", amount: "999.00", nextDebitOn: null, nextDebitAmount: null, dormant: true })] }))
+      .on("GET /api/v1/forecast", () => ({ data: fx.forecast() }))
       .on("GET /api/v1/dues", (_r, u) => {
         const m = u.searchParams.get("month");
         return { data: m && m !== "2026-10" ? fx.duesMonth({ month: m, items: [], totals: { open: "0.00", paid: "0.00", renewals: "0.00" } }) : fx.duesMonth() };

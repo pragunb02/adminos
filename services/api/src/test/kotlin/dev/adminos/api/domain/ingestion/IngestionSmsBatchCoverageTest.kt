@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion
 
 import dev.adminos.api.InfraIngestTestKit.assertRejectsMissingFields
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import dev.adminos.api.InfraIngestTestKit.assertRoundTrips
 import dev.adminos.api.InfraIngestTestKit.routeTest
 import dev.adminos.api.InfraIngestTestKit.tokenFor
@@ -165,7 +166,7 @@ class IngestionSmsBatchCoverageTest {
 
     private val owner = user()
     private fun syncTest(block: suspend io.ktor.server.testing.ApplicationTestBuilder.() -> Unit) =
-        routeTest({ ingestionRoutes(service, ConnectionService(InMemoryConnectionRepository(), sessions)) }, block)
+        routeTest({ ingestionRoutes(service, ConnectionService(InMemoryConnectionRepository(), sessions, randomTokenEncryptor())) }, block)
 
     private fun batch(n: Int) = (0 until n).joinToString(",", """{"deviceId":"iphone","batch":[""", "]}") {
         """{"merchant":"SWIGGY","amount":${100 + it},"date":"2026-10-01","accountLast4":"1234"}"""

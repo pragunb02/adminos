@@ -149,10 +149,10 @@ func TestAMissingMessageIsErrNotFound(t *testing.T) {
 	}
 }
 
-func TestMetadataRequestsOnlyFromAndSubject(t *testing.T) {
+func TestMetadataRequestsOnlyFromSubjectAndAuthenticationResults(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		if q.Get("format") != "metadata" || strings.Join(q["metadataHeaders"], ",") != "From,Subject" {
+		if q.Get("format") != "metadata" || strings.Join(q["metadataHeaders"], ",") != "From,Subject,Authentication-Results" {
 			t.Errorf("unexpected query %s", r.URL.RawQuery)
 		}
 		w.Write([]byte(`{"id":"m1","payload":{"headers":[{"name":"from","value":"HDFC Bank <alerts@hdfcbank.net>"}]}}`))

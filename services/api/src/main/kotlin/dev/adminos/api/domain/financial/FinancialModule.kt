@@ -6,12 +6,14 @@ import dev.adminos.api.domain.agent.InsightRepository
 import dev.adminos.api.domain.analytics.analyticsRoutes
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.financial.links.suggestionRoutes
+import dev.adminos.api.domain.financial.grouping.merchantGroupingRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import dev.adminos.api.domain.financial.mandates.mandateRoutes
 import dev.adminos.api.domain.financial.learning.learnedCategoryRoutes
 import dev.adminos.api.domain.financial.receipts.receiptRoutes
 import dev.adminos.api.domain.financial.review.categoryReviewRoutes
+import dev.adminos.api.domain.forecast.forecastRoutes
 import org.koin.ktor.ext.inject
 
 /**
@@ -36,6 +38,8 @@ fun Application.financialModule() {
     val hiddenFees: dev.adminos.api.domain.financial.receipts.HiddenFeesService by inject()
     val receiptMatching: dev.adminos.api.domain.financial.receipts.ReceiptMatchingService by inject()
     val categoryReview: dev.adminos.api.domain.financial.review.CategoryReviewService by inject()
+    val forecastService: dev.adminos.api.domain.forecast.ForecastService by inject()
+    val merchantGrouping: dev.adminos.api.domain.financial.grouping.MerchantGroupingService by inject()
 
     routing {
         route("/api/v1") {
@@ -50,6 +54,8 @@ fun Application.financialModule() {
             learnedCategoryRoutes(categoryModels)
             receiptRoutes(hiddenFees, receiptMatching)
             categoryReviewRoutes(categoryReview)
+            forecastRoutes(forecastService)
+            merchantGroupingRoutes(merchantGrouping)
             dashboardRoutes(
                 transactionRepository,
                 subscriptionRepository,

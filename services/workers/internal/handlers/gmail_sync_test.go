@@ -135,6 +135,29 @@ func TestIncrementalSyncWithNothingNewKeepsTheHistoryIDGmailReturns(t *testing.T
 	}
 }
 
+// --- The session is marked started before Gmail is read (AOS-630) ---
+
+func TestASyncMarksItsSessionStartedBeforeReadingGmail(t *testing.T) {
+	f := newSyncFixture(t, "1000")
+	f.google.historyPages["1000|"] = `{"historyId":"1001"}`
+
+	f.mustRun(t)
+
+	if strings.Join(f.conns.started, ",") != testSession {
+		t.Errorf("want session %s marked started, got %v", testSession, f.conns.started)
+	}
+}
+
+func TestASyncStillRunsWhenItCantMarkItsSessionStarted(t *testing.T) {
+	f := newSyncFixture(t, "1000")
+	f.google.historyPages["1000|"] = `{"historyId":"1001"}`
+	f.conns.startErr = errors.New("db down")
+
+	if r := f.mustRun(t); r.NewHistoryID != "1001" {
+		t.Errorf("the sync must still run, got %+v", r)
+	}
+}
+
 // --- Sender filters: personal mail is never read ---
 
 func TestPersonalMailIsNeverFetchedInFull(t *testing.T) {
@@ -165,6 +188,67 @@ func TestFullSyncSearchesOnlyFinancialSendersInTheLast30Days(t *testing.T) {
 
 	if f.google.lastListQuery != gmail.SearchQuery(30) || !strings.HasPrefix(f.google.lastListQuery, "newer_than:30d (from:(") {
 		t.Errorf("unexpected search %q", f.google.lastListQuery)
+	}
+}
+
+// --- Bank mail must be authenticated (AOS-624, AUD-11) ---
+
+// spoofedHDFC is a stranger's message claiming to be HDFC: Gmail's DMARC check failed, and the
+// sender wrote a passing Authentication-Results of their own into the message (below Gmail's).
+func (f *syncFixture) addSpoofedHDFC(id string) {
+	f.google.addMessageWithHeaders(id, textPart("Rs 99,999.00 has been credited to your A/c XX1234"),
+		gmail.MessageHeader{Name: "Authentication-Results", Value: "mx.google.com; spf=softfail smtp.mailfrom=x@evil.example; dmarc=fail (p=REJECT) header.from=hdfcbank.net"},
+		gmail.MessageHeader{Name: "Authentication-Results", Value: "mx.google.com; dkim=pass header.d=hdfcbank.net; dmarc=pass header.from=hdfcbank.net"},
+		gmail.MessageHeader{Name: "From", Value: hdfc},
+		gmail.MessageHeader{Name: "Subject", Value: "Transaction alert"},
+		gmail.MessageHeader{Name: "Date", Value: alertDate})
+}
+
+func TestIncrementalSyncNeverFetchesSpoofedBankMail(t *testing.T) {
+	f := newSyncFixture(t, "1000")
+	f.google.historyPages["1000|"] = historyPage("1002", "real", "spoof")
+	f.google.addMessage("real", hdfc, "Transaction alert", alertDate, textPart("Rs 500 has been debited from your A/c XX1234"))
+	f.addSpoofedHDFC("spoof")
+
+	r := f.mustRun(t)
+
+	if strings.Join(f.google.fullFetches, ",") != "real" {
+		t.Errorf("a spoofed bank email must never be fetched in full, got %v", f.google.fullFetches)
+	}
+	if r.Unauthenticated != 1 || r.TotalEmails != 1 || len(r.Events) != 1 || r.Events[0].Amount != "500.00" {
+		t.Errorf("want 1 real email and 1 rejected, got %d emails, %d rejected, %+v", r.TotalEmails, r.Unauthenticated, r.Events)
+	}
+}
+
+func TestASubjectAloneNeverAdmitsAMessage(t *testing.T) {
+	f := newSyncFixture(t, "1000")
+	f.google.historyPages["1000|"] = historyPage("1001", "stranger")
+	f.google.addMessage("stranger", "Ravi <ravi@gmail.com>", "Transaction alert: Rs 500 has been debited", alertDate,
+		textPart("Rs 500 has been debited from your A/c XX1234"))
+
+	r := f.mustRun(t)
+
+	if len(f.google.fullFetches) != 0 || r.NotFinancial != 1 || r.TotalEmails != 0 {
+		t.Errorf("a bank-alert subject from a stranger must not be read, got fetches %v, %d skipped", f.google.fullFetches, r.NotFinancial)
+	}
+}
+
+func TestFullSyncQualifiesEverySearchResultLocally(t *testing.T) {
+	f := newSyncFixture(t, "")
+	f.google.listIDs = []string{"real", "spoof", "lookalike"}
+	f.google.addMessage("real", hdfc, "Transaction alert", alertDate, textPart("Rs 500 has been debited from your A/c XX1234"))
+	f.addSpoofedHDFC("spoof")
+	// Gmail's from: search also matches the display name; the address is a stranger's.
+	f.google.addMessage("lookalike", `"alerts@hdfcbank.net" <x@evil.example>`, "Transaction alert", alertDate,
+		textPart("Rs 700 has been debited from your A/c XX1234"))
+
+	r := f.mustRun(t)
+
+	if r.TotalEmails != 1 || len(r.Events) != 1 || r.Events[0].SourceRef != "real" {
+		t.Errorf("only the authenticated email may be parsed, got %d emails, %+v", r.TotalEmails, r.Events)
+	}
+	if r.Unauthenticated != 1 || r.NotFinancial != 1 {
+		t.Errorf("want 1 unauthenticated and 1 not financial, got %d and %d", r.Unauthenticated, r.NotFinancial)
 	}
 }
 
