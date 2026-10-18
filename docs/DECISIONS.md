@@ -1534,22 +1534,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - materialised trips with a nightly job (stale, and hard to reconcile);
   - a 10-day chain gap (merged separate trips on the eval);
   - manual-only trips.
-### D-111 — Splitwise: import the CSV export; count the owner's share; settle-ups are settlements
-2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-911 · Builds on D-38, D-39, D-46, D-64, D-78, D-80
-- **Source:** the owner's Splitwise "Export as spreadsheet" CSV, uploaded with "which column is me". No credentials. The Splitwise API (OAuth 2, no read-only scope, full-access tokens) is a later adapter behind the same port (`SharedEntry`), only if manual exports prove tedious.
-- **Share rule:** from the owner's net change `n` on a row of cost `C`: `n > 0` → they paid it all, share `C − n`; `n < 0` → a friend paid, share `−n`; `n = 0` → no effect. Rows that don't balance are skipped.
-- **Effects:**
-  - a bill the owner paid sets `transactions.own_share` on its bank debit, and every total counts `COALESCE(own_share, amount)` (the bank amount is never changed);
-  - a friend-paid share becomes a `splitwise` spend with no personal data;
-  - a settle-up turns its UPI transfer into the new nature `settlement` (neither spending nor income).
-- **Matching `split-v1`:** exact amount; bills from 1 day before to 3 days after, settle-ups ±2 days; points with apply/suggest bands and an ambiguity margin of 3; a settle-up is applied only with the friend's name or UPI handle on the bank record; one transaction per entry; later bank records are offered to waiting entries.
-- **Review and undo:** confirm, pick another transaction, reject (remembered), ignore, undo one entry or a whole import.
-- **Privacy:** descriptions and counterparties are encrypted at rest (TokenEncryptor, row-bound), never logged, and never sent to a model. Splitwise rows are never deduplicated, refunded, bill-matched, detected as subscriptions, or AI-categorised.
-- **Measured:** a seeded synthetic eval set with a committed floor (`splits/baseline.json`, enforced by `SplitEvalTest`). On it: 1.00 precision for automatic matches, 0.73 automatic and 0.93 with-Review recall, spend error from ₹30,470 to ₹1,523.
-  - the API first (full-access token for a read need);
-  - a pasted personal API key;
-  - a synthetic "owed by friends" refund row;
-  - reusing `transfer` for settle-ups (D-39 means own accounts).
 ### D-114 — Gmail pushes are folded into a waiting sync
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-630 · Extends D-63 · Builds on D-59, D-100
 - A verified Gmail push queues an incremental sync unless its history ID is at or before the stored one, or a Gmail sync of the connection is queued and not yet started (created within 10 minutes); then it is acknowledged (200, so Pub/Sub doesn't retry) and folded into that sync.
