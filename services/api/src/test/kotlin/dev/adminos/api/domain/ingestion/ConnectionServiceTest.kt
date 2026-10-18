@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion
 
 import dev.adminos.api.domain.ingestion.connection.*
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.SyncSessionStatus
 import dev.adminos.api.domain.ingestion.sync.SyncType
@@ -17,25 +18,25 @@ class ConnectionServiceTest {
     fun setup() {
         connRepo = InMemoryConnectionRepository()
         syncRepo = InMemorySyncSessionRepository()
-        service = ConnectionService(connRepo, syncRepo)
+        service = ConnectionService(connRepo, syncRepo, randomTokenEncryptor())
     }
 
     @Test
     fun `createConnection creates a new Gmail connection`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
-        val conn = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@gmail.com")
+        val conn = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@example.com")
 
         assertEquals(ConnectionStatus.CONNECTED, conn.status)
         assertEquals(SourceType.GMAIL, conn.sourceType)
-        assertEquals("test@gmail.com", conn.gmailAddress)
+        assertEquals("test@example.com", conn.gmailAddress)
         assertEquals(userId, conn.userId)
     }
 
     @Test
     fun `createConnection returns existing if already connected`() = runBlocking<Unit> {
         val userId = UUID.randomUUID()
-        val first = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@gmail.com")
-        val second = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@gmail.com")
+        val first = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@example.com")
+        val second = service.createConnection(userId, SourceType.GMAIL, gmailAddress = "test@example.com")
 
         assertEquals(first.id, second.id)
     }

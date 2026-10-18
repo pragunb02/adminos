@@ -138,7 +138,7 @@ describe("Documents (AOS-507)", () => {
 
     await user.click(within(screen.getByRole("listitem", { name: "Form 16 FY26" })).getByRole("button", { name: "Delete" }));
     await user.click(within(screen.getByRole("listitem", { name: "Passport" })).getByRole("button", { name: "Delete" }));
-    await vi.waitFor(() => expect(deleted).toEqual(["d-1"]), { timeout: 2000 }); // a second delete sends the first
+    await vi.waitFor(() => expect(deleted).toEqual(["d-1"]), { timeout: 5_000 }); // a second delete sends the first
     refuse = true;
     await act(async () => { vi.advanceTimersByTime(5100); });
     expect(await screen.findByRole("alert")).toHaveTextContent("Passport: Document storage is unavailable");

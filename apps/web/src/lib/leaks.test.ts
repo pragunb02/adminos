@@ -64,4 +64,27 @@ describe("leaks helpers (AOS-902)", () => {
     expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: ["bar"] })).toBe("names with bar");
     expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: [] })).toBe("only the merchants you add");
   });
+
+  // AOS-913: the payment-method rule from AOS-912.
+  it("describes a payment-method rule instead of only the merchants you add", () => {
+    expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: [], paymentMethods: ["pay_later"] })).toBe("purchases paid with pay later");
+  });
+
+  it("names several methods, and puts the method first beside other rules", () => {
+    expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: [], paymentMethods: ["upi", "card_credit", "card_debit"] }))
+      .toBe("purchases paid with UPI or credit card or debit card");
+    expect(ruleSummary({ brands: ["Zepto"], categories: [], subcategories: ["groceries"], keywords: [], paymentMethods: ["pay_later"] }))
+      .toBe("purchases paid with pay later; 1 app or shop; anything categorised groceries");
+  });
+
+  it("an unknown method reads as words, and a missing or empty list is no rule", () => {
+    expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: [], paymentMethods: ["crypto_voucher"] })).toBe("purchases paid with crypto voucher");
+    expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: [], paymentMethods: [] })).toBe("only the merchants you add");
+    expect(ruleSummary({ brands: ["IndiGo"], categories: [], subcategories: [], keywords: [] })).toBe("1 app or shop");
+  });
+
+  it("does not read inherited object keys as method names", () => {
+    expect(ruleSummary({ brands: [], categories: [], subcategories: [], keywords: [], paymentMethods: ["constructor", "__proto__"] }))
+      .toBe("purchases paid with constructor or proto");
+  });
 });

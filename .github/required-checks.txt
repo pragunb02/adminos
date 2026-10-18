@@ -1,0 +1,29 @@
+# Check runs that must report `success` on a PR's head commit before scripts/merge-pr.sh merges it (AOS-622).
+# merge-pr.sh reads this file from main, never from the PR. Keep it identical to the required checks in
+# the branch protection rule for main (docs/security/SUPPLY-CHAIN.md §4). One check-run name per line.
+# The review statuses review/code and review/security (D-101) are commit statuses, checked separately.
+
+# CI (.github/workflows/ci.yml)
+api
+web
+e2e
+go (services/workers)
+go (tools/sms-reader)
+pdf-parser
+shell
+
+# Security (.github/workflows/security.yml)
+osv-scanner
+npm-audit
+govulncheck (services/workers)
+govulncheck (tools/sms-reader)
+images
+
+# CodeQL (.github/workflows/codeql.yml)
+codeql (java-kotlin)
+codeql (javascript-typescript)
+codeql (go)
+codeql (python)
+
+# GitGuardian (GitHub app)
+GitGuardian Security Checks

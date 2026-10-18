@@ -27,7 +27,7 @@ test.describe("Connect Gmail", () => {
     let connections = [fx.connection({ id: "c-2", sourceType: "sms" })];
     api.on("GET /api/v1/connections", () => ({ data: connections }))
       .on("POST /api/v1/connections", () => {
-        connections = [...connections, fx.connection({ gmailAddress: "pragun.b@gmail.com" })];
+        connections = [...connections, fx.connection({ gmailAddress: "owner@example.com" })];
         return { status: 201, data: connections[1] };
       });
     await google(page, approve);
@@ -43,7 +43,7 @@ test.describe("Connect Gmail", () => {
     expect(api.callsTo("GET", "/api/v1/connections/gmail/authorize-url")).toHaveLength(1);
 
     await page.getByRole("link", { name: "Back to Settings" }).click();
-    await expect(page.getByRole("listitem", { name: "gmail connection" })).toContainText("pragun.b@gmail.com");
+    await expect(page.getByRole("listitem", { name: "gmail connection" })).toContainText("owner@example.com");
     await page.goBack();
     await expect(page.getByRole("status")).toContainText("Gmail connected");
     expect(api.callsTo("POST", "/api/v1/connections")).toHaveLength(1);

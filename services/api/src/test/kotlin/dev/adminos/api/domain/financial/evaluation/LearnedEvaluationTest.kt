@@ -108,6 +108,18 @@ class LearnedEvaluationTest {
     }
 
     @Test
+    fun `a local golden set exported from Review is scored with a model trained on the whole shipped set`() = runBlocking<Unit> {
+        val header = "id,merchant_raw,upi_vpa,payment_method,direction,expected_category,expected_subcategory,tags"
+        val local = GoldenSet.parse("$header\nL1,UPI-MAHADEV MEDICOS-PAYMENT,,UPI,DEBIT,HEALTH,,real-shaped local\nL2,ZOMATO LTD,,CARD_CREDIT,DEBIT,FOOD,,real-shaped local")
+        val scored = LearnedLabeller().runWithPrior(local, golden)
+        assertEquals(listOf("L1", "L2"), scored.outcomes.map { it.case.id })
+        assertEquals(listOf("L1"), scored.answers.map { it.caseId }, "only the row the rules left as Other is asked")
+        val file = kotlin.io.path.createTempFile("golden", ".local.csv").toFile().apply { writeText("$header\nL1,UPI-MAHADEV MEDICOS-PAYMENT,,UPI,DEBIT,HEALTH,,local\n") }
+        localReport(file) // prints only
+        file.delete()
+    }
+
+    @Test
     fun `naive Bayes, the dependency-free alternative, is no better calibrated`() {
         val nb = rulesLearnedRun(NaiveBayesTrainer())
         val nbEce = nb.calibrationError ?: fail("nothing was held out")

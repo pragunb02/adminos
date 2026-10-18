@@ -21,7 +21,7 @@ func gmailConnection(t *testing.T, ctx context.Context, pool *pgxpool.Pool, user
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO user_connections (id, user_id, source_type, status, gmail_address, access_token, refresh_token, token_expires_at, history_id)
 		VALUES ($1, $2, 'gmail', 'connected', $3, NULLIF($4, ''), NULLIF($5, ''), $6, NULLIF($7, ''))`,
-		id, userID, "u-"+id+"@gmail.com", access, refresh, expires, historyID); err != nil {
+		id, userID, "u-"+id+"@example.com", access, refresh, expires, historyID); err != nil {
 		t.Fatalf("create gmail connection: %v", err)
 	}
 	return id
@@ -49,7 +49,7 @@ func TestGmailSyncEndToEnd_Integration(t *testing.T) {
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO user_connections (id, user_id, source_type, status, gmail_address, access_token, refresh_token, history_id)
 		VALUES ($1, $2, 'gmail', 'connected', $3, $4, $5, 'history_1760000000')`,
-		connID, userID, "e2e-"+connID+"@gmail.com",
+		connID, userID, "e2e-"+connID+"@example.com",
 		seal(t, cipher, "old-access", connID, "access_token"), "legacy-plain-refresh"); err != nil {
 		t.Fatalf("create connection: %v", err)
 	}
@@ -158,6 +158,36 @@ func TestGmailStoreRecordsFailuresAndRevocation_Integration(t *testing.T) {
 	_ = pool.QueryRow(ctx, `SELECT status::text FROM user_connections WHERE id = $1`, connID).Scan(&status)
 	if status != "error" {
 		t.Errorf("revoked connection status %q", status)
+	}
+}
+
+// AOS-630: a started sync leaves the queued state, so the API stops folding pushes into it; a completed
+// session is never moved back.
+func TestGmailStoreMarksSessionsStarted_Integration(t *testing.T) {
+	pool := testPool(t)
+	defer pool.Close()
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+	defer cleanupTestUser(t, pool, userID)
+	store := &pgConnectionStore{db: pool}
+	connID := gmailConnection(t, ctx, pool, userID, "v2:a", "v2:r", "77", nil)
+	sessionID := gmailSession(t, ctx, pool, userID, connID)
+	done := gmailSession(t, ctx, pool, userID, connID)
+	if _, err := pool.Exec(ctx, `UPDATE sync_sessions SET status = 'completed' WHERE id = $1`, done); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []string{sessionID, done} {
+		if err := store.MarkStarted(ctx, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var status, doneStatus string
+	var started *time.Time
+	_ = pool.QueryRow(ctx, `SELECT status::text, started_at FROM sync_sessions WHERE id = $1`, sessionID).Scan(&status, &started)
+	_ = pool.QueryRow(ctx, `SELECT status::text FROM sync_sessions WHERE id = $1`, done).Scan(&doneStatus)
+	if status != "in_progress" || started == nil || doneStatus != "completed" {
+		t.Errorf("started session %s (%v), completed session %s", status, started, doneStatus)
 	}
 }
 

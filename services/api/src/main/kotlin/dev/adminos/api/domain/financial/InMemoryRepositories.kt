@@ -87,8 +87,16 @@ class InMemoryTransactionRepository : TransactionRepository {
     }
 
     override suspend fun update(transaction: Transaction): Transaction {
-        store[transaction.id] = transaction.copy(updatedAt = Instant.now())
-        return store[transaction.id]!!
+        // Like the SQL update, the share is never written here (only setOwnShare changes it).
+        val updated = transaction.copy(updatedAt = Instant.now(), ownShare = store[transaction.id]?.ownShare)
+        store[transaction.id] = updated
+        return updated
+    }
+
+    override suspend fun setOwnShare(id: UUID, share: BigDecimal?): Boolean {
+        val current = store[id] ?: return false
+        store[id] = current.copy(ownShare = share, updatedAt = Instant.now())
+        return true
     }
 
     override suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction> =
@@ -102,7 +110,7 @@ class InMemoryTransactionRepository : TransactionRepository {
         fun sumBy(nature: TransactionNature) = store.values
             .filter { it.userId == userId && it.nature == nature && it.transactedAt in from..to }
             .groupBy { it.category }
-            .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount } }
+            .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.countedAmount } }
         return netOfRefunds(sumBy(TransactionNature.SPEND), sumBy(TransactionNature.REFUND))
     }
 
@@ -118,7 +126,7 @@ class InMemoryTransactionRepository : TransactionRepository {
                 (cat == null || it.category == cat)
         }
         if (txns.isEmpty()) return BigDecimal.ZERO
-        val total = txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount }
+        val total = txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.countedAmount }
         return total.divide(BigDecimal(txns.size), 2, java.math.RoundingMode.HALF_UP)
     }
 
@@ -216,7 +224,7 @@ class InMemorySubscriptionRepository : SubscriptionRepository {
 
 // ── In-Memory Bill Repository ──
 
-class InMemoryBillRepository(private val clock: java.time.Clock = java.time.Clock.systemDefaultZone()) : BillRepository {
+class InMemoryBillRepository : BillRepository {
     private val store = ConcurrentHashMap<UUID, Bill>()
 
     override suspend fun save(bill: Bill): Bill {
@@ -253,8 +261,7 @@ class InMemoryBillRepository(private val clock: java.time.Clock = java.time.Cloc
             it.userId == userId && it.status in listOf(BillStatus.UPCOMING, BillStatus.DUE, BillStatus.OVERDUE)
         }.sortedBy { it.dueDate }
 
-    override suspend fun findUpcoming(userId: UUID, withinDays: Int): List<Bill> {
-        val today = LocalDate.now(clock)
+    override suspend fun findUpcoming(userId: UUID, today: LocalDate, withinDays: Int): List<Bill> {
         val cutoff = today.plusDays(withinDays.toLong())
         return store.values.filter {
             it.userId == userId &&
@@ -264,8 +271,7 @@ class InMemoryBillRepository(private val clock: java.time.Clock = java.time.Cloc
     }
 
     // Find upcoming bills across ALL users (for cron)
-    override suspend fun findUpcoming(withinDays: Int): List<Bill> {
-        val today = LocalDate.now(clock)
+    override suspend fun findUpcoming(today: LocalDate, withinDays: Int): List<Bill> {
         val cutoff = today.plusDays(withinDays.toLong())
         return store.values.filter {
             it.status in listOf(BillStatus.UPCOMING, BillStatus.DUE) &&
@@ -273,8 +279,7 @@ class InMemoryBillRepository(private val clock: java.time.Clock = java.time.Cloc
         }
     }
 
-    override suspend fun findOverdue(): List<Bill> {
-        val today = LocalDate.now(clock)
+    override suspend fun findOverdue(today: LocalDate): List<Bill> {
         return store.values.filter {
             it.status in listOf(BillStatus.UPCOMING, BillStatus.DUE) && it.dueDate < today
         }

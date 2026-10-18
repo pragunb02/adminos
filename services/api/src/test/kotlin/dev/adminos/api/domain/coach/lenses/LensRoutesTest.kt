@@ -64,6 +64,10 @@ class LensRoutesTest {
         assertTrue(food.getValue("brands").jsonArray.any { it.jsonPrimitive.content == "Swiggy" })
         assertTrue(body.lens("nights_out").getValue("keywords").jsonArray.any { it.jsonPrimitive.content == "pub" })
         assertEquals(0, food.getValue("added").jsonArray.size)
+        assertEquals(0, food.getValue("paymentMethods").jsonArray.size)
+        val payLater = body.lens("pay_later")
+        assertEquals(listOf("pay_later"), payLater.getValue("paymentMethods").jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(0, payLater.getValue("brands").jsonArray.size, "providers are repayments, never the habit")
     }
 
     @Test

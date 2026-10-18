@@ -7,16 +7,19 @@ here=$(cd "$(dirname "$0")" && pwd); script="$here/../merge-pr.sh"
 sha=0123456789abcdef0123456789abcdef01234567
 pass=0; fail=0
 
-# name, check-runs json, status json, expected exit code, expected output substring, [timeout], [refuse-merge]
+# name, check-runs json, status json, expected exit code, expected output substring, [timeout], [required checks], [refuse-merge]
+# The required-checks list (main's .github/required-checks.txt) defaults to GitGuardian; "UNREADABLE" makes it fail.
 run_case() {
-  local name="$1" runs="$2" status="$3" want_code="$4" want_out="$5" timeout="${6:-5}" refuse="${7:-}" dir code
+  local name="$1" runs="$2" status="$3" want_code="$4" want_out="$5" timeout="${6:-5}" required="${7:-GitGuardian}" refuse="${8:-}" dir code
   dir=$(mktemp -d)
-  printf '%s' "$runs" > "$dir/runs.json"; printf '%s' "$status" > "$dir/status.json"
+  printf '%s' "$runs" > "$dir/runs.json"; printf '%s' "$status" > "$dir/status.json"; printf '%s\n' "$required" > "$dir/required.txt"
   cat > "$dir/gh" <<FAKE
 #!/usr/bin/env bash
 echo "\$*" >> "$dir/calls"
 case "\$*" in
   "pr view"*) echo "$sha" ;;
+  "api -H Accept: application/vnd.github.raw repos/pragunb02/adminos/contents/.github/required-checks.txt?ref=main")
+    if grep -q UNREADABLE "$dir/required.txt"; then exit 1; fi; cat "$dir/required.txt" ;;
   *"/commits/$sha/check-runs?per_page=100") cat "$dir/runs.json" ;;
   *"/commits/$sha/statuses?per_page=100") cat "$dir/status.json" ;;
   "pr merge 7 -R pragunb02/adminos --merge --delete-branch --match-head-commit $sha") [[ -f "$dir/refuse-merge" ]] && exit 1; touch "$dir/merged" ;;
@@ -58,11 +61,28 @@ run_case "only the code review: refused for the missing security review" "$ok_ru
 run_case "only the security review: refused for the missing code review" "$ok_runs" "$sec_only" 1 "review/code is missing"
 run_case "security review failed: refused" "$ok_runs" "$sec_failed" 1 "review/security is failure"
 run_case "security review pending: refused" "$ok_runs" "$sec_pending" 1 "review/security is pending"
-run_case "a failed check with passing reviews: refused" "$bad_runs" "$both" 1 "0 of 1 checks succeeded"
+run_case "a failed check with passing reviews: refused" "$bad_runs" "$both" 1 "checks not passing on $sha: GitGuardian=failure"
 run_case "a check still running at the deadline: refused on timeout" "$pending_runs" "$both" 1 "checks still pending after 1s" 1
 run_case "no check runs at all: refused on timeout" '{"total_count":0,"check_runs":[]}' "$both" 1 "checks still pending after 1s" 1
-run_case "GitHub refuses the merge (the head moved during the wait): not merged" "$ok_runs" "$both" 1 "GitHub refused the merge of $sha" 5 refuse-merge
+run_case "GitHub refuses the merge (the head moved during the wait): not merged" "$ok_runs" "$both" 1 "GitHub refused the merge of $sha" 5 GitGuardian refuse-merge
 run_case "more check runs than one page: refused" "$(runs 101 "$(check GitGuardian completed '"success"')")" "$both" 1 "more than one page"
+
+# Required checks (AOS-622): every listed check must have reported success; a missing one is waited for.
+two_ok=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check api completed '"success"')")
+run_case "all required checks reported and passed: merged" "$two_ok" "$both" 0 "MERGED #7" 5 $'# comment\nGitGuardian\n  api  \n'
+run_case "a required check never reported (CI not started): refused on timeout, named" "$ok_runs" "$both" 1 "required checks not reported: api" 1 $'GitGuardian\napi'
+run_case "several required checks missing: all named" "$ok_runs" "$both" 1 "required checks not reported: api, images" 1 $'GitGuardian\napi\nimages'
+neutral_other=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check CodeQL completed '"neutral"')")
+skipped_other=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check docs completed '"skipped"')")
+failed_other=$(runs 2 "$(check GitGuardian completed '"success"')" "$(check CodeQL completed '"failure"')")
+neutral_required=$(runs 1 "$(check GitGuardian completed '"neutral"')")
+run_case "a neutral check that isn't required (CodeQL summary): merged (AOS-641)" "$neutral_other" "$both" 0 "MERGED #7"
+run_case "a skipped check that isn't required: merged (AOS-641)" "$skipped_other" "$both" 0 "MERGED #7"
+run_case "a failed check that isn't required: refused (AOS-641)" "$failed_other" "$both" 1 "CodeQL=failure"
+run_case "a required check that is only neutral: refused (AOS-641)" "$neutral_required" "$both" 1 "GitGuardian=neutral"
+run_case "required-checks list unreadable: refused" "$ok_runs" "$both" 1 "could not read .github/required-checks.txt" 5 "UNREADABLE"
+run_case "required-checks list empty: refused" "$ok_runs" "$both" 1 "lists no checks" 5 $'# only comments\n'
+run_case "an extra, non-required check that failed still blocks" "$(runs 2 "$(check GitGuardian completed '"success"')" "$(check extra completed '"failure"')")" "$both" 1 "checks not passing on $sha: extra=failure"
 
 # Bad arguments never reach gh.
 for args in "" "abc" "7 soon"; do
