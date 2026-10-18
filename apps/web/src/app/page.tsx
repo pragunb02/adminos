@@ -17,6 +17,7 @@ import { delta } from "@/lib/format";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantList from "@/components/console/MerchantList";
 import LeaksHomeCard from "@/components/leaks/LeaksHomeCard";
+import BalancesCard from "@/components/balances/BalancesCard";
 import FeedRow from "@/components/console/FeedRow";
 import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
 import { browserZone } from "@/lib/format";
@@ -125,6 +126,9 @@ function HomeContent() {
           </Section>
 
           <LeaksHomeCard range={range} />
+
+          {/* Latest balance per account (AOS-720): what money left until salary starts from. */}
+          <BalancesCard />
 
           <Section title="Top merchants" error={merchants.error ? errorMessage(merchants.error) : null} onRetry={() => merchants.refetch()}>
             {merchants.data ? (merchants.data.merchants.length ? <MerchantList rows={merchants.data.merchants} /> : <Quiet>No merchants in this period.</Quiet>) : <Skeleton />}

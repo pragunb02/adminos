@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-170 | Architecture | Latest balance per account: append-only readings (V92, figure AES-GCM encrypted) from trusted bank SMS (headers our parsers own; never OTP, failed, promise, notice or mandate; not cards, wallets, loans; names after at/to/from aren't figures) and reconciled statement closings; latest = newest observed time, never arrival; fresh / aging (≤ 7 days, counted) / stale; money left until salary starts from recent post-salary balances, else the last salary (D-76), and says which | Proposed | AOS-720 |
 | D-110 | Product / Architecture | Ask is a page at /ask (from Home and More) whose answers you can trace ("How I got this": each tool, dates, numbers, a link to the same payments); thumbs up/down by answer id (recent answers kept 1 h, another user's id is 404), stored masked and encrypted | Accepted | AOS-711 |
 | D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
 | D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
@@ -1491,3 +1492,36 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - Request bodies the API can't read get fixed answers: 415 `VALIDATION_005` when the request's Content-Type isn't JSON (including none or an unparseable one), 400 `VALIDATION_004` "Malformed request body" for JSON that doesn't parse or fit, 413 `VALIDATION_006` for Ktor's body limit.
 - No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
 - Never a 500 for a client's body; the Content-Type sent is never echoed.
+
+### D-170 — Latest balance per account: trusted readings, newest observed wins, money left from recent balances
+2026-10-18 · Proposed · Type: Architecture · Tasks: AOS-720 · Builds on D-33, D-39, D-67, D-76, D-100
+- **What it says:**
+  - A balance is a **reading**: an account (last 4 digits, plus the bank when the input names it), a figure, the moment it was true, a source (SMS or statement) and the input's fingerprint. Readings are append-only and stored once per input. The figure is encrypted (AES-GCM, bound to the row, V92), and the newest 20 per account are kept.
+  - **The latest per account** is the newest `observedAt`; at the same moment a statement beats an SMS. A reading never wins by arriving later.
+  - **Labels:** fresh (today or yesterday), aging (2–7 days) and stale (over 7 days: shown, never counted).
+- **Where readings come from:**
+  - **Bank SMS:**
+    - only from registered, non-promotional headers our bank parsers own (HDFC, SBI, ICICI, Axis, Kotak today);
+    - only transactions, balance alerts or messages with no transaction; never OTP, failed, promise, request, notice or mandate messages;
+    - read deterministically: available, then cleared, then ledger, then plain "Bal";
+    - not credit cards, wallets, loans, deposits or points;
+    - not opening, closing, average or minimum balances;
+    - a label after at/to/from/VPA is a name;
+    - two figures of a kind, or two accounts, are refused;
+    - "as on" dates the reading to the end of that day.
+  - **Statements:** the closing balance only when it follows from the previous row (previous − debit + credit). It is dated to the end of the closing day or the period's end, never after the import. The running balance is no longer copied into ingest events.
+  - **Not:** Gmail (deferred; no Go duplicate of the rule), WhatsApp exports (no trusted sender), Shortcut records and cash.
+- **Money left until salary:**
+  - It starts from the recent balances (≤ 7 days, from the salary's day or later). Spending is subtracted from the day after the oldest of them, then what's expected until payday. Without such a balance it starts from the last salary (D-76).
+  - The API says which (`basis`), lists the accounts counted and those not counted with why (`stale`, `before_salary`), and Home's "How we got this" shows it.
+- **Rejected:**
+  - a mutable "current balance" per account: a late message could overwrite a newer one, and the evidence is lost;
+  - reading balances back out of plaintext ingest-event metadata: sensitive, unencrypted, and it can't hold pure balance alerts;
+  - an LLM reader (D-67);
+  - trusting any bank-looking header: a spoofed figure would mislead "money left".
+- **Consequences:**
+  - a new bank is one parser registry entry;
+  - a new source is a `BalanceSource` value and one `BalanceService.record` call;
+  - card outstanding and unpaid card bills are still not in "money left" (D-39);
+  - the extraction eval set (`balances/sms.tsv`, 122 synthetic SMS) and its floor gate changes.
+

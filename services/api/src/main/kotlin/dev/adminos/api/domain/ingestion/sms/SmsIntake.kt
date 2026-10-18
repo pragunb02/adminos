@@ -3,8 +3,17 @@ package dev.adminos.api.domain.ingestion.sms
 import dev.adminos.api.domain.ingestion.events.IngestEvent
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.IngestSource
+import dev.adminos.api.domain.balances.BalanceObservation
+import dev.adminos.api.domain.balances.BalanceRecordResult
+import dev.adminos.api.domain.balances.BalanceService
+import dev.adminos.api.domain.balances.BalanceSource
 import java.security.MessageDigest
+import java.time.LocalTime
+import java.time.ZoneId
 import java.util.UUID
+
+/** What one SMS did: its transaction (or why none), and whether it updated an account's balance (AOS-720). */
+data class SmsIntakeOutcome(val result: SmsIntakeResult, val balanceNoted: Boolean)
 
 sealed interface SmsIntakeResult {
     data object Accepted : SmsIntakeResult
@@ -17,15 +26,36 @@ sealed interface SmsIntakeResult {
 /**
  * Raw SMS (from any transport) → parsed → common intake. The text exists only inside this call (D-33).
  * The same message always maps to the same `sourceRef`, so a resent SMS is a duplicate.
+ * A trusted bank's balance figure is noted for its account (AOS-720, D-170), whatever happened to the transaction.
  */
 class SmsIntake(
     private val parsers: SmsParserRegistry,
     private val intake: IngestEventService,
-    private val mandates: dev.adminos.api.domain.financial.mandates.MandateService
+    private val mandates: dev.adminos.api.domain.financial.mandates.MandateService,
+    private val balances: BalanceService
 ) {
+    private val balanceGate = SmsBalanceGate(parsers)
 
-    suspend fun accept(userId: UUID, message: SmsMessage): SmsIntakeResult =
-        when (val result = parsers.parse(message)) {
+    suspend fun accept(userId: UUID, message: SmsMessage): SmsIntakeResult = receive(userId, message).result
+
+    suspend fun receive(userId: UUID, message: SmsMessage): SmsIntakeOutcome {
+        val parsed = parsers.parse(message)
+        val result = transaction(userId, message, parsed)
+        return SmsIntakeOutcome(result, noteBalance(userId, message, parsed))
+    }
+
+    private suspend fun noteBalance(userId: UUID, message: SmsMessage, parsed: SmsParseResult): Boolean {
+        val capture = balanceGate.read(message, parsed) as? SmsBalanceCapture.Trusted ?: return false
+        val b = capture.balance
+        // The balance is as of the SMS, unless the bank dates it earlier ("as on 15-10-26": the end of that day).
+        val observedAt = b.asOn?.takeIf { it.isBefore(message.receivedAt.atZone(IST).toLocalDate()) }
+            ?.let { it.atTime(END_OF_DAY).atZone(IST).toInstant() } ?: message.receivedAt
+        val r = balances.record(BalanceObservation(userId, capture.bankCode, b.accountHint, b.amount, observedAt, BalanceSource.SMS, fingerprint(message)))
+        return r == BalanceRecordResult.Saved
+    }
+
+    private suspend fun transaction(userId: UUID, message: SmsMessage, parsed: SmsParseResult): SmsIntakeResult =
+        when (val result = parsed) {
             is SmsParseResult.Ignored -> SmsIntakeResult.Ignored(result.reason)
             is SmsParseResult.Mandate -> {
                 mandates.record(userId, result.notice, message.receivedAt, fingerprint(message))
@@ -50,6 +80,12 @@ class SmsIntake(
                 if (intake.ingest(listOf(event)).accepted == 1) SmsIntakeResult.Accepted else SmsIntakeResult.Duplicate
             }
         }
+
+    private companion object {
+        /** Indian banks' SMS dates are India time (as the record adapter assumes). */
+        val IST: ZoneId = ZoneId.of("Asia/Kolkata")
+        val END_OF_DAY: LocalTime = LocalTime.of(23, 59, 59)
+    }
 
     private fun fingerprint(m: SmsMessage): String {
         val header = SenderId.parse(m.sender)?.header ?: m.sender.uppercase()

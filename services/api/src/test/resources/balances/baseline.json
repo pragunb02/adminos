@@ -1,0 +1,9 @@
+{
+    "subject": "rules",
+    "cases": 122,
+    "exact": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "falseBalanceRate": 0.0,
+    "reasonAccuracy": 1.0
+}

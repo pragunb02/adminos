@@ -238,6 +238,19 @@ tasks.register<JavaExec>("cashPhraseReport") {
     }
 }
 
+// SMS balances (AOS-720): ./gradlew -q balanceReport scores balance extraction on the synthetic SMS set
+// (src/test/resources/balances/sms.tsv) and lists the misses; -PwriteBaseline records the floor BalanceRegressionTest holds.
+tasks.register<JavaExec>("balanceReport") {
+    group = "verification"
+    description = "Evaluate SMS balance extraction on the synthetic SMS set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.balances.evaluation.BalanceEvaluationKt")
+    args(layout.buildDirectory.file("reports/balances/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/balances").path)
+    }
+}
+
 // Splitwise matching eval (AOS-911): ./gradlew -q splitwiseReport prints match precision/recall and spend correctness
 // on the synthetic eval set and writes build/reports/splitwise/report.json. -PwriteBaseline records the current
 // numbers as the new floor (src/test/resources/splits/baseline.json), which SplitEvalTest enforces.

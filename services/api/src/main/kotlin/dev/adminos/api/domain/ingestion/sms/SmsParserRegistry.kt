@@ -18,6 +18,13 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
     }
 
     /**
+     * The bank whose own parser owns [sender]'s header, or null for promotional, personal, unknown or generic senders.
+     * Only these senders' balances are trusted (AOS-720, D-170): a header we don't know could be anyone's.
+     */
+    fun knownBankOf(sender: String): String? =
+        SenderId.parse(sender)?.takeUnless { it.isPromotional }?.let { byHeader[it.header]?.bankCode }
+
+    /**
      * For channels without TRAI headers (a WhatsApp export, AOS-403): the caller has already decided the
      * text comes from a bank, and names it by [bankCode] when it knows which one (null = generic parser).
      */
@@ -38,7 +45,7 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
             is SmsReading.Parsed -> SmsParseResult.Transaction(reading.transaction.copy(markers = MandateDebitMarker.metadataFor(text)))
             SmsReading.DirectionUnclear -> SmsParseResult.Ignored(SmsParseResult.DIRECTION_UNCLEAR)
             SmsReading.NotATransaction ->
-                SmsParseResult.Ignored(if (promiseless != null) SmsParseResult.PROMISED_CREDIT else "not a recognised transaction message")
+                SmsParseResult.Ignored(if (promiseless != null) SmsParseResult.PROMISED_CREDIT else SmsParseResult.NOT_RECOGNISED)
         }
     }
 
@@ -58,7 +65,7 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
             Regex("\\b(collect request|has requested (money|Rs|INR)|requested money)\\b", I)::containsMatchIn to "payment request, not a payment",
             Regex("\\b(will be debited|is due|due on|auto-?debit (is )?scheduled|reminder)\\b", I)::containsMatchIn to "upcoming payment notice",
             // Only a balance: a transaction that also shows "Avl Bal" ("Dr. Rs 500 … Avl Bal Rs 4,500") is kept (AOS-214).
-            { text: String -> BALANCE.containsMatchIn(text) && !SmsSignals.mentionsTransaction(text) } to "balance alert"
+            { text: String -> BALANCE.containsMatchIn(text) && !SmsSignals.mentionsTransaction(text) } to SmsParseResult.BALANCE_ALERT
         )
 
         val GENERIC = BankSmsParser(bankCode = null, headers = emptySet(), merchantPatterns = emptyList())

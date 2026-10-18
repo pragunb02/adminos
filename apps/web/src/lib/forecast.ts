@@ -32,6 +32,16 @@ export interface MonthEnd {
   rangeMonthsNeeded: number;
 }
 
+/** An account's balance in "money left" (AOS-720); `reason` says why one isn't counted. */
+export interface ForecastBalance {
+  bank: string | null;
+  last4: string;
+  amount: string;
+  observedOn: string;
+  source: "sms" | "statement";
+  reason: "stale" | "before_salary" | null;
+}
+
 export interface UntilSalary {
   from: string | null;
   to: string | null;
@@ -41,6 +51,15 @@ export interface UntilSalary {
   leftLow: string | null;
   leftHigh: string | null;
   parts: ForecastPart[];
+  /** What "left" starts from: recent bank balances (AOS-720) or the last salary (D-76). */
+  basis: "balance" | "salary";
+  /** The first day "spent since" counts; null when nothing is subtracted. */
+  spentFrom: string | null;
+  balance: string | null;
+  balanceAsOf: string | null;
+  accounts: ForecastBalance[];
+  notCounted: ForecastBalance[];
+  balanceMaxAgeDays: number;
 }
 
 export type SalaryStatus = "expected" | "late" | "unknown";

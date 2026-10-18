@@ -125,6 +125,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { ExposedOrderReceiptRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
+        single<dev.adminos.api.domain.balances.BalanceRepository> { dev.adminos.api.infrastructure.database.repositories.ExposedBalanceRepository(get()) }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -160,6 +161,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
+        single<dev.adminos.api.domain.balances.BalanceRepository> { dev.adminos.api.domain.balances.InMemoryBalanceRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -248,7 +250,9 @@ internal fun buildAppModule(
     // SMS intake (AOS-203): device tokens + parser registry
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
-    single { SmsIntake(get(), get(), get()) }
+    // Latest balance per account (AOS-720, D-170): from trusted bank SMS and reconciled statement closings, encrypted at rest.
+    single { dev.adminos.api.domain.balances.BalanceService(get()) }
+    single { SmsIntake(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
     // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
@@ -259,7 +263,7 @@ internal fun buildAppModule(
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
-    single { StatementImportService(get(), get()) }
+    single { StatementImportService(get(), get(), get()) }
     // Gmail push (AOS-405, D-63): the API calls users.watch/stop itself; off without GOOGLE_GMAIL_PUBSUB_TOPIC.
     single<GmailPushApi> { HttpGmailPushApi() }
     single { GmailAccessTokens(get(), get<GoogleOAuthClient>(), get()) }
@@ -288,7 +292,7 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
     // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
-    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get()) }
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get()) }
 
     // Agent Services
     // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)

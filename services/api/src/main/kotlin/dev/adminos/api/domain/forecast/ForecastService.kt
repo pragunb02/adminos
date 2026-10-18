@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.forecast
 
 import dev.adminos.api.domain.analytics.DateRange
+import dev.adminos.api.domain.balances.BalanceService
 import dev.adminos.api.domain.financial.BillType
 import dev.adminos.api.domain.financial.DueItem
 import dev.adminos.api.domain.financial.DueKind
@@ -15,12 +16,14 @@ import java.util.UUID
 
 /**
  * Loads what [MonthEndForecaster] needs for one user (AOS-714): their spending history, known dues
- * this month and next (the dues calendar, D-55/D-56), and income credits, all on their own calendar.
+ * this month and next (the dues calendar, D-55/D-56), income credits and each account's latest balance (AOS-720),
+ * all on their own calendar.
  */
 class ForecastService(
     private val history: ForecastHistoryRepository,
     private val dues: DuesService,
     private val subscriptions: SubscriptionRepository,
+    private val balances: BalanceService,
     private val forecaster: MonthEndForecaster = MonthEndForecaster(),
     private val clock: Clock = Clock.systemUTC()
 ) {
@@ -35,7 +38,10 @@ class ForecastService(
             today = today,
             history = spendHistory(userId, DateRange(from, today), zone, first),
             dues = knownDues(userId, today),
-            incomes = history.incomes(userId, DateRange(maxOf(first, today.minusDays(INCOME_DAYS)), today), zone)
+            incomes = history.incomes(userId, DateRange(maxOf(first, today.minusDays(INCOME_DAYS)), today), zone),
+            balances = balances.overview(userId, zone).accounts.map {
+                BankBalance(it.account.bankCode, it.account.last4, it.reading.amount, it.observedOn, it.reading.source.key)
+            }
         )
         return forecaster.forecast(input)
     }

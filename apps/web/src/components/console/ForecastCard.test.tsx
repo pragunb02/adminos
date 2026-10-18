@@ -42,10 +42,35 @@ describe("ForecastCard", () => {
     expect(screen.getByText("Likely ₹33,000 to ₹41,100")).toBeInTheDocument();
     await user.click(screen.getAllByText("How we got this")[1]);
     expect(screen.getByText("Last salary: ₹1,00,000 on 30 Sept")).toBeInTheDocument();
-    expect(screen.getByText("− Spent since: ₹52,100")).toBeInTheDocument();
+    expect(screen.getByText("− Spent since 30 Sept: ₹52,100")).toBeInTheDocument();
     expect(screen.getByText("− Expected 17 Oct–29 Oct: ₹10,481.25")).toBeInTheDocument();
     expect(screen.getByText(/of which Everyday spending: ₹8,130.75/)).toBeInTheDocument();
     expect(screen.getByText("= ₹37,418.75 left")).toBeInTheDocument();
+  });
+
+  it("starts money left from recent bank balances and lists the ones not counted (AOS-720)", async () => {
+    forecastWith({ salary: { ...salary, untilSalary: fx.balanceUntilSalary() } });
+    const { user } = renderWithQuery(<ForecastCard />);
+    expect(await screen.findByText("₹27,619.25 left before it comes")).toBeInTheDocument();
+    await user.click(screen.getAllByText("How we got this")[1]);
+    expect(screen.getByText(/In your accounts: ₹41,300.50/)).toHaveTextContent(
+      "In your accounts: ₹41,300.50 (HDFC ••1234 ₹42,500.50 on 16 Oct from a bank SMS, SBI ••5678 −₹1,200 on 12 Oct from a statement)");
+    expect(screen.queryByText(/Last salary/)).not.toBeInTheDocument();
+    expect(screen.getByText("− Spent since 13 Oct: ₹3,200")).toBeInTheDocument();
+    expect(screen.getByText("= ₹27,619.25 left")).toBeInTheDocument();
+    expect(screen.getByText(/Not counted:/)).toHaveTextContent("Not counted: Account ••9012 ₹8,000 on 30 Sept (older than 7 days).");
+    expect(screen.getByText(/Starts from your latest bank balances/)).toBeInTheDocument();
+  });
+
+  it("a balance from before the salary is named as such, and the salary is the start", async () => {
+    const u = salary.untilSalary!;
+    forecastWith({ salary: { ...salary, untilSalary: { ...u, notCounted: [{ bank: "hdfc", last4: "1234", amount: "900.00", observedOn: "2026-09-29", source: "sms", reason: "before_salary" }] } } });
+    const { user } = renderWithQuery(<ForecastCard />);
+    expect(await screen.findByText("₹37,418.75 left from this salary")).toBeInTheDocument();
+    await user.click(screen.getAllByText("How we got this")[1]);
+    expect(screen.getByText(/Not counted:/)).toHaveTextContent("HDFC ••1234 ₹900 on 29 Sept (from before the salary came)");
+    expect(screen.getByText(/No bank balance from the last 7 days is known/)).toBeInTheDocument();
+    expect(screen.getByText("− Spent since 30 Sept: ₹52,100")).toBeInTheDocument();
   });
 
   it("says short by, in words, when the forecast runs out before payday", async () => {

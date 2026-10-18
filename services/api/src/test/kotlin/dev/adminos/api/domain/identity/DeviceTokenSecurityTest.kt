@@ -25,6 +25,9 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.test.*
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.int
 
 /** AOS-203 device tokens: scoped, revocable, never interchangeable with login tokens. */
 class DeviceTokenSecurityTest {
@@ -34,6 +37,7 @@ class DeviceTokenSecurityTest {
     private val tokens = InMemoryDeviceTokenRepository()
     private val service = DeviceTokenService(tokens, jwt)
     private val events = InMemoryIngestEventRepository()
+    private val balanceRepo = dev.adminos.api.domain.balances.InMemoryBalanceRepository()
     private val user = User(id = UUID.randomUUID(), email = "me@example.com", googleId = "g-1", role = UserRole.OWNER)
     private val accessJwt = jwt.generateAccessToken(user)
 
@@ -47,7 +51,7 @@ class DeviceTokenSecurityTest {
             routing {
                 route("/api/v1") {
                     deviceTokenRoutes(service)
-                    rawSmsRoutes(SmsIntake(SmsParserRegistry(), IngestEventService(events), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository())))
+                    rawSmsRoutes(SmsIntake(SmsParserRegistry(), IngestEventService(events), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.balances.BalanceService(balanceRepo)))
                     authenticate("auth-jwt") { get("/me") { call.respondText(call.userPrincipal.userId.toString()) } }
                 }
             }
@@ -131,6 +135,21 @@ class DeviceTokenSecurityTest {
         val device = issue().token
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/v1/me") { header(HttpHeaders.Authorization, "Bearer $device") }.status)
         assertEquals(HttpStatusCode.Unauthorized, postSms(null).status)
+    }
+
+    @Test
+    fun `a batch counts the balances it noted, only from trusted bank senders, for the device's owner (AOS-720)`() = app {
+        val body = """{"messages":[
+            {"sender":"AX-HDFCBK-S","text":"Rs.500.00 debited from a/c **1234 on 01-10-26. Avl bal:INR 12,000.00","receivedAt":"2026-10-01T09:12:00+05:30"},
+            {"sender":"AX-NEWBNK-S","text":"Rs.1.00 credited to A/c XX1234. Avl Bal Rs 99,99,999.00","receivedAt":"2026-10-01T09:13:00+05:30"},
+            {"sender":"+919800000000","text":"Avl Bal Rs 50,00,000.00 in A/c XX1234","receivedAt":"2026-10-01T09:14:00+05:30"}]}"""
+        val res = postSms(issue().token, body)
+        assertEquals(HttpStatusCode.Accepted, res.status)
+        val data = kotlinx.serialization.json.Json.parseToJsonElement(res.bodyAsText()).jsonObject["data"]!!.jsonObject
+        assertEquals(1, data["balances"]!!.jsonPrimitive.int)
+        val reading = runBlocking { balanceRepo.forUser(user.id) }.single()
+        assertEquals(java.math.BigDecimal("12000.00"), reading.amount)
+        assertFalse("12,000" in res.bodyAsText() || "12000" in res.bodyAsText(), "the response never echoes a balance")
     }
 
     @Test

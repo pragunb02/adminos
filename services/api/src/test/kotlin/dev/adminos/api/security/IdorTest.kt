@@ -332,4 +332,19 @@ class IdorTest {
         val bobs = client.asBob(HttpMethod.Get, "/api/v1/merchants/merge-proposals", null).bodyAsText()
         assertFalse(proposal in bobs || "Kuku" in bobs, "Bob's list shows Alice's proposal")
     }
+
+    @Test
+    fun `Bob's balances and forecast never show Alice's balance (AOS-720)`() = realApp { app ->
+        val balances = app.get<dev.adminos.api.domain.balances.BalanceService>()
+        val ref = java.security.MessageDigest.getInstance("SHA-256").digest("alice-balance".toByteArray()).joinToString("") { "%02x".format(it) }
+        assertEquals(dev.adminos.api.domain.balances.BalanceRecordResult.Saved, balances.record(dev.adminos.api.domain.balances.BalanceObservation(
+            alice.id, "hdfc", "4242", BigDecimal("77777.77"), Instant.now().minusSeconds(3600), dev.adminos.api.domain.balances.BalanceSource.SMS, ref)))
+        assertTrue("77777.77" in client.get("/api/v1/balances") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), "Alice sees her own")
+        for (path in listOf("/api/v1/balances", "/api/v1/forecast")) {
+            val res = client.asBob(HttpMethod.Get, path, null)
+            assertEquals(HttpStatusCode.OK, res.status, path)
+            val text = res.bodyAsText()
+            assertFalse("77777" in text || "4242" in text, "$path shows Alice's balance to Bob")
+        }
+    }
 }

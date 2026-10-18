@@ -1,0 +1,125 @@
+# SYNTHETIC bank SMS (AOS-720): balance extraction eval. No real data: made-up accounts, amounts, references and VPAs.
+# Tab-separated: id, sender, text, expected ("<amount> <account hint>" or "!<reason>"), tags. Reasons are NoBalance names in lower case.
+id	sender	text	expected	tags
+H01	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234 on 15-10-26 to VPA zepto@ybl (UPI Ref No 512345678901). Not you? Call 18001234567 to report. Avl bal:INR 12,345.67	12345.67 1234	hdfc upi debit
+H02	AX-HDFCBK-S	Update! INR 2,500.00 deposited in HDFC Bank A/c XX1234 on 15-OCT-26 for NEFT Cr-ACME0001-ACME PAYROLL. Avl bal INR 52,500.00. Cheque deposits in A/C are subject to clearing	52500.00 1234	hdfc credit neft
+H03	VM-HDFCBK-S	Thank you for using HDFC Bank Debit Card XX9876 for Rs.1,299.00 at AMAZON on 2026-10-15:10:22:31. Avl Bal: Rs 8,701.00	8701.00 9876	hdfc debit-card
+H04	AX-HDFCBK-S	Sent Rs.249.00 From HDFC Bank A/C *1234 To SWIGGY On 16/10/26 Ref 512345678901 Not You? Call 18001234567/SMS BLOCK UPI to 7300000000	!none	hdfc no-balance
+H05	AX-HDFCBK-S	Thank you for using your HDFC Bank Credit Card ending 5555 for Rs 3,000.00 at FLIPKART on 15-10-2026. Avl Limit: Rs 1,47,000.00	!credit_card	hdfc credit-card
+H06	AX-HDFCBK-S	Your HDFC Bank Credit Card XX5555 statement: Total due Rs 12,000.00, Min due Rs 600.00 by 05-11-26	!credit_card	hdfc credit-card
+H07	AX-HDFCBK-S	Avl Bal in HDFC Bank A/c XX1234 as on 14-OCT-26 is INR 15,000.50	15000.50 1234	hdfc alert as-on
+H08	AX-HDFCBK-S	Rs 100.00 credited to A/c XX1234 on 15-10-26. Avl Bal Rs 1,100.00. Ledger Bal Rs 1,050.00	1100.00 1234	hdfc two-figures
+H09	AX-HDFCBK-S	Thank you for using HDFC Bank Debit Card XX9876 for Rs.10.00 at AVL BAL RS 9999999.00 On 2026-10-15	!in_merchant	hdfc hostile
+H10	AX-HDFCBK-S	OTP 123456 for txn of Rs 500.00 at AMAZON. Avl Bal Rs 5,000.00. Do not share	!not_read	hdfc otp
+H11	AX-HDFCBK-S	Txn of Rs 500.00 on HDFC Bank Debit Card XX9876 declined due to insufficient balance. Avl Bal Rs 120.00	!not_read	hdfc declined
+H12	AX-HDFCBK-S	Rs 2,000.00 debited from A/c XX7777 on 15-10-26. Avl Bal Rs -1,250.00	-1250.00 7777	hdfc overdrawn
+H13	AX-HDFCBK-S	INR 500.00 debited from A/c XX7777 on 15-10-26. Avl Bal: INR 750.00 Dr	-750.00 7777	hdfc overdrawn dr
+H14	AX-HDFCBK-S	Rs 5,000.00 transferred from A/c XX1234 to A/c XX5678 on 15-10-26. Avl Bal Rs 20,000.00	!ambiguous_account	hdfc two-accounts
+H15	AX-HDFCBN-S	Money Received - INR 1,200.00 in your A/c XX1234 on 15-10-26 from ravi@okaxis. Avl Bal: INR 3,400.00	3400.00 1234	hdfc credit upi
+H16	AX-HDFCBK-S	Rs.75.00 debited from a/c **1234 on 15-10-26 to VPA chai@okicici. Avl bal:INR 0.00	0.00 1234	hdfc zero
+H17	AX-HDFCBK-S	Your A/c XX1234 has been debited with Rs 1,000.00 towards an ATM withdrawal. Avl Bal Rs 9,000.00. Ledger Bal Rs 9,000.00	9000.00 1234	hdfc atm two-figures
+H18	AX-HDFCBK-S	Rs 100.00 credited to A/c XX1234. Avl Bal Rs 1,100.00. Avl Bal Rs 500,000.00	!ambiguous_figure	hdfc hostile two-figures
+H19	AX-HDFCBK-S	Rs 499.00 will be debited from A/c XX1234 on 20-10-26 for NETFLIX. Avl Bal Rs 2,000.00	!not_read	hdfc notice
+H20	AX-HDFCBK-S	Cashback of Rs 50 will be credited to A/c XX1234 within 3 days. Avl Bal Rs 2,000.00	!not_read	hdfc promise
+S01	JD-SBIUPI-S	Dear UPI user A/C X1234 debited by 249.0 on date 15Oct26 trf to ZOMATO Refno 512345678901. If not u? call 1800111109. -SBI	!none	sbi no-balance
+S02	AD-SBIINB-S	Your A/c XX1234 is credited by Rs.75,000.00 on 15/10/26 by NEFT ACME PAYROLL. Avl Bal Rs.80,250.75 -SBI	80250.75 1234	sbi credit neft
+S03	AD-SBIINB-S	Dear Customer, Your A/C XXXXX1234 has a debit by transfer of Rs 1,000.00 on 15/10/26. Avl Bal Rs 4,000.00.-SBI	4000.00 1234	sbi debit
+S04	AD-SBIINB-S	Your available balance in A/c XXXXXXX1234 as on 15-10-2026 10:30 is Rs 25,000.00 -SBI	25000.00 1234	sbi alert as-on
+S05	AD-CBSSBI-S	Clr Bal: Rs 3,210.00 CR in A/c XX1234 as of 14-10-26	3210.00 1234	sbi alert cleared as-on
+S06	AD-ATMSBI-S	Rs.2000 withdrawn at SBI ATM S1AB000123 from A/cX1234 on 15Oct26 Transaction Number 1234. Available Balance Rs.5300. If not withdrawn by you call 1800111109	5300.00 1234	sbi atm
+S07	AD-SBICRD-S	Your SBI Card ending 4444: Rs 999.00 spent at MYNTRA. Available credit limit Rs 50,001.00	!untrusted_sender	sbi credit-card generic
+S08	AD-SBIINB-S	Your A/c XX1234 credited with INR 15,000.00 by IMPS from RAVI KUMAR. Avl Bal INR 15,250.25 CR	15250.25 1234	sbi credit imps cr
+S09	AD-SBIPSG-S	Dear Customer, your A/c X1234 is debited by Rs 2,999.00 for POS txn at DMART. Avl Bal Rs 1,001.00	1001.00 1234	sbi pos
+S10	AD-SBIINB-S	A/c XX1234 debited Rs 50,000.00 by NEFT to A/c XX9999 RAVI. Avl Bal Rs 10,000.00	!ambiguous_account	sbi two-accounts
+S11	AD-SBIINB-S	Maintain a minimum balance of Rs 10,000.00 in A/c XX1234 to avoid charges -SBI	!not_current	sbi min-balance
+S12	AD-SBIINB-S	Your average monthly balance for Sep-26 in A/c XX1234 is Rs 8,000.00	!not_current	sbi average
+I01	VM-ICICIB-S	ICICI Bank Acct XX123 debited for Rs 1,500.00 on 15-Oct-26; AMAZON credited. UPI:512345678901. Call 18001234567 for dispute. SMS BLOCK 123 to 9200000000	!none	icici no-balance
+I02	VM-ICICIB-S	ICICI Bank Acct XX123 credited with Rs 60,000.00 on 15-Oct-26 by NEFT ACME. Avl Bal Rs 61,000.00. Call 18001234567 if not done by you	61000.00 123	icici credit masked
+I03	VM-ICICIB-S	Dear Customer, Acct XX123 is debited with INR 2,000.00 on 15-Oct-26 & Acct XX456 is credited. Total Avbl. Bal: INR 10,000.00	!ambiguous_account	icici two-accounts
+I04	VM-ICICIB-S	Your ICICI Bank Credit Card XX7007 has been used for a transaction of INR 2,500.00 on Oct 15, 2026 at SWIGGY. Avl Limit: INR 97,500.00	!credit_card	icici credit-card
+I05	VM-ICICIB-S	ICICI Bank: Available Balance in your Account XX4567 is INR 33,333.33 as of 15-10-2026	33333.33 4567	icici alert as-on
+I06	VM-ICICIB-S	INR 450.00 spent using ICICI Bank Debit Card XX2222 on 15-Oct-26 at BLINKIT. Avl Bal: INR 2,550.00	2550.00 2222	icici debit-card
+I07	VM-ICICIT-S	ICICI Bank Acct XX123 debited with INR 5,000.00 on 15-Oct-26 & Acct XX123 credited. Total Avbl. Bal: INR 45,000.00	45000.00 123	icici self
+I08	VM-ICICIB-S	Dear Customer, Acct XX4567 is credited with Rs 25.00 on 15-Oct-26 from cashback. Avl Bal INR 1,025.00	1025.00 4567	icici credit
+A01	AX-AXISBK-S	INR 999.00 debited from A/c no. XX8888 on 15-10-2026 at 11:22:33 IST. UPI/P2M/512345678901/BIGBASKET. Not you? SMS BLOCKUPI Cust ID to 919900000000. Avl Bal INR 4,001.00 -Axis Bank	4001.00 8888	axis upi
+A02	AX-AXISBK-S	Spent INR 1,234.00 Axis Bank Card no. XX3333 15-10-26 12:00:00 IST AMAZON Avl Lmt INR 98,766.00 Not you? SMS BLOCK 3333 to 919900000000	!credit_card	axis credit-card
+A03	AX-AXISBK-S	INR 5,000.00 credited to A/c no. XX8888 on 15-10-2026 at 09:00:00 IST. Info- IMPS/P2A/512345678901/RAVI. Avl Bal- INR 9,001.00	9001.00 8888	axis credit imps
+A04	AX-AXISBK-S	Bal for A/c no. XX8888 as on 14-10-2026 is INR 7,777.00 -Axis Bank	7777.00 8888	axis alert plain as-on
+A05	AX-AXISBK-S	Your Axis Bank Credit Card XX4321 payment of INR 5,000.00 is received. Available credit limit INR 1,00,000.00	!credit_card	axis credit-card
+A06	AX-AXISMR-S	INR 300.00 debited from A/c no. XX8888 on 15-10-2026 at 18:00:00 IST. Avl Bal INR 12,000.00 Dr	-12000.00 8888	axis overdrawn dr
+K01	AD-KOTAKB-S	Sent Rs.300.00 from Kotak Bank AC X5432 to chai@okhdfc on 15-10-26.UPI Ref 512345678901. Not you, https://example.com/fraud	!none	kotak no-balance
+K02	AD-KOTAKB-S	Received Rs.10,000.00 in your Kotak Bank AC X5432 from ravi@okicici on 15-10-26.UPI Ref:512345678901. Bal: Rs 22,000.00	22000.00 5432	kotak credit plain
+K03	AD-KOTAKB-S	Your Kotak Bank a/c XX5432 has been debited for Rs 1,999.00 towards NACH. Avl. Bal: Rs 3,001.00	3001.00 5432	kotak nach
+K04	AD-KOTAKM-S	Kotak Bank: Avl bal in a/c XX5432 is Rs.8,450.40 as on 13/10/2026	8450.40 5432	kotak alert as-on
+G01	AX-PNBSMS-S	Your a/c XX1111 is debited Rs 500.00 on 15-10-26. Aval Bal Rs 1,500.00 -PNB	!untrusted_sender	generic
+G02	+919800000000	HDFC Bank: Rs 1.00 credited to A/c XX1234. Avl Bal Rs 99,99,999.00	!untrusted_sender	hostile personal
+G03	AX-HDFCBK-P	Get a personal loan today! Customers with Avl Bal Rs 50,000.00 in A/c XX1234 qualify	!untrusted_sender	hostile promotional
+G04	VK-BOBTXN-S	Rs.200 Dr. from A/C XXXXXX2468 on 15-10-26. Avl Bal Rs 3000	!untrusted_sender	generic
+G05	AX-HDFCBK	Rs.500.00 debited from a/c **1234 on 15-10-26. Avl bal:INR 12,000.00	12000.00 1234	hdfc no-suffix
+N01	AX-HDFCBK-S	Rs 100.00 added to your PayZapp wallet. Wallet Bal Rs 600.00	!not_an_account	hdfc wallet
+N02	AX-HDFCBK-S	EMI of Rs 12,000.00 for Loan A/c XX9090 debited. Outstanding Bal Rs 4,50,000.00	!not_an_account	hdfc loan
+N03	AD-SBIINB-S	Your Fixed Deposit A/c XX3030 of Rs 1,00,000.00 is renewed. FD Bal Rs 1,07,000.00	!not_an_account	sbi deposit
+N04	AD-SBIINB-S	Opening Bal Rs 5,000.00 Closing Bal Rs 6,200.00 for A/c XX1234 for Sep-26	!not_current	sbi summary
+N05	AX-HDFCBK-S	You have 1,250 reward points. Reward Points Bal: 1,250.00	!not_an_account	hdfc rewards
+N06	AX-AXISBK-S	Thanks for paying INR 4,500.00 towards your Axis Bank Credit Card XX4321. Total outstanding INR 0.00	!credit_card	axis credit-card
+X01	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234 on 15-10-26 to VPA shop@ybl. Avl bal:INR １２３.００	!none	hdfc unicode
+X02	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234 on 15-10-26. Avl bal: please visit netbanking	!none	hdfc no-figure
+X03	AX-HDFCBK-S	Rs 100.00 debited from your account. Avl Bal Rs 900.00	!no_account	hdfc no-account
+X04	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234 on 15-10-26 <script>alert(1)</script> Avl bal:INR 4,500.00	4500.00 1234	hdfc hostile injection
+X05	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234 on 15-10-26. Avl bal:INR 99,99,99,999.99	999999999.99 1234	hdfc huge
+X06	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234. Avl Bal Rs. 7,000. Thank you	7000.00 1234	hdfc no-decimals
+X07	AD-SBIINB-S	Rs 600.00 debited from A/c XX1234 at 10:15. Bal Rs 2,400.00	2400.00 1234	sbi plain
+X08	AX-HDFCBK-S	Rs.500.00 debited from a/c **1234 on 15-10-26 for GLOBAL BAZAAR. Avl Bal ₹ 4,500.00	4500.00 1234	hdfc rupee-sign
+X09	AX-AXISBK-S	INR 100.00 debited from A/c no. XX8888. Bal is low. Avl Bal INR 250.00	250.00 8888	axis words-between
+X10	VM-ICICIB-S	Acct XX4567 debited INR 1,000.00 on 15-Oct-26. Avl Bal INR 5,000.00 as on 15-Oct-26 at 10:30 AM	5000.00 4567	icici as-on time
+H21	AX-HDFCBK-S	Rs.1,500.00 credited to a/c **4321 on 14-10-26 by a/c linked to VPA ravi@okaxis (UPI Ref No 512345678902). Avl bal:INR 6,500.00	6500.00 4321	hdfc credit upi
+H22	AX-HDFCBK-S	Alert: You've withdrawn Rs.3,000.00 from HDFC Bank Debit Card XX9876 at ATM ABC123 on 2026-10-14:18:01:10. Avl bal: Rs.11,000.00	11000.00 9876	hdfc atm debit-card
+H23	AX-HDFCBK-S	Rs 1,000.00 debited from A/c XX4321 on 14-10-26 & credited to A/c XX4321 FD sweep. Avl Bal Rs 500.00	500.00 4321	hdfc self
+H24	AX-HDFCBK-S	HDFC Bank: Rs 799.00 debited from a/c **4321 on 14-10-26 for autopay NETFLIX UMN 1234567. Avl bal:INR 2,201.00	2201.00 4321	hdfc mandate-debit
+S13	AD-SBIUPI-S	Dear SBI User, your A/c X1234-credited by Rs.500 on 14Oct26 transfer from RAVI Ref No 512345678903 -SBI. Avl Bal Rs 2,500	2500.00 1234	sbi credit upi
+S14	AD-SBIINB-S	Your A/c XX1234 has been debited for Rs 120.00 towards SMS charges. Available Balance: Rs.1,880.00	1880.00 1234	sbi charges
+I09	VM-ICICIB-S	ICICI Bank Acct XX123 debited for Rs 200.00 on 14-Oct-26; RAVI credited. UPI:512345678904. Avl Bal: Rs 9,800.00	9800.00 123	icici upi masked
+A07	AX-AXISBK-S	INR 20,000.00 credited to A/c no. XX8888 on 14-10-2026 at 10:00:00 IST. Info- NEFT/ACME PAYROLL. Avl Bal- INR 21,500.50	21500.50 8888	axis salary
+K05	AD-KOTAKB-S	Rs.5,000.00 debited from Kotak Bank a/c XX5432 for ATM withdrawal on 14-10-26. Avl bal Rs.15,000.00	15000.00 5432	kotak atm
+HO01	AX-HDFCBK-S	Rs.320.00 debited from a/c **2468 on 13-10-26 to VPA blinkit@ybl (UPI Ref No 512345678905). Avl bal:INR 3,180.00	3180.00 2468	heldout hdfc upi
+HO02	AX-HDFCBK-S	Update! INR 45,000.00 deposited in HDFC Bank A/c XX2468 on 01-OCT-26 for NEFT Cr-XYZ0001-XYZ LTD SALARY. Avl bal INR 47,250.00	47250.00 2468	heldout hdfc salary
+HO03	VM-HDFCBK-S	Thank you for using HDFC Bank Debit Card XX1357 for Rs.650.00 at ZEPTO on 2026-10-13:21:40:02. Avl Bal: Rs 2,350.00	2350.00 1357	heldout hdfc debit-card
+HO04	AX-HDFCBK-S	Thank you for using your HDFC Bank Credit Card ending 8080 for Rs 1,200.00 at MAKEMYTRIP on 13-10-2026. Avl Limit: Rs 88,800.00	!credit_card	heldout hdfc credit-card
+HO05	AX-HDFCBK-S	Avl Bal in HDFC Bank A/c XX2468 as on 12-OCT-26 is INR 4,000.00	4000.00 2468	heldout hdfc alert as-on
+HO06	AX-HDFCBK-S	Rs 700.00 debited from A/c XX2468 on 13-10-26. Avl Bal Rs -300.00	-300.00 2468	heldout hdfc overdrawn
+HO07	AX-HDFCBK-S	One Time Password for your txn of Rs 2,000.00 is 654321. Avl Bal Rs 10,000.00	!not_read	heldout hdfc otp
+HO08	AX-HDFCBK-S	Rs.10,000.00 transferred from A/c XX2468 to A/c XX1357 on 13-10-26. Avl Bal Rs 5,000.00	!ambiguous_account	heldout hdfc two-accounts
+HO09	AD-SBIINB-S	Your A/c XX9753 is credited by Rs.1,000.00 on 13/10/26 by IMPS from RAVI. Avl Bal Rs.3,500.00 -SBI	3500.00 9753	heldout sbi credit
+HO10	AD-SBIINB-S	Your available balance in A/c XXXXXXX9753 as on 12-10-2026 09:00 is Rs 7,500.00 -SBI	7500.00 9753	heldout sbi alert as-on
+HO11	AD-ATMSBI-S	Rs.500 withdrawn at SBI ATM S1AB000999 from A/cX9753 on 13Oct26 Transaction Number 4321. Available Balance Rs.3000	3000.00 9753	heldout sbi atm
+HO12	AD-SBIINB-S	Clr Bal: Rs 6,000.00 CR in A/c XX9753 as of 11-10-26	6000.00 9753	heldout sbi cleared as-on
+HO13	AD-SBIINB-S	Maintain a minimum balance of Rs 5,000.00 in A/c XX9753 to avoid charges -SBI	!not_current	heldout sbi min-balance
+HO14	VM-ICICIB-S	ICICI Bank Acct XX864 credited with Rs 2,000.00 on 13-Oct-26 by IMPS RAVI. Avl Bal Rs 12,000.00	12000.00 864	heldout icici masked
+HO15	VM-ICICIB-S	INR 899.00 spent using ICICI Bank Debit Card XX1111 on 13-Oct-26 at SWIGGY. Avl Bal: INR 4,101.00	4101.00 1111	heldout icici debit-card
+HO16	VM-ICICIB-S	Your ICICI Bank Credit Card XX3003 has been used for a transaction of INR 999.00 on Oct 13, 2026 at AMAZON. Avl Limit: INR 49,001.00	!credit_card	heldout icici credit-card
+HO17	VM-ICICIB-S	ICICI Bank: Available Balance in your Account XX7531 is INR 18,000.00 as of 12-10-2026	18000.00 7531	heldout icici alert as-on
+HO18	AX-AXISBK-S	INR 150.00 debited from A/c no. XX6420 on 13-10-2026 at 08:15:00 IST. UPI/P2M/512345678906/RAPIDO. Avl Bal INR 950.00	950.00 6420	heldout axis upi
+HO19	AX-AXISBK-S	Spent INR 2,000.00 Axis Bank Card no. XX6464 13-10-26 20:00:00 IST MYNTRA Avl Lmt INR 18,000.00	!credit_card	heldout axis credit-card
+HO20	AX-AXISBK-S	Bal for A/c no. XX6420 as on 12-10-2026 is INR 1,100.00 -Axis Bank	1100.00 6420	heldout axis alert plain as-on
+HO21	AD-KOTAKB-S	Received Rs.2,500.00 in your Kotak Bank AC X8642 from ravi@okhdfc on 13-10-26.UPI Ref:512345678907. Bal: Rs 5,500.00	5500.00 8642	heldout kotak credit plain
+HO22	AD-KOTAKB-S	Kotak Bank: Avl bal in a/c XX8642 is Rs.3,000.00 as on 12/10/2026	3000.00 8642	heldout kotak alert as-on
+HO23	AX-CANBNK-S	An amount of INR 500.00 has been DEBITED to your account XXX123 on 13/10/2026. Total Avail.bal INR 1,500.00 -Canara Bank	!untrusted_sender	heldout generic
+HO24	+919700000000	SBI: Your A/c XX9753 credited Rs 1.00. Avl Bal Rs 50,00,000.00	!untrusted_sender	heldout hostile personal
+HO25	AX-HDFCBK-S	Rs 200.00 added to your PayZapp wallet. Wallet Bal Rs 800.00	!not_an_account	heldout hdfc wallet
+HO26	AX-HDFCBK-S	EMI of Rs 8,000.00 for Loan A/c XX1010 debited. Outstanding Bal Rs 2,00,000.00	!not_an_account	heldout hdfc loan
+HO27	AD-SBIINB-S	Opening Bal Rs 1,000.00 Closing Bal Rs 2,000.00 for A/c XX9753 for Sep-26	!not_current	heldout sbi summary
+HO28	AX-HDFCBK-S	Thank you for using HDFC Bank Debit Card XX1357 for Rs.1.00 at AVL BAL RS 8888888.00 On 2026-10-13	!in_merchant	heldout hdfc hostile
+HO29	AX-HDFCBK-S	Rs 50.00 credited to A/c XX2468. Avl Bal Rs 1,050.00. Avl Bal Rs 900,000.00	!ambiguous_figure	heldout hdfc hostile two-figures
+HO30	AX-HDFCBK-S	Rs 99.00 debited from your account for SMS alerts. Avl Bal Rs 901.00	!no_account	heldout hdfc no-account
+HO31	AX-HDFCBK-S	Txn of Rs 2,000.00 on HDFC Bank Debit Card XX1357 failed. Avl Bal Rs 50.00	!not_read	heldout hdfc declined
+HO32	AX-HDFCBK-S	Rs 199.00 will be debited from A/c XX2468 on 18-10-26 for SPOTIFY. Avl Bal Rs 1,000.00	!not_read	heldout hdfc notice
+HO33	AD-SBIINB-S	Your average monthly balance for Sep-26 in A/c XX9753 is Rs 4,000.00	!not_current	heldout sbi average
+HO34	AX-AXISBK-S	INR 75.00 debited from A/c no. XX6420 on 13-10-2026 at 22:00:00 IST. Avl Bal INR 25.00 Dr	-25.00 6420	heldout axis overdrawn dr
+HO35	AD-SBIINB-S	Rs 250.00 debited from A/c XX9753 at 11:45. Bal Rs 750.00	750.00 9753	heldout sbi plain
+HO36	VM-ICICIB-S	Acct XX7531 debited INR 500.00 on 13-Oct-26. Avl Bal INR 17,500.00 as on 13-Oct-26 at 07:30 PM	17500.00 7531	heldout icici as-on time
+HO37	AX-HDFCBK-S	Rs.100.00 debited from a/c **2468 on 13-10-26 for GLOBAL BAZAAR. Avl Bal ₹ 900.00	900.00 2468	heldout hdfc rupee-sign
+HO38	AX-HDFCBK-S	Rs.1,000.00 debited from a/c **2468. Avl Bal Rs. 2,000. Thank you	2000.00 2468	heldout hdfc no-decimals
+HO39	AX-AXISBK-S	Thanks for paying INR 1,000.00 towards your Axis Bank Credit Card XX6464. Total outstanding INR 17,000.00	!credit_card	heldout axis credit-card
+HO40	AD-SBIINB-S	Your Fixed Deposit A/c XX4040 of Rs 50,000.00 is renewed. FD Bal Rs 53,500.00	!not_an_account	heldout sbi deposit
+HO41	AX-HDFCBK-S	Rs 300.00 credited to A/c XX2468 on 13-10-26. Avl Bal Rs 3,300.00. Ledger Bal Rs 3,000.00	3300.00 2468	heldout hdfc two-figures
+HO42	VM-ICICIB-S	Dear Customer, Acct XX864 is debited with INR 1,000.00 on 13-Oct-26 & Acct XX975 is credited. Total Avbl. Bal: INR 3,000.00	!ambiguous_account	heldout icici two-accounts

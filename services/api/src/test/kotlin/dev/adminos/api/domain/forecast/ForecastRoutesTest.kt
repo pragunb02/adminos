@@ -44,8 +44,9 @@ class ForecastRoutesTest {
     private val ist = ZoneId.of("Asia/Kolkata")
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
     private val limiter = dev.adminos.api.infrastructure.plugins.RateLimiter(maxRequests = 5, windowSeconds = 60)
+    private val balances = dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository(), clock)
     private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills),
-        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, clock = clock)
+        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, balances, clock = clock)
 
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
@@ -104,6 +105,38 @@ class ForecastRoutesTest {
         assertEquals("2026-10-21", until.str("from"))
         assertEquals("2026-10-31", until.str("to"))
         assertEquals("75700.00", until.str("left"))
+        assertEquals("salary", until.str("basis"))
+        assertEquals("2026-10-01", until.str("spentFrom"))
+        assertEquals(JsonNull, until["balance"])
+    }
+
+    @Test
+    fun `money left starts from recent balances and says how, listing the stale ones (AOS-720)`() = routeTest {
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("300"), merchantName = "Chai", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                if (day.dayOfMonth == 1) transactions.save(Transaction(userId = user.id, type = TransactionType.CREDIT, amount = BigDecimal("85000"), merchantName = "ACME", transactedAt = day.atTime(9, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+            fun ref(s: String) = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+            balances.record(dev.adminos.api.domain.balances.BalanceObservation(user.id, "hdfc", "1234", BigDecimal("50000.00"),
+                Instant.parse("2026-10-18T06:00:00Z"), dev.adminos.api.domain.balances.BalanceSource.SMS, ref("a")))
+            balances.record(dev.adminos.api.domain.balances.BalanceObservation(user.id, "sbi", "5678", BigDecimal("700.00"),
+                Instant.parse("2026-10-01T06:00:00Z"), dev.adminos.api.domain.balances.BalanceSource.STATEMENT, ref("b")))
+        }
+        val until = data()["salary"]!!.jsonObject["untilSalary"]!!.jsonObject
+        assertEquals("balance", until.str("basis"))
+        assertEquals("50000.00", until.str("balance"))
+        assertEquals("2026-10-18", until.str("balanceAsOf"))
+        assertEquals("2026-10-19", until.str("spentFrom"))
+        assertEquals("600.00", until.str("spentSince"))
+        assertEquals("46100.00", until.str("left"))
+        assertEquals(7, until["balanceMaxAgeDays"]!!.jsonPrimitive.int)
+        val account = until["accounts"]!!.jsonArray.single().jsonObject
+        assertEquals(listOf("hdfc", "1234", "50000.00", "2026-10-18", "sms"), listOf("bank", "last4", "amount", "observedOn", "source").map { account.str(it) })
+        val stale = until["notCounted"]!!.jsonArray.single().jsonObject
+        assertEquals(listOf("5678", "stale", "statement"), listOf("last4", "reason", "source").map { stale.str(it) })
     }
 
     @Test
