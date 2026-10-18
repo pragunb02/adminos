@@ -17,6 +17,7 @@ import { fx } from "../test/fixtures";
 export const PAGES = [
   "/", "/spending", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/bills", "/subscriptions",
   "/documents", "/briefings", "/leaks", "/ask", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
+  "/trips", "/trips/trip-1",
 ];
 
 /** Paths that only *look* like public pages (AUD-13: the guard used to prefix-match). */
@@ -265,9 +266,22 @@ test.describe("API hardening (real API)", () => {
   });
 
   test("sign-in starts at the API with a state and PKCE, and a forged state never reaches Google", async ({ page }) => {
+    test.setTimeout(120_000);
     await page.route("https://accounts.google.com/**", (r) => r.fulfill({ status: 200, body: "google" }));
     await page.goto("/login");
-    await page.getByRole("button", { name: "Continue with Google" }).click();
+    // The API allows 10 calls a minute to /auth per client (AOS-618), and every full-stack test is the same client
+    // (127.0.0.1): the forged-session tests above each try a refresh. If they used this minute up, wait it out as a
+    // person would, then start again; any other refusal still fails here.
+    const start = async () => (await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/api/v1/auth/google/start")),
+      page.getByRole("button", { name: "Continue with Google" }).click(),
+    ]))[0];
+    let res = await start();
+    if (res.status() === 429) {
+      await page.waitForTimeout((Number(res.headers()["retry-after"] ?? "60") + 1) * 1000);
+      res = await start();
+    }
+    expect(res.status()).toBe(200);
     await expect(page).toHaveURL(/accounts\.google\.com/);
     const q = new URL(page.url()).searchParams;
     expect(q.get("state")?.length).toBeGreaterThanOrEqual(43);

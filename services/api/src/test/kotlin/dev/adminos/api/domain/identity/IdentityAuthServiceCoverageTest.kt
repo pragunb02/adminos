@@ -36,8 +36,8 @@ class IdentityAuthServiceCoverageTest {
         assertTrue(result.isNewUser)
         val saved = assertNotNull(users.findByGoogleId("109876543210987654321"))
         assertEquals(saved.id, result.user.id)
-        assertEquals("pragun.b@gmail.com", saved.email)
-        assertEquals("Pragun Bhutani", saved.name)
+        assertEquals("owner@example.com", saved.email)
+        assertEquals("Test Owner", saved.name)
         assertEquals(OnboardingStatus.STARTED, saved.onboardingStatus)
         assertEquals(UserRole.OWNER, saved.role)
     }
@@ -64,24 +64,24 @@ class IdentityAuthServiceCoverageTest {
 
     @Test
     fun `a returning user keeps their id and gets google's latest name and photo`() = runBlocking<Unit> {
-        val existing = users.save(User(email = "pragun.b@gmail.com", name = "Old Name", avatarUrl = "https://old/photo", googleId = "109876543210987654321"))
+        val existing = users.save(User(email = "owner@example.com", name = "Old Name", avatarUrl = "https://old/photo", googleId = "109876543210987654321"))
 
         val result = login()
 
         assertFalse(result.isNewUser)
         assertEquals(existing.id, result.user.id)
-        assertEquals("Pragun Bhutani", result.user.name)
+        assertEquals("Test Owner", result.user.name)
         assertEquals("https://lh3.googleusercontent.com/a/photo", result.user.avatarUrl)
     }
 
     @Test
     fun `a returning user keeps their stored name and photo when google sends none`() = runBlocking<Unit> {
-        users.save(User(email = "pragun.b@gmail.com", name = "Pragun", avatarUrl = "https://old/photo", googleId = "109876543210987654321"))
+        users.save(User(email = "owner@example.com", name = "Owner", avatarUrl = "https://old/photo", googleId = "109876543210987654321"))
         google.userInfoBody = FakeGoogleServer.userInfo(name = null, picture = null)
 
         val result = login()
 
-        assertEquals("Pragun", result.user.name)
+        assertEquals("Owner", result.user.name)
         assertEquals("https://old/photo", result.user.avatarUrl)
     }
 
@@ -109,7 +109,7 @@ class IdentityAuthServiceCoverageTest {
 
     @Test
     fun `refresh records the session as recently active`() = runBlocking<Unit> {
-        val user = users.save(User(email = "pragun.b@gmail.com", googleId = "g-refresh"))
+        val user = users.save(User(email = "owner@example.com", googleId = "g-refresh"))
         val (session, refresh) = storedSession(user.id)
 
         service.refreshToken(refresh)
@@ -127,7 +127,7 @@ class IdentityAuthServiceCoverageTest {
 
     @Test
     fun `google login is refused for a deactivated user`() = runBlocking<Unit> {
-        users.save(User(email = "pragun.b@gmail.com", googleId = "109876543210987654321", isActive = false, deletedAt = Instant.now()))
+        users.save(User(email = "owner@example.com", googleId = "109876543210987654321", isActive = false, deletedAt = Instant.now()))
 
         assertFailsWith<RuntimeException> { login() }
     }

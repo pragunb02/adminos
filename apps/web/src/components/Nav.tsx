@@ -24,6 +24,7 @@ export const MORE_LINKS = [
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/documents", label: "Documents" },
   { href: "/briefings", label: "Briefings" },
+  { href: "/trips", label: "Trips" },
   { href: "/settings", label: "Settings" },
 ] as const;
 

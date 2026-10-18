@@ -16,9 +16,9 @@ class FinancialServicesCoverageTest {
 
     private val userId = UUID.randomUUID()
     private val clock = Clock.fixed(Instant.parse("2026-10-16T04:30:00Z"), ZoneOffset.UTC)
-    private val bills = InMemoryBillRepository(clock)
+    private val bills = InMemoryBillRepository()
     private val transactions = InMemoryTransactionRepository()
-    private val billing = BillTrackingService(bills, transactions)
+    private val billing = BillTrackingService(bills, transactions, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), clock))
     private val today = LocalDate.of(2026, 10, 16)
 
     private fun payment(merchant: String?, amount: String) = Transaction(userId = userId, type = TransactionType.DEBIT, amount = BigDecimal(amount),

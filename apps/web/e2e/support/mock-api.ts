@@ -35,7 +35,7 @@ export class MockApi {
       .on("GET /api/v1/connections/gmail/authorize-url", (_r, u) => ({
         data: { url: `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({ client_id: "e2e-client-id", redirect_uri: u.searchParams.get("redirectUri") ?? "", response_type: "code", state: "e2e-state", code_challenge: "e2e-challenge", code_challenge_method: "S256" })}` },
       }))
-      .on("POST /api/v1/connections", () => ({ status: 201, data: fx.connection({ gmailAddress: "pragun.b@gmail.com", lastSyncedAt: null, totalSynced: 0, lastSyncStatus: null }) }))
+      .on("POST /api/v1/connections", () => ({ status: 201, data: fx.connection({ gmailAddress: "owner@example.com", lastSyncedAt: null, totalSynced: 0, lastSyncStatus: null }) }))
       .on("GET /api/v1/users/me/notification-preferences", () => ({ data: fx.prefs() }))
       .on("PATCH /api/v1/users/me/notification-preferences", () => ({ data: {} }))
       .on("GET /api/v1/auth/sessions", () => ({ data: [fx.session()] }))
@@ -49,6 +49,8 @@ export class MockApi {
       }))
       .on("POST /api/v1/auth/logout", () => ({ data: {} }))
       .on("GET /api/v1/transactions/suggestions", () => ({ data: [] }))
+      .on("GET /api/v1/review/messages", () => ({ data: [] }))
+      .on("GET /api/v1/review/templates", () => ({ data: [] }))
       .on("GET /api/v1/splitwise/entries", () => ({ data: [] }))
       .on("GET /api/v1/splitwise/summary", () => ({ data: { balances: [], counts: {} } }))
       .on("GET /api/v1/splitwise/imports", () => ({ data: [] }))
@@ -72,8 +74,16 @@ export class MockApi {
       .on("POST /api/v1/coach/limits/suggestions/:lens/dismiss", () => ({ data: { dismissed: true } }))
       .on("PATCH /api/v1/coach/limits/:id", () => ({ data: cx.limit() }))
       .on("DELETE /api/v1/coach/limits/:id", () => ({ data: { deleted: true } }))
-      .on("GET /api/v1/coach/settings", () => ({ data: { limitAlerts: true } }))
-      .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false } }))
+      // Savings rate (AOS-908)
+      .on("GET /api/v1/coach/savings", () => ({ data: cx.savings() }))
+      // Goals (AOS-907)
+      .on("GET /api/v1/coach/goals", () => ({ data: [cx.goal()] }))
+      .on("POST /api/v1/coach/goals", () => ({ status: 201, data: cx.goal({ id: "goal-2", lens: "travel", label: "Travel", kind: "cap_amount", value: "5000", target: "5000.00", baseline: null }) }))
+      .on("DELETE /api/v1/coach/goals/:id", () => ({ data: { deleted: true } }))
+      .on("GET /api/v1/coach/settings", () => ({ data: { limitAlerts: true, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false } }))
+      .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false } }))
+      .on("GET /api/v1/pay-later", () => ({ data: { outstanding: "0.00", currency: "INR", providers: [] } }))
+      .on("GET /api/v1/trips", (_r, u) => ({ data: { year: Number(u.searchParams.get("year") ?? 2026), total: "0.00", currency: "INR", trips: [] } }))
       .on("GET /api/v1/documents", (_r, u) => {
         const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];
         const c = u.searchParams.get("category"); const q = u.searchParams.get("q")?.toLowerCase();

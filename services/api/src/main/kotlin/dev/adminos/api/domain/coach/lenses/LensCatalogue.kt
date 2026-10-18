@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.coach.lenses
 
 import dev.adminos.api.domain.financial.MerchantCatalogue
+import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.TransactionCategory
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -15,7 +16,9 @@ data class LensEntry(
     val brands: List<String> = emptyList(),
     val categories: List<String> = emptyList(),
     val subcategories: List<String> = emptyList(),
-    val keywords: List<String> = emptyList()
+    val keywords: List<String> = emptyList(),
+    /** How it was paid, in lowercase, e.g. `pay_later` (AOS-912). */
+    val paymentMethods: List<String> = emptyList()
 )
 
 @Serializable
@@ -64,6 +67,10 @@ class LensCatalogue(file: LensFile, merchants: MerchantCatalogue = MerchantCatal
                     ?: throw IllegalArgumentException("lens file: $id has unknown or non-spending category '$c'")
             }
             e.subcategories.forEach { require(it.matches(Regex("[a-z][a-z0-9_]+"))) { "lens file: $id has a bad subcategory '$it'" } }
+            val methods = e.paymentMethods.map { m ->
+                PaymentMethod.entries.firstOrNull { it.name.equals(m, ignoreCase = true) }
+                    ?: throw IllegalArgumentException("lens file: $id has unknown payment method '$m'")
+            }
             e.keywords.forEach {
                 require(MerchantCatalogue.matchForm(it).length >= 3) { "lens file: keyword '$it' of $id is too short to match safely" }
             }
@@ -71,9 +78,10 @@ class LensCatalogue(file: LensFile, merchants: MerchantCatalogue = MerchantCatal
                 e.brands.takeIf { it.isNotEmpty() }?.let { LensRule.Brands(it.toSet()) },
                 categories.takeIf { it.isNotEmpty() }?.let { LensRule.Categories(it.toSet()) },
                 e.subcategories.takeIf { it.isNotEmpty() }?.let { LensRule.Subcategories(it.toSet()) },
-                e.keywords.takeIf { it.isNotEmpty() }?.let { LensRule.Keywords(it.toSet()) }
+                e.keywords.takeIf { it.isNotEmpty() }?.let { LensRule.Keywords(it.toSet()) },
+                methods.takeIf { it.isNotEmpty() }?.let { LensRule.PaymentMethods(it.toSet()) }
             )
-            require(rules.isNotEmpty()) { "lens file: $id has no brands, categories, subcategories or keywords" }
+            require(rules.isNotEmpty()) { "lens file: $id has no brands, categories, subcategories, keywords or payment methods" }
             return HabitLens(id, e.label, e.description, rules)
         }
 

@@ -209,9 +209,10 @@ class InfraRepositoryBranchesIntegrationTest {
     @Test
     fun `upcoming bills across all users include due and upcoming ones only`() = runBlocking<Unit> {
         val user = PostgresTestDatabase.newUser()
-        val soon = bills.save(bill(user, LocalDate.now().plusDays(2)))
-        val paid = bills.save(bill(user, LocalDate.now().plusDays(2), BillStatus.PAID))
-        val ids = bills.findUpcoming(withinDays = 3).map { it.id }
+        val day = LocalDate.of(2031, 3, 1) // any fixed day: the repository takes the date (AOS-638)
+        val soon = bills.save(bill(user, day.plusDays(2)))
+        val paid = bills.save(bill(user, day.plusDays(2), BillStatus.PAID))
+        val ids = bills.findUpcoming(day, withinDays = 3).map { it.id }
         assertTrue(soon.id in ids && paid.id !in ids)
         assertNull(bills.findById(UUID.randomUUID()))
         assertNull(bills.findById(soon.id)!!.metadata)
@@ -237,7 +238,7 @@ class InfraRepositoryBranchesIntegrationTest {
         val user = PostgresTestDatabase.newUser()
         assertNull(connections.findById(UUID.randomUUID()))
         assertNull(connections.findByUserAndSource(user, SourceType.GMAIL))
-        assertNull(connections.findByGmailAddress("nobody-${UUID.randomUUID()}@gmail.com"))
+        assertNull(connections.findByGmailAddress("nobody-${UUID.randomUUID()}@example.com"))
         val c = connections.save(UserConnection(userId = user, sourceType = SourceType.GMAIL, oauthScope = listOf("email")))
         connections.update(c.copy(oauthScope = listOf("email", "gmail.readonly")))
         assertEquals(listOf("email", "gmail.readonly"), connections.findByUserAndSource(user, SourceType.GMAIL)!!.oauthScope)
@@ -281,13 +282,13 @@ class InfraRepositoryBranchesIntegrationTest {
 
     // ── Users ──
 
-    private fun newUserModel(email: String = "u-${UUID.randomUUID()}@example.in", googleId: String = "g-${UUID.randomUUID()}") =
+    private fun newUserModel(email: String = "u-${UUID.randomUUID()}@example.com", googleId: String = "g-${UUID.randomUUID()}") =
         User(email = email, googleId = googleId, name = "Ravi", role = UserRole.OWNER, onboardingStatus = OnboardingStatus.STARTED)
 
     @Test
     fun `unknown users are null`() = runBlocking<Unit> {
         assertNull(users.findByGoogleId("g-${UUID.randomUUID()}"))
-        assertNull(users.findByEmail("nobody-${UUID.randomUUID()}@example.in"))
+        assertNull(users.findByEmail("nobody-${UUID.randomUUID()}@example.com"))
     }
 
     @Test

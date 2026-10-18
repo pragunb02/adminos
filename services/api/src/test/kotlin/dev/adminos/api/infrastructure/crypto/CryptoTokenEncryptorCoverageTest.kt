@@ -32,10 +32,10 @@ class CryptoTokenEncryptorCoverageTest {
 
     @Test
     fun `output is v2 and base64 of a 12-byte IV, the ciphertext and a 16-byte tag, without the plaintext`() {
-        val e = encryptor.encrypt("upi:pragun@okhdfcbank", ctx)
+        val e = encryptor.encrypt("upi:owner@okhdfcbank", ctx)
         assertTrue(e.startsWith("v2:"))
-        assertEquals(12 + "upi:pragun@okhdfcbank".length + 16, body(e).size)
-        assertFalse(e.contains("pragun"))
+        assertEquals(12 + "upi:owner@okhdfcbank".length + 16, body(e).size)
+        assertFalse(e.contains("owner"))
         assertFalse(encryptor.needsReEncryption(e))
     }
 

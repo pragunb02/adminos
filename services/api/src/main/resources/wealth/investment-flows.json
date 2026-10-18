@@ -1,0 +1,17 @@
+{
+  "version": "investment-flows-v1",
+  "_comment": "AOS-815 (D-79): bank narrations that move money to or from investments. Data, not code (D-44 style). Patterns are case-insensitive regexes over the merchant text, name and UPI ID. Dividends are income; everything else here is an investment transfer (not spend, not income).",
+  "dividend": ["\\bDIV(IDEND)?\\b", "\\bIDCW\\b"],
+  "payees": [
+    {"name": "Mutual fund (AMC)", "patterns": ["MUTUAL\\s*FUND", "\\bMF\\b", "\\bAMC\\b.*\\bSIP\\b"]},
+    {"name": "BSE StAR MF", "patterns": ["BSE\\s*STAR\\s*MF", "BSESTARMF", "\\bBSE\\s*LIMITED\\b"]},
+    {"name": "NSE clearing / MF platform", "patterns": ["NSE\\s*CLEARING", "\\bNSCCL\\b", "\\bNSEMF\\b", "NSE\\s*MFSS", "NSE\\s*NMF"]},
+    {"name": "Indian Clearing Corporation", "patterns": ["INDIAN\\s*CLEARING\\s*CORP", "\\bICCL\\b"]},
+    {"name": "MF Utilities", "patterns": ["MF\\s*UTILITIES", "MFUTILITIES", "\\bMFU\\b"]},
+    {"name": "Registrar (CAMS / KFintech)", "patterns": ["\\bCAMS\\b", "COMPUTER\\s*AGE\\s*MANAGEMENT", "\\bKFIN(TECH)?\\b", "\\bKARVY\\b"]},
+    {"name": "Broker or investing app", "patterns": ["\\bZERODHA\\b", "\\bGROWW\\b", "NEXTBILLION\\s*TECHNOLOGY", "\\bUPSTOX\\b", "\\bRKSV\\b", "ANGEL\\s*(ONE|BROKING)", "\\bKUVERA\\b", "PAYTM\\s*MONEY", "ICICI\\s*SECURITIES", "\\bICICIDIRECT\\b", "HDFC\\s*SECURITIES", "KOTAK\\s*SECURITIES", "\\b5\\s*PAISA\\b", "\\bINDMONEY\\b", "\\bSCRIPBOX\\b"]},
+    {"name": "NPS", "patterns": ["\\bNPS\\b", "NPS\\s*TRUST", "\\bPFRDA\\b", "\\bE-?NPS\\b"]},
+    {"name": "PPF", "patterns": ["\\bPPF\\b", "PUBLIC\\s*PROVIDENT\\s*FUND"]},
+    {"name": "Fixed or recurring deposit", "patterns": ["FIXED\\s*DEPOSIT", "TERM\\s*DEPOSIT", "\\bFD\\s*(BOOKING|OPENING|CREATION|OPENED)\\b", "\\bRD\\s*INSTAL(L)?MENT\\b", "RECURRING\\s*DEPOSIT"]}
+  ]
+}

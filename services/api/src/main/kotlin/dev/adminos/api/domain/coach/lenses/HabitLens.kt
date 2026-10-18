@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.coach.lenses
 
 import dev.adminos.api.domain.financial.MerchantCatalogue
+import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.Transaction
 import dev.adminos.api.domain.financial.TransactionCategory
 import java.time.LocalTime
@@ -43,6 +44,19 @@ sealed interface LensRule {
     data class Subcategories(val subcategories: Set<String>) : LensRule {
         private val keys = subcategories.map { it.lowercase() }.toSet()
         override fun matches(t: Transaction) = t.subcategory?.lowercase() in keys
+    }
+
+    /**
+     * How it was paid, whatever the merchant (AOS-912): `pay_later` puts every purchase made with a
+     * pay-later provider in the lens. The repayment to the provider is a transfer (D-89), and when it
+     * isn't recognised as one it was still paid by UPI or netbanking, so it never matches and nothing
+     * is counted twice (D-39).
+     */
+    data class PaymentMethods(val methods: Set<PaymentMethod>) : LensRule {
+        init {
+            require(methods.isNotEmpty()) { "A payment-method rule needs at least one method" }
+        }
+        override fun matches(t: Transaction) = t.paymentMethod in methods
     }
 
     /** A whole word in the merchant name, in catalogue matching form: "bar" matches "Toit Bar", not "Barbeque". */

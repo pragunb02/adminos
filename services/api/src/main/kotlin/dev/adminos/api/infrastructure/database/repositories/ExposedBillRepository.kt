@@ -81,8 +81,7 @@ class ExposedBillRepository : BillRepository {
         }.orderBy(BillsTable.dueDate, SortOrder.ASC).map { it.toBill() }
     }
 
-    override suspend fun findUpcoming(userId: UUID, withinDays: Int): List<Bill> = dbQuery {
-        val today = LocalDate.now()
+    override suspend fun findUpcoming(userId: UUID, today: LocalDate, withinDays: Int): List<Bill> = dbQuery {
         val cutoff = today.plusDays(withinDays.toLong())
         BillsTable.selectAll().where {
             (BillsTable.userId eq userId) and
@@ -92,8 +91,7 @@ class ExposedBillRepository : BillRepository {
         }.orderBy(BillsTable.dueDate, SortOrder.ASC).map { it.toBill() }
     }
 
-    override suspend fun findUpcoming(withinDays: Int): List<Bill> = dbQuery {
-        val today = LocalDate.now()
+    override suspend fun findUpcoming(today: LocalDate, withinDays: Int): List<Bill> = dbQuery {
         val cutoff = today.plusDays(withinDays.toLong())
         BillsTable.selectAll().where {
             (BillsTable.status inList listOf("upcoming", "due")) and
@@ -102,8 +100,7 @@ class ExposedBillRepository : BillRepository {
         }.map { it.toBill() }
     }
 
-    override suspend fun findOverdue(): List<Bill> = dbQuery {
-        val today = LocalDate.now()
+    override suspend fun findOverdue(today: LocalDate): List<Bill> = dbQuery {
         BillsTable.selectAll().where {
             (BillsTable.status inList listOf("upcoming", "due")) and
                 (BillsTable.dueDate less today)

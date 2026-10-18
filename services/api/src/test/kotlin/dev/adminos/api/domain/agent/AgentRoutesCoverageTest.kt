@@ -39,7 +39,7 @@ import kotlin.test.assertTrue
 /** Route coverage for /anomalies, /briefings and /subscriptions agent actions (AOS-312). */
 class AgentRoutesCoverageTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-agent-1", role = UserRole.OWNER)
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-agent-1", role = UserRole.OWNER)
     private val otherUserId = UUID.randomUUID()
     private val jwt = jwtService.generateAccessToken(user)
 

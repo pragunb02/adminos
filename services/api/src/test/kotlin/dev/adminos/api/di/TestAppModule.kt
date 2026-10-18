@@ -62,7 +62,7 @@ val testAppModule = module {
     single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
     single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository() }
     single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
-    single { BillTrackingService(get(), get()) }
+    single { BillTrackingService(get(), get(), get()) }
     single<AnomalyToleranceRepository> { InMemoryAnomalyToleranceRepository() }
     single { AnomalyDetectorService(get(), get(), get(), get()) }
     single { AnomalyReviewService(get(), get(), get(), get()) }

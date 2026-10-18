@@ -37,7 +37,7 @@ object InfraIngestTestKit {
     val IST: ZoneId = ZoneId.of("Asia/Kolkata")
 
     fun user(timezone: String = "Asia/Kolkata") =
-        User(id = UUID.randomUUID(), email = "ravi@example.in", googleId = "g-${UUID.randomUUID()}", role = UserRole.OWNER, timezone = timezone)
+        User(id = UUID.randomUUID(), email = "ravi@example.com", googleId = "g-${UUID.randomUUID()}", role = UserRole.OWNER, timezone = timezone)
 
     fun tokenFor(user: User): String = jwtService.generateAccessToken(user)
 
