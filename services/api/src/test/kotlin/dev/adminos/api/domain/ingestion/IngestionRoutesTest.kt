@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion
 
 import dev.adminos.api.domain.ingestion.events.IngestEventService
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.identity.JwtService
@@ -48,7 +49,7 @@ class IngestionRoutesTest {
         val syncRepo = InMemorySyncSessionRepository()
         val connRepo = InMemoryConnectionRepository()
         val ingestionService = IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncRepo)
-        val connectionService = ConnectionService(connRepo, syncRepo)
+        val connectionService = ConnectionService(connRepo, syncRepo, randomTokenEncryptor())
 
         environment {
             config = MapApplicationConfig()

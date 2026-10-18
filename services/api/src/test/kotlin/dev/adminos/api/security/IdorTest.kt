@@ -4,6 +4,10 @@ import dev.adminos.api.domain.agent.Anomaly
 import dev.adminos.api.domain.agent.AnomalyRepository
 import dev.adminos.api.domain.agent.AnomalyStatus
 import dev.adminos.api.domain.agent.AnomalyType
+import dev.adminos.api.domain.coach.goals.Goal
+import dev.adminos.api.domain.coach.goals.GoalKind
+import dev.adminos.api.domain.coach.goals.GoalRepository
+import dev.adminos.api.domain.coach.lenses.LensId
 import dev.adminos.api.domain.coach.limits.LimitPeriod
 import dev.adminos.api.domain.coach.limits.LimitScope
 import dev.adminos.api.domain.coach.limits.SpendingLimit
@@ -16,11 +20,23 @@ import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.mandates.Mandate
 import dev.adminos.api.domain.financial.mandates.MandateRail
 import dev.adminos.api.domain.financial.mandates.MandateRepository
+import dev.adminos.api.domain.financial.grouping.MerchantGroupingService
 import dev.adminos.api.domain.financial.receipts.OrderReceipt
 import dev.adminos.api.domain.financial.receipts.OrderReceiptRepository
 import dev.adminos.api.domain.financial.receipts.ReceiptFixtures
+import dev.adminos.api.domain.financial.review.GoldenCandidate
+import dev.adminos.api.domain.financial.review.GoldenCandidateRepository
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageShape
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplate
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateStatus
+import dev.adminos.api.domain.ingestion.events.IngestDirection
+import dev.adminos.api.domain.ingestion.fallback.MessageChannel
+import dev.adminos.api.domain.ingestion.fallback.MessageProposal
+import dev.adminos.api.domain.ingestion.fallback.MessageProposalRepository
+import dev.adminos.api.domain.ingestion.fallback.ProposalStatus
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.ConnectionStatus
 import dev.adminos.api.domain.ingestion.connection.SourceType
@@ -35,6 +51,7 @@ import dev.adminos.api.domain.notifications.push.PushEndpoint
 import dev.adminos.api.domain.notifications.push.PushKeys
 import dev.adminos.api.domain.notifications.push.PushSubscription
 import dev.adminos.api.domain.notifications.push.PushSubscriptionRepository
+import dev.adminos.api.domain.notifications.push.saved
 import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.security.SecurityTestKit.newUser
 import dev.adminos.api.security.SecurityTestKit.realApp
@@ -46,6 +63,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.koin.ktor.ext.get
@@ -76,10 +94,11 @@ class IdorTest {
         val txn: Transaction, val otherTxn: Transaction, val subscription: Subscription, val bill: Bill, val anomaly: Anomaly,
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
         val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
-        val receipt: OrderReceipt, val limit: SpendingLimit, val wealthBatch: dev.adminos.api.domain.wealth.ImportBatch
+        val receipt: OrderReceipt, val limit: SpendingLimit, val tripId: String, val flight: Transaction, val splitImportId: String, val splitEntryIds: List<String>,
+        val goal: Goal, val wealthBatch: dev.adminos.api.domain.wealth.ImportBatch
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id, receipt.id, limit.id, wealthBatch.id).map { it.toString() } + documentId
+            push.id, mandate.id, notification.id, receipt.id, limit.id, flight.id, goal.id, wealthBatch.id).map { it.toString() } + documentId + tripId + splitImportId + splitEntryIds
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -103,7 +122,7 @@ class IdorTest {
         val device = app.get<DeviceTokenService>().issue(alice.id, "Alice Mac", setOf(Scopes.INGEST_SMS))
         val session = app.get<SessionRepository>().save(Session(userId = alice.id, tokenHash = JwtService.hashToken(b64(random(32))),
             expiresAt = Instant.now().plusSeconds(86_400)))
-        val push = app.get<PushSubscriptionRepository>().upsert(PushSubscription(userId = alice.id,
+        val push = app.get<PushSubscriptionRepository>().saved(PushSubscription(userId = alice.id,
             endpoint = PushEndpoint("https://fcm.googleapis.com/fcm/send/${b64(random(24))}"),
             keys = PushKeys(b64(byteArrayOf(0x04) + random(64)), b64(random(16)))))
         val mandate = app.get<MandateRepository>().save(Mandate(userId = alice.id, rail = MandateRail.UPI_AUTOPAY, payee = "Alice Gym",
@@ -125,10 +144,31 @@ class IdorTest {
         val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
         val limit = app.get<SpendingLimitRepository>().save(SpendingLimit(userId = alice.id, scope = LimitScope.Merchant("Alice Secret Merchant"),
             label = "Alice Secret Merchant", period = LimitPeriod.MONTHLY, amount = BigDecimal("3000"), createdAt = Instant.now(), updatedAt = Instant.now()))
+        // A trip of Alice's (AOS-910): trips are computed from her bookings, so its ID comes from her own list.
+        val flight = txns.save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("4500.00"),
+            merchantName = "IndiGo", category = TransactionCategory.TRANSPORT, paymentMethod = PaymentMethod.UPI, transactedAt = Instant.now()))
+        val trips = client.get("/api/v1/trips") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
+        val tripId = Json.parseToJsonElement(trips).jsonObject["data"]?.jsonObject?.get("trips")?.jsonArray?.singleOrNull()
+            ?.jsonObject?.get("id")?.jsonPrimitive?.content ?: error("no trip for Alice in $trips")
+        // A Splitwise import of Alice's (AOS-911), through its route like the owner would: a dinner she paid and a cab a friend paid.
+        val csv = "Date,Description,Category,Cost,Currency,Alice Q.,Asha R.\n" +
+            "${LocalDate.now()},Alice dinner,Dining out,4000.00,INR,2000.00,-2000.00\n${LocalDate.now()},Alice cab,Taxi,900.00,INR,-450.00,450.00\n"
+        val split = client.submitFormWithBinaryData("/api/v1/imports/splitwise", formData {
+            append("file", csv.toByteArray(), Headers.build { append(HttpHeaders.ContentDisposition, "filename=\"export.csv\"") })
+            append("me", "Alice Q.")
+        }) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)); header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) }
+        assertEquals(HttpStatusCode.OK, split.status, split.bodyAsText())
+        val splitImportId = Json.parseToJsonElement(split.bodyAsText()).jsonObject["data"]?.jsonObject?.get("importId")?.jsonPrimitive?.content
+            ?: error("no import id in ${split.bodyAsText()}")
+        val entries = client.get("/api/v1/splitwise/entries") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
+        val splitEntryIds = Json.parseToJsonElement(entries).jsonObject["data"]?.jsonArray?.map { it.jsonObject.getValue("id").jsonPrimitive.content }
+            ?.takeIf { it.size == 2 } ?: error("expected Alice's two Splitwise entries in $entries")
+        val goal = app.get<GoalRepository>().save(Goal(userId = alice.id, lens = LensId("travel"), kind = GoalKind.CAP_AMOUNT, value = BigDecimal("5000"),
+            period = LimitPeriod.WEEKLY, baseline = null, target = BigDecimal("5000"), startedOn = LocalDate.now(), createdAt = Instant.now()))
         // A mutual fund import of Alice's (AOS-805): a folio, a scheme and the batch, with its reconciliation.
         val wealthBatch = seedWealthImport(app)
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
-            receipt, limit, wealthBatch)
+            receipt, limit, tripId, flight, splitImportId, splitEntryIds, goal, wealthBatch)
     }
 
     private suspend fun seedWealthImport(app: Application): dev.adminos.api.domain.wealth.ImportBatch {
@@ -188,7 +228,17 @@ class IdorTest {
             Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
             Attack(HttpMethod.Post, { "/api/v1/wealth/imports/$it/undo" }, a.wealthBatch.id.toString()),
-        )
+            Attack(HttpMethod.Delete, { "/api/v1/coach/goals/$it" }, a.goal.id.toString()),
+            Attack(HttpMethod.Get, { "/api/v1/trips/$it" }, a.tripId),
+            Attack(HttpMethod.Get, { "/api/v1/trips/$it/candidates" }, a.tripId),
+            Attack(HttpMethod.Patch, { "/api/v1/trips/$it" }, a.tripId, """{"name":"pwned"}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/trips/$it" }, a.tripId),
+            Attack(HttpMethod.Post, { "/api/v1/trips/$it/transactions" }, a.tripId, """{"transactionId":"${a.txn.id}"}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/trips/$it/transactions/${a.flight.id}" }, a.tripId),
+            Attack(HttpMethod.Delete, { "/api/v1/splitwise/imports/$it" }, a.splitImportId),
+        ) + a.splitEntryIds.flatMap { entry -> // Splitwise Review actions (AOS-911) on each of Alice's entries
+            listOf("confirm", "reject", "ignore", "undo").map { action -> Attack(HttpMethod.Post, { "/api/v1/splitwise/entries/$it/$action" }, entry) }
+        }
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
             val fake = client.asBob(atk.method, atk.path(UUID.randomUUID().toString()), atk.body)
@@ -218,6 +268,7 @@ class IdorTest {
         client.asBob(HttpMethod.Delete, "/api/v1/push/subscriptions", """{"endpoint":"${a.push.endpoint.url}"}""")
         client.asBob(HttpMethod.Patch, "/api/v1/coach/limits/${a.limit.id}", """{"amount":"1"}""")
         client.asBob(HttpMethod.Delete, "/api/v1/coach/limits/${a.limit.id}", null)
+        client.asBob(HttpMethod.Delete, "/api/v1/coach/goals/${a.goal.id}", null)
 
         assertEquals(TransactionCategory.SHOPPING, app.get<TransactionRepository>().findById(a.txn.id)?.category)
         assertEquals(true, app.get<SubscriptionRepository>().findById(a.subscription.id)?.isFlagged)
@@ -231,10 +282,27 @@ class IdorTest {
         client.asBob(HttpMethod.Post, "/api/v1/wealth/imports/${a.wealthBatch.id}/undo", null)
         assertEquals(dev.adminos.api.domain.wealth.ImportStatus.APPLIED,
             app.get<dev.adminos.api.domain.wealth.InvestmentLedger>().findBatch(alice.id, a.wealthBatch.id)?.status, "Alice's import is not undone")
+        assertTrue(app.get<GoalRepository>().findByUser(alice.id).any { it.id == a.goal.id }, "Alice still has her goal")
         val doc = client.get("/api/v1/documents/${a.documentId}") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
         assertEquals(HttpStatusCode.OK, client.get("/api/v1/documents/${a.documentId}/file") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.status)
+        // Alice's trip (AOS-910) is neither renamed nor dismissed, and keeps its booking.
+        client.asBob(HttpMethod.Patch, "/api/v1/trips/${a.tripId}", """{"name":"pwned"}""")
+        client.asBob(HttpMethod.Delete, "/api/v1/trips/${a.tripId}/transactions/${a.flight.id}", null)
+        client.asBob(HttpMethod.Delete, "/api/v1/trips/${a.tripId}", null)
+        val trip = client.get("/api/v1/trips/${a.tripId}") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
+        assertEquals(HttpStatusCode.OK, trip.status)
+        assertFalse("pwned" in trip.bodyAsText(), "the trip wasn't renamed")
+        assertTrue(a.flight.id.toString() in trip.bodyAsText(), "the booking is still in the trip")
+        // Alice's Splitwise import and entries (AOS-911) keep their states when Bob undoes, ignores or rejects them.
+        suspend fun splitStates() = Json.parseToJsonElement(client.get("/api/v1/splitwise/entries") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+            .jsonObject.getValue("data").jsonArray.associate { it.jsonObject.getValue("id").jsonPrimitive.content to it.jsonObject.getValue("state").jsonPrimitive.content }
+        val before = splitStates()
+        client.asBob(HttpMethod.Delete, "/api/v1/splitwise/imports/${a.splitImportId}", null)
+        a.splitEntryIds.forEach { id -> listOf("undo", "ignore", "reject").forEach { client.asBob(HttpMethod.Post, "/api/v1/splitwise/entries/$id/$it", null) } }
+        assertEquals(before, splitStates(), "Alice's Splitwise entries are unchanged")
+        assertEquals(a.splitEntryIds.toSet(), before.keys)
     }
 
     @Test
@@ -253,9 +321,8 @@ class IdorTest {
             "/api/v1/connections", "/api/v1/device-tokens", "/api/v1/auth/sessions", "/api/v1/mandates", "/api/v1/notifications",
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
-            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
-            "/api/v1/leaks/fees", "/api/v1/receipts",
-            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
+            "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/pay-later", "/api/v1/trips", "/api/v1/splitwise/entries", "/api/v1/splitwise/summary", "/api/v1/splitwise/imports",
+            "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings", "/api/v1/coach/goals", "/api/v1/coach/savings",
             "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation", "/api/v1/wealth/investment-flows",
         )
         val leaks = lists.mapNotNull { path ->
@@ -286,5 +353,89 @@ class IdorTest {
         // Mutual fund imports (AOS-805) show Alice her own import and holding.
         assertTrue(a.wealthBatch.id.toString() in client.get("/api/v1/wealth/imports") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
         assertTrue("Alice Secret Fund" in client.get("/api/v1/wealth/reconciliation") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        // Pay-later debt (AOS-909): Alice's unpaid pay-later bill shows for her, and not for Bob.
+        val payLater = app.get<BillRepository>().save(Bill(userId = alice.id, billType = BillType.PAY_LATER, billerName = "LazyPay",
+            amount = BigDecimal("1200"), dueDate = LocalDate.now().plusDays(5)))
+        assertTrue(payLater.id.toString() in client.get("/api/v1/pay-later") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        assertFalse(payLater.id.toString() in client.asBob(HttpMethod.Get, "/api/v1/pay-later", null).bodyAsText())
+    }
+
+    @Test
+    fun `Bob can't answer Alice's category questions or remove rows from her local golden set`() = realApp { app ->
+        val a = seed(app, client)
+        val golden = GoldenCandidate(userId = alice.id, merchantRaw = "UPI ALICE CAFE", paymentMethod = PaymentMethod.UPI,
+            direction = TransactionType.DEBIT, category = TransactionCategory.FOOD, createdAt = Instant.now())
+        app.get<GoldenCandidateRepository>().add(golden)
+        val attacks = listOf(
+            Attack(HttpMethod.Post, { "/api/v1/categories/review/$it" }, a.txn.id.toString(), """{"category":"food","addToGolden":true}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/categories/golden/$it" }, golden.id.toString()),
+        )
+        for (atk in attacks) {
+            val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
+            val fake = client.asBob(atk.method, atk.path(UUID.randomUUID().toString()), atk.body)
+            assertEquals(HttpStatusCode.NotFound, real.status, "${atk.method.value} ${atk.path("{alice}")}")
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "${atk.method.value} ${atk.path("{alice}")} answers differently for a real ID")
+        }
+        assertEquals(TransactionCategory.SHOPPING, app.get<TransactionRepository>().findById(a.txn.id)?.category)
+        assertTrue(app.get<GoldenCandidateRepository>().list(alice.id).any { it.id == golden.id }, "Alice's golden row is still there")
+        listOf("/api/v1/categories/golden", "/api/v1/categories/golden.csv", "/api/v1/categories/review").forEach { path ->
+            val text = client.asBob(HttpMethod.Get, path, null).bodyAsText()
+            assertFalse(golden.id.toString() in text || "ALICE" in text || a.txn.id.toString() in text, "$path shows Alice's data")
+        }
+    }
+
+    @Test
+    fun `Bob can't confirm or reject Alice's merchant merge proposals`() = realApp { app ->
+        val txns = app.get<TransactionRepository>()
+        for (name in listOf("Kukufm", "Kuku Fm")) {
+            txns.save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("199.00"),
+                merchantName = name, paymentMethod = PaymentMethod.CARD_CREDIT, transactedAt = Instant.now().minusSeconds(86_400)))
+        }
+        val grouping = app.get<MerchantGroupingService>()
+        val proposal = grouping.proposals(alice.id).single().id.toString()
+        for (action in listOf("confirm", "reject")) {
+            val real = client.asBob(HttpMethod.Post, "/api/v1/merchants/merge-proposals/$proposal/$action", null)
+            val fake = client.asBob(HttpMethod.Post, "/api/v1/merchants/merge-proposals/${UUID.randomUUID()}/$action", null)
+            assertEquals(HttpStatusCode.NotFound, real.status, action)
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "$action answers differently for a real ID")
+        }
+        assertEquals(proposal, grouping.proposals(alice.id).single().id.toString(), "Alice's proposal is still open")
+        val bobs = client.asBob(HttpMethod.Get, "/api/v1/merchants/merge-proposals", null).bodyAsText()
+        assertFalse(proposal in bobs || "Kuku" in bobs, "Bob's list shows Alice's proposal")
+    }
+
+    @Test
+    fun `Bob can't confirm or dismiss the bank messages a model read for Alice`() = realApp { app ->
+        val proposals = app.get<MessageProposalRepository>()
+        val proposal = MessageProposal(userId = alice.id, channel = MessageChannel.SMS, sourceRef = "alice-sms-1", occurredAt = Instant.now(),
+            direction = IngestDirection.DEBIT, amount = BigDecimal("1250.50"), accountLast4 = "9593", merchant = "ALICE CINEMAS", bankCode = null,
+            model = "qwen3:4b", promptVersion = "read-message-v1", createdAt = Instant.now())
+        assertTrue(proposals.saveNew(proposal))
+        for (action in listOf("confirm", "dismiss")) {
+            val real = client.asBob(HttpMethod.Post, "/api/v1/review/messages/${proposal.id}/$action", null)
+            val fake = client.asBob(HttpMethod.Post, "/api/v1/review/messages/${UUID.randomUUID()}/$action", null)
+            assertEquals(HttpStatusCode.NotFound, real.status, action)
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "$action answers differently for a real ID")
+        }
+        assertEquals(ProposalStatus.PENDING, proposals.pending(alice.id, 10).single { it.id == proposal.id }.status, "Alice's reading is untouched")
+        val bobs = client.asBob(HttpMethod.Get, "/api/v1/review/messages", null).bodyAsText()
+        assertFalse(proposal.id.toString() in bobs || "ALICE" in bobs, "Bob's list shows Alice's reading")
+    }
+
+    @Test
+    fun `Bob can't approve or reject the message formats learnt for Alice`() = realApp { app ->
+        val templates = app.get<MessageTemplateRepository>()
+        val template = MessageTemplate(userId = alice.id, channel = MessageChannel.SMS, bankCode = null, direction = IngestDirection.DEBIT,
+            shape = MessageShape("Alice card XX${MessageShape.ACCT} charged Rs ${MessageShape.AMT} at ${MessageShape.M}"), status = TemplateStatus.PROPOSED, seen = 3, createdAt = Instant.now())
+        templates.save(template)
+        for (action in listOf("approve", "reject")) {
+            val real = client.asBob(HttpMethod.Post, "/api/v1/review/templates/${template.id}/$action", null)
+            val fake = client.asBob(HttpMethod.Post, "/api/v1/review/templates/${UUID.randomUUID()}/$action", null)
+            assertEquals(HttpStatusCode.NotFound, real.status, action)
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "$action answers differently for a real ID")
+        }
+        assertEquals(listOf(template.id), templates.proposed(alice.id, 10).map { it.id }, "Alice's format is still waiting for her")
+        val bobs = client.asBob(HttpMethod.Get, "/api/v1/review/templates", null).bodyAsText()
+        assertFalse(template.id.toString() in bobs || "Alice" in bobs, "Bob's list shows Alice's format")
     }
 }

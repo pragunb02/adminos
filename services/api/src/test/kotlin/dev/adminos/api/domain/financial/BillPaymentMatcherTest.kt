@@ -160,7 +160,7 @@ class BillPaymentMatcherTest {
 
     private val bills = InMemoryBillRepository()
     private val transactions = InMemoryTransactionRepository()
-    private val billing = BillTrackingService(bills, transactions)
+    private val billing = BillTrackingService(bills, transactions, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()))
 
     @Test
     fun `a payment marks its bill paid, records how it matched, and only once`() = runBlocking<Unit> {

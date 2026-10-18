@@ -8,6 +8,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -17,26 +18,35 @@ import java.util.concurrent.atomic.AtomicInteger
  * Bounded (AOS-618, AUD-16): at most [maxKeys] keys are tracked. Expired windows are dropped once more than
  * 1000 keys exist; if the map is still over [maxKeys] (a flood of distinct keys), the oldest windows go first,
  * so memory can't grow without limit. Each application builds its own limiters (no global state).
+ *
+ * Time comes only from [clock] (AOS-639), so tests move it by hand instead of sleeping.
  */
 class RateLimiter(
     private val maxRequests: Int,
     private val windowSeconds: Long,
     private val maxKeys: Int = 10_000,
-    private val clock: java.time.Clock = java.time.Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC()
 ) {
+    init {
+        require(maxRequests > 0) { "maxRequests must be positive" }
+        require(windowSeconds in 1..MAX_WINDOW_SECONDS) { "windowSeconds must be 1..$MAX_WINDOW_SECONDS" }
+        require(maxKeys > 0) { "maxKeys must be positive" }
+    }
+
     private class Window(val start: Long) {
         val count = AtomicInteger(0)
     }
 
     private val windows = ConcurrentHashMap<String, Window>()
-    private val windowMillis get() = windowSeconds * 1000
+    private val windowMillis = windowSeconds * 1000
 
     fun isAllowed(key: String): Boolean {
         val now = clock.millis()
-        if (windows.size > 1000) evict(now)
-        val window = windows.compute(key) { _, existing ->
+        if (windows.size > EVICT_ABOVE) evict(now)
+        // The remapping never returns null, so neither does compute; if it ever did, fail closed (an error, not a free pass).
+        val window = checkNotNull(windows.compute(key) { _, existing ->
             if (existing == null || now - existing.start > windowMillis) Window(now) else existing
-        } ?: Window(now)
+        }) { "No rate-limit window was stored" }
         return window.count.incrementAndGet() <= maxRequests
     }
 
@@ -61,12 +71,23 @@ class RateLimiter(
         val elapsed = clock.millis() - window.start
         return ((windowMillis - elapsed) / 1000).coerceAtLeast(0)
     }
+
+    companion object {
+        /** Expired windows are swept only once more keys than this are tracked. */
+        const val EVICT_ABOVE = 1000
+        /** A day: longer windows aren't a rate limit, and this keeps the millisecond maths far from overflow. */
+        const val MAX_WINDOW_SECONDS = 86_400L
+    }
 }
 
 /** The limits per endpoint group. Factories: every application (and every test app) gets fresh counters. */
 object RateLimiters {
-    fun auth() = RateLimiter(maxRequests = 10, windowSeconds = 60)          // 10/min per client
-    fun manualSync() = RateLimiter(maxRequests = 5, windowSeconds = 3600)   // 5/hour per user
+    fun auth(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 10, windowSeconds = 60, clock = clock)          // 10/min per client
+    fun manualSync(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 5, windowSeconds = 3600, clock = clock)   // 5/hour per user
+    /** Retraining is CPU work: a few per hour per user is plenty for a "retrain now" button (AOS-707). */
+    fun retrain(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 6, windowSeconds = 3600, clock = clock)      // 6/hour per user
+    fun forecast(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 30, windowSeconds = 60, clock = clock)      // 30/min per user: month-end forecast (AOS-714)
+    fun cashParse(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 30, windowSeconds = 60, clock = clock)     // 30/min per user: cash text previews (AOS-718)
 }
 
 /**

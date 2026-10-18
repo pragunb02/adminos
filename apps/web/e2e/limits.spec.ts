@@ -39,6 +39,28 @@ test.describe("Limits", () => {
   });
 });
 
+test.describe("Evening digest settings (AOS-905)", () => {
+  test("the digest defaults to 21:30 and its time and options are saved", async ({ signedIn: page, api }) => {
+    // The switches show what the server saved (they are not optimistic), so the mock keeps what was saved.
+    let saved = { limitAlerts: true, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false };
+    api.on("GET /api/v1/coach/settings", () => ({ data: saved }))
+       .on("PATCH /api/v1/coach/settings", (r) => { saved = { ...saved, ...(r.postDataJSON() as Partial<typeof saved>) }; return { data: saved }; });
+    await page.goto("/settings");
+    const coach = page.getByRole("region", { name: "Spending coach" });
+    const time = coach.getByLabel("Digest time");
+    await expect(time).toHaveValue("21:30");
+    await time.fill("20:15");
+    await coach.getByRole("heading", { name: "Spending coach" }).click(); // leave the field: the time saves when it loses focus
+    await expect.poll(() => api.callsTo("PATCH", "/api/v1/coach/settings").length).toBe(1);
+    // click, not check(): the box turns on once the server has saved it, not on the click itself.
+    const skip = coach.getByRole("checkbox", { name: "Skip on a day with no spending" });
+    await skip.click();
+    await expect(skip).toBeChecked();
+    await expect(time).toHaveValue("20:15");
+    await expect.poll(() => api.callsTo("PATCH", "/api/v1/coach/settings").map((c) => c.body)).toEqual([{ digestTime: "20:15" }, { digestSkipZeroDay: true }]);
+  });
+});
+
 test.describe("Limits: attacks (D-100)", () => {
   test("signed out, Settings and the leaks page go to login", async ({ page }) => {
     for (const path of ["/settings", "/leaks"]) {

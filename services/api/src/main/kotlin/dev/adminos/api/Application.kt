@@ -16,6 +16,7 @@ import dev.adminos.api.domain.documents.documentsModule
 import dev.adminos.api.domain.ai.aiModule
 import dev.adminos.api.domain.coach.coachModule
 import dev.adminos.api.domain.wealth.wealthModule
+import dev.adminos.api.domain.ask.askModule
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.infrastructure.plugins.*
 import io.ktor.server.application.*
@@ -77,6 +78,7 @@ fun Application.module(
     aiModule()
     coachModule()
     wealthModule()
+    askModule()
 
     // Health check
     configureHealthRoutes()
