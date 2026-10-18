@@ -77,7 +77,8 @@ class CasImportServiceTest {
         val accounts = kit.accounts.findByUser(user)
         assertEquals(2, accounts.size)
         assertTrue(accounts.none { "90001234" in it.identifier.ciphertext || "80005678" in it.identifier.ciphertext })
-        assertEquals("90001234/56", WealthFixtures.identifiers.reveal(accounts.first().identifier, "investment_accounts:${accounts.first().id}:identifier"))
+        // Both folios are created in one import, often in the same instant: compare the set, not an order.
+        assertEquals(setOf("90001234/56", "80005678"), accounts.map { WealthFixtures.identifiers.reveal(it.identifier, "investment_accounts:${it.id}:identifier") }.toSet())
     }
 
     @Test

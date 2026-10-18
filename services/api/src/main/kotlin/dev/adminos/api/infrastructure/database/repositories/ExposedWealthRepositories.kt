@@ -63,7 +63,7 @@ class ExposedInvestmentAccountRepository : InvestmentAccountRepository {
     }
 
     override suspend fun findByUser(userId: UUID): List<InvestmentAccount> = dbQuery {
-        t.selectAll().where { t.userId eq userId }.orderBy(t.createdAt to SortOrder.ASC).map { it.toAccount() }
+        t.selectAll().where { t.userId eq userId }.orderBy(t.createdAt to SortOrder.ASC, t.id to SortOrder.ASC).map { it.toAccount() }
     }
 
     private fun ResultRow.toAccount() = InvestmentAccount(
