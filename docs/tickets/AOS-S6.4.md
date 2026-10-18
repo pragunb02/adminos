@@ -48,10 +48,12 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
 | AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
 | AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
+| [AOS-642](AOS-642.md) | Web tests: 5 s async timeout and real timers after each test | Claude | ✅ | 0.5h | 0.5h |
 
 ## Demo / verification
 From a device outside the private network the site doesn't answer; a second Google account is refused; the audit report lists no open findings.
 
 ## Activity log
+- 2026-10-18 — Claude (integration engineer): AOS-642 (web test flake) added and done.
 - 2026-10-18 — Claude: AOS-615 merged; audit follow-ups AOS-624…630 added.
 - 2026-10-17 — Claude: story created after the critical sign-in finding (Pragun: "security is always a P0").

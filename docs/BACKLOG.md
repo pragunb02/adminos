@@ -171,6 +171,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
 | └ AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
 | └ AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
+| └ [AOS-642](tickets/AOS-642.md) | Web tests: 5 s async timeout and real timers after each test (findBy flake under load) | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-641](tickets/AOS-641.md) | Merge script: required checks must pass; others may be neutral/skipped, never failing | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-635](tickets/AOS-635.md) | AI replies: size and depth checked before parsing; a validator exception or stack overflow rejects the answer (audited), other JVM errors propagate | Claude (agent) | ✅ | 1h | 1h |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
@@ -209,6 +210,9 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ AOS-714 | Month-end forecast + money left until salary | Claude (agent) | 🟦 | 8h |  |
 | └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | 🟦 | 5h |  |
 | └ AOS-715 | Subscription price-rise alert | Claude (agent) | 🟦 | 2h |  |
+| └ [AOS-720](tickets/AOS-720.md) | Latest balance per account, for money left until salary | Claude | ⬜ | 4h |  |
+| └ [AOS-721](tickets/AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ⬜ | 3h |  |
+| └ [AOS-722](tickets/AOS-722.md) | Confirm or correct the detected salary | Claude | ⬜ | 3h |  |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |

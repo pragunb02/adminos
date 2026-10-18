@@ -38,6 +38,9 @@ See the research report §10–§12. Isolation Forest, Prophet and deep forecast
 | AOS-714 | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ⬜ | 8h | |
 | AOS-709 | Fuzzy merchant grouping for subscriptions (normalise + Jaro-Winkler), merges via Review | Claude | ⬜ | 5h | |
 | AOS-715 | Subscription price-rise alert | Claude | ⬜ | 2h | |
+| [AOS-720](AOS-720.md) | Latest balance per account, for money left until salary | Claude | ⬜ | 4h | |
+| [AOS-721](AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ⬜ | 3h | |
+| [AOS-722](AOS-722.md) | Confirm or correct the detected salary | Claude | ⬜ | 3h | |
 
 _Task tickets are created as files when this story is picked up._
 
@@ -45,4 +48,5 @@ _Task tickets are created as files when this story is picked up._
 A synthetic spending stream with injected spikes alerts on the spikes, and otherwise at most twice a month. The backtest beats the naive pace.
 
 ## Activity log
+- 2026-10-18 — Claude (integration engineer): AOS-720, AOS-721, AOS-722 created from AOS-714's follow-ups.
 - 2026-10-17 — Claude: story created (AOS-701).
