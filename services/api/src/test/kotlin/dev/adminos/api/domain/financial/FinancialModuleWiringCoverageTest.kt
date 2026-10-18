@@ -64,6 +64,19 @@ class FinancialModuleWiringCoverageTest {
         single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
         single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), transactions) }
         single { dev.adminos.api.domain.financial.paylater.PayLaterService(bills, transactions) }
+        single {
+            dev.adminos.api.domain.financial.splits.SplitService(dev.adminos.api.domain.financial.splits.InMemorySplitRepository(), transactions,
+                CategorizationService(), dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()))
+        }
+        single {
+            dev.adminos.api.domain.financial.review.CategoryReviewService(transactions, get(),
+                dev.adminos.api.domain.financial.review.InMemoryGoldenCandidateRepository(), get())
+        }
+        single { dev.adminos.api.domain.forecast.ForecastService(dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills), get(), subscriptions) }
+        single {
+            dev.adminos.api.domain.financial.grouping.MerchantGroupingService(transactions, dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository(),
+                dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()), get())
+        }
     }
 
     private fun moduleTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
@@ -93,7 +106,7 @@ class FinancialModuleWiringCoverageTest {
     }
 
     @Test
-    fun `transaction, dashboard, suggestion and analytics routes are mounted under api v1`() = moduleTest {
+    fun `transaction, dashboard, suggestion, analytics and forecast routes are mounted under api v1`() = moduleTest {
         runBlocking {
             transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("450.00"), merchantName = "Swiggy",
                 transactedAt = java.time.Instant.now().minusSeconds(3600)))
@@ -106,5 +119,8 @@ class FinancialModuleWiringCoverageTest {
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/transactions/suggestions").first)
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/analytics/categories").first)
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/categories/model").first, "learned categoriser status (AOS-707)")
+        assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/splitwise/summary").first, "Splitwise (AOS-911)")
+        assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/categories/review").first, "category questions (AOS-708)")
+        assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/forecast").first)
     }
 }

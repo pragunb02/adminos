@@ -3,7 +3,7 @@ import { formatInr } from "@/lib/money";
 import { categoryLabel } from "@/lib/analytics";
 import type { Transaction } from "@/lib/types";
 
-const NATURE: Record<string, string> = { refund: "Refund", reversal: "Reversal", transfer: "Transfer", income: "Income" };
+const NATURE: Record<string, string> = { refund: "Refund", reversal: "Reversal", transfer: "Transfer", income: "Income", settlement: "Settle-up" };
 
 /** One transaction: merchant, category · method · ··last4, signed amount and a word for its kind (D-49). */
 export default function FeedRow({ txn, zone }: { txn: Transaction; zone: string }) {
@@ -27,6 +27,7 @@ export function FeedRowContent({ txn, zone }: { txn: Transaction; zone: string }
       </span>
       <span className="text-right">
         <span className={`tabular block ${incoming ? "text-positive" : "text-ink"}`}>{incoming ? "+" : "−"}{formatInr(txn.amount)}</span>
+        {txn.ownShare && <span className="block text-xs text-ink-muted">your share {formatInr(txn.ownShare)}</span>}
         {NATURE[txn.nature] && <span className="text-xs text-ink-muted">{NATURE[txn.nature]}</span>}
       </span>
     </span>

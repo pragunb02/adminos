@@ -80,6 +80,8 @@ type GmailResult struct {
 	NewHistoryID string `json:"new_history_id,omitempty"`
 	SyncMode     string `json:"sync_mode,omitempty"`
 	NotFinancial int    `json:"not_financial"`
+	// Unauthenticated counts mail from a listed sender that Gmail didn't authenticate (AOS-624).
+	Unauthenticated int `json:"unauthenticated"`
 
 	// Order receipts (AOS-903): read by a per-sender parser, never turned into transactions.
 	ReceiptsFound int `json:"receipts_found"`
@@ -194,6 +196,12 @@ func (h *GmailHandler) Execute(ctx context.Context, payload any) (any, error) {
 	if h.gmailClient == nil || h.conns == nil || h.cipher == nil {
 		return nil, errGmailNotConfigured
 	}
+	// Before anything is read (AOS-630): a push that arrives from now on queues the next sync instead of
+	// being folded into this one. Not being able to mark it only makes such a push wait for the next
+	// one or the daily fallback, so the sync still runs.
+	if err := h.conns.MarkStarted(ctx, p.SyncSessionID); err != nil {
+		log.Printf("[gmail] Could not mark sync session %s started: %v", p.SyncSessionID, err)
+	}
 	result, err := h.execute(ctx, p)
 	if err != nil {
 		f := syncFailure{ConnectionID: p.ConnectionID, SyncSessionID: p.SyncSessionID, Reason: failureReason(err)}
@@ -223,14 +231,15 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 	}
 
 	result := &GmailResult{
-		SyncSessionID: p.SyncSessionID,
-		UserID:        p.UserID,
-		ConnectionID:  p.ConnectionID,
-		TotalEmails:   len(fetched.Emails),
-		FailedItems:   fetched.Gone,
-		NewHistoryID:  fetched.NewHistoryID,
-		SyncMode:      string(fetched.Mode),
-		NotFinancial:  fetched.NotFinancial,
+		SyncSessionID:   p.SyncSessionID,
+		UserID:          p.UserID,
+		ConnectionID:    p.ConnectionID,
+		TotalEmails:     len(fetched.Emails),
+		FailedItems:     fetched.Gone,
+		NewHistoryID:    fetched.NewHistoryID,
+		SyncMode:        string(fetched.Mode),
+		NotFinancial:    fetched.NotFinancial,
+		Unauthenticated: fetched.Unauthenticated,
 	}
 
 	var confSum float64
@@ -270,8 +279,8 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 	if confCount > 0 {
 		result.AvgConfidence = confSum / float64(confCount)
 	}
-	log.Printf("[gmail] Connection %s: %s sync, %d financial emails (%d receipts, %d unreadable receipts), %d skipped by the sender filters",
-		p.ConnectionID, fetched.Mode, len(fetched.Emails), result.ReceiptsFound, result.ReceiptFailures, fetched.NotFinancial)
+	log.Printf("[gmail] Connection %s: %s sync, %d financial emails (%d receipts, %d unreadable receipts), %d skipped by the sender filters, %d rejected as unauthenticated",
+		p.ConnectionID, fetched.Mode, len(fetched.Emails), result.ReceiptsFound, result.ReceiptFailures, fetched.NotFinancial, fetched.Unauthenticated)
 	return result, nil
 }
 

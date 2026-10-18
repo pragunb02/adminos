@@ -2,6 +2,7 @@ package dev.adminos.api.di
 
 import dev.adminos.api.config.AppConfig
 import dev.adminos.api.infrastructure.database.repositories.ExposedIngestEventRepository
+import dev.adminos.api.infrastructure.database.repositories.ExposedForecastHistoryRepository
 import dev.adminos.api.infrastructure.database.DatabaseFactory
 import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.audit.AuditRepository
@@ -97,14 +98,19 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { ExposedAnalyticsRepository() }
+        // Read through confirmed merchant merges (AOS-709).
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(ExposedAnalyticsRepository(), get()) }
+        single<dev.adminos.api.domain.forecast.ForecastHistoryRepository> { ExposedForecastHistoryRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
         single<SubscriptionRepository> { ExposedSubscriptionRepository() }
+        single<PriceRiseRepository> { ExposedPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { ExposedMerchantAliasRepository() }
         single<BillRepository> { ExposedBillRepository() }
         // Agent
         single<AnomalyRepository> { ExposedAnomalyRepository() }
+        single<AnomalyToleranceRepository> { ExposedAnomalyToleranceRepository() }
         single<BriefingRepository> { ExposedBriefingRepository() }
         single<InsightRepository> { ExposedInsightRepository() }
         // Notifications
@@ -118,6 +124,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { ExposedOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -132,12 +139,16 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()) }
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()), get()) }
+        single<dev.adminos.api.domain.forecast.ForecastHistoryRepository> { dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(get(), get()) }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
+        single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository() }
         single<BillRepository> { InMemoryBillRepository() }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
+        single<AnomalyToleranceRepository> { InMemoryAnomalyToleranceRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
         single<InsightRepository> { InMemoryInsightRepository() }
         single<NotificationPreferencesRepository> { InMemoryNotificationPreferencesRepository() }
@@ -148,6 +159,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -164,10 +176,12 @@ internal fun buildAppModule(
     single<WebAuthnCeremonies> { dev.adminos.api.infrastructure.webauthn.YubicoWebAuthn(get<AppConfig>().app.appUrl) }
     single { PasskeyService(get(), get(), get(), get(), get(), alerts = get()) }
 
-    // Redis queue publisher — only if REDIS_URL is configured and not default
+    // Redis queue publisher — only if REDIS_URL is configured. Parsed now, so a missing Redis password
+    // (REDIS_PASSWORD, or in the URL) stops the start-up instead of the first job (AOS-634).
     val redisUrl = env("REDIS_URL") ?: ""
     if (redisUrl.isNotBlank()) {
-        single { RedisClient.create(redisUrl) }
+        val redisUri = dev.adminos.api.infrastructure.queue.RedisUrl.parse(redisUrl, env("REDIS_PASSWORD"))
+        single { RedisClient.create(redisUri) }
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }
@@ -212,6 +226,11 @@ internal fun buildAppModule(
             dev.adminos.api.domain.financial.evaluation.GoldenSet.load(), get<MerchantNormalizer>()::normalize)
         dev.adminos.api.domain.financial.learning.CategoryModelTrainingService(get(), get(), get(), prior, learning)
     }
+    // Review queue with active learning (AOS-708): the learned model's and the AI's unsure guesses, and the local golden set.
+    single<dev.adminos.api.domain.financial.review.GoldenCandidateRepository> {
+        if (useDatabase) ExposedGoldenCandidateRepository() else dev.adminos.api.domain.financial.review.InMemoryGoldenCandidateRepository()
+    }
+    single { dev.adminos.api.domain.financial.review.CategoryReviewService(get(), get(), get(), get()) }
     single {
         val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(
@@ -257,7 +276,9 @@ internal fun buildAppModule(
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get(), get()) }
+    single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
+    // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
+    single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
@@ -269,14 +290,26 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
+    // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get()) }
 
     // Agent Services
-    single { AnomalyDetectorService(get(), get(), get()) }
+    // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)
+    single { AnomalyDetectorService(get(), get(), get(), get()) }
+    single {
+        if (useDatabase) AnomalyReviewService(get(), get(), get(), get(), java.time.Clock.systemUTC()) { work -> dev.adminos.api.infrastructure.database.dbQueryReadCommitted { work() } }
+        else AnomalyReviewService(get(), get(), get(), get())
+    }
     // Reactions to each new transaction (AOS-505); a new one is one `bind TransactionCreatedListener::class` line.
     single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
     single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
     single { dev.adminos.api.domain.financial.mandates.MandateDebitListener(get()) } bind TransactionCreatedListener::class
     single { dev.adminos.api.domain.financial.receipts.ReceiptPaymentListener(get()) } bind TransactionCreatedListener::class
+    // Splitwise (AOS-911, D-111): imports, Review, and new bank records offered to entries still waiting for one.
+    single {
+        if (useDatabase) dev.adminos.api.domain.financial.splits.SplitService(get(), get(), get(), get()) { work -> dbQuery { work() } }
+        else dev.adminos.api.domain.financial.splits.SplitService(get(), get(), get(), get())
+    } bind TransactionCreatedListener::class
 
     // Notification Services
     // Delivery channels (AOS-504): a new channel is one `single { … } bind DeliveryChannel::class` line.
@@ -298,12 +331,14 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.identity.UserCalendar(get()) }
     single { ReminderEngine(get(), get(), get(), get()) }
     single { RenewalReminders(get(), get(), get(), get()) }
+    // Subscription price-rise alerts, once per new price (AOS-715, D-74); sent by the detection job.
+    single { PriceRiseAlerts(get(), get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
 
     // Scheduled jobs (AOS-501, D-50): a new job is one `single { … } bind ScheduledJob::class` line.
     single { BillRemindersJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
-    single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { SubscriptionDetectionJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { WasteScoreService(get(), get(), get(), java.time.Clock.systemUTC(), get<AppConfig>().scheduler.zone) }
     single { SubscriptionWasteScoreJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
@@ -320,5 +355,18 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingJob(get()) } bind ScheduledJob::class
     // The AI layer (AOS-702, D-67) and the AI fallback categorizer (AOS-512, D-62): every feature off by default.
     aiDefinitions(useDatabase, env)
+    // "Ask your money" (AOS-710): read-only tools over the analytics, through the AI gateway only.
+    single { dev.adminos.api.domain.ask.AskToolRunner(get()) }
+    single { dev.adminos.api.domain.ask.RecentAsks(java.time.Clock.systemUTC()) }
+    single {
+        val consents = get<dev.adminos.api.domain.ai.AiConsentCheck>()
+        dev.adminos.api.domain.ask.AskService(get(), get(), dev.adminos.api.domain.ask.AskQuota(java.time.Clock.systemUTC()), java.time.Clock.systemUTC(),
+            consent = { user -> consents.allows(user, dev.adminos.api.domain.ai.AiFeature.ASK) }, recent = get())
+    }
+    // Thumbs up/down for the eval set (AOS-711): masked question + plan, encrypted at rest.
+    single<dev.adminos.api.domain.ask.AskFeedbackRepository> {
+        if (useDatabase) dev.adminos.api.infrastructure.database.repositories.ExposedAskFeedbackRepository(get()) else dev.adminos.api.domain.ask.InMemoryAskFeedbackRepository()
+    }
+    single { dev.adminos.api.domain.ask.AskFeedbackService(get(), get(), java.time.Clock.systemUTC()) }
     single { JobScheduler(getAll<ScheduledJob>(), get()) }
 }

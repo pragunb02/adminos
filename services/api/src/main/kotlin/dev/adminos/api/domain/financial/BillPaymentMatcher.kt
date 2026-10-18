@@ -39,9 +39,12 @@ object BillPaymentMatcher {
     private const val WINDOW_BEFORE_DUE_DAYS = 40L
     private const val GRACE_AFTER_DUE_DAYS = 15L
 
-    /** Money leaving the account that can pay a bill: a spend, or a card-bill or pay-later repayment transfer (AOS-208, AOS-909). */
+    /**
+     * Money leaving the account that can pay a bill: a spend, or a card-bill or pay-later repayment transfer (AOS-208, AOS-909).
+     * A share owed to a friend on Splitwise (AOS-911) left no account, so it pays nothing.
+     */
     fun canPayBills(t: Transaction): Boolean =
-        t.type == TransactionType.DEBIT &&
+        t.type == TransactionType.DEBIT && t.sourceType != dev.adminos.api.domain.financial.splits.SplitMatcher.SPLITWISE_SOURCE &&
             (t.nature == TransactionNature.SPEND || (t.nature == TransactionNature.TRANSFER && t.subcategory in BILL_TRANSFERS))
 
     /** The bill [payment] pays among [bills] (pending ones of the same user), or null if none or ambiguous. */
