@@ -5,6 +5,10 @@ import dev.adminos.api.domain.identity.UserCalendar
 import dev.adminos.api.domain.ingestion.events.IngestEvent
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.IngestSource
+import dev.adminos.api.domain.ingestion.fallback.FallbackOffer
+import dev.adminos.api.domain.ingestion.fallback.MessageChannel
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessage
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
 import dev.adminos.api.domain.ingestion.sms.SmsParseResult
 import dev.adminos.api.domain.ingestion.sms.SmsParserRegistry
 import java.security.MessageDigest
@@ -22,6 +26,8 @@ data class WhatsAppImportResult(
     val duplicates: Int,
     /** Mandate notices applied to the user's mandates. */
     val mandates: Int,
+    /** Unrecognised bank messages queued for the AI fallback; their answers wait in Review (AOS-705). */
+    val reading: Int,
     /** Bank messages that aren't transactions, counted by reason (never by text). */
     val ignored: Map<String, Int>,
     /** Lines that looked like a message start but had an impossible date or time. */
@@ -39,7 +45,8 @@ class WhatsAppImportService(
     private val intake: IngestEventService,
     private val mandates: MandateService,
     private val calendar: UserCalendar,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    private val fallback: UnrecognisedMessageSink = UnrecognisedMessageSink.NONE
 ) {
     companion object {
         private const val CHUNK = 100 // IngestEventService.MAX_BATCH
@@ -55,6 +62,9 @@ class WhatsAppImportService(
         val events = mutableListOf<IngestEvent>()
         var fromBanks = 0
         var mandateCount = 0
+        var reading = 0
+        var templateAccepted = 0
+        var templateDuplicates = 0
 
         for (message in export.messages) {
             val bank = BankSenders.match(message.sender) ?: continue
@@ -62,20 +72,32 @@ class WhatsAppImportService(
             val at = message.at.atZone(zone).toInstant()
             if (at.isAfter(latestAllowed)) { ignored.merge(DATED_IN_FUTURE, 1, Int::plus); continue }
             val ref = fingerprint(message.sender, at, message.text)
-            when (val result = parsers.parseFromBank(message.text, (bank as? BankSenders.Bank)?.code)) {
+            val bankCode = (bank as? BankSenders.Bank)?.code
+            when (val result = parsers.parseFromBank(message.text, bankCode)) {
+                SmsParseResult.Unrecognised -> {
+                    when (val offer = fallback.offer(UnrecognisedMessage(userId, MessageChannel.WHATSAPP, ref, at, zone, bankCode, message.text))) {
+                        FallbackOffer.Queued -> reading++
+                        is FallbackOffer.ReadByTemplate -> if (offer.duplicate) templateDuplicates++ else templateAccepted++ // AOS-706
+                        else -> ignored.merge(SmsParseResult.UNRECOGNISED, 1, Int::plus)
+                    }
+                }
                 is SmsParseResult.Ignored -> ignored.merge(result.reason, 1, Int::plus)
                 is SmsParseResult.Mandate -> { mandates.record(userId, result.notice, at, ref); mandateCount++ }
+                // Only banks are read from a chat export (D-66); providers' bills come by SMS or email.
+                is SmsParseResult.PayLaterBill -> ignored.merge("pay-later bill", 1, Int::plus)
+                is SmsParseResult.TravelBooking -> ignored.merge("travel booking", 1, Int::plus)
                 is SmsParseResult.Transaction -> events += toEvent(userId, result, at, ref)
             }
         }
 
-        val accepted = events.chunked(CHUNK).sumOf { intake.ingest(it).accepted }
+        val accepted = events.chunked(CHUNK).sumOf { intake.ingest(it).accepted } + templateAccepted
         return WhatsAppImportResult(
             messages = export.messages.size,
             fromBanks = fromBanks,
             accepted = accepted,
-            duplicates = events.size - accepted,
+            duplicates = events.size + templateAccepted - accepted + templateDuplicates,
             mandates = mandateCount,
+            reading = reading,
             ignored = ignored,
             unreadableLines = export.unreadableLines
         )

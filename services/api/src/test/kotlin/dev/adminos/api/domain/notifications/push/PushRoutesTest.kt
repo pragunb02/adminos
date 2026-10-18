@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 /** /api/v1/push (AOS-510): status, turn on/off, test; validation and "not set up" errors. */
 class PushRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-510")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-510")
     private val jwt = jwtService.generateAccessToken(user)
     private val repo = InMemoryPushSubscriptionRepository()
     private val sender = ScriptedPushSender()
@@ -52,7 +52,7 @@ class PushRoutesTest {
 
     @Test
     fun `status gives the public key and this user's devices`() = routeTest {
-        runBlocking { repo.upsert(PushFixtures.subscription(user.id, label = "iPhone · Safari")) }
+        runBlocking { repo.saved(PushFixtures.subscription(user.id, label = "iPhone · Safari")) }
         val (status, body) = call(HttpMethod.Get, "/push")
         assertEquals(HttpStatusCode.OK, status)
         val data = body!!.data().jsonObject
@@ -80,6 +80,23 @@ class PushRoutesTest {
         val (again, error) = call(HttpMethod.Delete, "/push/subscriptions", """{"endpoint":"$endpoint"}""")
         assertEquals(HttpStatusCode.NotFound, again)
         assertEquals("PUSH_002", error!!.code())
+    }
+
+    @Test
+    fun `registering a device another account already has is a 409 and changes nothing (AOS-627)`() = routeTest {
+        val owner = UUID.randomUUID()
+        val theirs = runBlocking { repo.saved(PushSubscription(userId = owner, endpoint = PushEndpoint(endpoint), keys = PushFixtures.keys, label = "Owner")) }
+
+        val (status, body) = call(HttpMethod.Post, "/push/subscriptions", subscribe)
+
+        assertEquals(HttpStatusCode.Conflict, status)
+        assertEquals("PUSH_003", body!!.code())
+        val kept = runBlocking { repo.findByUserId(owner) }.single()
+        assertEquals(theirs.id, kept.id)
+        assertEquals("Owner", kept.label)
+        assertTrue(runBlocking { repo.findByUserId(user.id) }.isEmpty())
+        assertEquals(HttpStatusCode.NotFound, call(HttpMethod.Delete, "/push/subscriptions", """{"endpoint":"$endpoint"}""").first,
+            "and the caller can't turn it off either")
     }
 
     @Test

@@ -7,6 +7,7 @@ import dev.adminos.api.domain.notifications.NotificationType
 import dev.adminos.api.domain.notifications.delivery.DeliveryResult
 import dev.adminos.api.domain.notifications.delivery.Recipient
 import dev.adminos.api.domain.scheduling.TestClock
+import dev.adminos.api.infrastructure.push.B64
 import kotlinx.coroutines.runBlocking
 import java.time.Instant
 import java.util.UUID
@@ -31,7 +32,7 @@ class WebPushChannelTest {
         Notification(userId = userId, type = type, title = "Bill due in 3 days", body = "HDFC bill of ₹4560.00 is due on 2026-10-19",
             data = data, channel = NotificationChannel.PUSH)
 
-    private suspend fun device(label: String) = repo.upsert(PushFixtures.subscription(userId, label = label))
+    private suspend fun device(label: String) = repo.saved(PushFixtures.subscription(userId, label = label))
 
     @Test
     fun `push follows the push preference`() {
@@ -111,13 +112,28 @@ class WebPushChannelTest {
     }
 
     @Test
-    fun `a device moves to whoever registers it last`() = runBlocking<Unit> {
+    fun `a device registered to one user is refused to another and never moves (AOS-627)`() = runBlocking<Unit> {
         val endpoint = PushFixtures.endpoint("shared")
-        service.register(userId, endpoint, PushFixtures.keys, null)
+        val mine = service.register(userId, endpoint, PushFixtures.keys, "mine")
         val other = UUID.randomUUID()
-        service.register(other, endpoint, PushFixtures.keys, null)
-        assertTrue(repo.findByUserId(userId).isEmpty())
-        assertEquals(1, repo.findByUserId(other).size)
+        val otherKeys = PushKeys(PushFixtures.UA_PUBLIC, B64.encode(ByteArray(16) { 7 }))
+
+        assertFailsWith<PushEndpointTakenException> { service.register(other, endpoint, otherKeys, "theirs") }
+
+        val kept = repo.findByUserId(userId).single()
+        assertEquals(mine.id, kept.id)
+        assertEquals("mine", kept.label)
+        assertEquals(PushFixtures.keys, kept.keys, "the attacker's keys must not replace the owner's")
+        assertTrue(repo.findByUserId(other).isEmpty())
+    }
+
+    @Test
+    fun `a device is free for another user once its owner turns it off`() = runBlocking<Unit> {
+        val endpoint = PushFixtures.endpoint("handed-on")
+        service.register(userId, endpoint, PushFixtures.keys, null)
+        assertTrue(service.unregister(userId, endpoint))
+        val other = UUID.randomUUID()
+        assertEquals(other, service.register(other, endpoint, PushFixtures.keys, null).userId)
     }
 
     @Test

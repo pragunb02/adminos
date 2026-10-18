@@ -21,7 +21,7 @@ import java.util.UUID
 
 /**
  * Labels golden cases with the shipped pipeline steps that decide a category on their own (AOS-511):
- * build → normalize merchant → categorize → own-account transfer rules (card bill, ATM). Dedup, pairing
+ * build → normalize merchant → categorize → own-account transfer rules (card bill, ATM) → investment flows. Dedup, pairing
  * and refund linking need other transactions, so they are not part of a single-row evaluation.
  * The amount is a fixed synthetic ₹100: the categorizer never looks at amounts.
  */
@@ -35,7 +35,9 @@ class PipelineLabeller(
         ToTransactionStep(),
         NormalizeMerchantStep(normalizer),
         CategorizeStep(categorizer),
-        TransferStep(noCandidates, TransferDetector())
+        TransferStep(noCandidates, TransferDetector()),
+        // Investment flows (AOS-815): the nature only; categories are unchanged.
+        dev.adminos.api.domain.wealth.flows.InvestmentFlowStep(dev.adminos.api.domain.wealth.flows.InvestmentFlowRules.load())
     ))
 
     /** The transaction the pipeline would store for [case]. */

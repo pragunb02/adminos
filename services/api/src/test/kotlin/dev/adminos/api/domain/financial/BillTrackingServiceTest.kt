@@ -22,9 +22,9 @@ class BillTrackingServiceTest {
     /** One fixed clock (AOS-631): 18:45 UTC, when India is already on the next day. */
     private val clock = Clock.fixed(Instant.parse("2026-10-16T18:45:00Z"), ZoneOffset.UTC)
     private val today = LocalDate.now(clock)
-    private val billRepo = InMemoryBillRepository(clock)
+    private val billRepo = InMemoryBillRepository()
     private val txnRepo = InMemoryTransactionRepository()
-    private val service = BillTrackingService(billRepo, txnRepo)
+    private val service = BillTrackingService(billRepo, txnRepo, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), clock))
 
     // ── Fuzzy matching ──
 
