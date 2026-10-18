@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion.webhook
 
 import com.nimbusds.jose.JWSAlgorithm
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.PlainHeader
 import com.nimbusds.jose.crypto.MACSigner
@@ -38,7 +39,8 @@ import kotlin.test.*
 class WebhookRoutesCoverageTest {
 
     private val syncSessions = InMemorySyncSessionRepository()
-    private val connections = ConnectionService(InMemoryConnectionRepository(), syncSessions)
+    private val connectionRepo = InMemoryConnectionRepository()
+    private val connections = ConnectionService(connectionRepo, syncSessions, randomTokenEncryptor())
     private val ingestion = IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncSessions)
     private val userId = UUID.randomUUID()
     private val audience = "https://api.adminos.example.in/api/v1/webhooks/gmail"
@@ -76,13 +78,13 @@ class WebhookRoutesCoverageTest {
     private suspend fun HttpResponse.errorCode() = json()["error"]?.jsonObject?.get("code")?.jsonPrimitive?.content
     private suspend fun HttpResponse.data() = json()["data"]!!.jsonObject
 
-    private fun gmail(address: String = "pragun.b@gmail.com") = runBlocking { connections.createConnection(userId, SourceType.GMAIL, address) }
+    private fun gmail(address: String = "owner@example.com") = runBlocking { connections.createConnection(userId, SourceType.GMAIL, address) }
 
     // --- Authorization ---
 
     @Test
     fun `a push without an authorization header is a 401`() = webhookTest {
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com"}"""), authorization = null)
+        val res = deliver(push("""{"emailAddress":"owner@example.com"}"""), authorization = null)
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("WEBHOOK_005", res.errorCode())
@@ -90,7 +92,7 @@ class WebhookRoutesCoverageTest {
 
     @Test
     fun `a push with a non-bearer authorization is a 401`() = webhookTest {
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com"}"""), authorization = "Basic cHVic3ViOnNlY3JldA==")
+        val res = deliver(push("""{"emailAddress":"owner@example.com"}"""), authorization = "Basic cHVic3ViOnNlY3JldA==")
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("WEBHOOK_005", res.errorCode())
@@ -100,7 +102,7 @@ class WebhookRoutesCoverageTest {
     fun `with an audience configured a malformed token is rejected`() = webhookTest(audience) {
         gmail()
 
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""), authorization = "Bearer not-a-jwt")
+        val res = deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""), authorization = "Bearer not-a-jwt")
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("WEBHOOK_006", res.errorCode())
@@ -111,7 +113,7 @@ class WebhookRoutesCoverageTest {
     fun `with an audience configured an unsigned alg-none token is rejected`() = webhookTest(audience) {
         val unsigned = PlainJWT(PlainHeader(), claims()).serialize()
 
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com"}"""), authorization = "Bearer $unsigned")
+        val res = deliver(push("""{"emailAddress":"owner@example.com"}"""), authorization = "Bearer $unsigned")
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("WEBHOOK_006", res.errorCode())
@@ -121,7 +123,7 @@ class WebhookRoutesCoverageTest {
     fun `with an audience configured an hs256 token signed with a guessable key is rejected`() = webhookTest(audience) {
         val hs = SignedJWT(JWSHeader(JWSAlgorithm.HS256), claims()).apply { sign(MACSigner("a-shared-secret-that-is-32-bytes-long!!")) }.serialize()
 
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com"}"""), authorization = "Bearer $hs")
+        val res = deliver(push("""{"emailAddress":"owner@example.com"}"""), authorization = "Bearer $hs")
 
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("WEBHOOK_006", res.errorCode())
@@ -135,7 +137,7 @@ class WebhookRoutesCoverageTest {
     fun `without configuration every push is refused and nothing syncs (AOS-609 regression, AOS-601)`() = webhookTest(verifier = null) {
         gmail()
 
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""), authorization = "Bearer anything")
+        val res = deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""), authorization = "Bearer anything")
 
         assertEquals(HttpStatusCode.ServiceUnavailable, res.status)
         assertEquals("WEBHOOK_007", res.errorCode())
@@ -150,14 +152,14 @@ class WebhookRoutesCoverageTest {
                 configureSerialization(); configureRequestId(); configureErrorHandling()
                 routing { route("/api/v1") { webhookRoutes(connections, ingestion, aud, sa) } }
             }
-            assertEquals(HttpStatusCode.ServiceUnavailable, deliver(push("""{"emailAddress":"x@gmail.com"}""")).status)
+            assertEquals(HttpStatusCode.ServiceUnavailable, deliver(push("""{"emailAddress":"x@example.com"}""")).status)
         }
     }
 
     @Test
     fun `a token the verifier rejects is a 401 and nothing syncs`() = webhookTest {
         gmail()
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""), authorization = "Bearer forged")
+        val res = deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""), authorization = "Bearer forged")
         assertEquals(HttpStatusCode.Unauthorized, res.status)
         assertEquals("WEBHOOK_006", res.errorCode())
         assertTrue(syncSessions.findByUserId(userId).isEmpty())
@@ -201,7 +203,7 @@ class WebhookRoutesCoverageTest {
 
     @Test
     fun `a notification for an unknown mailbox is acknowledged without a sync`() = webhookTest {
-        val res = deliver(push("""{"emailAddress":"stranger@gmail.com","historyId":9876}"""))
+        val res = deliver(push("""{"emailAddress":"stranger@example.com","historyId":9876}"""))
 
         assertEquals(HttpStatusCode.OK, res.status)
         assertEquals("No matching connection", res.data()["message"]!!.jsonPrimitive.content)
@@ -212,7 +214,7 @@ class WebhookRoutesCoverageTest {
     fun `a notification for a disconnected mailbox is acknowledged without a sync`() = webhookTest {
         runBlocking { connections.disconnect(userId, gmail().id) }
 
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""))
+        val res = deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""))
 
         assertEquals(HttpStatusCode.OK, res.status)
         assertEquals("Connection not active", res.data()["message"]!!.jsonPrimitive.content)
@@ -223,7 +225,7 @@ class WebhookRoutesCoverageTest {
     fun `a notification with a history id queues an incremental sync for that connection`() = webhookTest {
         val conn = gmail()
 
-        val res = deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""))
+        val res = deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""))
 
         assertEquals(HttpStatusCode.OK, res.status)
         val session = syncSessions.findByUserId(userId).single()
@@ -236,7 +238,7 @@ class WebhookRoutesCoverageTest {
     fun `a notification without a history id still queues an incremental sync (AOS-405)`() = webhookTest {
         gmail()
 
-        deliver(push("""{"emailAddress":"pragun.b@gmail.com"}"""))
+        deliver(push("""{"emailAddress":"owner@example.com"}"""))
 
         // The worker starts from the history ID stored on the connection either way (D-59).
         assertEquals(SyncType.INCREMENTAL, syncSessions.findByUserId(userId).single().syncType)
@@ -245,7 +247,7 @@ class WebhookRoutesCoverageTest {
     @Test
     fun `a completed push sync makes the daily fallback skip the connection (AOS-405)`() = webhookTest {
         val conn = gmail()
-        deliver(push("""{"emailAddress":"pragun.b@gmail.com","historyId":9876}"""))
+        deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""))
         val pushed = syncSessions.findByUserId(userId).single()
         // The worker finishes the push sync.
         syncSessions.update(pushed.copy(status = SyncSessionStatus.COMPLETED, completedAt = java.time.Instant.now()))
@@ -254,6 +256,35 @@ class WebhookRoutesCoverageTest {
 
         assertEquals(DailySyncResult(totalConnections = 1, enqueued = 0, skipped = 1, errors = 0), result)
         assertEquals(listOf(pushed.id), syncSessions.findByUserId(userId).filter { it.connectionId == conn.id }.map { it.id })
+    }
+
+    // --- Replays (AOS-630, AUD-27) ---
+
+    @Test
+    fun `replaying a captured push while its sync is queued is acknowledged without another sync`() = webhookTest {
+        gmail()
+        val body = push("""{"emailAddress":"owner@example.com","historyId":9876}""")
+        val first = deliver(body).data()["syncSessionId"]!!.jsonPrimitive.content
+
+        repeat(20) {
+            val again = deliver(body)
+            assertEquals(HttpStatusCode.OK, again.status, "Pub/Sub must not be told to retry")
+            assertEquals("Sync already queued", again.data()["message"]!!.jsonPrimitive.content)
+            assertEquals(first, again.data()["syncSessionId"]!!.jsonPrimitive.content)
+        }
+        assertEquals(1, syncSessions.findByUserId(userId).size)
+    }
+
+    @Test
+    fun `a push for a change the last sync already read is acknowledged without a sync`() = webhookTest {
+        val conn = gmail()
+        runBlocking { connectionRepo.update(conn.copy(historyId = "9876")) }
+
+        val res = deliver(push("""{"emailAddress":"owner@example.com","historyId":9876}"""))
+
+        assertEquals(HttpStatusCode.OK, res.status)
+        assertEquals("Already synced", res.data()["message"]!!.jsonPrimitive.content)
+        assertTrue(syncSessions.findByUserId(userId).isEmpty())
     }
 
     // --- Wire formats ---
@@ -270,7 +301,7 @@ class WebhookRoutesCoverageTest {
 
     @Test
     fun `gmail notification round-trips with and without a history id`() =
-        assertWireFormat(GmailNotification.serializer(), GmailNotification("pragun.b@gmail.com"), GmailNotification("pragun.b@gmail.com", 9876),
+        assertWireFormat(GmailNotification.serializer(), GmailNotification("owner@example.com"), GmailNotification("owner@example.com", 9876),
             """{"historyId":1}""")
 
     @Test

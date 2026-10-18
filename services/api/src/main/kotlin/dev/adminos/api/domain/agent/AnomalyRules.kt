@@ -7,37 +7,6 @@ import java.math.BigDecimal
 import java.time.ZoneId
 
 /**
- * Rule 1: Amount > 3x user's 30-day category average.
- * Confidence: 0.7
- *
- * Note: categoryAverage must be provided externally (via TransactionData context).
- * For standalone evaluation, we use a default threshold of ₹10,000.
- */
-class LargeAmountRule(
-    private val categoryAverages: Map<String, BigDecimal> = emptyMap(),
-    /** Below this a "3x the average" chai or auto ride isn't worth an alert (AOS-505). */
-    private val minimumAmount: BigDecimal = BigDecimal.ZERO
-) : AnomalyRule {
-    override val name = "large_amount"
-    override val baseConfidence = 0.7
-
-    override fun evaluate(transaction: TransactionData): RuleResult? {
-        val avg = categoryAverages[transaction.category]
-        if (avg != null && avg > BigDecimal.ZERO && transaction.amount >= minimumAmount) {
-            val threshold = avg.multiply(BigDecimal(3))
-            if (transaction.amount > threshold) {
-                return RuleResult(
-                    ruleName = name,
-                    confidence = baseConfidence,
-                    reason = "Amount ₹${transaction.amount} exceeds 3x category average of ₹$avg"
-                )
-            }
-        }
-        return null
-    }
-}
-
-/**
  * Rule 2: Currency != 'INR' — foreign charge.
  * Confidence: 0.8
  */
@@ -103,16 +72,24 @@ class CardTestingRule : AnomalyRule {
 
 /**
  * Rule 5: Same amount + same merchant within 24 hours — duplicate charge.
- * Confidence: 0.75
+ * Confidence: 0.75; below [smallAmount] (₹100) it is [SMALL_CONFIDENCE], so it is recorded but not
+ * pushed (AOS-713: on the eval set every false duplicate alert was a ₹10–₹26 tea or chai bought twice).
  *
  * Note: recentTransactions must be provided externally for context.
  * For standalone evaluation, this rule requires recent transaction data.
  */
 class DuplicateChargeRule(
-    private val recentTransactions: List<TransactionData> = emptyList()
+    private val recentTransactions: List<TransactionData> = emptyList(),
+    private val smallAmount: BigDecimal = SMALL_AMOUNT
 ) : AnomalyRule {
     override val name = "duplicate_charge"
     override val baseConfidence = 0.75
+
+    companion object {
+        val SMALL_AMOUNT = BigDecimal(100)
+        /** Under the alert bar (0.7), even with odd hours on top (0.6 + 0.05). */
+        const val SMALL_CONFIDENCE = 0.5
+    }
 
     override fun evaluate(transaction: TransactionData): RuleResult? {
         val twentyFourHoursAgo = transaction.transactedAt.minusSeconds(24 * 60 * 60)
@@ -129,7 +106,7 @@ class DuplicateChargeRule(
         if (duplicates.isNotEmpty()) {
             return RuleResult(
                 ruleName = name,
-                confidence = baseConfidence,
+                confidence = if (transaction.amount < smallAmount) SMALL_CONFIDENCE else baseConfidence,
                 reason = "Same amount ₹${transaction.amount} at ${transaction.merchantName} within 24 hours"
             )
         }

@@ -10,6 +10,10 @@ import { cx } from "../coachFixtures";
  */
 export const server = setupServer(
   http.get("/api/v1/transactions/suggestions", () => ok([])),
+  // Review → messages read by AI (AOS-705): none unless a test says otherwise.
+  http.get("/api/v1/review/messages", () => ok([])),
+  // Review → formats to learn (AOS-706): none unless a test says otherwise.
+  http.get("/api/v1/review/templates", () => ok([])),
   // Settings → Notifications on this device (AOS-510): push not set up unless a test says otherwise.
   http.get("/api/v1/push", () => ok({ enabled: false, publicKey: null, devices: [] })),
   // Settings → AI features (AOS-704): one feature, not set up on the server, unless a test says otherwise.
@@ -20,6 +24,24 @@ export const server = setupServer(
   http.get("/api/v1/coach/leaks", () => ok(cx.emptyLeaks())),
   // Limits and coach settings (AOS-904): still learning, no limits, alerts on.
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
-  http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
+  http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Goals (AOS-907): none unless a test says otherwise.
+  http.get("/api/v1/coach/goals", () => ok([])),
+  // Savings rate on Home (AOS-908): too little data unless a test says otherwise.
+  http.get("/api/v1/coach/savings", () => ok(cx.noSavings())),
+  // Review → pay-later gaps (AOS-909): nothing owed unless a test says otherwise.
+  http.get("/api/v1/pay-later", () => ok({ outstanding: "0.00", currency: "INR", providers: [] })),
+  // Splitwise (AOS-911): nothing imported unless a test says otherwise (Import and Review read these).
+  http.get("/api/v1/splitwise/entries", () => ok([])),
+  http.get("/api/v1/splitwise/summary", () => ok({ balances: [], counts: {} })),
+  http.get("/api/v1/splitwise/imports", () => ok([])),
+  // Review → Check these categories (AOS-708): nothing to ask, learning off, no local test set unless a test says otherwise.
+  http.get("/api/v1/categories/review", () => ok([])),
+  http.get("/api/v1/categories/model", () => ok({ enabled: false, state: "off", corrections: 0, correctionsNeeded: 20 })),
+  http.get("/api/v1/categories/golden", () => ok([])),
+  // Home → Month-end forecast (AOS-714): too little history unless a test says otherwise.
+  http.get("/api/v1/forecast", () => ok({ status: "not_enough_history", today: "2026-10-16", history: { days: 40, neededDays: 90, readyOn: "2026-11-25" }, monthEnd: null, salary: null })),
+  // Review → Same merchant? (AOS-709): nothing to ask unless a test says otherwise.
+  http.get("/api/v1/merchants/merge-proposals", () => ok([])),
 );

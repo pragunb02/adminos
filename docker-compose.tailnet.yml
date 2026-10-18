@@ -16,6 +16,10 @@ services:
     profiles: ["full"]           # runs with the web app and API it fronts
     image: tailscale/tailscale:v1.104.1@sha256:87c55d6be56ad85b3d8bceca5f87f73de288c609131460dd1be1874c250cc41d
     hostname: adminos
+    networks: [edge]                  # reaches the web app only
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 128
     environment:
       TS_AUTHKEY: ${TS_AUTHKEY:?}
       TS_AUTH_ONCE: "true"

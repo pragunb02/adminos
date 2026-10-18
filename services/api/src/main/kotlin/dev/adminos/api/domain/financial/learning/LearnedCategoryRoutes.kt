@@ -4,6 +4,7 @@ import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.RateLimiter
+import dev.adminos.api.infrastructure.plugins.RateLimiters
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
 import io.ktor.http.HttpStatusCode
@@ -59,14 +60,12 @@ data class CategoryModelTrainResponse(
     val status: CategoryModelStatusResponse
 )
 
-/** Retraining is CPU work: a few per hour per user is plenty for a "retrain now" button. */
-private val retrainLimiter = RateLimiter(maxRequests = 6, windowSeconds = 3600)
-
 /**
  * `GET /categories/model`: the user's model status. `POST /categories/model/train`: retrain now (AOS-707);
- * 409 `LEARN_001` when learning is switched off, 429 when asked too often.
+ * 409 `LEARN_001` when learning is switched off, 429 when asked too often. Each installation gets its own
+ * [limiter] (AOS-639): a process-wide one would share counters between applications.
  */
-fun Route.learnedCategoryRoutes(training: CategoryModelTrainingService, limiter: RateLimiter = retrainLimiter) {
+fun Route.learnedCategoryRoutes(training: CategoryModelTrainingService, limiter: RateLimiter = RateLimiters.retrain()) {
     authenticate("auth-jwt") {
         route("/categories/model") {
             get {

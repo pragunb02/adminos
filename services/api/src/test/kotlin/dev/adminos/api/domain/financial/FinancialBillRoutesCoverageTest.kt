@@ -34,8 +34,8 @@ class FinancialBillRoutesCoverageTest {
     private val token = tokenFor(user)
     private val today = LocalDate.of(2026, 10, 16)
     private val clock = Clock.fixed(LocalDateTime.of(2026, 10, 16, 10, 0).atZone(IST).toInstant(), IST)
-    private val bills = InMemoryBillRepository(clock)
-    private val service = BillTrackingService(bills, InMemoryTransactionRepository())
+    private val bills = InMemoryBillRepository()
+    private val service = BillTrackingService(bills, InMemoryTransactionRepository(), dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), clock))
 
     private fun billTest(block: suspend ApplicationTestBuilder.() -> Unit) = routeTest({ billRoutes(service) }, block)
 

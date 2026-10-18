@@ -77,11 +77,11 @@ describe("api client (AOS-109/308)", () => {
   it("on 401 refreshes once and retries the request", async () => {
     let calls = 0;
     server.use(
-      http.get("/api/v1/me", () => (++calls === 1 ? fail(401, "AUTH_001", "Token expired") : ok({ name: "Pragun" }))),
+      http.get("/api/v1/me", () => (++calls === 1 ? fail(401, "AUTH_001", "Token expired") : ok({ name: "Owner" }))),
       http.post("/api/v1/auth/refresh", () => ok({})),
     );
     const res = await api.get("/api/v1/me");
-    expect(res.data).toEqual({ name: "Pragun" });
+    expect(res.data).toEqual({ name: "Owner" });
     expect(calls).toBe(2);
   });
 

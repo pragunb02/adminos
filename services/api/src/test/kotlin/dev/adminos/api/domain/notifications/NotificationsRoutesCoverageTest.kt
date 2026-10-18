@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
 /** /api/v1/users/me/notification-preferences and /api/v1/notifications (AOS-312). */
 class NotificationsRoutesCoverageTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-312", role = UserRole.OWNER)
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-312", role = UserRole.OWNER)
     private val jwt = jwtService.generateAccessToken(user)
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()

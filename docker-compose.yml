@@ -1,6 +1,28 @@
+# AdminOS stack. Hardening (AOS-622, proposed D-99), checked by scripts/check-compose-hardening.sh:
+#   - every service: read-only root filesystem (writable tmpfs/volumes only where needed), all Linux
+#     capabilities dropped, no-new-privileges, memory/CPU/process limits, non-root user;
+#   - images pinned by digest (Dependabot proposes updates); published ports on 127.0.0.1 only (AOS-616);
+#   - networks: `backend` (data and workers), `edge` (web app ↔ API only), `parser` (API ↔ statement
+#     parser only, no internet). The web app and the parser, which handle untrusted input, can't reach
+#     Postgres or Redis.
+x-hardened: &hardened
+  read_only: true
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
 services:
   postgres:
-    image: postgres:18.6-alpine
+    <<: *hardened
+    image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    user: "70:70"                     # the image's postgres user; no root entrypoint, no chown, no capabilities
+    networks: [backend]
+    tmpfs:
+      - /var/run/postgresql
+      - /tmp
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 256
     ports:
       - "127.0.0.1:5432:5432"
     environment:
@@ -16,16 +38,49 @@ services:
       retries: 5
 
   redis:
-    image: redis:8.10.2-alpine
+    <<: *hardened
+    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    user: "999:1000"                  # the image's redis user
+    networks: [backend]
+    volumes:
+      - redis_data:/data              # queue persistence; the root filesystem is read-only
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 128
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6379:6379"   # loopback only; the API and workers use the compose network
+    # Password required (AOS-634). REDISCLI_AUTH is read by redis-cli (the healthcheck) and becomes
+    # `requirepass` on redis-server's stdin (`-`), so it never sits on a command line (`ps`, the
+    # container's Cmd). The image's entrypoint still drops root. Hex only (no quoting in the config line).
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?}
+    command:
+      - sh
+      - -c
+      - |
+        exec docker-entrypoint.sh redis-server - <<EOF
+        requirepass $$REDISCLI_AUTH
+        EOF
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]   # NOAUTH or a wrong password is unhealthy
       interval: 5s
       timeout: 5s
       retries: 5
 
   api-server:
+    <<: *hardened
+    networks: [backend, edge, parser, ai]   # ai: reaches only the optional ollama service (AOS-703)
+    tmpfs:
+      - /tmp
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 512
+    healthcheck:                      # same probe as the Dockerfile's; /health needs no auth
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 30s
+      retries: 5
     build:
       context: ./services/api
       dockerfile: Dockerfile
@@ -43,6 +98,7 @@ services:
       DB_USER: adminos
       DB_PASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}   # Redis requires it (AOS-634); beside the URL, so no URL carries it
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -base64 48)}
       OWNER_EMAIL: ${OWNER_EMAIL:?}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -78,15 +134,30 @@ services:
       AI_CATEGORIZATION_PROVIDER: ${AI_CATEGORIZATION_PROVIDER:-anthropic}
       AI_CATEGORIZATION_MODEL: ${AI_CATEGORIZATION_MODEL:-claude-haiku-5-5}
       LEARNED_CATEGORIZATION_ENABLED: ${LEARNED_CATEGORIZATION_ENABLED:-false}
+      # AI message reading (AOS-705): off by default; local (ollama) unless anthropic is chosen.
+      AI_MESSAGES_ENABLED: ${AI_MESSAGES_ENABLED:-false}
+      AI_MESSAGES_PROVIDER: ${AI_MESSAGES_PROVIDER:-ollama}
+      AI_MESSAGES_MODEL: ${AI_MESSAGES_MODEL:-}
+      AI_MESSAGES_DAILY_LIMIT: ${AI_MESSAGES_DAILY_LIMIT:-100}
+      AI_ASK_ENABLED: ${AI_ASK_ENABLED:-false}
+      AI_ASK_PROVIDER: ${AI_ASK_PROVIDER:-anthropic}
+      AI_ASK_MODEL: ${AI_ASK_MODEL:-claude-sonnet-5-5}
       DOCS_S3_ENDPOINT: ${DOCS_S3_ENDPOINT:-}
       DOCS_S3_REGION: ${DOCS_S3_REGION:-auto}
       DOCS_S3_BUCKET: ${DOCS_S3_BUCKET:-}
       DOCS_S3_ACCESS_KEY_ID: ${DOCS_S3_ACCESS_KEY_ID:-}
       DOCS_S3_SECRET_ACCESS_KEY: ${DOCS_S3_SECRET_ACCESS_KEY:-}
-    networks: [default, ai]   # ai: reaches only the optional ollama service (AOS-703)
 
   gmail-worker:
+    <<: *hardened
     profiles: ["full"]
+    networks: [backend]
+    tmpfs:
+      - /tmp
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 128
+    # No healthcheck: the worker has no health endpoint yet (follow-up); restart policy covers crashes.
     build:
       context: ./services/workers
       dockerfile: Dockerfile
@@ -101,13 +172,22 @@ services:
       DATABASE_URL: postgresql://adminos@postgres:5432/adminos
       PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}   # Redis requires it (AOS-634); beside the URL, so no URL carries it
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # The API's key: the worker reads and writes the encrypted Gmail tokens (AOS-401, D-59).
       TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?set TOKEN_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
 
   agent-runner:
+    <<: *hardened
     profiles: ["full"]
+    networks: [backend]
+    tmpfs:
+      - /tmp
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 128
+    # No healthcheck: the worker has no health endpoint yet (follow-up); restart policy covers crashes.
     build:
       context: ./services/workers
       dockerfile: Dockerfile
@@ -122,9 +202,18 @@ services:
       DATABASE_URL: postgresql://adminos@postgres:5432/adminos
       PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}   # Redis requires it (AOS-634); beside the URL, so no URL carries it
 
   pdf-parser:
     # Statement parser (D-37): stateless, internal network only (no published port). The API calls it.
+    # It parses untrusted files, so it sits alone with the API on `parser`, which has no internet access.
+    <<: *hardened
+    networks: [parser]
+    tmpfs:
+      - /tmp
+    mem_limit: 1g
+    cpus: 2
+    pids_limit: 128
     build:
       context: ./services/pdf-parser
       dockerfile: Dockerfile
@@ -135,7 +224,21 @@ services:
       retries: 5
 
   web-app:
+    <<: *hardened
     profiles: ["full"]
+    networks: [edge]
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 256
+    healthcheck:                      # the login page needs no session
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/login"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
     build:
       context: ./apps/web
       dockerfile: Dockerfile
@@ -156,11 +259,22 @@ services:
     # web page the owner visits (AOS-703 security review). For a bake-off from the host, use the native Ollama app
     # (it binds to loopback, where its Host check applies): docs/guides/local-models.md.
     # Its own network, shared only with the API: it can't reach Postgres or Redis.
+    <<: *hardened
     profiles: ["ollama"]
     image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
     networks: [ai]
-    cap_drop: ["ALL"]
+    cap_drop: ["ALL"]                 # also in *hardened; kept explicit here (ComposeExposureTest, AOS-703)
     security_opt: ["no-new-privileges:true"]
+    # Root, as the image ships: it writes the model volume at /root/.ollama, which a fresh named volume creates
+    # root-owned. Named exception in scripts/check-compose-hardening.sh; it still has no capabilities (so root
+    # can't bypass file permissions or bind privileged ports), no-new-privileges, a read-only root filesystem,
+    # no published port, and only the API as a peer.
+    user: "0:0"
+    tmpfs:
+      - /tmp:size=256m
+    mem_limit: 8g                     # room for a 3–7B model; lower it if the host is small
+    cpus: 4
+    pids_limit: 256
     volumes:
       - ollama_models:/root/.ollama   # model files (1–3 GB each), kept across restarts
     environment:
@@ -173,9 +287,13 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   ollama_models:
 
 networks:
-  default: {}
+  backend:
+  edge:
+  parser:
+    internal: true                    # no route to the internet
   # The optional local-model network: only api-server and ollama are on it (AOS-703, D-69).
   ai: {}

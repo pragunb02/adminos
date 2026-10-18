@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 class RememberedRulesEvaluationTest {
 
     private val golden = GoldenSet.load()
-    private val pragun = UUID(0, 1)
+    private val owner = UUID(0, 1)
     private val someoneElse = UUID(0, 2)
     private val rules = InMemoryCategoryRuleRepository()
     private val txns = InMemoryTransactionRepository()
@@ -35,15 +35,15 @@ class RememberedRulesEvaluationTest {
 
     @Test
     fun `corrections fix the misses for those payees and break nothing`() = runBlocking<Unit> {
-        val before = evaluateFor(pragun)
+        val before = evaluateFor(owner)
         assertTrue(corrected.all { id -> before.misses.any { it.id == id } }, "the scenario must start from misses")
 
         for (id in corrected) {
             val c = case(id)
-            val txn = txns.save(PipelineLabeller(categorizer, userId = pragun).transactionFor(c))
+            val txn = txns.save(PipelineLabeller(categorizer, userId = owner).transactionFor(c))
             corrections.correct(txn, c.expected.category, c.expected.subcategory)
         }
-        val after = evaluateFor(pragun)
+        val after = evaluateFor(owner)
 
         assertEquals(before.correct + corrected.size, after.correct)
         assertTrue(corrected.none { id -> after.misses.any { it.id == id } })
@@ -57,7 +57,7 @@ class RememberedRulesEvaluationTest {
         val baseline = evaluateFor(someoneElse)
         for (id in corrected) {
             val c = case(id)
-            corrections.correct(txns.save(PipelineLabeller(categorizer, userId = pragun).transactionFor(c)), c.expected.category, c.expected.subcategory)
+            corrections.correct(txns.save(PipelineLabeller(categorizer, userId = owner).transactionFor(c)), c.expected.category, c.expected.subcategory)
         }
         assertEquals(baseline, evaluateFor(someoneElse))
     }
@@ -65,8 +65,8 @@ class RememberedRulesEvaluationTest {
     @Test
     fun `a correction for one payee leaves other payees' misses alone`() = runBlocking<Unit> {
         val steam = case("N006")
-        corrections.correct(txns.save(PipelineLabeller(categorizer, userId = pragun).transactionFor(steam)), steam.expected.category, steam.expected.subcategory)
-        val after = evaluateFor(pragun)
+        corrections.correct(txns.save(PipelineLabeller(categorizer, userId = owner).transactionFor(steam)), steam.expected.category, steam.expected.subcategory)
+        val after = evaluateFor(owner)
         assertTrue(after.misses.none { it.id == "N006" })
         assertTrue(after.misses.any { it.id == "N007" }, "PlayStation is a different payee and stays a miss")
     }
@@ -75,10 +75,10 @@ class RememberedRulesEvaluationTest {
     fun `a correction keyed by a brand name relabels every row of that brand, the D-41 trade-off`() = runBlocking<Unit> {
         // "EMI 3 OF 12 AMAZON ORDER" has no UPI ID, so the rule is keyed by the merchant name "amazon":
         // every Amazon purchase without its own UPI rule becomes EMI too. Kept visible here on purpose (AOS-511 finding).
-        val before = evaluateFor(pragun)
+        val before = evaluateFor(owner)
         val emi = case("E003")
-        corrections.correct(txns.save(PipelineLabeller(categorizer, userId = pragun).transactionFor(emi)), emi.expected.category, emi.expected.subcategory)
-        val after = evaluateFor(pragun)
+        corrections.correct(txns.save(PipelineLabeller(categorizer, userId = owner).transactionFor(emi)), emi.expected.category, emi.expected.subcategory)
+        val after = evaluateFor(owner)
         assertTrue(after.misses.none { it.id == "E003" })
         val broken = after.misses.map { it.id }.toSet() - before.misses.map { it.id }.toSet()
         assertTrue(setOf("S001", "S002", "R001").all { it in broken }, "Amazon purchases now read as EMI: $broken")

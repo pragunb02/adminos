@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.evaluation
 
+import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiProviderKind
 import dev.adminos.api.domain.ai.eval.AiEvalAnswers
 import dev.adminos.api.domain.ai.eval.AiEvalGate
@@ -18,7 +19,8 @@ import kotlin.test.assertTrue
  */
 class LocalModelRecordsTest {
 
-    private val local = AiEvalRecords.load().records.filter { it.provider == AiProviderKind.OLLAMA.key }
+    // Categorisation records only: other features (AOS-705 message reading) have their own local records and replay tests.
+    private val local = AiEvalRecords.load().records.filter { it.provider == AiProviderKind.OLLAMA.key && it.feature == AiFeature.CATEGORIZATION.key }
 
     private fun resourceFor(model: String) = "/categorization/bakeoff/" + model.replace(Regex("[^A-Za-z0-9._-]"), "_") + ".csv"
 
