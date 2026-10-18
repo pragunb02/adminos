@@ -134,7 +134,7 @@ Each row: the threat, the control in place (✅), the gap and its ticket (⚠). 
 ### TB6 — Workers ↔ Gmail (untrusted mail)
 | STRIDE | Threat | Controls / gaps |
 |---|---|---|
-| S/T | T4 sends a fake bank alert to inject transactions or alert text | ⚠ Sender isn't authenticated and a subject phrase alone can qualify a message (AUD-11 → AOS-624). |
+| S/T | T4 sends a fake bank alert to inject transactions or alert text | ✅ Admitted by listed sender only, and only with Gmail's topmost `Authentication-Results` (`mx.google.com`) showing DMARC pass or an aligned DKIM pass; subjects never admit; every fetched message is re-qualified (AOS-624). |
 | D | Huge or nested messages | ✅ Bodies cut at 64 KB; responses read through `LimitReader`; RE2 regexes (linear time). |
 | I | Raw mail stored or logged | ✅ Never stored or logged (D-33). |
 
@@ -142,7 +142,7 @@ Each row: the threat, the control in place (✅), the gap and its ticket (⚠). 
 | STRIDE | Threat | Controls / gaps |
 |---|---|---|
 | S | Forged push | ✅ Google OIDC: RS256 via JWKS, our audience, Google issuer, our push service account, `email_verified`; fails closed (503) when unconfigured (AOS-609). |
-| R/D | Replayed push token queues extra syncs | ⚠ Syncs are idempotent; no per-connection debounce (AUD-27 → AOS-630). |
+| R/D | Replayed push token queues extra syncs | ✅ Syncs are idempotent; a push at or before the stored history ID is ignored, and while a sync is queued (not started) further pushes fold into it: at most one running and one waiting sync per connection (AOS-630). |
 
 ### TB8 — Mac SMS reader → API
 | STRIDE | Threat | Controls / gaps |

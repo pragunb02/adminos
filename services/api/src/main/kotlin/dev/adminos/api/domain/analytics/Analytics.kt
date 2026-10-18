@@ -25,7 +25,8 @@ data class SpendFact(
 interface AnalyticsRepository {
     /**
      * Facts for spend, refund and income transactions of [userId] whose local day (in [zone]) is
-     * within [from]..[to]. Transfers and reversals are excluded (D-39).
+     * within [from]..[to]. Transfers, reversals and settlements are excluded (D-39, D-111). A split bill
+     * counts the owner's share, not the whole amount (AOS-911), in every fact, so totals still add up (D-46).
      */
     suspend fun facts(userId: UUID, from: LocalDate, to: LocalDate, zone: ZoneId): List<SpendFact>
 }
@@ -40,7 +41,7 @@ class InMemoryAnalyticsRepository(private val transactions: TransactionRepositor
             .groupBy { listOf(it.transactedAt.atZone(zone).toLocalDate(), it.nature, it.category, it.merchantName) }
             .map { (k, txns) ->
                 SpendFact(k[0] as LocalDate, k[1] as TransactionNature, k[2] as TransactionCategory, k[3] as String?,
-                    txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount }, txns.size)
+                    txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.countedAmount }, txns.size)
             }
     }
 

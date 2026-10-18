@@ -19,7 +19,7 @@ data class OllamaSettings(val baseUrl: URI, val timeout: Duration)
  * `AI_<FEATURE>_ENABLED=true`; then:
  * - `AI_<FEATURE>_PROVIDER` is `anthropic` or `ollama`; the default is the feature's own ([AiFeature.defaultProvider]:
  *   local for features that read documents, D-67);
- * - `AI_<FEATURE>_MODEL` names the model (on Anthropic it defaults to `claude-haiku-5-5`; on Ollama it is required);
+ * - `AI_<FEATURE>_MODEL` names the model (on Anthropic it defaults to the feature's [AiFeature.defaultAnthropicModel]; on Ollama it is required);
  * - Anthropic needs `ANTHROPIC_API_KEY`; Ollama needs `OLLAMA_BASE_URL` (and takes `OLLAMA_TIMEOUT_SECONDS`, default 120).
  * `AI_MONTHLY_CAP_USD` (default 2.00) caps this server's AI spend per UTC month; 0 allows only free (local) calls.
  * A half-configured or malformed setup refuses to start with a message naming the setting. The key comes
@@ -45,7 +45,8 @@ class AiConfig(
         "ollama=$ollama, monthlyCap=US$${Micros.toUsd(monthlyCapMicros)})"
 
     companion object {
-        const val DEFAULT_ANTHROPIC_MODEL = "claude-haiku-5-5"
+        /** Categorisation's default model (kept for the AOS-511 report); each feature names its own. */
+        val DEFAULT_ANTHROPIC_MODEL: String = AiFeature.CATEGORIZATION.defaultAnthropicModel
         const val DEFAULT_CAP_USD = "2.00"
         private val MAX_CAP_MICROS = Micros.ofUsd("10000")
         private const val DEFAULT_OLLAMA_TIMEOUT_SECONDS = 120L
@@ -84,7 +85,7 @@ class AiConfig(
             val provider = AiProviderKind.fromKey(providerKey)
                 ?: throw IllegalArgumentException("${p}_PROVIDER must be one of ${AiProviderKind.entries.joinToString { it.key }}, was '$providerKey'")
             val model = value("${p}_MODEL") ?: when (provider) {
-                AiProviderKind.ANTHROPIC -> DEFAULT_ANTHROPIC_MODEL
+                AiProviderKind.ANTHROPIC -> feature.defaultAnthropicModel
                 AiProviderKind.OLLAMA -> throw IllegalArgumentException("${p}_PROVIDER=ollama needs ${p}_MODEL (e.g. a model from the AOS-703 bake-off)")
             }
             require(model.matches(AiCallRecord.ID)) { "${p}_MODEL is not a model id" }

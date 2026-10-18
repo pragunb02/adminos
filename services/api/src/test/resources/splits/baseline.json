@@ -1,0 +1,11 @@
+{
+    "seed": 911,
+    "autoPrecision": 1.0,
+    "autoRecall": 0.7317,
+    "reviewRecall": 0.9268,
+    "appliedWrong": 0,
+    "falseMatches": 0,
+    "friendPaidSharesCorrect": 8,
+    "errorAfterImport": "9499.50",
+    "errorAfterReview": "1522.50"
+}

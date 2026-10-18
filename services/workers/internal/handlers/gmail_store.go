@@ -37,6 +37,9 @@ type gmailConnectionStore interface {
 	// RecordFailure marks the sync session and the connection's last sync failed, with a short
 	// reason that never contains tokens or email content.
 	RecordFailure(ctx context.Context, f syncFailure) error
+	// MarkStarted moves the sync session from queued to in_progress (AOS-630): from then on the API
+	// no longer folds new pushes into it, so mail that arrives during the sync gets a sync of its own.
+	MarkStarted(ctx context.Context, syncSessionID string) error
 }
 
 type syncFailure struct {
@@ -86,6 +89,16 @@ func (s *pgConnectionStore) MarkRevoked(ctx context.Context, connectionID, reaso
 		WHERE id = $1`, connectionID, reason)
 	if err != nil {
 		return fmt.Errorf("mark gmail connection revoked: %w", err)
+	}
+	return nil
+}
+
+func (s *pgConnectionStore) MarkStarted(ctx context.Context, syncSessionID string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE sync_sessions SET status = 'in_progress', started_at = COALESCE(started_at, now()), updated_at = now()
+		WHERE id = $1 AND status IN ('queued', 'failed')`, syncSessionID)
+	if err != nil {
+		return fmt.Errorf("mark sync session started: %w", err)
 	}
 	return nil
 }

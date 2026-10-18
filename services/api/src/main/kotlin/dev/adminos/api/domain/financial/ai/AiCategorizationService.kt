@@ -61,6 +61,8 @@ class AiCategorizationService(
     /** Cheap checks on the transaction alone: worth looking at further? */
     fun isCandidate(t: Transaction): Boolean =
         t.category == TransactionCategory.OTHER && t.categorySource == SOURCE_RULES && t.nature in NATURES &&
+            // Splitwise rows may carry friends' names in what people typed: they never go to a model (AOS-911).
+            t.sourceType != dev.adminos.api.domain.financial.splits.SplitMatcher.SPLITWISE_SOURCE &&
             t.metadata?.containsKey(METADATA_KEY) != true && !t.merchantName.isNullOrBlank() && catalogue.byBrand(t.merchantName) == null
 
     suspend fun categorize(t: Transaction): AiOutcome {

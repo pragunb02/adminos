@@ -115,6 +115,18 @@ export const fx = {
     related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
     ...over,
   }),
+  /** A category question for Review (AOS-708): the learned model's unsure guess on a row still left as Other. */
+  categoryQuestion: (over: Partial<import("@/lib/types").CategoryQuestion> = {}, guess: Partial<import("@/lib/types").CategoryGuess> = {}): import("@/lib/types").CategoryQuestion => ({
+    transaction: fx.transaction({ id: "cq-1", merchantName: "Sai Medicos", category: "other", amount: "1240", transactedAt: "2026-10-15T08:30:00Z" }),
+    guess: { category: "health", confidence: 0.55, by: "learned", applied: false, cues: ["medicos"], reason: null, alternatives: ["shopping"], ...guess },
+    priority: 558,
+    ...over,
+  }),
+  /** Look-alike merchant names proposed as one (AOS-709). */
+  mergeProposal: (over: Partial<import("@/lib/types").MergeProposal> = {}): import("@/lib/types").MergeProposal => ({
+    id: "mp-1", name: "Netflix", names: [{ name: "Netflix", payments: 4 }, { name: "NETFLIX.COM", payments: 2 }, { name: "Netflix Ent", payments: 1 }],
+    reasons: ["the same name once cleaned", "one is a known brand"], score: 1, ...over,
+  }),
   /** A due item for the dues calendar (AOS-503). */
   due: (over: Partial<import("@/lib/types").DueItem> = {}): import("@/lib/types").DueItem => ({
     kind: "bill", id: "b-1", name: "Tata Power", amount: "2350.00", minimumDue: null, date: "2026-10-20",
@@ -139,10 +151,63 @@ export const fx = {
     nextDebitOn: "2026-11-05", nextDebitAmount: "5400.00", lastDebitAt: "2026-10-05T04:00:00Z", lastDebitAmount: "5400.00",
     validUntil: "2030-03-05", dormant: false, hasReference: true, ...over,
   }),
+  /** A Splitwise entry (AOS-911): by default a ₹4,000 dinner the owner paid, matched to a card debit for Review. */
+  splitEntry: (over: Partial<import("@/lib/splitwise").SplitEntry> = {}): import("@/lib/splitwise").SplitEntry => ({
+    id: "sw-1", kind: "expense", effect: "adjust_debit", state: "suggested", date: "2026-10-03", description: "Dinner at Toit",
+    counterparty: null, category: "Dining out", cost: "4000.00", currency: "INR", ownerNet: "3000.00", ownerShare: "1000.00",
+    score: 6, reason: "same amount, 1 day(s) later",
+    transaction: fx.transaction({ id: "t-sw", merchantName: "TOIT BREWP", amount: "4000.00", sourceType: "statement", transactedAt: "2026-10-04T15:30:00Z" }),
+    ...over,
+  }),
   /** A document in the vault (AOS-507). */
   document: (over: Partial<import("@/lib/types").VaultDocument> = {}): import("@/lib/types").VaultDocument => ({
     id: "d-1", title: "Form 16 FY26", category: "tax", fileType: "pdf", mime: "application/pdf", sizeBytes: 245_760,
     originalName: "Form16.pdf", expiresOn: null, notes: null, createdAt: "2026-10-16T06:00:00Z", ...over,
+  }),
+  /** An "Ask your money" answer (AOS-711): Zepto this month vs last month, with the server's comparison. */
+  askAnswer: (over: Partial<import("@/lib/ask").AskAnswer> = {}): import("@/lib/ask").AskAnswer => ({
+    askId: "7b0c2a7e-0d8e-4c1a-9a52-000000000711",
+    answer: "You spent ₹1,440 at Zepto this month, ₹2,352 less than last month's ₹3,792.",
+    source: "model",
+    notice: null,
+    declineReason: null,
+    steps: [
+      { id: "t1", tool: "merchant_spend", period: { from: "2026-10-01", to: "2026-10-16" }, category: null, merchant: "Zepto", bucket: null, limit: null,
+        result: { spent: null, received: null, payments: null, total: "1440.00", rows: [{ label: "Zepto", spent: "1440.00", payments: 4, category: "shopping" }], points: [] }, skipped: null },
+      { id: "t2", tool: "merchant_spend", period: { from: "2026-09-01", to: "2026-09-30" }, category: null, merchant: "Zepto", bucket: null, limit: null,
+        result: { spent: null, received: null, payments: null, total: "3792.00", rows: [{ label: "Zepto", spent: "3792.00", payments: 8, category: "shopping" }], points: [] }, skipped: null },
+    ],
+    comparisons: [{ later: "t1", earlier: "t2", difference: "-2352.00", changePct: "-62.0" }],
+    ...over,
+  }),
+  /** A ready month-end forecast (AOS-714): today 16 Oct 2026; parts add up to the total. */
+  forecast: (over: Partial<import("@/lib/forecast").ForecastData> = {}): import("@/lib/forecast").ForecastData => ({
+    status: "ready",
+    today: "2026-10-16",
+    history: null,
+    monthEnd: {
+      month: "2026-10", spentSoFar: "48250.00", total: "61540.50", daysLeft: 15,
+      parts: [
+        { kind: "bills", amount: "2350.50", items: [{ name: "Tata Power", date: "2026-10-25", amount: "2350.50", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+        { kind: "renewals", amount: "649.00", items: [{ name: "Netflix", date: "2026-10-25", amount: "649.00", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+        { kind: "mandates", amount: "0.00", items: [], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+        { kind: "everyday", amount: "10291.00", items: [], weekdayRate: "550.00", weekendRate: "1060.25", weekdays: 11, weekendDays: 4, split: true, method: "weekly_median", learntFrom: "2026-08-22", learntTo: "2026-10-16" },
+      ],
+      range: { low: "57200.00", high: "66900.00", level: 80, months: 7 },
+      rangeMonthsNeeded: 0,
+    },
+    salary: {
+      status: "expected", reason: null, payer: "ACME TECHNOLOGIES", expectedOn: "2026-10-30", typicalAmount: "100000.00",
+      lastAmount: "100000.00", lastReceivedOn: "2026-09-30", credits: 6,
+      untilSalary: {
+        from: "2026-10-17", to: "2026-10-29", spentSince: "52100.00", expected: "10481.25", left: "37418.75", leftLow: "33000.00", leftHigh: "41100.00",
+        parts: [
+          { kind: "bills", amount: "2350.50", items: [{ name: "Tata Power", date: "2026-10-25", amount: "2350.50", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
+          { kind: "everyday", amount: "8130.75", items: [], weekdayRate: "550.00", weekendRate: "1060.25", weekdays: 9, weekendDays: 3, split: true, method: "weekly_median", learntFrom: "2026-08-22", learntTo: "2026-10-16" },
+        ],
+      },
+    },
+    ...over,
   }),
   /** A cash text reading (AOS-718): "200 chai and kal 150 raju, samosa" on Sat 17 Oct 2026. */
   cashParse: (over: Partial<import("@/lib/cash").CashParse> = {}): import("@/lib/cash").CashParse => ({

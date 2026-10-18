@@ -1,16 +1,21 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppShell from "@/components/AppShell";
 import { Skeleton } from "@/components/console/Section";
 import UndoToast from "@/components/console/UndoToast";
+import SplitwiseReview from "@/components/SplitwiseReview";
+import MerchantMergeReview from "@/components/review/MerchantMergeReview";
 import { categoryLabel } from "@/lib/analytics";
 import { browserZone, relativeDate } from "@/lib/format";
 import { formatInr } from "@/lib/money";
+import { answerQuestion, answeredMessage, goldenNote } from "@/lib/categoryReview";
 import { errorMessage, getData, postData } from "@/lib/query";
-import type { Transaction } from "@/lib/types";
+import type { CategoryQuestion, Transaction } from "@/lib/types";
+import CategoryQuestions from "./CategoryQuestions";
+import { usePendingAction } from "./usePendingAction";
 
 export interface Suggestion {
   id: string;
@@ -40,8 +45,9 @@ const COPY: Record<Suggestion["relation"], { title: string; yes: string; no: str
 const UNDO_MS = 5000;
 
 /**
- * Review (AOS-309, M/Review): confirm or reject suggested duplicates, transfers, refunds and reversals.
- * Data quality before insight: until decided, these keep the totals provisional (D-49).
+ * Review (AOS-309, M/Review): confirm or reject suggested duplicates, transfers, refunds and reversals, and (AOS-708)
+ * check the categories AdminOS is least sure of. Data quality before insight: until decided, these keep the totals
+ * provisional (D-49). Every answer waits 5 s for Undo before it is sent.
  */
 function ReviewContent() {
   const router = useRouter();
@@ -52,45 +58,37 @@ function ReviewContent() {
   const queryClient = useQueryClient();
   const list = useQuery({ queryKey: ["suggestions", "list"], queryFn: () => getData<Suggestion[]>("/api/v1/transactions/suggestions") });
 
-  // A decision is pending for UNDO_MS: hidden at once, sent when the window ends (or the page is left).
-  const [pending, setPending] = useState<{ s: Suggestion; yes: boolean } | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
-  const pendingRef = useRef(pending);
-  useEffect(() => {
-    pendingRef.current = pending;
-  }, [pending]);
-
-  const commit = useCallback(async (p: { s: Suggestion; yes: boolean }) => {
-    try {
-      await postData(`/api/v1/transactions/suggestions/${p.s.id}/${p.yes ? "confirm" : "reject"}`, {});
-    } catch (e) {
-      setFailure(`${COPY[p.s.relation].title}: ${errorMessage(e)}`);
-    } finally {
-      for (const key of [["suggestions"], ["analytics"], ["transactions"]]) queryClient.invalidateQueries({ queryKey: key });
-    }
+  // A decision (a pair, or a category answer) waits UNDO_MS for Undo: hidden at once, sent when the window ends.
+  const settle = useCallback(() => {
+    for (const key of [["suggestions"], ["analytics"], ["transactions"], ["categoryReview"]]) queryClient.invalidateQueries({ queryKey: key });
   }, [queryClient]);
+  const { pending, failure, note, start, timeUp, undo } = usePendingAction(settle);
 
-  const decide = (s: Suggestion, yes: boolean) => {
-    if (pendingRef.current) commit(pendingRef.current); // a second decision sends the first now
-    setFailure(null);
-    pendingRef.current = { s, yes };
-    setPending({ s, yes });
-  };
-  const timeUp = () => {
-    const p = pendingRef.current;
-    pendingRef.current = null;
-    setPending(null);
-    if (p) commit(p);
-  };
-  useEffect(() => () => { if (pendingRef.current) commit(pendingRef.current); }, [commit]); // leaving the page sends it
+  const decide = (s: Suggestion, yes: boolean) => start({
+    key: `pair:${s.id}`,
+    message: COPY[s.relation].done(yes),
+    label: COPY[s.relation].title,
+    send: () => postData(`/api/v1/transactions/suggestions/${s.id}/${yes ? "confirm" : "reject"}`, {}).then(() => null),
+  });
+  const answer = (q: CategoryQuestion, category: string, keepCopy: boolean) => start({
+    key: `category:${q.transaction.id}`,
+    message: answeredMessage(q, category),
+    label: `${q.transaction.merchantName || "This payee"}`,
+    send: () => answerQuestion(q.transaction.id, category, keepCopy).then(goldenNote),
+  });
 
-  const visible = (list.data ?? []).filter((s) => (tab.relations as readonly string[]).includes(s.relation) && s.id !== pending?.s.id);
-  const counts = (relations: readonly string[]) => (list.data ?? []).filter((s) => relations.includes(s.relation) && s.id !== pending?.s.id).length;
+  const hiddenPair = pending?.key.startsWith("pair:") ? pending.key.slice("pair:".length) : undefined;
+  const hiddenQuestion = pending?.key.startsWith("category:") ? pending.key.slice("category:".length) : undefined;
+  const visible = (list.data ?? []).filter((s) => (tab.relations as readonly string[]).includes(s.relation) && s.id !== hiddenPair);
+  const counts = (relations: readonly string[]) => (list.data ?? []).filter((s) => relations.includes(s.relation) && s.id !== hiddenPair).length;
   const go = (key: string) => router.push(`${pathname}${key ? `?kind=${key}` : ""}`, { scroll: false });
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Review</h2>
+      {failure && <p role="alert" className="text-sm text-negative">{failure}</p>}
+      {note && <p aria-live="polite" className="text-sm text-ink-muted">{note}</p>}
+      <CategoryQuestions hiddenId={hiddenQuestion} onAnswer={answer} />
       <p className="text-sm text-ink-muted">These pairs look related. Your answers make the totals final.</p>
       <div role="group" aria-label="Kind" className="flex flex-wrap gap-1 rounded-lg bg-line p-0.5">
         {TABS.map((t) => (
@@ -100,7 +98,6 @@ function ReviewContent() {
           </button>
         ))}
       </div>
-      {failure && <p role="alert" className="text-sm text-negative">{failure}</p>}
       {list.isPending ? (
         <Skeleton lines={5} />
       ) : list.error ? (
@@ -127,7 +124,10 @@ function ReviewContent() {
           ))}
         </ul>
       )}
-      {pending && <UndoToast key={pending.s.id} message={COPY[pending.s.relation].done(pending.yes)} ms={UNDO_MS} onUndo={() => { pendingRef.current = null; setPending(null); }} onClose={timeUp} />}
+      <SplitwiseReview />
+      {/* Look-alike merchant names (AOS-709): its own section and Undo, separate from the pair queue. */}
+      <MerchantMergeReview />
+      {pending && <UndoToast key={pending.key} message={pending.message} ms={UNDO_MS} onUndo={undo} onClose={timeUp} />}
     </div>
   );
 }

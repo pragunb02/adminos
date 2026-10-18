@@ -30,7 +30,7 @@ object DatabaseFactory {
         val dataSource = createHikariDataSource(config)
         migrate(dataSource)
         Database.connect(dataSource)
-        logger.info("Database initialized: {}", config.url)
+        logger.info("Database initialized: {}", redactedUrl(config.url))
     }
 
     /**
@@ -48,10 +48,17 @@ object DatabaseFactory {
             // Exposed maps Postgres ENUM/JSONB/INET columns as varchar/text; send strings untyped
             // so Postgres casts them to the column type (D-13).
             addDataSourceProperty("stringtype", "unspecified")
+            // Postgres error details quote the row's values ("Key (email)=(…) already exists"); keep them out of
+            // exception messages, and so out of every log (AOS-628).
+            addDataSourceProperty("logServerErrorDetail", "false")
             validate()
         }
         return HikariDataSource(hikariConfig)
     }
+
+    /** The JDBC URL without credentials or parameters, for logs. */
+    internal fun redactedUrl(url: String): String =
+        url.substringBefore('?').replace(Regex("//[^/@]*@"), "//")
 
     /**
      * Applies pending migrations. Throws if any migration fails, so the app never starts
