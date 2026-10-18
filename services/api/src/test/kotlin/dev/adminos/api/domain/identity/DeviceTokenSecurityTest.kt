@@ -47,7 +47,7 @@ class DeviceTokenSecurityTest {
             routing {
                 route("/api/v1") {
                     deviceTokenRoutes(service)
-                    rawSmsRoutes(SmsIntake(SmsParserRegistry(), IngestEventService(events), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.financial.paylater.testPayLaterBills()))
+                    rawSmsRoutes(SmsIntake(SmsParserRegistry(), IngestEventService(events), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository())))
                     authenticate("auth-jwt") { get("/me") { call.respondText(call.userPrincipal.userId.toString()) } }
                 }
             }

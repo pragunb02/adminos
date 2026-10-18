@@ -17,6 +17,7 @@ class SmsParserRegistry(parsers: List<SmsParser> = DEFAULT_PARSERS) {
         neverFinancial(message.text)?.let { return SmsParseResult.Ignored(it) }
         // Pay-later providers (AOS-909) before the drop rules, which would drop their "bill is due" texts.
         payLater(message)?.let { return it }
+        TravelBookingSmsParser.parse(message.text, message.receivedAt.atZone(INDIA).toLocalDate())?.let { return SmsParseResult.TravelBooking(it) }
         return parseText(message.text, byHeader[sender.header])
     }
 

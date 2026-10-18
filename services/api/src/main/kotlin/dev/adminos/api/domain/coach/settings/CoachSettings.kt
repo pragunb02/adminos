@@ -13,9 +13,15 @@ data class CoachSettings(
     val userId: UUID,
     /** 50/80/100% limit pushes (AOS-904). */
     val limitAlerts: Boolean = true,
+    /** The evening digest (AOS-905): on, at [digestTime] in the user's zone, optionally silent on a zero day. */
+    val eveningDigest: Boolean = true,
+    val digestTime: java.time.LocalTime = DEFAULT_DIGEST_TIME,
+    val digestSkipZeroDay: Boolean = false,
     val updatedAt: Instant = Instant.EPOCH
 ) {
     companion object {
+        /** The owner's choice (2026-10-17). */
+        val DEFAULT_DIGEST_TIME: java.time.LocalTime = java.time.LocalTime.of(21, 30)
         fun defaultFor(userId: UUID) = CoachSettings(userId)
     }
 }

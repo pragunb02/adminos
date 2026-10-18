@@ -193,4 +193,23 @@ class AiConfigTest {
         assertIs<OllamaProvider>(koin.get<AiGateway>().route(AiFeature.CATEGORIZATION)?.provider)
         assertNotNull(koin.get<AiCategorizationService>())
     }
+
+    @Test
+    fun `Ask is off by default and defaults to Claude Sonnet when enabled (AOS-712)`() {
+        assertNull(AiConfig.from { null }.setting(AiFeature.ASK))
+        val ask = config(mapOf("AI_ASK_ENABLED" to "true", "ANTHROPIC_API_KEY" to key))
+        assertEquals(AiFeatureSetting(AiFeature.ASK, AiProviderKind.ANTHROPIC, "claude-sonnet-5-5"), ask.setting(AiFeature.ASK))
+        assertNull(ask.setting(AiFeature.CATEGORIZATION), "turning Ask on turns nothing else on")
+        assertEquals(AiFeature.ASK, AiFeature.fromKey("ask"))
+        assertEquals("AI_ASK", AiFeature.ASK.envPrefix)
+    }
+
+    @Test
+    fun `Ask on its evaluated default passes the start-up gate and an unevaluated model refuses`() {
+        val env = mapOf("AI_ASK_ENABLED" to "true", "ANTHROPIC_API_KEY" to key)
+        val koin = koinApplication { modules(buildAppModule(useDatabase = false, env = env::get)) }.koin
+        assertEquals("claude-sonnet-5-5", koin.get<AiGateway>().route(AiFeature.ASK)?.model)
+        val e = assertFailsWith<IllegalStateException> { buildAppModule(useDatabase = false, env = (env + ("AI_ASK_MODEL" to "claude-haiku-5-5"))::get) }
+        assertContains(e.message.orEmpty(), "ask on anthropic with claude-haiku-5-5")
+    }
 }
