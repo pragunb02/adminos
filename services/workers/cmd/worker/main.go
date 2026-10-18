@@ -19,6 +19,7 @@ import (
 	"github.com/adminos/adminos/workers/internal/config"
 	"github.com/adminos/adminos/workers/internal/gmail"
 	"github.com/adminos/adminos/workers/internal/handlers"
+	"github.com/adminos/adminos/workers/internal/redisconn"
 	"github.com/adminos/adminos/workers/internal/tokencrypt"
 	"github.com/adminos/adminos/workers/internal/workflow"
 )
@@ -33,10 +34,13 @@ func main() {
 	}
 
 	log.Printf("Starting AdminOS worker (type=%s)", cfg.WorkerType)
-	log.Printf("Redis: %s", cfg.RedisURL)
+	// Redis requires a password (AOS-634). Neither REDIS_URL nor the password is ever logged; only host:port is.
+	redisConn, err := redisconn.Parse(cfg.RedisURL, cfg.RedisPassword)
+	if err != nil {
+		log.Fatalf("Refusing to start: %v", err)
+	}
+	log.Printf("Redis: %s (password set)", redisConn.Addr())
 	log.Printf("Database: %s", maskPassword(cfg.DatabaseURL))
-
-	redisAddr := parseRedisAddr(cfg.RedisURL)
 
 	// Initialize pgx connection pool (nil if DATABASE_URL is empty)
 	var db *pgxpool.Pool
@@ -73,7 +77,7 @@ func main() {
 
 	// Create Asynq server
 	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisAddr},
+		redisConn.Asynq,
 		asynq.Config{
 			Concurrency:    10,
 			Queues:         map[string]int{"default": 1},
@@ -96,8 +100,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	// Start bridge: reads from Kotlin's Redis list → enqueues via Asynq client
-	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: redisAddr})
-	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
+	asynqClient := asynq.NewClient(redisConn.Asynq)
+	rdb := redis.NewClient(redisConn.Bridge)
 	go bridgeKotlinJobs(ctx, rdb, asynqClient)
 
 	// Start Asynq server
@@ -213,22 +217,6 @@ func bridgeKotlinJobs(ctx context.Context, rdb *redis.Client, client *asynq.Clie
 
 		log.Printf("[bridge] Enqueued %s → asynq (id=%s, queue=%s)", msg.Type, info.ID, info.Queue)
 	}
-}
-
-// parseRedisAddr extracts host:port from a Redis URL.
-func parseRedisAddr(url string) string {
-	addr := strings.TrimPrefix(url, "redis://")
-	addr = strings.TrimPrefix(addr, "rediss://")
-	if idx := strings.LastIndex(addr, "@"); idx >= 0 {
-		addr = addr[idx+1:]
-	}
-	if idx := strings.Index(addr, "/"); idx >= 0 {
-		addr = addr[:idx]
-	}
-	if addr == "" {
-		return "localhost:6379"
-	}
-	return addr
 }
 
 func maskPassword(url string) string {

@@ -164,10 +164,12 @@ internal fun buildAppModule(
     single<WebAuthnCeremonies> { dev.adminos.api.infrastructure.webauthn.YubicoWebAuthn(get<AppConfig>().app.appUrl) }
     single { PasskeyService(get(), get(), get(), get(), get(), alerts = get()) }
 
-    // Redis queue publisher — only if REDIS_URL is configured and not default
+    // Redis queue publisher — only if REDIS_URL is configured. Parsed now, so a missing Redis password
+    // (REDIS_PASSWORD, or in the URL) stops the start-up instead of the first job (AOS-634).
     val redisUrl = env("REDIS_URL") ?: ""
     if (redisUrl.isNotBlank()) {
-        single { RedisClient.create(redisUrl) }
+        val redisUri = dev.adminos.api.infrastructure.queue.RedisUrl.parse(redisUrl, env("REDIS_PASSWORD"))
+        single { RedisClient.create(redisUri) }
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }

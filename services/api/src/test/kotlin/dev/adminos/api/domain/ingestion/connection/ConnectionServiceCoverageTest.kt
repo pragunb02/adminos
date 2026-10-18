@@ -28,13 +28,29 @@ class ConnectionServiceCoverageTest {
     }
 
     @Test
-    fun `without an encryptor tokens are kept as given`() = runBlocking<Unit> {
-        val plain = ConnectionService(connections, syncSessions)
+    fun `tokens are never stored as given, on reconnect either (AOS-629)`() = runBlocking<Unit> {
+        val access = "ya29." + UUID.randomUUID()
+        val conn = service.createConnection(userId, SourceType.GMAIL, "pragun.b@gmail.com", accessToken = access)
+        service.disconnect(userId, conn.id)
+        val again = service.createConnection(userId, SourceType.GMAIL, null, accessToken = access)
 
-        val conn = plain.createConnection(userId, SourceType.GMAIL, "pragun.b@gmail.com", accessToken = "ya29.dev")
+        for (stored in listOfNotNull(connections.findById(conn.id), connections.findById(again.id))) {
+            assertNotEquals(access, stored.accessToken)
+            assertTrue(stored.accessToken!!.startsWith("v2:"), "stored in the TokenEncryptor v2 format")
+            assertNull(stored.refreshToken)
+        }
+    }
 
-        assertEquals("ya29.dev", conn.accessToken)
-        assertNull(conn.refreshToken)
+    @Test
+    fun `a ConnectionService can't be built without a TokenEncryptor`() {
+        val constructors = ConnectionService::class.java.constructors
+        assertTrue(constructors.all { TokenEncryptor::class.java in it.parameterTypes }, "every constructor takes the encryptor")
+        val full = ConnectionService::class.java.getConstructor(ConnectionRepository::class.java,
+            dev.adminos.api.domain.ingestion.sync.SyncSessionRepository::class.java, TokenEncryptor::class.java,
+            dev.adminos.api.domain.ingestion.sync.IngestionService::class.java, GmailWatchService::class.java)
+        // Even from Java (or reflection, or a DI container handing out null) a null encryptor is refused.
+        val e = assertFailsWith<java.lang.reflect.InvocationTargetException> { full.newInstance(connections, syncSessions, null, null, null) }
+        assertTrue(e.cause is NullPointerException, "a null encryptor fails at construction")
     }
 
     @Test
