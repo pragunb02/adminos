@@ -1,0 +1,10 @@
+{
+    "method": "engine (shipped)",
+    "histories": 24,
+    "forecasts": 720,
+    "mape": 9.5425,
+    "relMae": 0.1888,
+    "coverage": 0.756,
+    "salaryDateAccuracy": 0.9444,
+    "irregularHonesty": 0.9833
+}

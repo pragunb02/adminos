@@ -25,6 +25,8 @@ class ExposedAnomalyRepository : AnomalyRepository {
             it[status] = anomaly.status.name.lowercase()
             it[resolvedAt] = anomaly.resolvedAt
             it[resolvedBy] = anomaly.resolvedBy?.name?.lowercase()
+            it[rulesFired] = anomaly.rulesFired.takeIf { r -> r.isNotEmpty() }?.sorted()?.joinToString(",")
+            it[merchantKey] = anomaly.merchantKey
             it[createdAt] = anomaly.createdAt
             it[updatedAt] = anomaly.updatedAt
         }.insertedCount
@@ -84,6 +86,8 @@ class ExposedAnomalyRepository : AnomalyRepository {
         status = AnomalyStatus.valueOf(this[AnomaliesTable.status].uppercase()),
         resolvedAt = this[AnomaliesTable.resolvedAt],
         resolvedBy = this[AnomaliesTable.resolvedBy]?.let { AnomalyResolver.valueOf(it.uppercase()) },
+        rulesFired = this[AnomaliesTable.rulesFired]?.split(",")?.filter { it.isNotBlank() }?.toSet().orEmpty(),
+        merchantKey = this[AnomaliesTable.merchantKey],
         createdAt = this[AnomaliesTable.createdAt],
         updatedAt = this[AnomaliesTable.updatedAt]
     )
