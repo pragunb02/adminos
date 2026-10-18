@@ -129,6 +129,22 @@ class DiAppModuleCoverageTest {
     }
 
     @Test
+    fun `a REDIS_URL without the Redis password stops the start-up without echoing it`() {
+        val e = kotlin.test.assertFailsWith<IllegalStateException> {
+            buildAppModule(useDatabase = false, env = mapOf("REDIS_URL" to "redis://redis:6379")::get)
+        }
+        kotlin.test.assertTrue("requires a password" in e.message!!, e.message)
+        kotlin.test.assertFalse("redis:6379" in e.message!!)
+    }
+
+    @Test
+    fun `REDIS_PASSWORD next to a bare REDIS_URL is enough to wire the publisher config`() {
+        val pw = java.util.UUID.randomUUID().toString()
+        // No Redis here: the module builds (the URL and password are accepted); nothing connects until asked.
+        buildAppModule(useDatabase = false, env = mapOf("REDIS_URL" to "redis://127.0.0.1:1", "REDIS_PASSWORD" to pw)::get)
+    }
+
+    @Test
     fun `R2 settings, complete or partial, do not change the bindings`() {
         for (env in listOf(
             mapOf("R2_ACCESS_KEY" to "key", "R2_ENDPOINT" to "https://r2.example.com"),

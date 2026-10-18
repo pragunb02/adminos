@@ -36,6 +36,7 @@ import dev.adminos.api.domain.notifications.push.PushEndpoint
 import dev.adminos.api.domain.notifications.push.PushKeys
 import dev.adminos.api.domain.notifications.push.PushSubscription
 import dev.adminos.api.domain.notifications.push.PushSubscriptionRepository
+import dev.adminos.api.domain.notifications.push.saved
 import dev.adminos.api.infrastructure.plugins.ACCESS_TOKEN_COOKIE
 import dev.adminos.api.security.SecurityTestKit.newUser
 import dev.adminos.api.security.SecurityTestKit.realApp
@@ -104,7 +105,7 @@ class IdorTest {
         val device = app.get<DeviceTokenService>().issue(alice.id, "Alice Mac", setOf(Scopes.INGEST_SMS))
         val session = app.get<SessionRepository>().save(Session(userId = alice.id, tokenHash = JwtService.hashToken(b64(random(32))),
             expiresAt = Instant.now().plusSeconds(86_400)))
-        val push = app.get<PushSubscriptionRepository>().upsert(PushSubscription(userId = alice.id,
+        val push = app.get<PushSubscriptionRepository>().saved(PushSubscription(userId = alice.id,
             endpoint = PushEndpoint("https://fcm.googleapis.com/fcm/send/${b64(random(24))}"),
             keys = PushKeys(b64(byteArrayOf(0x04) + random(64)), b64(random(16)))))
         val mandate = app.get<MandateRepository>().save(Mandate(userId = alice.id, rail = MandateRail.UPI_AUTOPAY, payee = "Alice Gym",
