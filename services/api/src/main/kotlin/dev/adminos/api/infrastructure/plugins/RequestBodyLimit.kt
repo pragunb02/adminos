@@ -33,7 +33,8 @@ object RequestBodyLimits {
     val UPLOAD_PATHS: Set<String> = setOf(
         "/api/v1/statements",
         "/api/v1/documents",
-        "/api/v1/imports/whatsapp"
+        "/api/v1/imports/whatsapp",
+        "/api/v1/wealth/imports/cas" // a CAS PDF (AOS-805): owner-only, CSRF-checked, 20 MB like statements
     )
 
     fun limitFor(method: HttpMethod, path: String): Long =

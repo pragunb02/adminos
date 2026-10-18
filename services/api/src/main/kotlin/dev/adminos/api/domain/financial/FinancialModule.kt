@@ -74,7 +74,8 @@ fun Application.financialModule() {
                 billTrackingService,
                 anomalyRepository,
                 briefingRepository,
-                insightRepository
+                insightRepository,
+                java.time.Clock.systemUTC()
             )
         }
     }

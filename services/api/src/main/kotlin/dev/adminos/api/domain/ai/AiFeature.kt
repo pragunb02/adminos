@@ -22,7 +22,10 @@ enum class AiFeature(
     ASK("ask", AiProviderKind.ANTHROPIC, "claude-sonnet-5-5"),
 
     /** Reads bank messages the regex parsers don't recognise; answers go to Review (AOS-705, D-106). */
-    MESSAGES("messages", AiProviderKind.OLLAMA, "claude-haiku-5-5");
+    MESSAGES("messages", AiProviderKind.OLLAMA, "claude-haiku-5-5"),
+
+    /** The weekly briefing worded by a model from its computed facts, kept only if every number is a fact (AOS-716, D-140). */
+    BRIEFING("briefing", AiProviderKind.ANTHROPIC, "claude-haiku-5-5");
 
     /** Prefix of this feature's settings: `AI_CATEGORIZATION_ENABLED`, `…_PROVIDER`, `…_MODEL`. */
     val envPrefix: String get() = "AI_$name"
