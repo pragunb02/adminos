@@ -217,13 +217,9 @@ services:
     build:
       context: ./services/pdf-parser
       dockerfile: Dockerfile
-    # No outbound network at all (AOS-805, D-79): its only network is internal, shared with the API alone, so a
-    # compromised parser library can't send a statement anywhere. Read-only, no capabilities (it writes nothing).
-    networks: [parser]
-    read_only: true
-    tmpfs: ["/tmp"]
-    cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
+    # No outbound network at all (AOS-805, D-79): its only network (`parser`, above) is internal, shared with the API
+    # alone, so a compromised parser library can't send a statement anywhere. Read-only, no capabilities and no new
+    # privileges come from *hardened; it writes only to its /tmp tmpfs.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 10s
@@ -300,10 +296,8 @@ volumes:
 networks:
   backend:
   edge:
+  # The statement parser's network: internal (no route out of the host), only api-server and pdf-parser (AOS-805).
   parser:
     internal: true                    # no route to the internet
   # The optional local-model network: only api-server and ollama are on it (AOS-703, D-69).
   ai: {}
-  # The statement parser's network: internal (no route out of the host), only api-server and pdf-parser (AOS-805).
-  parser:
-    internal: true
