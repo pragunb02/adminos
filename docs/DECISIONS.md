@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-123 | Architecture | Repositories never read the clock or a zone: callers pass dates from UserCalendar (today(userId) for one user, serverToday() for cross-user pre-filters refined per user) | Accepted | AOS-638 |
 | D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
 | D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
 | D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
@@ -1501,6 +1502,11 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
 
+### D-123 — Repositories never read the clock or a zone
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-638 · Builds on D-78
+- Repositories never read the clock or a time zone. Callers pass dates from `UserCalendar`: `today(userId)` for one user, `serverToday()` for cross-user pre-filters that are then refined per user.
+- The domain owns the calendar; persistence filters on what it is given (bill dates follow the user's calendar on an injected clock).
+- **Rejected:** a clock in each repository (persistence would still decide what "today" means, in one zone for everyone); repositories calling `UserCalendar` (breaks the layer rule).
 ### D-106 — Messages the regexes can't read are read by a model, grounded, and wait in Review as proposals
 2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-705, AOS-706 · Builds on D-33, D-43, D-67, D-68
 - **Where:** only bank messages the parsers return as unrecognised, from a bank sender (TRAI business header or a WhatsApp bank name), that mention money. OTPs, failures, reminders, promotions and personal senders never reach it.
@@ -1527,7 +1533,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - reading inline (timeouts, bursts);
   - persisting messages for a worker (D-33);
   - accepting an unclear direction.
-
 ### D-130 — The message-reading eval measures the fallback; routing is tested on its own
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-705 · Amends D-106's eval gate
 - **Context:** the eval ran every golden message through the regex intake first. After AOS-213/214/215 the rules read 106 of its 218 messages (`Dr.`/`Cr.` and more), so they never reached the fallback and the eval stopped measuring it. Every parser improvement would do that again.
@@ -1536,7 +1541,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - `MessageRoutingTest` runs the same rows through the shipped SMS and WhatsApp intake against today's rules: a message the rules read or drop is never offered to the AI, and a bank message they can't read is offered once, as written.
 - **Rejected:** relabelling the rows the rules now read (the eval shrinks with every parser change and loses its PII and hostile rows); rewriting them into formats the rules can't read (stale again at the next parser change).
 - **Consequence:** parser improvements move rows between the routing test's two halves without touching the eval or its records.
-
 ### D-107 — Confirmed AI readings teach message formats; approved formats are read by code before any model
 2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-706 · Builds on D-33, D-67, D-106
 - **What is kept:** only masked shapes. Every value is a slot (amount, balance, last 4, date, payee, other numbers, a greeting's name), and a shape with a digit is refused in code and by a database CHECK. No message text, amount or payee is stored in a shape.

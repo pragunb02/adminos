@@ -89,6 +89,8 @@ internal fun buildAppModule(
 ): Module = module {
     // Spending coach (Epic E9): its own module, so its tasks don't edit this file.
     includes(coachKoinModule(useDatabase))
+    // Wealth (Epic E8, D-79): its own module too.
+    includes(wealthKoinModule(useDatabase))
     single { AppConfig.load() }
     single { TokenEncryptor(get<AppConfig>().security.tokenEncryptionKey) }
     single { JwtService(get<AppConfig>().auth) }
@@ -251,7 +253,7 @@ internal fun buildAppModule(
         val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(
             ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
-            TransferStep(get(), get()), RefundReversalStep(get(), get(), get())
+            TransferStep(get(), get()), dev.adminos.api.domain.wealth.flows.InvestmentFlowStep(get()), RefundReversalStep(get(), get(), get())
         ) + learnedStep)
     }
     single<IngestOutcomeWriter> {
@@ -305,7 +307,7 @@ internal fun buildAppModule(
     // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
     single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
-    single { BillTrackingService(get(), get()) }
+    single { BillTrackingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
     single { DuesService(get(), get(), get()) }
     // Pay-later (AOS-909, D-89): provider bills into dues; repayments are transfers that pay them.

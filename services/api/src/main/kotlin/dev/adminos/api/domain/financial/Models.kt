@@ -18,8 +18,9 @@ enum class TransactionCategory {
 /**
  * What a transaction is for the totals (D-39), independent of debit/credit. A [SETTLEMENT] is money paid to or
  * received from a friend to settle a shared bill (AOS-911, D-111): like a transfer, it is neither spending nor income.
+ * `INVESTMENT` (AOS-815, D-79) is a kind of transfer too: money to or from the owner's investments, neither spent nor received.
  */
-enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL, SETTLEMENT;
+enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL, SETTLEMENT, INVESTMENT;
     companion object {
         fun defaultFor(type: TransactionType) = when (type) {
             TransactionType.CREDIT -> INCOME

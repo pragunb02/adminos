@@ -209,9 +209,10 @@ class InfraRepositoryBranchesIntegrationTest {
     @Test
     fun `upcoming bills across all users include due and upcoming ones only`() = runBlocking<Unit> {
         val user = PostgresTestDatabase.newUser()
-        val soon = bills.save(bill(user, LocalDate.now().plusDays(2)))
-        val paid = bills.save(bill(user, LocalDate.now().plusDays(2), BillStatus.PAID))
-        val ids = bills.findUpcoming(withinDays = 3).map { it.id }
+        val day = LocalDate.of(2031, 3, 1) // any fixed day: the repository takes the date (AOS-638)
+        val soon = bills.save(bill(user, day.plusDays(2)))
+        val paid = bills.save(bill(user, day.plusDays(2), BillStatus.PAID))
+        val ids = bills.findUpcoming(day, withinDays = 3).map { it.id }
         assertTrue(soon.id in ids && paid.id !in ids)
         assertNull(bills.findById(UUID.randomUUID()))
         assertNull(bills.findById(soon.id)!!.metadata)

@@ -46,7 +46,7 @@ class FinancialModuleWiringCoverageTest {
         single<SubscriptionRepository> { subscriptions }
         single { CategoryCorrectionService(InMemoryCategoryRuleRepository(), transactions) }
         single { AccountDiscoveryService(accounts, transactions) }
-        single { BillTrackingService(bills, transactions) }
+        single { BillTrackingService(bills, transactions, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository())) }
         single { AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined)) }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
