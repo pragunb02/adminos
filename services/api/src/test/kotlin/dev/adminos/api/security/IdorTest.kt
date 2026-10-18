@@ -256,7 +256,7 @@ class IdorTest {
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
             "/api/v1/leaks/fees", "/api/v1/receipts",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
-            "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation", "/api/v1/wealth/investment-flows",
+            "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation", "/api/v1/wealth/investment-flows", "/api/v1/wealth/holdings",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
@@ -286,5 +286,6 @@ class IdorTest {
         // Mutual fund imports (AOS-805) show Alice her own import and holding.
         assertTrue(a.wealthBatch.id.toString() in client.get("/api/v1/wealth/imports") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
         assertTrue("Alice Secret Fund" in client.get("/api/v1/wealth/reconciliation") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        assertTrue("Alice Secret Fund" in client.get("/api/v1/wealth/holdings") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), "her blocked holding waits for review")
     }
 }
