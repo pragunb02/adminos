@@ -144,4 +144,14 @@ export const fx = {
     id: "d-1", title: "Form 16 FY26", category: "tax", fileType: "pdf", mime: "application/pdf", sizeBytes: 245_760,
     originalName: "Form16.pdf", expiresOn: null, notes: null, createdAt: "2026-10-16T06:00:00Z", ...over,
   }),
+  /** A cash text reading (AOS-718): "200 chai and kal 150 raju, samosa" on Sat 17 Oct 2026. */
+  cashParse: (over: Partial<import("@/lib/cash").CashParse> = {}): import("@/lib/cash").CashParse => ({
+    today: "2026-10-17",
+    entries: [
+      { amount: "200.00", category: "food", note: "Chai", date: "2026-10-17", evidence: "200 chai", categoryFrom: "keyword", warnings: [] },
+      { amount: "150.00", category: "other", note: "Raju", date: "2026-10-16", evidence: "150 raju", categoryFrom: "none", warnings: ["category_unknown", "date_assumed"] },
+    ],
+    unparsed: [{ text: "samosa", reason: "no_amount" }],
+    ...over,
+  }),
 };

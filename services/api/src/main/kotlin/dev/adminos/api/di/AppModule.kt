@@ -166,10 +166,12 @@ internal fun buildAppModule(
     single<WebAuthnCeremonies> { dev.adminos.api.infrastructure.webauthn.YubicoWebAuthn(get<AppConfig>().app.appUrl) }
     single { PasskeyService(get(), get(), get(), get(), get(), alerts = get()) }
 
-    // Redis queue publisher — only if REDIS_URL is configured and not default
+    // Redis queue publisher — only if REDIS_URL is configured. Parsed now, so a missing Redis password
+    // (REDIS_PASSWORD, or in the URL) stops the start-up instead of the first job (AOS-634).
     val redisUrl = env("REDIS_URL") ?: ""
     if (redisUrl.isNotBlank()) {
-        single { RedisClient.create(redisUrl) }
+        val redisUri = dev.adminos.api.infrastructure.queue.RedisUrl.parse(redisUrl, env("REDIS_PASSWORD"))
+        single { RedisClient.create(redisUri) }
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }
@@ -234,6 +236,11 @@ internal fun buildAppModule(
     single { SmsIntake(get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
+    // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
+    // AiProvider exists, an AI CashPhraseParser plugs in as FallbackCashPhraseParser(rules, ai), behind its consent toggle and eval gate.
+    single<dev.adminos.api.domain.ingestion.cash.CashPhraseParser> {
+        dev.adminos.api.domain.ingestion.cash.RuleCashPhraseParser(dev.adminos.api.domain.ingestion.cash.CashCategoryGuesser(get()))
+    }
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }

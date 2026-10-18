@@ -178,6 +178,19 @@ tasks.register<JavaExec>("anomalyReport") {
     }
 }
 
+// Cash phrases (AOS-718): ./gradlew -q cashPhraseReport scores the free-text cash parser on the synthetic phrase set
+// (src/test/resources/cash/phrases.tsv) and lists the misses; -PwriteBaseline records the floor CashPhraseRegressionTest holds.
+tasks.register<JavaExec>("cashPhraseReport") {
+    group = "verification"
+    description = "Evaluate the cash phrase parser on the phrase set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.ingestion.cash.evaluation.CashPhraseEvaluationKt")
+    args(layout.buildDirectory.file("reports/cash/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/cash").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"
