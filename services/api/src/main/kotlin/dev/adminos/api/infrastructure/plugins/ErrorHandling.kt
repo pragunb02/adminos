@@ -5,6 +5,7 @@ import dev.adminos.api.domain.common.ApiResponse
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.statuspages.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import org.slf4j.LoggerFactory
 
@@ -52,13 +53,24 @@ fun Application.configureErrorHandling() {
                 )
             )
         }
-        // Undecodable request bodies (bad JSON, wrong types such as a number where a string is
-        // required) are client errors, not 500s.
-        exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
-            call.respond(
-                HttpStatusCode.BadRequest,
-                ApiResponse.error(ApiError("VALIDATION_004", "Malformed request body: ${publicMessage(rootMessage(cause), "invalid")}"), call.requestId)
-            )
+        // Request bodies the route can't read are the client's error, never a 500 (AOS-633). The messages are
+        // fixed: the decoder's own text quotes the input ("but had '1' instead") and names our classes (AUD-15).
+        // Ktor's body errors extend IOException, so without these they fell into the 500 branch below.
+        // A body that isn't JSON (a form, plain text, or none at all) on a route that reads JSON: Ktor finds no
+        // converter for it. That's 415; a JSON body Ktor still can't turn into the route's type is a 400.
+        exception<io.ktor.server.plugins.UnsupportedMediaTypeException> { call, _ ->
+            call.respond(HttpStatusCode.UnsupportedMediaType, ApiResponse.error(UNSUPPORTED_BODY, call.requestId))
+        }
+        exception<io.ktor.server.plugins.PayloadTooLargeException> { call, _ ->
+            call.respond(HttpStatusCode.PayloadTooLarge, ApiResponse.error(BODY_TOO_LARGE, call.requestId))
+        }
+        exception<io.ktor.server.plugins.ContentTransformationException> { call, _ ->
+            if (call.sentJson()) call.respond(HttpStatusCode.BadRequest, ApiResponse.error(MALFORMED_BODY, call.requestId))
+            else call.respond(HttpStatusCode.UnsupportedMediaType, ApiResponse.error(UNSUPPORTED_BODY, call.requestId))
+        }
+        // JSON that doesn't parse or doesn't fit the request type (Ktor wraps the decoder's error in this).
+        exception<io.ktor.server.plugins.BadRequestException> { call, _ ->
+            call.respond(HttpStatusCode.BadRequest, ApiResponse.error(MALFORMED_BODY, call.requestId))
         }
         // Auth challenges (missing/invalid JWT) carry no body by default; clients always get the envelope.
         status(HttpStatusCode.Unauthorized) { call, status ->
@@ -76,7 +88,15 @@ fun Application.configureErrorHandling() {
             }
         }
         exception<Throwable> { call, cause ->
-            logger.error("Unhandled exception", cause)
+            val sql = sqlCause(cause)
+            if (sql != null) {
+                // A database error's message can carry the values of the failed statement (AOS-628): log its kind
+                // and SQLState only, and where it was thrown from.
+                logger.error("Unhandled database error: {} (SQLState {}) at {}", sql.javaClass.simpleName, sql.sqlState,
+                    cause.stackTrace.firstOrNull { it.className.startsWith("dev.adminos") } ?: "unknown")
+            } else {
+                logger.error("Unhandled exception", cause)
+            }
             call.respond(
                 HttpStatusCode.InternalServerError,
                 ApiResponse.error(ApiError.INTERNAL_ERROR, call.requestId)
@@ -106,13 +126,28 @@ private val INTERNAL_DETAIL = listOf(
     Regex("(?i)exception|stack ?trace|\\bat [\\w.$]+\\("),
 )
 
-/** Innermost message of an exception chain (the decoder's message names the bad field). */
-private fun rootMessage(t: Throwable): String {
-    var c: Throwable = t
-    while (true) {
-        val next = c.cause ?: break
-        if (next === c) break
-        c = next
+/** The first [java.sql.SQLException] in [t]'s cause chain, if any. */
+internal fun sqlCause(t: Throwable): java.sql.SQLException? {
+    var c: Throwable? = t
+    val seen = mutableSetOf<Throwable>()
+    while (c != null && seen.add(c)) {
+        if (c is java.sql.SQLException) return c
+        c = c.cause
     }
-    return (c.message ?: "invalid").lineSequence().first().take(200)
+    return null
 }
+
+/** Whether the request says its body is JSON (`application/json` or a `+json` type). A bad header isn't. */
+private fun ApplicationCall.sentJson(): Boolean {
+    val type = try {
+        request.contentType()
+    } catch (e: BadContentTypeFormatException) {
+        return false
+    }
+    return type.match(ContentType.Application.Json) || (type.contentType == "application" && type.contentSubtype.endsWith("+json"))
+}
+
+/** Fixed answers for unreadable request bodies (AOS-633): nothing from the input or the decoder. */
+internal val MALFORMED_BODY = ApiError("VALIDATION_004", "Malformed request body")
+internal val UNSUPPORTED_BODY = ApiError("VALIDATION_005", "Unsupported request body type")
+internal val BODY_TOO_LARGE = ApiError("VALIDATION_006", "Request body too large")

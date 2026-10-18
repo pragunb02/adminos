@@ -80,6 +80,8 @@ type GmailResult struct {
 	NewHistoryID string `json:"new_history_id,omitempty"`
 	SyncMode     string `json:"sync_mode,omitempty"`
 	NotFinancial int    `json:"not_financial"`
+	// Unauthenticated counts mail from a listed sender that Gmail didn't authenticate (AOS-624).
+	Unauthenticated int `json:"unauthenticated"`
 
 	// Order receipts (AOS-903): read by a per-sender parser, never turned into transactions.
 	ReceiptsFound int `json:"receipts_found"`
@@ -221,14 +223,15 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 	}
 
 	result := &GmailResult{
-		SyncSessionID: p.SyncSessionID,
-		UserID:        p.UserID,
-		ConnectionID:  p.ConnectionID,
-		TotalEmails:   len(fetched.Emails),
-		FailedItems:   fetched.Gone,
-		NewHistoryID:  fetched.NewHistoryID,
-		SyncMode:      string(fetched.Mode),
-		NotFinancial:  fetched.NotFinancial,
+		SyncSessionID:   p.SyncSessionID,
+		UserID:          p.UserID,
+		ConnectionID:    p.ConnectionID,
+		TotalEmails:     len(fetched.Emails),
+		FailedItems:     fetched.Gone,
+		NewHistoryID:    fetched.NewHistoryID,
+		SyncMode:        string(fetched.Mode),
+		NotFinancial:    fetched.NotFinancial,
+		Unauthenticated: fetched.Unauthenticated,
 	}
 
 	var confSum float64
@@ -263,8 +266,8 @@ func (h *GmailHandler) execute(ctx context.Context, p *GmailPayload) (*GmailResu
 	if confCount > 0 {
 		result.AvgConfidence = confSum / float64(confCount)
 	}
-	log.Printf("[gmail] Connection %s: %s sync, %d financial emails (%d receipts, %d unreadable receipts), %d skipped by the sender filters",
-		p.ConnectionID, fetched.Mode, len(fetched.Emails), result.ReceiptsFound, result.ReceiptFailures, fetched.NotFinancial)
+	log.Printf("[gmail] Connection %s: %s sync, %d financial emails (%d receipts, %d unreadable receipts), %d skipped by the sender filters, %d rejected as unauthenticated",
+		p.ConnectionID, fetched.Mode, len(fetched.Emails), result.ReceiptsFound, result.ReceiptFailures, fetched.NotFinancial, fetched.Unauthenticated)
 	return result, nil
 }
 
