@@ -108,7 +108,8 @@ class ReportCardTest {
         val briefings = InMemoryBriefingRepository()
         val service = WeeklyBriefingService(
             BriefingSources(k.analytics, DuesService(InMemoryBillRepository(), subscriptions, mandates), InMemoryAnomalyRepository(), subscriptions, mandates),
-            briefings, k.notifications, k.clock, sections = listOf(card(k))
+            briefings, k.notifications,
+            dev.adminos.api.domain.agent.briefing.BriefingNarrator(dev.adminos.api.domain.agent.briefing.NarrationFixture.gatewayWithNoRoutes(k.clock)), k.clock, sections = listOf(card(k))
         )
         val made = service.briefIfDue(k.owner, NotificationPreferences(userId = k.user))
         val content = made?.content.orEmpty()

@@ -56,11 +56,18 @@ class StatementImportIntegrationTest {
         val parser = HttpStatementParser("http://${parserContainer.host}:${parserContainer.getMappedPort(8000)}")
         val events = ExposedIngestEventRepository()
         val transactions = ExposedTransactionRepository()
-        val service = StatementImportService(parser, IngestEventService(events))
+        val balances = ExposedBalanceRepository(dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor())
+        val service = StatementImportService(parser, IngestEventService(events), dev.adminos.api.domain.balances.BalanceService(balances))
 
         val first = service.import(userId, csv, "Ravi_HDFC.csv", null)
         assertEquals("hdfc", first.bankCode); assertEquals("4321", first.accountLast4)
         assertEquals(3, first.accepted)
+        // The reconciled closing balance is the account's balance (AOS-720), as of the end of 3 Oct in India.
+        assertEquals(true, first.balanceNoted)
+        val closing = balances.forUser(userId).single()
+        assertEquals(0, BigDecimal("148451.50").compareTo(closing.amount))
+        assertEquals(dev.adminos.api.domain.balances.BalanceAccount("hdfc", "4321"), closing.account)
+        assertEquals(java.time.Instant.parse("2026-10-03T18:29:59Z"), closing.observedAt)
 
         val processor = IngestProcessor(events, IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService()))),
             RepositoryOutcomeWriter(transactions, events, ExposedTransactionLinkRepository()) { work -> dbQuery { work() } })
@@ -74,5 +81,6 @@ class StatementImportIntegrationTest {
 
         val again = service.import(userId, csv, "Ravi_HDFC.csv", null)
         assertEquals(0, again.accepted); assertEquals(3, again.duplicates)
+        assertEquals(false, again.balanceNoted); assertEquals(1, balances.forUser(userId).size)
     }
 }

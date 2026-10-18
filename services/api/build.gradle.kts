@@ -251,6 +251,32 @@ tasks.register<JavaExec>("cashPhraseReport") {
     }
 }
 
+// SMS balances (AOS-720): ./gradlew -q balanceReport scores balance extraction on the synthetic SMS set
+// (src/test/resources/balances/sms.tsv) and lists the misses; -PwriteBaseline records the floor BalanceRegressionTest holds.
+tasks.register<JavaExec>("balanceReport") {
+    group = "verification"
+    description = "Evaluate SMS balance extraction on the synthetic SMS set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.balances.evaluation.BalanceEvaluationKt")
+    args(layout.buildDirectory.file("reports/balances/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/balances").path)
+    }
+}
+
+// Briefing narration eval (AOS-716, D-140): ./gradlew -q briefingNarrationReport runs the synthetic eval set through the
+// AI gateway and prints the number/name check's scores and misses; -PwriteEvalRecord records them in
+// src/main/resources/ai/evals.json (the start-up gate, D-68). Nothing leaves the machine (recorded answers).
+tasks.register<JavaExec>("briefingNarrationReport") {
+    group = "verification"
+    description = "Evaluate the briefing narration check on its eval set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.agent.briefing.eval.BriefingNarrationEvalReportKt")
+    if (project.hasProperty("writeEvalRecord")) {
+        args("--write-eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+}
+
 // Message-reading evaluation (AOS-705): ./gradlew -q messageReadingReport prints the fallback's scores on the synthetic
 // golden set (src/test/resources/messages/golden.tsv). Add -PwriteBaseline to record them in the eval records the
 // start-up gate reads (src/main/resources/ai/evals.json).

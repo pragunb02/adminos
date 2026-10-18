@@ -47,7 +47,7 @@ class IntakeFallbackTest {
     private val events = InMemoryIngestEventRepository()
     private val mandates = MandateService(InMemoryMandateRepository(), InMemoryTransactionRepository())
     private val kolkata = ZoneId.of("Asia/Kolkata")
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), sink) { kolkata }
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()), sink) { kolkata }
     private val at = Instant.parse("2026-10-16T05:00:00Z")
     private val unknown = "Card XX4321 charged Rs.249.00 at ZEPTO on 16-10-26."
 
@@ -87,7 +87,7 @@ class IntakeFallbackTest {
 
     @Test
     fun `without a fallback the intake behaves as before`() = runBlocking<Unit> {
-        val plain = SmsIntake(SmsParserRegistry(), IngestEventService(events), mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()))
+        val plain = SmsIntake(SmsParserRegistry(), IngestEventService(events), mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()))
         assertEquals(SmsIntakeResult.Ignored(SmsParseResult.UNRECOGNISED), plain.accept(user, SmsMessage("AD-FEDBNK-S", unknown, at)))
     }
 

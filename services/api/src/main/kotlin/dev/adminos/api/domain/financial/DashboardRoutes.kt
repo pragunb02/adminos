@@ -25,7 +25,7 @@ fun Route.dashboardRoutes(
     anomalyRepository: AnomalyRepository,
     briefingRepository: BriefingRepository,
     insightRepository: InsightRepository,
-    clock: java.time.Clock = java.time.Clock.systemDefaultZone()
+    clock: java.time.Clock // injected (AOS-638); the zone is always the user's, never the clock's
 ) {
     authenticate("auth-jwt") {
         route("/dashboard") {

@@ -54,7 +54,7 @@ class MessageRoutingTest {
         val intake = IngestEventService(InMemoryIngestEventRepository(), clock)
         val user = UUID.randomUUID()
         when (row.channel) {
-            "sms" -> SmsIntake(SmsParserRegistry(), intake, mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), sink) { MessageEvaluation.ZONE }
+            "sms" -> SmsIntake(SmsParserRegistry(), intake, mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()), sink) { MessageEvaluation.ZONE }
                 .accept(user, SmsMessage(row.sender, row.text, row.receivedAt))
             "whatsapp" -> WhatsAppImportService(SmsParserRegistry(), intake, mandates, UserCalendar(InMemoryUserRepository()), clock, sink)
                 .import(user, MessageEvaluation.whatsAppExport(row))

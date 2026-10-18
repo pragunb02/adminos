@@ -52,6 +52,16 @@ import kotlinx.serialization.Serializable
     val rangeMonthsNeeded: Int
 )
 
+/** An account's balance in "money left" (AOS-720); [reason] says why one isn't counted (stale / before_salary). */
+@Serializable data class ForecastBalanceDto(
+    val bank: String?,
+    val last4: String,
+    val amount: String,
+    val observedOn: String,
+    val source: String,
+    val reason: String? = null
+)
+
 @Serializable data class UntilSalaryDto(
     val from: String?,
     val to: String?,
@@ -60,7 +70,17 @@ import kotlinx.serialization.Serializable
     val left: String,
     val leftLow: String?,
     val leftHigh: String?,
-    val parts: List<ForecastPartDto>
+    val parts: List<ForecastPartDto>,
+    /** What "left" starts from: balance (recent bank balances, AOS-720) or salary (the last salary, D-76). */
+    val basis: String = "salary",
+    /** The first day [spentSince] counts; null when nothing is subtracted (a balance from today). */
+    val spentFrom: String? = null,
+    /** The counted balances' sum, and the oldest of their days (basis balance only). */
+    val balance: String? = null,
+    val balanceAsOf: String? = null,
+    val accounts: List<ForecastBalanceDto> = emptyList(),
+    val notCounted: List<ForecastBalanceDto> = emptyList(),
+    val balanceMaxAgeDays: Long = MonthEndForecaster.MAX_BALANCE_AGE_DAYS
 )
 
 @Serializable data class SalaryDto(
@@ -127,10 +147,20 @@ private fun DetectedSalary.toDto(status: String, until: UntilSalaryDto?) = Salar
     lastAmount = lastAmount.toMoney(), lastReceivedOn = lastReceivedOn.toString(), credits = credits, untilSalary = until
 )
 
-private fun UntilSalary.toDto() = UntilSalaryDto(
-    from = window?.from?.toString(), to = window?.to?.toString(), spentSince = spentSince.toMoney(), expected = expected.toMoney(),
-    left = left.toMoney(), leftLow = leftRange?.first?.toMoney(), leftHigh = leftRange?.second?.toMoney(), parts = parts.map { it.toDto() }
-)
+private fun UntilSalary.toDto(): UntilSalaryDto {
+    val balances = basis as? MoneyBasis.Balances
+    return UntilSalaryDto(
+        from = window?.from?.toString(), to = window?.to?.toString(), spentSince = spentSince.toMoney(), expected = expected.toMoney(),
+        left = left.toMoney(), leftLow = leftRange?.first?.toMoney(), leftHigh = leftRange?.second?.toMoney(), parts = parts.map { it.toDto() },
+        basis = if (balances != null) "balance" else "salary",
+        spentFrom = spentFrom?.toString(),
+        balance = balances?.start?.toMoney(), balanceAsOf = balances?.asOf?.toString(),
+        accounts = balances?.accounts.orEmpty().map { it.toDto(null) },
+        notCounted = notCounted.map { it.balance.toDto(it.reason.name.lowercase()) }
+    )
+}
+
+private fun BankBalance.toDto(reason: String?) = ForecastBalanceDto(bankCode, last4, amount.toMoney(), observedOn.toString(), source, reason)
 
 private fun ComponentEstimate.toDto(): ForecastPartDto = when (this) {
     is ComponentEstimate.Dues -> ForecastPartDto(

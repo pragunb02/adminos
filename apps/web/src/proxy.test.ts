@@ -86,4 +86,11 @@ describe("route guard (proxy.ts)", () => {
   it("static assets are not matched", () => {
     expect(config.matcher[0]).toContain("_next/static");
   });
+
+  it("every page response, including a 404 such as /favicon.ico, goes through the proxy and gets the CSP (AOS-644)", () => {
+    const matcher = new RegExp(`^${config.matcher[0]}$`);
+    expect(matcher.test("/favicon.ico")).toBe(true);
+    expect(matcher.test("/no-such-page")).toBe(true);
+    expect(matcher.test("/_next/static/chunks/app.js")).toBe(false);
+  });
 });

@@ -35,7 +35,9 @@ sealed interface SmsParseResult {
         const val DIRECTION_UNCLEAR = "direction unclear, needs review"
         /** "Rs 50 cashback will be credited…": a promise, not money that moved (AOS-213). */
         const val PROMISED_CREDIT = "promised credit, not a transaction"
-        /** No parser read it: the one reason the AI fallback may be asked about (AOS-705). */
+        /** Only a balance, no money moved: no transaction, though the balance is noted (AOS-720). */
+        const val BALANCE_ALERT = "balance alert"
+        /** No parser read it: the one reason the AI fallback may be asked about (AOS-705); a balance may still be noted (AOS-720). */
         const val UNRECOGNISED = "not a recognised transaction message"
         val Unrecognised = Ignored(UNRECOGNISED)
     }

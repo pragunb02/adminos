@@ -1,0 +1,130 @@
+{
+  "readerId": "casparser",
+  "readerVersion": "1.4.1",
+  "issuer": "cams",
+  "statementFrom": "2025-01-01",
+  "statementTo": "2025-12-31",
+  "folios": [
+    {
+      "ref": "f1",
+      "amc": "Example Mutual Fund",
+      "schemes": [
+        {
+          "name": "Example Flexi Cap Fund - Direct Plan - Growth",
+          "isin": "INFZZ9000010",
+          "amfiCode": null,
+          "schemeType": null,
+          "category": null,
+          "plan": "direct",
+          "openingUnits": "0",
+          "closingUnits": "150.000",
+          "valuationDate": "2025-12-31",
+          "nav": "120.0000",
+          "value": "18000.00",
+          "cost": "14999.00",
+          "transactions": [
+            {
+              "date": "2025-01-10",
+              "kind": "buy",
+              "amount": "9999.50",
+              "units": "100.000",
+              "nav": "99.9950",
+              "balance": "100.000"
+            },
+            {
+              "date": "2025-01-10",
+              "kind": "stamp_duty",
+              "amount": "0.50",
+              "units": null,
+              "nav": null,
+              "balance": null
+            },
+            {
+              "date": "2025-02-10",
+              "kind": "sip_buy",
+              "amount": "4999.75",
+              "units": "48.000",
+              "nav": "104.1615",
+              "balance": "148.000"
+            },
+            {
+              "date": "2025-02-10",
+              "kind": "stamp_duty",
+              "amount": "0.25",
+              "units": null,
+              "nav": null,
+              "balance": null
+            },
+            {
+              "date": "2025-03-10",
+              "kind": "sip_buy",
+              "amount": "4999.75",
+              "units": "52.000",
+              "nav": "96.1490",
+              "balance": "200.000"
+            },
+            {
+              "date": "2025-03-10",
+              "kind": "stamp_duty",
+              "amount": "0.25",
+              "units": null,
+              "nav": null,
+              "balance": null
+            },
+            {
+              "date": "2025-06-15",
+              "kind": "sell",
+              "amount": "5500.00",
+              "units": "-50.000",
+              "nav": "110.0000",
+              "balance": "150.000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ref": "f2",
+      "amc": "Sample Mutual Fund",
+      "schemes": [
+        {
+          "name": "Example Liquid Fund - Regular Plan - Growth",
+          "isin": "INFZZ9000028",
+          "amfiCode": null,
+          "schemeType": null,
+          "category": null,
+          "plan": "regular",
+          "openingUnits": "0",
+          "closingUnits": "10.000",
+          "valuationDate": "2025-12-31",
+          "nav": "2550.0000",
+          "value": "25500.00",
+          "cost": "25000.00",
+          "transactions": [
+            {
+              "date": "2025-04-05",
+              "kind": "buy",
+              "amount": "25000.00",
+              "units": "10.000",
+              "nav": "2500.0000",
+              "balance": "10.000"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "identifiers": {
+    "folios": [
+      {
+        "ref": "f1",
+        "value": "90001234 / 56"
+      },
+      {
+        "ref": "f2",
+        "value": "80005678"
+      }
+    ]
+  },
+  "parseWarnings": 0
+}

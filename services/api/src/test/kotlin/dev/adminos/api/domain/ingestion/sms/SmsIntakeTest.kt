@@ -7,12 +7,15 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class SmsIntakeTest {
     private val repo = InMemoryIngestEventRepository()
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(repo), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()))
+    private val balanceRepo = dev.adminos.api.domain.balances.InMemoryBalanceRepository()
+    private val balances = dev.adminos.api.domain.balances.BalanceService(balanceRepo, java.time.Clock.fixed(Instant.parse("2026-10-20T00:00:00Z"), java.time.ZoneOffset.UTC))
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(repo), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), balances)
     private val userId = UUID.randomUUID()
     private val text = "Sent Rs.249.00 From HDFC Bank A/C *1234 To SWIGGY On 16/10/26 Ref 123456789012"
 
@@ -35,5 +38,46 @@ class SmsIntakeTest {
     fun `non-financial sms is ignored and nothing is stored`() = runBlocking<Unit> {
         assertIs<SmsIntakeResult.Ignored>(intake.accept(userId, SmsMessage("AX-HDFCBK-T", "OTP 123456 for Rs.249.00", Instant.EPOCH)))
         assertEquals(0, repo.findByUser(userId).size)
+    }
+
+    @Test
+    fun `a trusted bank's Avl Bal is noted for the account beside the transaction`() = runBlocking<Unit> {
+        val sms = "Rs.500.00 debited from A/c XX4321 on 16-10-26 to VPA shop@okaxis. Avl Bal Rs 12,345.60"
+        val out = intake.receive(userId, SmsMessage("AX-HDFCBK-S", sms, Instant.parse("2026-10-16T05:00:00Z")))
+        assertEquals(SmsIntakeResult.Accepted, out.result)
+        assertTrue(out.balanceNoted)
+        val r = balanceRepo.forUser(userId).single()
+        assertEquals(java.math.BigDecimal("12345.60"), r.amount)
+        assertEquals(dev.adminos.api.domain.balances.BalanceAccount("hdfc", "4321"), r.account)
+        assertEquals(Instant.parse("2026-10-16T05:00:00Z"), r.observedAt)
+        assertTrue("12345" !in r.toString() && "4321" !in out.toString())
+        assertFalse(intake.receive(userId, SmsMessage("VM-HDFCBK-S", sms, Instant.parse("2026-10-16T05:01:00Z"))).balanceNoted, "a resent SMS is the same reading")
+    }
+
+    @Test
+    fun `a pure balance alert gives no transaction but notes the balance as on its date`() = runBlocking<Unit> {
+        val sms = "Available balance in A/c XX4321 is Rs 9,000.00 CR as on 14-10-2026"
+        val out = intake.receive(userId, SmsMessage("JD-SBIINB-S", sms, Instant.parse("2026-10-16T05:00:00Z")))
+        assertEquals(SmsIntakeResult.Ignored(SmsParseResult.BALANCE_ALERT), out.result)
+        assertTrue(out.balanceNoted)
+        assertEquals(Instant.parse("2026-10-14T18:29:59Z"), balanceRepo.forUser(userId).single().observedAt, "the end of the day the bank names")
+        assertEquals(0, repo.findByUser(userId).size)
+    }
+
+    @Test
+    fun `an as-on time dates the balance at that time, and one not before the SMS is ignored`() = runBlocking<Unit> {
+        intake.receive(userId, SmsMessage("AX-HDFCBK-S", "Avl Bal in HDFC Bank A/c XX4321 as on 14-10-26 09:30 is INR 100.00", Instant.parse("2026-10-16T05:00:00Z")))
+        assertEquals(Instant.parse("2026-10-14T04:00:00Z"), balanceRepo.forUser(userId).single().observedAt, "09:30 in India")
+        intake.receive(userId, SmsMessage("AX-HDFCBK-S", "Avl Bal in HDFC Bank A/c XX5555 as on 16-10-26 18:00 is INR 100.00", Instant.parse("2026-10-16T05:00:00Z")))
+        assertEquals(Instant.parse("2026-10-16T05:00:00Z"), balanceRepo.forUser(userId).single { it.account.last4 == "5555" }.observedAt, "a later 'as on' can't be checked")
+    }
+
+    @Test
+    fun `balances from generic, promotional or personal senders are never noted`() = runBlocking<Unit> {
+        val sms = "Rs.500.00 debited from A/c XX4321. Avl Bal Rs 99,99,999.00"
+        for (sender in listOf("AX-NEWBNK-S", "AX-HDFCBK-P", "+919800000000")) {
+            assertFalse(intake.receive(userId, SmsMessage(sender, sms, Instant.parse("2026-10-16T05:00:00Z"))).balanceNoted, sender)
+        }
+        assertEquals(emptyList(), balanceRepo.forUser(userId))
     }
 }

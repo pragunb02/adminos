@@ -2,6 +2,7 @@ package dev.adminos.api.di
 
 import dev.adminos.api.config.AiConfig
 import dev.adminos.api.config.AiFeatureSetting
+import dev.adminos.api.domain.agent.briefing.BriefingNarrationTask
 import dev.adminos.api.domain.ai.AiCallLogRepository
 import dev.adminos.api.domain.ai.AiCircuitBreaker
 import dev.adminos.api.domain.ai.AiConsentCheck
@@ -50,7 +51,8 @@ import org.slf4j.LoggerFactory
 internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
     AiFeature.CATEGORIZATION to CategorizeMerchantTask,
     AiFeature.ASK to AskPlanTask,
-    AiFeature.MESSAGES to ReadMessageTask
+    AiFeature.MESSAGES to ReadMessageTask,
+    AiFeature.BRIEFING to BriefingNarrationTask
 )
 
 /**

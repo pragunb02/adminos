@@ -8,4 +8,4 @@ import dev.adminos.api.domain.financial.TransactionRepository
 
 /** Pay-later bill recording over in-memory stores, for tests that build an SmsIntake (AOS-909). */
 fun testPayLaterBills(bills: BillRepository = InMemoryBillRepository(), txns: TransactionRepository = InMemoryTransactionRepository()) =
-    PayLaterBills(bills, BillTrackingService(bills, txns))
+    PayLaterBills(bills, BillTrackingService(bills, txns, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository())))

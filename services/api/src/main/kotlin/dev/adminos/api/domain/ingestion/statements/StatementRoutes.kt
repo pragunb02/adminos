@@ -27,7 +27,9 @@ data class StatementImportResponse(
     val accepted: Int,
     val duplicates: Int,
     val skippedRows: Int,
-    val warnings: List<String>
+    val warnings: List<String>,
+    /** The statement's closing balance became the account's latest balance (AOS-720). */
+    val balanceNoted: Boolean = false
 )
 
 /**
@@ -68,7 +70,7 @@ fun Route.statementRoutes(service: StatementImportService) {
             }
             call.respond(HttpStatusCode.OK, ApiResponse.success(StatementImportResponse(
                 result.bankCode, result.accountLast4, result.periodStart?.toString(), result.periodEnd?.toString(),
-                result.rows, result.accepted, result.duplicates, result.skippedRows, result.warnings
+                result.rows, result.accepted, result.duplicates, result.skippedRows, result.warnings, result.balanceNoted
             ), call.requestId))
         }
     }

@@ -45,9 +45,10 @@ class ForecastServiceTest {
     private val subscriptions = InMemorySubscriptionRepository()
     private val mandates = InMemoryMandateRepository()
     private val dues = DuesService(bills, subscriptions, MandateService(mandates, transactions))
+    private val balances = dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository())
     /** 20 Oct 2026, 10:00 in India. */
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
-    private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills), dues, subscriptions, bills, clock = clock)
+    private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills), dues, subscriptions, bills, balances, clock = clock)
 
     private fun d(s: String) = LocalDate.parse(s)
     private fun at(day: LocalDate, time: String = "12:00") = day.atTime(LocalTime.parse(time)).atZone(ist).toInstant()
