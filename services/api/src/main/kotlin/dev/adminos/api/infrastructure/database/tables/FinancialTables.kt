@@ -168,6 +168,10 @@ object DocumentsTable : Table("documents") {
     val expiresOn = date("expires_on").nullable()
     val notes = text("notes").nullable()
     val expiryRemindersSent = text("expiry_reminders_sent").nullable()
+    // V80 (AOS-717): confirmed fields; the number as its last 4 only.
+    val issuer = varchar("issuer", 120).nullable()
+    val numberLast4 = varchar("number_last4", 4).nullable()
+    val amount = decimal("amount", 14, 2).nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(id)

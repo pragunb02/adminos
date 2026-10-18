@@ -67,6 +67,9 @@ class ExposedDocumentRepository : DocumentRepository {
         it[t.expiresOn] = d.expiresOn
         it[t.notes] = d.notes
         it[t.expiryRemindersSent] = encodeDays(d.expiryRemindersSent)
+        it[t.issuer] = d.issuer
+        it[t.numberLast4] = d.numberLast4
+        it[t.amount] = d.amount
     }
 
     private fun ResultRow.toDocument() = Document(
@@ -75,6 +78,7 @@ class ExposedDocumentRepository : DocumentRepository {
         sizeBytes = this[t.sizeBytes], sha256 = this[t.sha256], wrappedKey = this[t.wrappedKey], storageKey = this[t.storageKey],
         originalName = this[t.originalName], expiresOn = this[t.expiresOn], notes = this[t.notes],
         expiryRemindersSent = decodeDays(this[t.expiryRemindersSent]) ?: emptySet(),
-        createdAt = this[t.createdAt], updatedAt = this[t.updatedAt]
+        createdAt = this[t.createdAt], updatedAt = this[t.updatedAt],
+        issuer = this[t.issuer], numberLast4 = this[t.numberLast4], amount = this[t.amount]
     )
 }

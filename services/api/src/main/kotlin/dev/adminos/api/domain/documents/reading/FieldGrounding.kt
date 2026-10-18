@@ -54,11 +54,17 @@ object FieldGrounding {
     }
 
     internal fun amountIn(evidence: String, a: BigDecimal): Boolean {
-        val digits = evidence.filter { it in '0'..'9' }
         val whole = a.toBigInteger().toString()
         val fraction = a.remainder(BigDecimal.ONE).movePointRight(2).toBigInteger().toInt()
-        return digits.contains(whole) && (fraction == 0 || digits.contains(whole + "%02d".format(fraction)))
+        // The rupees are the digits before the printed paise ("12,500.50" → 12500), and must end with the value's
+        // rupees (so "GST 18%: 12,500" still holds 12500, and "12,500.00" never holds 125000). Printed paise must match.
+        val paise = PAISE.findAll(evidence).lastOrNull()
+        val rupees = (if (paise == null) evidence else evidence.substring(0, paise.range.first + 1)).filter { it in '0'..'9' }
+        val printed = paise?.groupValues?.get(1)?.padEnd(2, '0')?.toInt() ?: 0
+        return rupees.endsWith(whole) && fraction == printed
     }
+
+    private val PAISE = Regex("\\d\\.(\\d{1,2})(?!\\d)")
 }
 
 /**

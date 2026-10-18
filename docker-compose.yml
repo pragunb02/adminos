@@ -137,6 +137,10 @@ services:
       AI_ASK_ENABLED: ${AI_ASK_ENABLED:-false}
       AI_ASK_PROVIDER: ${AI_ASK_PROVIDER:-anthropic}
       AI_ASK_MODEL: ${AI_ASK_MODEL:-claude-sonnet-5-5}
+      # Document fields (AOS-717): local-first (Ollama) when on; needs a model and a passing eval record first.
+      AI_DOCUMENT_FIELDS_ENABLED: ${AI_DOCUMENT_FIELDS_ENABLED:-false}
+      AI_DOCUMENT_FIELDS_PROVIDER: ${AI_DOCUMENT_FIELDS_PROVIDER:-ollama}
+      AI_DOCUMENT_FIELDS_MODEL: ${AI_DOCUMENT_FIELDS_MODEL:-}
       DOCS_S3_ENDPOINT: ${DOCS_S3_ENDPOINT:-}
       DOCS_S3_REGION: ${DOCS_S3_REGION:-auto}
       DOCS_S3_BUCKET: ${DOCS_S3_BUCKET:-}

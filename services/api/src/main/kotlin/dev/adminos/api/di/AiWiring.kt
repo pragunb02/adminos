@@ -45,7 +45,8 @@ import org.slf4j.LoggerFactory
 /** Each feature's task: its prompt version (an eval record must match it, D-68) and its notice (AOS-704). One line per feature. */
 internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
     AiFeature.CATEGORIZATION to CategorizeMerchantTask,
-    AiFeature.ASK to AskPlanTask
+    AiFeature.ASK to AskPlanTask,
+    AiFeature.DOCUMENT_FIELDS to dev.adminos.api.domain.documents.reading.DocumentFieldsTask
 )
 
 /**

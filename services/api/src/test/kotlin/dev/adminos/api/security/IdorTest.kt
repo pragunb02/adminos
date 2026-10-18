@@ -176,6 +176,7 @@ class IdorTest {
             Attack(HttpMethod.Get, { "/api/v1/documents/$it/file" }, a.documentId),
             Attack(HttpMethod.Patch, { "/api/v1/documents/$it" }, a.documentId, """{"title":"pwned"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/documents/$it" }, a.documentId),
+            Attack(HttpMethod.Post, { "/api/v1/documents/$it/read" }, a.documentId), // AOS-717: never read for Bob
             Attack(HttpMethod.Delete, { "/api/v1/connections/$it" }, a.connectionId.toString()),
             Attack(HttpMethod.Post, { "/api/v1/connections/$it/sync" }, a.connectionId.toString()),
             Attack(HttpMethod.Get, { "/api/v1/sync/$it" }, a.syncId.toString()),

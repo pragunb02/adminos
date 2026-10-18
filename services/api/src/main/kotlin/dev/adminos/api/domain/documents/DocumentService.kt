@@ -27,7 +27,14 @@ data class DocumentPatch(
     val expiresOn: LocalDate? = null,
     val clearExpiry: Boolean = false,
     val notes: String? = null,
-    val clearNotes: Boolean = false
+    val clearNotes: Boolean = false,
+    /** Confirmed fields (AOS-717): null leaves each as it is; the clear flags remove it. */
+    val issuer: String? = null,
+    val clearIssuer: Boolean = false,
+    val numberLast4: String? = null,
+    val clearNumber: Boolean = false,
+    val amount: java.math.BigDecimal? = null,
+    val clearAmount: Boolean = false
 )
 
 data class DocumentFile(val bytes: ByteArray, val type: DocumentFileType, val downloadName: String)
@@ -102,7 +109,10 @@ class DocumentService(
             category = patch.category ?: d.category,
             expiresOn = expiresOn,
             expiryRemindersSent = if (expiresOn != d.expiresOn) emptySet() else d.expiryRemindersSent,
-            notes = if (patch.clearNotes) null else patch.notes?.trim()?.takeIf { it.isNotEmpty() } ?: d.notes
+            notes = if (patch.clearNotes) null else patch.notes?.trim()?.takeIf { it.isNotEmpty() } ?: d.notes,
+            issuer = if (patch.clearIssuer) null else patch.issuer?.trim()?.takeIf { it.isNotEmpty() } ?: d.issuer,
+            numberLast4 = if (patch.clearNumber) null else patch.numberLast4 ?: d.numberLast4,
+            amount = if (patch.clearAmount) null else patch.amount ?: d.amount
         ))
     }
 
