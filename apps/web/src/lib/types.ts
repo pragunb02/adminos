@@ -292,3 +292,66 @@ export interface AuthResponse {
   /** The passkey step this new session must take (AOS-617). */
   secondFactor?: "enrol" | "verify" | "done";
 }
+
+// ── Category review (AOS-707/708) ──
+
+/** A model's guess to confirm or correct: by the local learned categoriser or the AI fallback. */
+export interface CategoryGuess {
+  category: string;
+  /** 0–1, calibrated. */
+  confidence: number;
+  by: "learned" | "ai";
+  /** true: it set the category; false: only a suggestion (the row is still Other). */
+  applied: boolean;
+  cues: string[];
+  reason?: string | null;
+  /** The next most likely categories, for one-tap corrections. */
+  alternatives: string[];
+}
+
+/** "Check this category": ordered by the API by uncertainty × amount. */
+export interface CategoryQuestion {
+  transaction: Transaction;
+  guess: CategoryGuess;
+  priority: number;
+}
+
+export interface CategoryAnswer {
+  transaction: Transaction;
+  remembered: boolean;
+  relabelled: number;
+  golden?: { outcome: "added" | "already_there" | "refused"; reason?: string | null } | null;
+}
+
+/** The learned categoriser's status (counts only). */
+export interface CategoryModelStatus {
+  enabled: boolean;
+  state: "off" | "cold_start" | "ready" | "corrupt";
+  mode?: "apply" | "suggest" | null;
+  trainedAt?: string | null;
+  corrections: number;
+  correctionsNeeded: number;
+}
+
+/** One scrubbed row of the user's local golden set. */
+export interface GoldenRow {
+  id: string;
+  goldenId: string;
+  merchantRaw: string;
+  paymentMethod?: string | null;
+  direction: string;
+  category: string;
+  createdAt: string;
+}
+
+// ── Merchant grouping (AOS-709) ──
+
+/** "Are these one merchant?": the name a merge keeps and every name in the group, the kept one first. */
+export interface MergeProposal {
+  id: string;
+  name: string;
+  names: { name: string; payments: number }[];
+  /** Why they look like one merchant, in plain words. */
+  reasons: string[];
+  score: number;
+}

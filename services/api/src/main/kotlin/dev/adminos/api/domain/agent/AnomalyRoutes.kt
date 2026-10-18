@@ -1,8 +1,5 @@
 package dev.adminos.api.domain.agent
 
-import dev.adminos.api.domain.audit.ActorType
-import dev.adminos.api.domain.audit.AuditActions
-import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.common.CursorCodec
@@ -14,15 +11,10 @@ import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import java.time.Instant
 import java.util.UUID
 
-fun Route.anomalyRoutes(
-    anomalyRepository: AnomalyRepository,
-    auditService: AuditService
-) {
+/** HTTP for anomalies only; the rules (ownership, feedback, audit) are in [AnomalyReviewService] (AOS-713). */
+fun Route.anomalyRoutes(service: AnomalyReviewService) {
     authenticate("auth-jwt") {
         route("/anomalies") {
 
@@ -30,20 +22,12 @@ fun Route.anomalyRoutes(
             get {
                 val principal = call.userPrincipal
                 val status = call.enumParam<AnomalyStatus>("status")
-                val cursor = call.parameters["cursor"]
                 val limit = call.limitParam()
-
-                val anomalies = anomalyRepository.findByUserId(
-                    userId = principal.userId,
-                    status = status,
-                    cursor = cursor,
-                    limit = limit + 1
-                )
+                val (anomalies, total) = service.list(principal.userId, status, call.parameters["cursor"], limit + 1)
 
                 val hasMore = anomalies.size > limit
                 val page = if (hasMore) anomalies.take(limit) else anomalies
                 val nextCursor = if (hasMore) page.lastOrNull()?.let { CursorCodec.encode(it.createdAt.toString()) } else null
-                val total = anomalyRepository.countByUserId(principal.userId, status)
 
                 call.respond(
                     HttpStatusCode.OK,
@@ -57,31 +41,14 @@ fun Route.anomalyRoutes(
 
             // GET /api/v1/anomalies/:id — get single anomaly by ID
             get("/{id}") {
-                val principal = call.userPrincipal
-                val anomalyId = call.parameters["id"]?.let {
-                    try { UUID.fromString(it) } catch (_: Exception) { null }
-                } ?: throw ApiException(HttpStatusCode.BadRequest, ANOMALY_NOT_FOUND)
-
-                val anomaly = anomalyRepository.findById(anomalyId)
+                val anomaly = service.find(call.userPrincipal.userId, call.anomalyId())
                     ?: throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
-
-                if (anomaly.userId != principal.userId) {
-                    throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
-                }
-
-                call.respond(
-                    HttpStatusCode.OK,
-                    ApiResponse.success(AnomalyResponse.from(anomaly), call.requestId)
-                )
+                call.respond(HttpStatusCode.OK, ApiResponse.success(AnomalyResponse.from(anomaly), call.requestId))
             }
 
-            // PATCH /api/v1/anomalies/:id — resolve anomaly
+            // PATCH /api/v1/anomalies/:id — resolve; the first answer also teaches that merchant's tolerance (AOS-713)
             patch("/{id}") {
-                val principal = call.userPrincipal
-                val anomalyId = call.parameters["id"]?.let {
-                    try { UUID.fromString(it) } catch (_: Exception) { null }
-                } ?: throw ApiException(HttpStatusCode.BadRequest, ANOMALY_NOT_FOUND)
-
+                val anomalyId = call.anomalyId()
                 val request = call.receive<AnomalyResolveRequest>()
                 val newStatus = when (request.status) {
                     "confirmed_safe" -> AnomalyStatus.CONFIRMED_SAFE
@@ -92,45 +59,19 @@ fun Route.anomalyRoutes(
                         ApiError("ANOM_002", "Status must be 'confirmed_safe', 'confirmed_fraud', or 'dismissed'")
                     )
                 }
-
-                val anomaly = anomalyRepository.findById(anomalyId)
-                    ?: throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
-
-                if (anomaly.userId != principal.userId) {
-                    throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
+                when (val outcome = service.resolve(call.userPrincipal.userId, anomalyId, newStatus)) {
+                    AnomalyResolution.NotFound -> throw ApiException(HttpStatusCode.NotFound, ANOMALY_NOT_FOUND)
+                    is AnomalyResolution.Resolved ->
+                        call.respond(HttpStatusCode.OK, ApiResponse.success(AnomalyResponse.from(outcome.anomaly), call.requestId))
                 }
-
-                val beforeStatus = anomaly.status.name.lowercase()
-                val updated = anomalyRepository.update(anomaly.copy(
-                    status = newStatus,
-                    resolvedAt = Instant.now(),
-                    resolvedBy = AnomalyResolver.USER
-                ))
-
-                // Audit log
-                val auditAction = when (newStatus) {
-                    AnomalyStatus.CONFIRMED_SAFE -> AuditActions.ANOMALY_CONFIRM_SAFE
-                    AnomalyStatus.CONFIRMED_FRAUD -> AuditActions.ANOMALY_CONFIRM_FRAUD
-                    AnomalyStatus.DISMISSED -> "anomaly.dismiss"
-                    else -> "anomaly.resolve"
-                }
-                auditService.log(
-                    userId = principal.userId,
-                    actor = ActorType.USER,
-                    action = auditAction,
-                    entityType = "anomaly",
-                    entityId = anomalyId,
-                    beforeState = JsonObject(mapOf("status" to JsonPrimitive(beforeStatus))),
-                    afterState = JsonObject(mapOf("status" to JsonPrimitive(newStatus.name.lowercase())))
-                )
-
-                call.respond(
-                    HttpStatusCode.OK,
-                    ApiResponse.success(AnomalyResponse.from(updated), call.requestId)
-                )
             }
         }
     }
 }
+
+/** The `{id}` path parameter; a malformed one is a 400 with the not-found code (unchanged from AOS-505). */
+private fun ApplicationCall.anomalyId(): UUID = parameters["id"]?.let {
+    try { UUID.fromString(it) } catch (_: IllegalArgumentException) { null }
+} ?: throw ApiException(HttpStatusCode.BadRequest, ANOMALY_NOT_FOUND)
 
 private val ANOMALY_NOT_FOUND = ApiError("ANOM_001", "Anomaly not found")

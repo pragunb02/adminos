@@ -52,6 +52,11 @@ export class MockApi {
       .on("GET /api/v1/splitwise/entries", () => ({ data: [] }))
       .on("GET /api/v1/splitwise/summary", () => ({ data: { balances: [], counts: {} } }))
       .on("GET /api/v1/splitwise/imports", () => ({ data: [] }))
+      // Review → Check these categories (AOS-708): nothing to ask unless a test says otherwise.
+      .on("GET /api/v1/categories/review", () => ({ data: [] }))
+      .on("GET /api/v1/categories/model", () => ({ data: { enabled: false, state: "off", corrections: 0, correctionsNeeded: 20 } }))
+      .on("GET /api/v1/categories/golden", () => ({ data: [] }))
+      .on("GET /api/v1/merchants/merge-proposals", () => ({ data: [] }))
       .on("GET /api/v1/push", () => ({ data: { enabled: false, publicKey: null, devices: [] } }))
       // Settings → AI features (AOS-704): not set up on the server by default; e2e/ai-features.spec.ts turns it on.
       .on("GET /api/v1/ai/features", () => ({ data: { features: [fx.aiFeature({ available: false, provider: null, locality: null, model: null, destination: null, evaluation: null })], monthlyCapUsd: "2.00" } }))
@@ -75,6 +80,7 @@ export class MockApi {
         return { data: all.filter((d) => (!c || d.category === c) && (!q || d.title.toLowerCase().includes(q))) };
       })
       .on("GET /api/v1/mandates", () => ({ data: [fx.mandate(), fx.mandate({ id: "m-2", payee: "Cult.fit", rail: "upi_autopay", amount: "999.00", nextDebitOn: null, nextDebitAmount: null, dormant: true })] }))
+      .on("GET /api/v1/forecast", () => ({ data: fx.forecast() }))
       .on("GET /api/v1/dues", (_r, u) => {
         const m = u.searchParams.get("month");
         return { data: m && m !== "2026-10" ? fx.duesMonth({ month: m, items: [], totals: { open: "0.00", paid: "0.00", renewals: "0.00" } }) : fx.duesMonth() };
@@ -82,7 +88,11 @@ export class MockApi {
       .on("GET /api/v1/analytics/summary", (_r, u) => ({ data: { ...fx.summary(), period: { from: u.searchParams.get("from"), to: u.searchParams.get("to") } } }))
       .on("GET /api/v1/analytics/series", () => ({ data: fx.week() }))
       .on("GET /api/v1/analytics/categories", () => ({ data: fx.categories() }))
-      .on("GET /api/v1/analytics/merchants", () => ({ data: fx.merchants() }));
+      .on("GET /api/v1/analytics/merchants", () => ({ data: fx.merchants() }))
+      // Ask your money (AOS-711): on, with a fixed answer unless a test says otherwise.
+      .on("GET /api/v1/ask", () => ({ data: { enabled: true, maxQuestionLength: 300 } }))
+      .on("POST /api/v1/ask", () => ({ data: fx.askAnswer() }))
+      .on("POST /api/v1/ask/feedback", () => ({ data: { saved: true } }));
   }
 
   on(key: string, handler: Handler): this {
