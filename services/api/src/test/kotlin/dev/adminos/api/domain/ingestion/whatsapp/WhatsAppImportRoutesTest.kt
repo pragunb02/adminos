@@ -20,7 +20,10 @@ import io.ktor.http.*
 import io.ktor.server.config.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import java.io.ByteArrayOutputStream
 import java.util.UUID
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -81,6 +84,18 @@ class WhatsAppImportRoutesTest {
     @Test
     fun `chat text over the cap is 413`() = routeTest {
         val res = upload(ByteArray(WhatsAppExportFile.MAX_TEXT_BYTES + 1) { 'a'.code.toByte() })
+        assertEquals(HttpStatusCode.PayloadTooLarge, res.status)
+        assertTrue("FILE_TOO_LARGE" in res.bodyAsText())
+    }
+
+    @Test
+    fun `a zip bomb hidden in media is 413 and imports nothing`() = routeTest {
+        val out = ByteArrayOutputStream()
+        ZipOutputStream(out).use { z ->
+            z.putNextEntry(ZipEntry("VID-0001.mp4")); z.write(ByteArray(70 * 1024 * 1024)); z.closeEntry()
+            z.putNextEntry(ZipEntry("_chat.txt")); z.write("16/10/26, 09:12 - HDFC Bank: Sent Rs.249.00 To SWIGGY".toByteArray()); z.closeEntry()
+        }
+        val res = upload(out.toByteArray())
         assertEquals(HttpStatusCode.PayloadTooLarge, res.status)
         assertTrue("FILE_TOO_LARGE" in res.bodyAsText())
     }

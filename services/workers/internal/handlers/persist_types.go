@@ -34,4 +34,8 @@ type IngestEventRecord struct {
 	Amount      string // exact decimal, 2 places
 	MerchantRaw *string
 	AccountHint *string
+	// PaymentMethod is set for pay-later purchases ("pay_later", AOS-909); nil otherwise.
+	PaymentMethod *string
+	// Metadata is a JSON object of markers that travel to the transaction (e.g. {"payLater":"Simpl"}); nil otherwise.
+	Metadata *string
 }

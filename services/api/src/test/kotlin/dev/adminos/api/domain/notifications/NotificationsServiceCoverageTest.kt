@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 /** NotificationService.send (AOS-312, AOS-504): preferences, channels, quiet hours and immediate delivery, on a fixed clock. */
 class NotificationsServiceCoverageTest {
 
-    private val user = User(email = "pragun@example.com", googleId = "g-1")
+    private val user = User(email = "owner@example.com", googleId = "g-1")
     private val userId = user.id
     private val users = InMemoryUserRepository()
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
@@ -57,7 +57,7 @@ class NotificationsServiceCoverageTest {
         val results = send()
         assertEquals(listOf(NotificationChannel.IN_APP, NotificationChannel.PUSH, NotificationChannel.EMAIL), results.map { it.channel })
         assertTrue(results.all { it.status == NotificationStatus.SENT && it.sentAt == clock.now && it.attempts == 1 })
-        assertEquals(listOf<String?>("pragun@example.com"), email.recipients)
+        assertEquals(listOf<String?>("owner@example.com"), email.recipients)
         assertEquals("ref-1", results.last().fcmMessageId, "the provider reference is kept")
         assertEquals(results, results.map { notifRepo.findById(it.id) }, "what is returned is what is stored")
     }

@@ -189,10 +189,11 @@ func (c *Client) ListHistory(ctx context.Context, accessToken, startHistoryID, p
 	return &result, nil
 }
 
-// GetMessageMetadata fetches only a message's From and Subject headers (no body), so a message
-// can be checked against the sender filters before anything else of it is read.
+// GetMessageMetadata fetches only a message's From, Subject and Authentication-Results headers (no body;
+// the subject only tells a receipt sender's order mail from its promotions, AOS-903), so a message can be
+// qualified (Qualify) before anything else of it is read.
 func (c *Client) GetMessageMetadata(ctx context.Context, accessToken, messageID string) (*Message, error) {
-	q := url.Values{"format": {"metadata"}, "metadataHeaders": {"From", "Subject"}}
+	q := url.Values{"format": {"metadata"}, "metadataHeaders": {"From", "Subject", AuthResultsHeader}}
 	var msg Message
 	if err := c.getJSON(ctx, accessToken, "/gmail/v1/users/me/messages/"+url.PathEscape(messageID), q, &msg); err != nil {
 		return nil, fmt.Errorf("get message metadata: %w", err)

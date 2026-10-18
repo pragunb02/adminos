@@ -26,7 +26,9 @@ data class WhatsAppImportResponse(
     val duplicates: Int,
     val mandates: Int,
     val ignored: Map<String, Int>,
-    val unreadableLines: Int
+    val unreadableLines: Int,
+    /** Unrecognised bank messages queued for the AI fallback (AOS-705). */
+    val reading: Int = 0
 )
 
 /**
@@ -57,7 +59,7 @@ fun Route.whatsAppImportRoutes(service: WhatsAppImportService) {
                 throw ApiException(status, ApiError(e.code, e.message))
             }
             call.respond(HttpStatusCode.OK, ApiResponse.success(WhatsAppImportResponse(
-                result.messages, result.fromBanks, result.accepted, result.duplicates, result.mandates, result.ignored, result.unreadableLines
+                result.messages, result.fromBanks, result.accepted, result.duplicates, result.mandates, result.ignored, result.unreadableLines, result.reading
             ), call.requestId))
         }
     }

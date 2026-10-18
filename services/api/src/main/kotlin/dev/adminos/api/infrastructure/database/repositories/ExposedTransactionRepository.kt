@@ -47,11 +47,19 @@ class ExposedTransactionRepository : TransactionRepository {
             it[rawEmailId] = txn.rawEmailId
             it[metadata] = txn.metadata?.let { m -> JsonColumns.encode(m) }
             it[ingestEventId] = txn.ingestEventId
+            it[ownShare] = txn.ownShare
             it[transactedAt] = txn.transactedAt
             it[createdAt] = txn.createdAt
             it[updatedAt] = txn.updatedAt
         }
         txn
+    }
+
+    override suspend fun setOwnShare(id: UUID, share: BigDecimal?): Boolean = dbQuery {
+        TransactionsTable.update({ TransactionsTable.id eq id }) {
+            it[ownShare] = share
+            it[updatedAt] = Instant.now()
+        } == 1
     }
 
     override suspend fun findById(id: UUID): DomainTransaction? = dbQuery {
@@ -210,7 +218,8 @@ class ExposedTransactionRepository : TransactionRepository {
         userId: UUID, from: Instant, to: Instant
     ): Map<TransactionCategory, BigDecimal> = dbQuery {
         fun sumBy(nature: TransactionNature): Map<TransactionCategory, BigDecimal> {
-            val total = TransactionsTable.amount.sum()
+            // A split bill counts the owner's share (AOS-911), as the console does.
+            val total = Coalesce(TransactionsTable.ownShare, TransactionsTable.amount).sum()
             return TransactionsTable.select(TransactionsTable.category, total)
                 .where {
                     (TransactionsTable.userId eq userId) and
@@ -235,7 +244,7 @@ class ExposedTransactionRepository : TransactionRepository {
                 (TransactionsTable.transactedAt greaterEq since)
         }
         cat?.let { c -> query.andWhere { TransactionsTable.category eq c } }
-        val txns = query.map { it[TransactionsTable.amount] }
+        val txns = query.map { it[TransactionsTable.ownShare] ?: it[TransactionsTable.amount] }
         if (txns.isEmpty()) return@dbQuery BigDecimal.ZERO
         val total = txns.fold(BigDecimal.ZERO) { acc, a -> acc + a }
         total.divide(BigDecimal(txns.size), 2, RoundingMode.HALF_UP)
@@ -287,6 +296,7 @@ class ExposedTransactionRepository : TransactionRepository {
         ingestEventId = this[TransactionsTable.ingestEventId],
         transactedAt = this[TransactionsTable.transactedAt],
         createdAt = this[TransactionsTable.createdAt],
-        updatedAt = this[TransactionsTable.updatedAt]
+        updatedAt = this[TransactionsTable.updatedAt],
+        ownShare = this[TransactionsTable.ownShare]
     )
 }

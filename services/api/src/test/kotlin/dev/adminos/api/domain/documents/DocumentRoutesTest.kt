@@ -27,8 +27,8 @@ import kotlin.test.assertTrue
 /** /api/v1/documents (AOS-507): upload, list, get, download, edit, delete, and every error. */
 class DocumentRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val owner = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-507")
-    private val stranger = User(id = UUID.randomUUID(), email = "x@example.in", googleId = "g-x")
+    private val owner = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-507")
+    private val stranger = User(id = UUID.randomUUID(), email = "x@example.com", googleId = "g-x")
     private val sealer = AesGcmDocumentSealer(TokenEncryptor(Base64.getEncoder().encodeToString(ByteArray(32).also(SecureRandom()::nextBytes))))
     private val repo = InMemoryDocumentRepository()
     private val working = DocumentService(repo, InMemoryDocumentStorage(), sealer)

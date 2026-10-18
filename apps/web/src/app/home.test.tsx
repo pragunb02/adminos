@@ -109,6 +109,33 @@ describe("console Home", () => {
     expect(screen.queryByRole("region", { name: "This week" })).not.toBeInTheDocument();
   });
 
+  it("the month-end forecast (AOS-714) shows for the month in progress only", async () => {
+    routes();
+    server.use(http.get("/api/v1/forecast", () => ok(fx.forecast())));
+    const { unmount } = renderWithQuery(<Home />);
+    const card = await screen.findByRole("region", { name: "Month-end forecast" });
+    expect(await within(card).findByText("About ₹61,540.50")).toBeInTheDocument();
+    unmount();
+    nav.search = new URLSearchParams("p=month&d=2026-09-01");
+    renderWithQuery(<Home />);
+    expect(await screen.findByRole("heading", { name: "September 2026" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Month-end forecast" })).not.toBeInTheDocument();
+  });
+
+  it("the forecast isn't shown in a week view or before there's any money in", async () => {
+    nav.search = new URLSearchParams("p=week");
+    routes();
+    const { unmount } = renderWithQuery(<Home />);
+    await screen.findByRole("region", { name: "This week" });
+    expect(screen.queryByRole("region", { name: "Month-end forecast" })).not.toBeInTheDocument();
+    unmount();
+    nav.search = new URLSearchParams();
+    routes({ summary: () => ok(fx.summary("0.00", "0.00", { spendCount: 0 })), latest: () => ok([]), reviews: () => ok([]) });
+    renderWithQuery(<Home />);
+    await screen.findByRole("region", { name: "No transactions yet" });
+    expect(screen.queryByRole("region", { name: "Month-end forecast" })).not.toBeInTheDocument();
+  });
+
   it("running total (AOS-304): this month vs last month, today marked, one sentence, and a table", async () => {
     routes();
     const { user } = renderWithQuery(<Home />);
