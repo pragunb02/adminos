@@ -21,7 +21,7 @@ class IdentityGoogleOAuthClientCoverageTest {
         assertEquals("1//0g-test-refresh", tokens.refreshToken)
         assertEquals(3599, tokens.expiresIn)
         assertEquals("109876543210987654321", user.sub)
-        assertEquals("pragun.b@gmail.com", user.email)
+        assertEquals("owner@example.com", user.email)
         assertEquals(true, user.emailVerified)
     }
 
@@ -46,11 +46,11 @@ class IdentityGoogleOAuthClientCoverageTest {
 
     @Test
     fun `unknown fields in google's responses are ignored`() = runBlocking<Unit> {
-        google.userInfoBody = """{"sub":"1","email":"a@gmail.com","locale":"en-IN","hd":"example.com"}"""
+        google.userInfoBody = """{"sub":"1","email":"a@example.com","locale":"en-IN","hd":"example.com"}"""
 
         val user = client.exchangeCode("4/0AbCdEf", "http://localhost:3000/auth/callback")
 
-        assertEquals("a@gmail.com", user.email)
+        assertEquals("a@example.com", user.email)
         assertNull(user.name)
         assertNull(user.emailVerified)
     }

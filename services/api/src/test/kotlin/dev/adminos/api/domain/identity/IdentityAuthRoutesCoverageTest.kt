@@ -32,7 +32,7 @@ import kotlin.test.*
 
 /** AOS-312: /auth routes end to end: Google login, refresh errors, logout audit, session management. */
 /** The fake Google user's email (FakeGoogleServer), configured as the owner (AOS-614). */
-private const val OWNER = "pragun.b@gmail.com"
+private const val OWNER = "owner@example.com"
 
 class IdentityAuthRoutesCoverageTest {
 
@@ -119,7 +119,7 @@ class IdentityAuthRoutesCoverageTest {
 
         assertEquals(HttpStatusCode.OK, res.status)
         val body = res.bodyAsText()
-        assertTrue("pragun.b@gmail.com" in body)
+        assertTrue("owner@example.com" in body)
         assertFalse("ya29" in body || "refreshToken" in body || "accessToken" in body, "tokens must never be in the body")
         assertNotNull(res.setCookie(ACCESS_TOKEN_COOKIE))
         assertNotNull(res.setCookie(REFRESH_TOKEN_COOKIE))

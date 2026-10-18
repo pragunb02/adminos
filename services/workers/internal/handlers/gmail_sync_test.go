@@ -164,7 +164,7 @@ func TestPersonalMailIsNeverFetchedInFull(t *testing.T) {
 	f := newSyncFixture(t, "1000")
 	f.google.historyPages["1000|"] = historyPage("1003", "bank", "friend", "spam")
 	f.google.addMessage("bank", hdfc, "Transaction alert", alertDate, textPart("Rs 500 has been debited from your A/c XX1234"))
-	f.google.addMessage("friend", "Ravi <ravi@gmail.com>", "Dinner on Friday?", alertDate, textPart("Rs 500 paid for dinner, you owe me"))
+	f.google.addMessage("friend", "Ravi <ravi@example.com>", "Dinner on Friday?", alertDate, textPart("Rs 500 paid for dinner, you owe me"))
 	spam := f.google.messages
 	f.google.addMessage("spam", "Fake <alerts@hdfcbank.net>", "Transaction alert", alertDate, textPart("Rs 9 debited"))
 	m := spam["spam"]
@@ -223,7 +223,7 @@ func TestIncrementalSyncNeverFetchesSpoofedBankMail(t *testing.T) {
 func TestASubjectAloneNeverAdmitsAMessage(t *testing.T) {
 	f := newSyncFixture(t, "1000")
 	f.google.historyPages["1000|"] = historyPage("1001", "stranger")
-	f.google.addMessage("stranger", "Ravi <ravi@gmail.com>", "Transaction alert: Rs 500 has been debited", alertDate,
+	f.google.addMessage("stranger", "Ravi <ravi@example.com>", "Transaction alert: Rs 500 has been debited", alertDate,
 		textPart("Rs 500 has been debited from your A/c XX1234"))
 
 	r := f.mustRun(t)

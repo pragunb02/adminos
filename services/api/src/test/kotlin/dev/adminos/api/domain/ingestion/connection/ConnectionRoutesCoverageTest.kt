@@ -37,7 +37,7 @@ class ConnectionRoutesCoverageTest {
     private val encryptor = TokenEncryptor(java.util.Base64.getEncoder().encodeToString(ByteArray(32) { it.toByte() }))
     private val service = ConnectionService(connections, syncSessions, encryptor)
     private val audit = InMemoryAuditRepository()
-    private val me = User(id = UUID.randomUUID(), email = "pragun.b@gmail.com", googleId = "g-me")
+    private val me = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-me")
     private val token = jwt.generateAccessToken(me)
     private val redirect = "http://localhost:3000/settings/connections"
 
@@ -133,8 +133,8 @@ class ConnectionRoutesCoverageTest {
         val res = connectGmail()
 
         assertEquals(HttpStatusCode.Created, res.status)
-        assertEquals("pragun.b@gmail.com", res.json()["data"]!!.jsonObject["gmailAddress"]!!.jsonPrimitive.content)
-        val stored = assertNotNull(service.findByGmailAddress("pragun.b@gmail.com"))
+        assertEquals("owner@example.com", res.json()["data"]!!.jsonObject["gmailAddress"]!!.jsonPrimitive.content)
+        val stored = assertNotNull(service.findByGmailAddress("owner@example.com"))
         assertEquals("ya29.a0-test-access", encryptor.decrypt(stored.accessToken!!, "user_connections:${stored.id}:access_token"))
         assertEquals("1//0g-test-refresh", encryptor.decrypt(stored.refreshToken!!, "user_connections:${stored.id}:refresh_token"))
         assertEquals(redirect, google.lastTokenForm()["redirect_uri"])
@@ -144,7 +144,7 @@ class ConnectionRoutesCoverageTest {
     fun `connecting gmail stores when the access token expires and what was granted`() = routesTest {
         connectGmail()
 
-        val stored = assertNotNull(service.findByGmailAddress("pragun.b@gmail.com"))
+        val stored = assertNotNull(service.findByGmailAddress("owner@example.com"))
         val expires = assertNotNull(stored.tokenExpiresAt)
         assertTrue(expires.isAfter(java.time.Instant.now().plusSeconds(3000)) && expires.isBefore(java.time.Instant.now().plusSeconds(3600)))
         assertTrue(GMAIL_READONLY_SCOPE in stored.oauthScope.orEmpty())
@@ -158,7 +158,7 @@ class ConnectionRoutesCoverageTest {
 
         assertEquals(HttpStatusCode.BadRequest, res.status)
         assertEquals("CONN_007", res.errorCode())
-        assertNull(service.findByGmailAddress("pragun.b@gmail.com"))
+        assertNull(service.findByGmailAddress("owner@example.com"))
     }
 
     @Test
@@ -244,7 +244,7 @@ class ConnectionRoutesCoverageTest {
         val res = connectGmail(state = "no-consent-was-started")
 
         assertEquals(HttpStatusCode.BadRequest, res.status)
-        assertNull(service.findByGmailAddress("user@gmail.com"))
+        assertNull(service.findByGmailAddress("user@example.com"))
     }
 
     @Test
@@ -358,7 +358,7 @@ class ConnectionRoutesCoverageTest {
 
         assertEquals("CONN_010", res.errorCode())
         assertTrue(google.tokenRequests.isEmpty())
-        assertNull(service.findByGmailAddress("pragun.b@gmail.com"))
+        assertNull(service.findByGmailAddress("owner@example.com"))
     }
 
     @Test

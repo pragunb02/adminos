@@ -28,7 +28,7 @@ class PasskeyServiceTest {
     private val service = PasskeyService(keys, codes, sessions, users, webAuthn, SignInAlerts({ _, a -> sent += a }), clock)
     private val authenticator = SoftAuthenticator("http://localhost:3000", "localhost")
 
-    private val owner = runBlocking { users.save(User(email = "pragun.b@gmail.com", googleId = "g-owner", name = "Pragun")) }
+    private val owner = runBlocking { users.save(User(email = "owner@example.com", googleId = "g-owner", name = "Owner")) }
     private val handle = ByteBuffer.allocate(16).putLong(owner.id.mostSignificantBits).putLong(owner.id.leastSignificantBits).array()
 
     private fun pendingSession(): UUID = runBlocking {

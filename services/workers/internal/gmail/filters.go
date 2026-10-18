@@ -43,6 +43,8 @@ var (
 		"aexp.com",
 		// UPI apps and wallets
 		"paytm.com", "phonepe.com", "amazonpay.in", "mobikwik.com", "cred.club",
+		// Pay-later providers (AOS-909)
+		"lazypay.in", "getsimpl.com",
 		// Billers: telecom, broadband, electricity
 		"airtel.com", "airtel.in", "jio.com", "myvi.in", "actcorp.in",
 		"tatapower.com", "adanielectricity.com", "bescom.co.in",
@@ -63,33 +65,54 @@ var (
 		"blinkit.com", "grofers.com", "amazon.in", "flipkart.com",
 	}
 	ReceiptSubjects = []string{"order", "delivered", "receipt", "invoice", "refund", "cancelled", "canceled", "bill"}
+	// BookingDomains send travel bookings (AOS-910): airlines, IRCTC, redBus. Read only for booking-like
+	// subjects (BookingSubjects). Each has a parser in internal/bookings; a test keeps the lists equal.
+	BookingDomains  = []string{"goindigo.in", "airindia.com", "airindia.in", "akasaair.com", "irctc.co.in", "redbus.in"}
+	BookingSubjects = []string{"booking", "booked", "ticket", "itinerary", "pnr", "confirmed", "confirmation", "cancelled", "cancellation"}
 )
+
+var bookingSubject = func() *regexp.Regexp {
+	return regexp.MustCompile(`(?i)\b(?:` + strings.Join(BookingSubjects, "|") + `)\b`)
+}()
 
 var receiptSubject = func() *regexp.Regexp {
 	return regexp.MustCompile(`(?i)\b(?:` + strings.Join(ReceiptSubjects, "|") + `)\b`)
 }()
 
 // SearchQuery is the Gmail search for mail from the financial senders in the last `days` days:
-// newer_than:Nd (from:(…) OR (from:(receipt senders) subject:(order words))). The search is only a pre-filter: every result is qualified again locally
-// (Qualify), because a search on From also matches display names and unauthenticated mail.
+// newer_than:Nd (from:(…) OR (from:(receipt senders) subject:(order words)) OR
+// (from:(booking senders) subject:(booking words))). The search is only a pre-filter: every result
+// is qualified again locally (Qualify), because a search on From also matches display names and unauthenticated mail.
 func SearchQuery(days int) string {
 	senders := make([]string, 0, len(FinancialDomains)+len(FinancialSuffixDomains)+len(FinancialAddresses))
 	senders = append(senders, FinancialDomains...)
 	senders = append(senders, FinancialSuffixDomains...)
 	senders = append(senders, FinancialAddresses...)
-	return fmt.Sprintf("newer_than:%dd (from:(%s) OR (from:(%s) subject:(%s)))", days,
-		strings.Join(senders, " OR "), strings.Join(ReceiptDomains, " OR "), strings.Join(ReceiptSubjects, " OR "))
+	return fmt.Sprintf("newer_than:%dd (from:(%s) OR (from:(%s) subject:(%s)) OR (from:(%s) subject:(%s)))", days,
+		strings.Join(senders, " OR "), strings.Join(ReceiptDomains, " OR "), strings.Join(ReceiptSubjects, " OR "),
+		strings.Join(BookingDomains, " OR "), strings.Join(BookingSubjects, " OR "))
 }
 
 // receiptOrganisation is the listed receipt sender (AOS-903) that an address belongs to when the
 // subject reads like an order, or "". Alignment (authn.go) is checked against it, as for banks.
 func receiptOrganisation(addr, subject string) string {
+	return subjectGatedOrganisation(addr, subject, ReceiptDomains, receiptSubject)
+}
+
+// bookingOrganisation is the listed travel-booking sender (AOS-910) that an address belongs to when
+// the subject reads like a booking, or "". Alignment (authn.go) is checked against it, as for banks.
+func bookingOrganisation(addr, subject string) string {
+	return subjectGatedOrganisation(addr, subject, BookingDomains, bookingSubject)
+}
+
+// subjectGatedOrganisation is the domain in domains that addr belongs to when subject matches, or "".
+func subjectGatedOrganisation(addr, subject string, domains []string, subjects *regexp.Regexp) string {
 	at := strings.LastIndexByte(addr, '@')
-	if at <= 0 || at == len(addr)-1 || !receiptSubject.MatchString(subject) {
+	if at <= 0 || at == len(addr)-1 || !subjects.MatchString(subject) {
 		return ""
 	}
 	domain := addr[at+1:]
-	for _, d := range ReceiptDomains {
+	for _, d := range domains {
 		if domain == d || strings.HasSuffix(domain, "."+d) {
 			return d
 		}

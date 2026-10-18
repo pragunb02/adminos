@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 
 class SmsIntakeTest {
     private val repo = InMemoryIngestEventRepository()
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(repo), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()))
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(repo), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()))
     private val userId = UUID.randomUUID()
     private val text = "Sent Rs.249.00 From HDFC Bank A/C *1234 To SWIGGY On 16/10/26 Ref 123456789012"
 

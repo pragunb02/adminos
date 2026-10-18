@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger
 internal fun identityTestAuthConfig(
     jwtSecret: String = "test-secret-that-is-at-least-32-bytes-long!",
     issuer: String = "adminos-test",
-    ownerEmail: String = "pragun.b@gmail.com" // the fake Google user's email (FakeGoogleServer)
+    ownerEmail: String = "owner@example.com" // the fake Google user's email (FakeGoogleServer)
 ) = AuthConfig(
     jwtSecret = jwtSecret,
     jwtIssuer = issuer,
@@ -83,8 +83,8 @@ internal class FakeGoogleServer : AutoCloseable {
     companion object {
         fun userInfo(
             sub: String = "109876543210987654321",
-            email: String = "pragun.b@gmail.com",
-            name: String? = "Pragun Bhutani",
+            email: String = "owner@example.com",
+            name: String? = "Test Owner",
             picture: String? = "https://lh3.googleusercontent.com/a/photo",
             emailVerified: Boolean? = true
         ): String = buildString {

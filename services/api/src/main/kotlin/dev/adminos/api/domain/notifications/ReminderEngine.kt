@@ -28,7 +28,7 @@ class ReminderEngine(
     suspend fun runReminders(): ReminderRunSummary {
         val overdue = markOverdueBills()
         // A day's slack either side of the server's date; each bill is then judged on its user's date.
-        val upcomingBills = billRepository.findUpcoming(MAX_REMINDER_DAYS + 1)
+        val upcomingBills = billRepository.findUpcoming(calendar.serverToday(), MAX_REMINDER_DAYS + 1)
         var sent = 0
         val counts = forEachIsolated(upcomingBills, logger, { "reminder for bill ${it.id}" }) { bill ->
             sent += processReminder(bill, calendar.today(bill.userId))
@@ -80,7 +80,8 @@ class ReminderEngine(
      * server-date query widened by a day; bills not yet overdue in the user's zone are left alone.
      */
     internal suspend fun markOverdueBills(): BatchCounts {
-        val candidates = (billRepository.findOverdue() + billRepository.findUpcoming(1)).distinctBy { it.id }
+        val serverToday = calendar.serverToday()
+        val candidates = (billRepository.findOverdue(serverToday) + billRepository.findUpcoming(serverToday, 1)).distinctBy { it.id }
         var marked = 0
         val counts = forEachIsolated(candidates, logger, { "overdue bill ${it.id}" }) { bill ->
             if (!bill.dueDate.isBefore(calendar.today(bill.userId))) return@forEachIsolated

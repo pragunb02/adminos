@@ -55,6 +55,16 @@ test.describe("Where it leaks", () => {
     await expect(page.getByRole("region", { name: "Quick commerce" })).toBeVisible();
   });
 
+  test("the Pay later card describes its payment-method rule (AOS-913)", async ({ signedIn: page, api }) => {
+    await page.goto("/leaks?from=2026-10-12&to=2026-10-18");
+    const payLater = page.getByRole("region", { name: "Pay later" });
+    await payLater.getByText("Edit Pay later").click();
+    await expect(payLater.getByText(/Counts purchases paid with pay later\./)).toBeVisible();
+    await expect(payLater.getByText(/only the merchants you add/)).toHaveCount(0);
+    await expect.poll(() => api.calls.some((c) => c.path === "/api/v1/coach/lenses")).toBe(true);
+    await expectAccessible(page);
+  });
+
   test("Home links to the page, and so does More", async ({ signedIn: page }) => {
     await page.goto("/");
     await page.getByRole("region", { name: "Where it leaks" }).getByRole("link", { name: "All ›" }).click();
@@ -88,6 +98,20 @@ test.describe("Where it leaks: attacks (D-100)", () => {
     await page.goto("/leaks?from=2026-10-12&to=2026-10-18");
     await expect(page.getByRole("link", { name: hostile, exact: true })).toBeVisible();
     expect(await page.evaluate(() => (window as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
+    expect(await page.locator("img[src='x']").count()).toBe(0);
+  });
+
+  test("a payment method name from the lens list renders as text, not HTML (AOS-913)", async ({ signedIn: page, api }) => {
+    // Labels are humanised (underscores become spaces), so this hostile name has none.
+    const hostile = `<img src=x onerror="window.pwnedLens=1">`;
+    const lenses = cx.lenses();
+    lenses.lenses = lenses.lenses.map((l) => (l.id === "pay_later" ? { ...l, paymentMethods: [hostile] } : l));
+    api.on("GET /api/v1/coach/lenses", () => ({ data: lenses }));
+    await page.goto("/leaks?from=2026-10-12&to=2026-10-18");
+    const payLater = page.getByRole("region", { name: "Pay later" });
+    await payLater.getByText("Edit Pay later").click();
+    await expect(payLater.getByText(`Counts purchases paid with ${hostile}.`, { exact: false })).toBeVisible();
+    expect(await page.evaluate(() => (window as unknown as { pwnedLens?: number }).pwnedLens)).toBeUndefined();
     expect(await page.locator("img[src='x']").count()).toBe(0);
   });
 

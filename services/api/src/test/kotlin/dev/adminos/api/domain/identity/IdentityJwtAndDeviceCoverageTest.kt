@@ -119,9 +119,9 @@ class IdentityJwtAndDeviceCoverageTest {
 
     @Test
     fun `issuing trims the name and expires after the ttl`() = runBlocking<Unit> {
-        val issued = devices.issue(userId, "  Pragun's MacBook  ", setOf(Scopes.INGEST_SMS))
+        val issued = devices.issue(userId, "  Owner's MacBook  ", setOf(Scopes.INGEST_SMS))
 
-        assertEquals("Pragun's MacBook", issued.record.name)
+        assertEquals("Owner's MacBook", issued.record.name)
         assertEquals(now.plus(Duration.ofDays(365)), issued.record.expiresAt)
     }
 
@@ -219,10 +219,10 @@ class IdentityJwtAndDeviceCoverageTest {
         val repo = InMemoryUserRepository()
         val u = repo.save(User(email = "me@example.com", googleId = "g-1"))
 
-        val updated = repo.update(u.copy(name = "Pragun"))
+        val updated = repo.update(u.copy(name = "Owner"))
 
-        assertEquals("Pragun", updated.name)
-        assertEquals("Pragun", repo.findById(u.id)?.name)
+        assertEquals("Owner", updated.name)
+        assertEquals("Owner", repo.findById(u.id)?.name)
         assertNull(repo.findByGoogleId("g-unknown"))
     }
 }
