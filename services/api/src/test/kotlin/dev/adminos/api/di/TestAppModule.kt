@@ -62,7 +62,9 @@ val testAppModule = module {
     single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
     single { SubscriptionDetectorService(get(), get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
-    single { AnomalyDetectorService(get(), get(), get()) }
+    single<AnomalyToleranceRepository> { InMemoryAnomalyToleranceRepository() }
+    single { AnomalyDetectorService(get(), get(), get(), get()) }
+    single { AnomalyReviewService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.notifications.delivery.NotificationDispatcher(listOf(dev.adminos.api.domain.notifications.delivery.InAppChannel()), get(), get()) }
     single { NotificationService(get(), get(), get()) }
     single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }

@@ -17,6 +17,7 @@ rand() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }
 b64() { head -c "$1" /dev/urandom | base64 | tr -d '\n'; }
 cat > "$work/env" <<EOF
 DB_PASSWORD=$(rand 24)
+REDIS_PASSWORD=$(rand 32)
 JWT_SECRET=$(b64 48)
 TOKEN_ENCRYPTION_KEY=$(b64 32)
 OWNER_EMAIL=owner@example.com

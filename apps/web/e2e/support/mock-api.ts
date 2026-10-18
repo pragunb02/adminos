@@ -41,6 +41,7 @@ export class MockApi {
       .on("GET /api/v1/auth/sessions", () => ({ data: [fx.session()] }))
       .on("GET /api/v1/device-tokens", () => ({ data: [] }))
       .on("POST /api/v1/transactions/cash", () => ({ status: 202, data: { saved: true, duplicate: false } }))
+      .on("POST /api/v1/transactions/cash/parse", () => ({ data: fx.cashParse() }))
       .on("POST /api/v1/auth/refresh", () => ({ data: {} }))
       // Sign-in starts at the API (AOS-618): Google's URL with the API's state and PKCE challenge.
       .on("GET /api/v1/auth/google/start", () => ({

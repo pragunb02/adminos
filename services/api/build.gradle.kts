@@ -160,6 +160,37 @@ tasks.register<JavaExec>("aiBakeOff") {
     }
 }
 
+// Anomaly alert evaluation (AOS-713): ./gradlew -q anomalyReport replays the synthetic spending streams
+// (src/test/resources/anomalies/streams.csv) through the detector and prints old vs new precision, recall and
+// false alerts per month. -PwriteBaseline records the numbers as the floor (anomalies/baseline.json);
+// -PregenerateStreams rewrites the streams from the seeded generator (then re-score and re-baseline).
+tasks.register<JavaExec>("anomalyReport") {
+    group = "verification"
+    description = "Evaluate unusual-charge alerts on the synthetic streams"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.agent.evaluation.AnomalyReportKt")
+    args(layout.buildDirectory.file("reports/anomalies/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/anomalies/baseline.json").path)
+    }
+    if (project.hasProperty("regenerateStreams")) {
+        args("--regenerate", file("src/test/resources/anomalies/streams.csv").path)
+    }
+}
+
+// Cash phrases (AOS-718): ./gradlew -q cashPhraseReport scores the free-text cash parser on the synthetic phrase set
+// (src/test/resources/cash/phrases.tsv) and lists the misses; -PwriteBaseline records the floor CashPhraseRegressionTest holds.
+tasks.register<JavaExec>("cashPhraseReport") {
+    group = "verification"
+    description = "Evaluate the cash phrase parser on the phrase set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.ingestion.cash.evaluation.CashPhraseEvaluationKt")
+    args(layout.buildDirectory.file("reports/cash/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/cash").path)
+    }
+}
+
 // Prints a new Web Push (VAPID) key pair for .env (AOS-510): ./gradlew -q vapidKeys
 tasks.register<JavaExec>("vapidKeys") {
     group = "application"
