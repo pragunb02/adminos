@@ -134,7 +134,7 @@ Each row: the threat, the control in place (✅), the gap and its ticket (⚠). 
 ### TB6 — Workers ↔ Gmail (untrusted mail)
 | STRIDE | Threat | Controls / gaps |
 |---|---|---|
-| S/T | T4 sends a fake bank alert to inject transactions or alert text | ⚠ Sender isn't authenticated and a subject phrase alone can qualify a message (AUD-11 → AOS-624). |
+| S/T | T4 sends a fake bank alert to inject transactions or alert text | ✅ Admitted by listed sender only, and only with Gmail's topmost `Authentication-Results` (`mx.google.com`) showing DMARC pass or an aligned DKIM pass; subjects never admit; every fetched message is re-qualified (AOS-624). |
 | D | Huge or nested messages | ✅ Bodies cut at 64 KB; responses read through `LimitReader`; RE2 regexes (linear time). |
 | I | Raw mail stored or logged | ✅ Never stored or logged (D-33). |
 
