@@ -22,4 +22,6 @@ export const server = setupServer(
   http.get("/api/v1/coach/limits", () => ok(cx.limits())),
   http.get("/api/v1/coach/settings", () => ok({ limitAlerts: true })),
   http.get("/api/v1/coach/lenses", () => ok(cx.lenses())),
+  // Review's investments block (AOS-820): every holding adds up unless a test says otherwise.
+  http.get("/api/v1/wealth/reconciliation", () => ok({ holdings: [], blocked: 0 })),
 );

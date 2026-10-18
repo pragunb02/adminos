@@ -1,6 +1,7 @@
 import type { Page, Request, Route } from "@playwright/test";
 import { fx } from "../../test/fixtures";
 import { cx } from "../../test/coachFixtures";
+import { wx } from "../../test/wealthFixtures";
 
 type Reply = { status?: number; data?: unknown; error?: { code: string; message: string }; pagination?: unknown; delayMs?: number };
 type Handler = (req: Request, url: URL) => Reply | Promise<Reply>;
@@ -65,6 +66,13 @@ export class MockApi {
       .on("DELETE /api/v1/coach/limits/:id", () => ({ data: { deleted: true } }))
       .on("GET /api/v1/coach/settings", () => ({ data: { limitAlerts: true } }))
       .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false } }))
+      // Wealth (AOS-820): one holding, nothing blocked, one import.
+      .on("GET /api/v1/wealth/holdings", () => ({ data: wx.overview() }))
+      .on("GET /api/v1/wealth/reconciliation", () => ({ data: { holdings: [], blocked: 0 } }))
+      .on("GET /api/v1/wealth/investment-flows", () => ({ data: wx.flows() }))
+      .on("GET /api/v1/wealth/imports", () => ({ data: { imports: [wx.batch()] } }))
+      .on("POST /api/v1/wealth/imports/cas", () => ({ status: 201, data: wx.importResult() }))
+      .on("POST /api/v1/wealth/imports/:id/undo", () => ({ data: { undone: true } }))
       .on("GET /api/v1/documents", (_r, u) => {
         const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];
         const c = u.searchParams.get("category"); const q = u.searchParams.get("q")?.toLowerCase();

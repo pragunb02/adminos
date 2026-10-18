@@ -3,7 +3,7 @@ import { formatInr } from "@/lib/money";
 import { categoryLabel } from "@/lib/analytics";
 import type { Transaction } from "@/lib/types";
 
-const NATURE: Record<string, string> = { refund: "Refund", reversal: "Reversal", transfer: "Transfer", income: "Income" };
+const NATURE: Record<string, string> = { refund: "Refund", reversal: "Reversal", transfer: "Transfer", income: "Income", investment: "Investment" };
 
 /** One transaction: merchant, category · method · ··last4, signed amount and a word for its kind (D-49). */
 export default function FeedRow({ txn, zone }: { txn: Transaction; zone: string }) {
