@@ -27,6 +27,8 @@ export interface LeaksData {
 export interface LensDefinition {
   id: string; label: string; description: string;
   brands: string[]; categories: string[]; subcategories: string[]; keywords: string[];
+  /** How it was paid, e.g. `pay_later` (AOS-912). Absent from an API that predates the rule. */
+  paymentMethods?: string[];
   added: string[]; removed: string[];
 }
 export interface LensesData { version: string; lateNight: { from: string; to: string }; lenses: LensDefinition[] }
@@ -112,9 +114,18 @@ export function changeText(changePct: string | null): string | null {
   return n > 0 ? `▲ ${n}% more than before` : `▼ ${-n}% less than before`;
 }
 
-/** "7 apps and shops; anything categorised food delivery; names with bar, pub, club…" */
-export function ruleSummary(d: Pick<LensDefinition, "brands" | "categories" | "subcategories" | "keywords">): string {
+/** The API's payment methods (lower case) in words; an unknown one is shown with spaces for underscores. */
+const PAYMENT_METHOD_WORDS = new Map<string, string>([
+  ["upi", "UPI"], ["card_debit", "debit card"], ["card_credit", "credit card"], ["netbanking", "netbanking"],
+  ["cash", "cash"], ["wallet", "wallet"], ["pay_later", "pay later"],
+]);
+const methodWords = (m: string) => PAYMENT_METHOD_WORDS.get(m) ?? m.split("_").filter(Boolean).join(" ");
+
+/** "purchases paid with pay later; 7 apps and shops; anything categorised food delivery; names with bar, pub, club…" */
+export function ruleSummary(d: Pick<LensDefinition, "brands" | "categories" | "subcategories" | "keywords" | "paymentMethods">): string {
   const parts: string[] = [];
+  const methods = d.paymentMethods ?? [];
+  if (methods.length) parts.push(`purchases paid with ${methods.map(methodWords).join(" or ")}`);
   if (d.brands.length) parts.push(`${d.brands.length} ${d.brands.length === 1 ? "app or shop" : "apps and shops"}`);
   const kinds = [...d.categories, ...d.subcategories].map((c) => c.replaceAll("_", " "));
   if (kinds.length) parts.push(`anything categorised ${kinds.join(", ")}`);

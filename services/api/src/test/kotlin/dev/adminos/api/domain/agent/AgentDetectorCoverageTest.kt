@@ -29,7 +29,8 @@ class AgentDetectorCoverageTest {
     private val anomalies = InMemoryAnomalyRepository()
     private val transactions = InMemoryTransactionRepository()
     private val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
-    private val service = AnomalyDetectorService(anomalies, transactions, users)
+    private val tolerances = InMemoryAnomalyToleranceRepository()
+    private val service = AnomalyDetectorService(anomalies, transactions, dev.adminos.api.domain.identity.UserCalendar(users), tolerances)
 
     /** A fixed daytime instant (12:00 IST): context windows are relative to the transaction, not the clock (AOS-505). */
     private val txnTime: Instant = Instant.parse("2026-03-10T06:30:00Z")
@@ -76,9 +77,9 @@ class AgentDetectorCoverageTest {
     }
 
     @Test
-    fun `over 3x the average of the 30 days before it, from 2,000 rupees, is a large amount`() = runBlocking<Unit> {
+    fun `with little history, over 3x the average of the 30 days before it, from 2,000 rupees, is a large amount`() = runBlocking<Unit> {
         listOf(400, 600, 500).forEachIndexed { i, a -> spend("$a.00", merchant = "Zomato", at = txnTime.minus(i + 1L, ChronoUnit.DAYS)) }
-        spend("90000.00", merchant = "Old", at = txnTime.minus(31, ChronoUnit.DAYS)) // outside the window
+        spend("90000.00", merchant = "Old", at = txnTime.minus(31, ChronoUnit.DAYS)) // outside the 30-day fallback window
         spend("90000.00", merchant = "Later", at = txnTime.plus(1, ChronoUnit.DAYS)) // after it: not history
         spend("90000.00", merchant = "Trip", category = TransactionCategory.SHOPPING, at = txnTime.minus(1, ChronoUnit.DAYS)) // other category
         val big = spend("2400.00", merchant = "Barbeque Nation")
@@ -87,7 +88,28 @@ class AgentDetectorCoverageTest {
         assertEquals(AnomalyType.LARGE_AMOUNT, result.type)
         assertEquals(0.7, result.confidenceScore)
         assertEquals(big.id, result.transactionId)
-        assertEquals("Amount ₹2400.00 exceeds 3x category average of ₹500.00", result.reason)
+        assertEquals("₹2,400 is more than usual for Food: usually ₹450–₹550 (3 spends in 30 days)", result.reason)
+        assertEquals(setOf("large_amount"), result.rulesFired)
+        assertEquals("barbeque nation", result.merchantKey)
+    }
+
+    @Test
+    fun `a merchant with its own history is judged by it, and the usual range is in the reason`() = runBlocking<Unit> {
+        listOf(350, 420, 500, 610, 700, 480).forEachIndexed { i, a -> spend("$a.00", merchant = "Swiggy", at = txnTime.minus(i * 9L + 1, ChronoUnit.DAYS)) }
+        val result = assertNotNull(service.evaluate(spend("4800.00", merchant = "Swiggy")))
+        assertEquals("₹4,800 is more than usual at Swiggy: usually ₹435–₹582.50 (6 payments in 180 days)", result.reason)
+    }
+
+    @Test
+    fun `a dismissed merchant's tolerance relaxes the amount rule, within its cap`() = runBlocking<Unit> {
+        listOf(2000, 2050, 1950, 2020, 1980).forEachIndexed { i, a -> spend("$a.00", merchant = "Big Bazaar", at = txnTime.minus(i * 7L + 1, ChronoUnit.DAYS)) }
+        // Median ₹2,000, spread floored at 10% (₹200): ₹3,000 is z = 5, over 3.5 at the default tolerance.
+        assertNotNull(service.evaluate(spend("3000.00", merchant = "Big Bazaar")))
+        repeat(5) { tolerances.record(userId, "big bazaar", TolerableRule.LARGE_AMOUNT, AlertFeedback.DISMISSED, txnTime) }
+        // Capped at 3 steps (threshold 6.5): ₹3,010 (z ≈ 5 with ₹3,000 now in the history) is relaxed away…
+        assertNull(service.evaluate(spend("3010.00", merchant = "Big Bazaar", at = txnTime.plusSeconds(60))))
+        // …but a fraud far above normal still alerts.
+        assertNotNull(service.evaluate(spend("26000.00", merchant = "Big Bazaar", at = txnTime.plusSeconds(120))))
     }
 
     @Test
@@ -155,7 +177,7 @@ class AgentDetectorCoverageTest {
         assertEquals(1L, anomalies.countByUserId(userId))
         val racing = AnomalyDetectorService(object : AnomalyRepository by anomalies {
             override suspend fun findByTransactionId(transactionId: UUID): Anomaly? = null // looked before the other instance saved
-        }, transactions, users)
+        }, transactions, dev.adminos.api.domain.identity.UserCalendar(users), tolerances)
         assertNull(racing.evaluate(t))
         assertEquals(1L, anomalies.countByUserId(userId))
     }
@@ -195,23 +217,6 @@ class AgentDetectorCoverageTest {
     }
 
     // ── Rule edge cases ──
-
-    @Test
-    fun `large amount rule ignores a zero category average`() {
-        val rule = LargeAmountRule(mapOf("food" to BigDecimal.ZERO))
-        assertNull(rule.evaluate(txnData(amount = "5000.00")))
-    }
-
-    @Test
-    fun `large amount rule does not fire at exactly 3x the average`() {
-        val rule = LargeAmountRule(mapOf("food" to BigDecimal("500")))
-        assertNull(rule.evaluate(txnData(amount = "1500.00")))
-    }
-
-    @Test
-    fun `large amount rule with default averages never fires`() {
-        assertNull(LargeAmountRule().evaluate(txnData(amount = "999999.00")))
-    }
 
     @Test
     fun `odd hours rule fires from 01-00 through 04-59 local time only`() {
@@ -268,10 +273,13 @@ class AgentDetectorCoverageTest {
     }
 
     @Test
-    fun `large amount rule respects its minimum`() {
-        val rule = LargeAmountRule(mapOf("food" to BigDecimal("100")), minimumAmount = BigDecimal(2000))
-        assertNull(rule.evaluate(txnData(amount = "1999.99")))
-        assertNotNull(rule.evaluate(txnData(amount = "2000.00")))
+    fun `a duplicate under 100 rupees is recorded below the alert bar, from 100 it alerts`() {
+        val chai = DuplicateChargeRule(listOf(txnData(amount = "20.00", merchant = "Campus Chai", at = txnTime.minus(3, ChronoUnit.HOURS))))
+        assertEquals(DuplicateChargeRule.SMALL_CONFIDENCE, assertNotNull(chai.evaluate(txnData(amount = "20.00", merchant = "Campus Chai"))).confidence)
+        val meal = DuplicateChargeRule(listOf(txnData(amount = "100.00", at = txnTime.minus(3, ChronoUnit.HOURS))))
+        assertEquals(0.75, assertNotNull(meal.evaluate(txnData(amount = "100.00"))).confidence)
+        val asBefore = DuplicateChargeRule(listOf(txnData(amount = "20.00", at = txnTime.minus(3, ChronoUnit.HOURS))), smallAmount = BigDecimal.ZERO)
+        assertEquals(0.75, assertNotNull(asBefore.evaluate(txnData(amount = "20.00"))).confidence)
     }
 
     @Test

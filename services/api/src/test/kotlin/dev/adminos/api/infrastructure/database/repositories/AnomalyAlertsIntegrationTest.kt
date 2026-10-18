@@ -39,7 +39,7 @@ class AnomalyAlertsIntegrationTest {
     private val notifications = ExposedNotificationRepository()
     private val users = ExposedUserRepository()
     private val alerts = AnomalyAlerts(
-        AnomalyDetectorService(anomalies, txns, users),
+        AnomalyDetectorService(anomalies, txns, dev.adminos.api.domain.identity.UserCalendar(users), ExposedAnomalyToleranceRepository()),
         NotificationService(ExposedNotificationPreferencesRepository(), notifications, NotificationDispatcher(listOf(InAppChannel()), users, notifications))
     )
     private lateinit var user: UUID

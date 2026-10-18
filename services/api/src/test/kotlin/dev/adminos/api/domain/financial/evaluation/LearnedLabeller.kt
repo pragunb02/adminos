@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial.evaluation
 
+import dev.adminos.api.domain.financial.learning.CategoryInput
 import dev.adminos.api.domain.financial.learning.CategoryModelFitter
 import dev.adminos.api.domain.financial.learning.CategoryModelTrainer
 import dev.adminos.api.domain.financial.learning.CategoryPrior
@@ -43,26 +44,38 @@ class LearnedLabeller(
 
     suspend fun run(cases: List<LabelledCase>): LearnedRun {
         val prior = CategoryPrior.examples(cases, MerchantNormalizer()::normalize)
-        val answers = mutableListOf<LearnedAnswer>()
-        val byId = mutableMapOf<String, Outcome>()
-        for ((fold, held) in cases.groupBy { foldOf(it) }.toSortedMap()) {
-            val training = prior.filter { foldOfKey(it.key) != fold } + extraTraining
-            val fitted = CategoryModelFitter(trainer).fit(training)
-            val loaded = LoadedModel.Ready(fitted.model, ModelMode.APPLY, "${trainer.algorithm}@fold$fold")
-            for (case in held) {
-                val t = pipeline.transactionFor(case)
-                if (!LearnedCategorizer.isRuleLeftOther(t)) {
-                    byId[case.id] = Outcome(case, Prediction(Label(t.category, t.subcategory), t.categorySource))
-                    continue
-                }
-                val decision = LearnedCategorizer.decide(t, loaded, policy, clock)
-                val guess = fitted.model.predict(dev.adminos.api.domain.financial.learning.CategoryInput.of(t))
-                answers += LearnedAnswer(case.id, guess.confidence, guess.category == case.expected.category, decision.outcome)
-                val stored = decision.transaction
-                byId[case.id] = Outcome(case, Prediction(Label(stored.category, stored.subcategory), stored.categorySource))
-            }
+        val labelled = cases.groupBy { foldOf(it) }.toSortedMap().flatMap { (fold, held) ->
+            val fitted = CategoryModelFitter(trainer).fit(prior.filter { foldOfKey(it.key) != fold } + extraTraining)
+            label(held, LoadedModel.Ready(fitted.model, ModelMode.APPLY, "${trainer.algorithm}@fold$fold"))
         }
-        return LearnedRun(cases.map { byId.getValue(it.id) }, answers)
+        return assemble(cases, labelled)
+    }
+
+    /**
+     * Labels [cases] (e.g. a user's local golden set, AOS-708) with one model trained on all of [prior]: fair when
+     * the two sets are different rows, as a local set of real-shaped rows is.
+     */
+    suspend fun runWithPrior(cases: List<LabelledCase>, prior: List<LabelledCase>): LearnedRun {
+        val fitted = CategoryModelFitter(trainer).fit(CategoryPrior.examples(prior, MerchantNormalizer()::normalize) + extraTraining)
+        return assemble(cases, label(cases, LoadedModel.Ready(fitted.model, ModelMode.APPLY, "${trainer.algorithm}@prior")))
+    }
+
+    private suspend fun label(cases: List<LabelledCase>, loaded: LoadedModel.Ready): List<Pair<Outcome, LearnedAnswer?>> = cases.map { case ->
+        val t = pipeline.transactionFor(case)
+        if (!LearnedCategorizer.isRuleLeftOther(t)) {
+            Outcome(case, Prediction(Label(t.category, t.subcategory), t.categorySource)) to null
+        } else {
+            val decision = LearnedCategorizer.decide(t, loaded, policy, clock)
+            val guess = loaded.model.predict(CategoryInput.of(t))
+            val stored = decision.transaction
+            Outcome(case, Prediction(Label(stored.category, stored.subcategory), stored.categorySource)) to
+                LearnedAnswer(case.id, guess.confidence, guess.category == case.expected.category, decision.outcome)
+        }
+    }
+
+    private fun assemble(cases: List<LabelledCase>, labelled: List<Pair<Outcome, LearnedAnswer?>>): LearnedRun {
+        val byId = labelled.associateBy { it.first.case.id }
+        return LearnedRun(cases.map { byId.getValue(it.id).first }, cases.mapNotNull { byId.getValue(it.id).second })
     }
 
     private fun foldOf(case: LabelledCase) = foldOfKey(CategoryPrior.KEY_PREFIX + case.id)

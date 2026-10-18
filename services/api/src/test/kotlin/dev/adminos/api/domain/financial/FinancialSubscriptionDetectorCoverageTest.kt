@@ -16,8 +16,10 @@ class FinancialSubscriptionDetectorCoverageTest {
     private val now = Instant.parse("2026-10-16T06:30:00Z")
     private val transactions = InMemoryTransactionRepository()
     private val subscriptions = InMemorySubscriptionRepository()
+    private val rises = InMemoryPriceRiseRepository()
+    private val aliases = dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository()
     private val detector = SubscriptionDetectorService(transactions, subscriptions,
-        dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)))
+        dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)), rises, aliases)
 
     private fun day(daysAgo: Long): Instant = now.minusSeconds(daysAgo * 86_400)
 
@@ -199,7 +201,7 @@ class FinancialSubscriptionDetectorCoverageTest {
     fun `dates are the user's own`() = runBlocking<Unit> {
         val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
         val owner = users.save(dev.adminos.api.domain.identity.User(email = "p@example.com", googleId = "g", timezone = "Pacific/Kiritimati"))
-        val d = SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC)))
+        val d = SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC)), rises, aliases)
         // 20:00Z is the next day in Kiritimati (UTC+14).
         listOf(Instant.parse("2026-08-10T20:00:00Z"), Instant.parse("2026-09-10T20:00:00Z"), Instant.parse("2026-10-10T20:00:00Z")).forEach {
             transactions.save(Transaction(userId = owner.id, type = TransactionType.DEBIT, amount = BigDecimal("199.00"), merchantName = "Hotstar", transactedAt = it))
@@ -226,7 +228,8 @@ class FinancialSubscriptionDetectorCoverageTest {
         listOf(28L, 21L, 14L, 7L, 0L).forEach { charge("Corner Mart", "450.00", it) }
         assertEquals(1, detector.detectSubscriptions(userId).size, "an unknown merchant at the same price")
         val withLens = SubscriptionDetectorService(transactions, InMemorySubscriptionRepository(), dev.adminos.api.domain.identity.UserCalendar(
-            dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)), everyday = { it.merchantName == "Corner Mart" })
+            dev.adminos.api.domain.identity.InMemoryUserRepository(), Clock.fixed(now, ZoneOffset.UTC)), InMemoryPriceRiseRepository(),
+            dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository(), everyday = { it.merchantName == "Corner Mart" })
         assertTrue(withLens.detectSubscriptions(userId).isEmpty())
     }
 
@@ -411,7 +414,7 @@ class FinancialSubscriptionDetectorCoverageTest {
     private suspend fun detectorFor(zone: String): Pair<SubscriptionDetectorService, UUID> {
         val users = dev.adminos.api.domain.identity.InMemoryUserRepository()
         val owner = users.save(dev.adminos.api.domain.identity.User(email = "owner@example.com", googleId = "g-$zone", timezone = zone))
-        return SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC))) to owner.id
+        return SubscriptionDetectorService(transactions, subscriptions, dev.adminos.api.domain.identity.UserCalendar(users, Clock.fixed(now, ZoneOffset.UTC)), rises, aliases) to owner.id
     }
 
     @Test

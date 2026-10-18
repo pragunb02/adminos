@@ -1,0 +1,30 @@
+[
+    {
+        "variant": "old (AOS-505): 3x 30-day category average",
+        "rows": 3789,
+        "precision": 0.1029,
+        "recall": 0.9,
+        "falseAlertsPerMonth": 2.1806
+    },
+    {
+        "variant": "new amount rule, duplicates as before",
+        "rows": 3789,
+        "precision": 0.2667,
+        "recall": 1.0,
+        "falseAlertsPerMonth": 0.7639
+    },
+    {
+        "variant": "new (AOS-713): robust baselines + small duplicates not pushed",
+        "rows": 3789,
+        "precision": 0.4348,
+        "recall": 1.0,
+        "falseAlertsPerMonth": 0.3611
+    },
+    {
+        "variant": "new + the user answers every alert (tolerance)",
+        "rows": 3789,
+        "precision": 0.4348,
+        "recall": 1.0,
+        "falseAlertsPerMonth": 0.3611
+    }
+]
