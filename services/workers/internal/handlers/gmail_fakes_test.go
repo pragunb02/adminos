@@ -50,9 +50,28 @@ func (f *fakeGoogle) client() *gmail.Client {
 	return gmail.NewClientWithEndpoints(f.server.URL, f.server.URL+"/token", gmail.RetryPolicy{Attempts: 2, BaseDelay: time.Millisecond})
 }
 
+// addMessage adds a message as Gmail delivers genuine mail: Gmail's own Authentication-Results on
+// top, with a DMARC pass for the From domain (AOS-624).
 func (f *fakeGoogle) addMessage(id, from, subject, date string, body gmail.MessagePart) {
-	body.Headers = []gmail.MessageHeader{{Name: "From", Value: from}, {Name: "Subject", Value: subject}, {Name: "Date", Value: date}}
+	f.addMessageWithHeaders(id, body,
+		gmail.MessageHeader{Name: "Authentication-Results", Value: genuineAuthResults(from)},
+		gmail.MessageHeader{Name: "From", Value: from}, gmail.MessageHeader{Name: "Subject", Value: subject},
+		gmail.MessageHeader{Name: "Date", Value: date})
+}
+
+// addMessageWithHeaders adds a message with exactly these headers, in this order.
+func (f *fakeGoogle) addMessageWithHeaders(id string, body gmail.MessagePart, headers ...gmail.MessageHeader) {
+	body.Headers = headers
 	f.messages[id] = gmail.Message{ID: id, Snippet: "snippet of " + id, Payload: body}
+}
+
+// genuineAuthResults is what Gmail writes for mail that passes DMARC as the From domain.
+func genuineAuthResults(from string) string {
+	domain := from[strings.LastIndexByte(from, '@')+1:]
+	domain = strings.ToLower(strings.TrimRight(domain, "> "))
+	return "mx.google.com; dkim=pass header.i=@" + domain + " header.s=s1; spf=pass (google.com: domain of alerts@" +
+		domain + " designates 192.0.2.1 as permitted sender) smtp.mailfrom=alerts@" + domain +
+		"; dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=" + domain
 }
 
 func textPart(s string) gmail.MessagePart {
@@ -105,7 +124,7 @@ func (f *fakeGoogle) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if q.Get("format") == "metadata" {
-			writeJSON(w, gmail.Message{ID: msg.ID, LabelIDs: msg.LabelIDs, Payload: gmail.MessagePart{Headers: msg.Payload.Headers[:2]}})
+			writeJSON(w, gmail.Message{ID: msg.ID, LabelIDs: msg.LabelIDs, Payload: gmail.MessagePart{Headers: onlyHeaders(msg.Payload.Headers, q["metadataHeaders"])}})
 			return
 		}
 		if id == f.forbidFull {
@@ -117,6 +136,20 @@ func (f *fakeGoogle) serve(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusTeapot)
 	}
+}
+
+// onlyHeaders is what Gmail's metadata format returns: the named headers, in message order.
+func onlyHeaders(all []gmail.MessageHeader, names []string) []gmail.MessageHeader {
+	var out []gmail.MessageHeader
+	for _, h := range all {
+		for _, n := range names {
+			if strings.EqualFold(h.Name, n) {
+				out = append(out, h)
+				break
+			}
+		}
+	}
+	return out
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
@@ -132,6 +165,15 @@ type memConnections struct {
 	revoked  string
 	failures []syncFailure
 	saveErr  error
+	started  []string // sync sessions marked in_progress
+	startErr error
+}
+
+func (m *memConnections) MarkStarted(_ context.Context, syncSessionID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.started = append(m.started, syncSessionID)
+	return m.startErr
 }
 
 func (m *memConnections) Load(_ context.Context, _ string) (*storedConnection, error) {

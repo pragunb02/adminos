@@ -80,7 +80,8 @@ class SplitwiseRowsElsewhereTest {
         val txns = InMemoryTransactionRepository()
         val today = LocalDate.now(ist)
         (1..4).forEach { m -> txns.save(share(at = today.minusMonths(m.toLong()).atTime(12, 0).atZone(ist).toInstant())) }
-        val found = SubscriptionDetectorService(txns, InMemorySubscriptionRepository(), UserCalendar(InMemoryUserRepository())).detectSubscriptions(user)
+        val found = SubscriptionDetectorService(txns, InMemorySubscriptionRepository(), UserCalendar(InMemoryUserRepository()),
+            dev.adminos.api.domain.financial.InMemoryPriceRiseRepository(), dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository()).detectSubscriptions(user)
         assertTrue(found.isEmpty())
     }
 

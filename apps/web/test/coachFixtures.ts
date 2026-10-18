@@ -36,7 +36,7 @@ export const cx = {
         numbers({ spent: "750.00", orders: 2, averageOrder: "375.00", lateNight: { orders: 0, timedOrders: 1, share: "0.0000", spent: "0.00" }, weekdays: days({ fri: [1, "500.00"], sat: [1, "250.00"] }) }),
         [{ merchant: "Swiggy", numbers: numbers({ spent: "750.00", orders: 2, averageOrder: "375.00" }) }]),
       lens("nights_out", "Nights out", "Bars, pubs, clubs and events", numbers()),
-      lens("pay_later", "Pay later", "Buy now, pay later repayments", numbers()),
+      lens("pay_later", "Pay later", "Purchases paid with buy now, pay later", numbers()),
       lens("travel", "Travel", "Flights, trains and buses", numbers()),
       lens("shopping", "Shopping", "Online and fashion shopping", numbers({ spent: "-999.00" }), [{ merchant: "Amazon", numbers: numbers({ spent: "-999.00" }) }]),
     ],
@@ -105,7 +105,7 @@ export const cx = {
   noSavings: (): SavingsData => ({ months: [], headline: null, previous: null, tooLittleData: true, projection: null, defaults: { annualReturnPct: "12", inflationPct: "6" } }),
   lens: (over: Partial<LensDefinition> = {}): LensDefinition => ({
     id: "quick_commerce", label: "Quick commerce", description: "10-minute delivery apps", brands: ["Blinkit", "Zepto"], categories: [],
-    subcategories: [], keywords: [], added: [], removed: [], ...over,
+    subcategories: [], keywords: [], paymentMethods: [], added: [], removed: [], ...over,
   }),
   lenses: (): LensesData => ({
     version: "2026-10-17", lateNight: { from: "22:00", to: "05:00" },
@@ -114,7 +114,8 @@ export const cx = {
       cx.lens({ id: "food_delivery", label: "Food delivery", brands: ["Swiggy", "Zomato"], subcategories: ["food_delivery"] }),
       cx.lens({ id: "nights_out", label: "Nights out", brands: ["Toit"], keywords: ["bar", "pub", "club", "lounge"], added: ["Rohit Sharma"] }),
       cx.lens({ id: "shopping", label: "Shopping", brands: ["Amazon"], subcategories: ["ecommerce", "fashion"] }),
-      cx.lens({ id: "pay_later", label: "Pay later", brands: ["LazyPay"] }),
+      // AOS-912: the pay-later lens is a payment-method rule only.
+      cx.lens({ id: "pay_later", label: "Pay later", brands: [], paymentMethods: ["pay_later"] }),
       cx.lens({ id: "travel", label: "Travel", brands: ["IndiGo"] }),
     ],
   }),

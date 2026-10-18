@@ -12,6 +12,8 @@ export default defineConfig({
     setupFiles: ["./test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "test/**/*.test.{ts,tsx}"],
     restoreMocks: true,
+    // Above test/setup.ts's 5 s async-util timeout, so a slow findBy fails as itself, not as a test timeout (AOS-642).
+    testTimeout: 15_000,
     coverage: {
       provider: "v8",
       include: ["src/**/*.{ts,tsx}"],
