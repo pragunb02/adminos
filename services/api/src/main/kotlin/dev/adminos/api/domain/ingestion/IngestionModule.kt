@@ -4,6 +4,8 @@ import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.identity.GoogleOAuthClient
 import dev.adminos.api.domain.ingestion.cash.CashIntake
+import dev.adminos.api.domain.ingestion.cash.CashPhraseParser
+import dev.adminos.api.domain.ingestion.cash.cashPhraseRoutes
 import dev.adminos.api.domain.ingestion.cash.cashRoutes
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.GmailOAuth
@@ -41,6 +43,7 @@ fun Application.ingestionModule(config: AppConfig) {
     val ingestEventService: IngestEventService by inject()
     val smsIntake: SmsIntake by inject()
     val cashIntake: CashIntake by inject()
+    val cashPhrases: CashPhraseParser by inject()
     val whatsAppImportService: WhatsAppImportService by inject()
 
     routing {
@@ -49,6 +52,7 @@ fun Application.ingestionModule(config: AppConfig) {
             ingestEventRoutes(ingestEventService)
             rawSmsRoutes(smsIntake)
             cashRoutes(cashIntake)
+            cashPhraseRoutes(cashPhrases)
             connectionRoutes(connectionService, auditService, GmailOAuth(googleOAuthClient, oauthStates, gmailCallbackUrl(config.app.appUrl)))
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience, config.auth.googlePubsubServiceAccount)
             statementRoutes(statementImportService)

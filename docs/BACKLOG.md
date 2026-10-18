@@ -172,6 +172,7 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
 | └ AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
 | └ [AOS-632](tickets/AOS-632.md) | Web image ships public/ (service worker, icons) + image check | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-641](tickets/AOS-641.md) | Merge script: required checks must pass; others may be neutral/skipped, never failing | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-635](tickets/AOS-635.md) | AI replies: size and depth checked before parsing; a validator exception or stack overflow rejects the answer (audited), other JVM errors propagate | Claude (agent) | ✅ | 1h | 1h |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
@@ -212,7 +213,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
-| └ AOS-718 | Cash quick-add from free text or dictation | Claude (agent) | 🟦 | 5h |  |
+| └ [AOS-718](tickets/AOS-718.md) | Cash quick-add from free text or dictation | Claude (agent) | ✅ | 5h | 6h |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
 
 ## 🟦 [AOS-E9](tickets/AOS-E9.md) — Spending coach · P0 · ETA 47h
