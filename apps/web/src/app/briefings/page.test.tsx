@@ -100,4 +100,69 @@ describe("Briefings", () => {
     expect(await screen.findByRole("heading", { name: "Latest Briefing" })).toBeInTheDocument();
     expect(screen.queryByText("History down")).not.toBeInTheDocument();
   });
+
+  describe("AI wording (AOS-716)", () => {
+    const plain = "You spent ₹18,000 this week.";
+    const worded = "Last week you spent ₹18,000, mostly on food.";
+
+    it("shows a checked AI wording, marked, with a way to see the plain numbers", async () => {
+      routes(fx.briefing({ narration: worded, narrationModel: "claude-haiku-5-5", narrationStatus: "narrated" }), []);
+      const { user } = renderWithQuery(<BriefingsPage />);
+      expect(await screen.findByText(worded)).toBeInTheDocument();
+      expect(screen.getByText("Worded by AI")).toHaveAttribute("title", "claude-haiku-5-5");
+      expect(screen.getByText(/Every number and name in this wording was checked/)).toBeInTheDocument();
+      expect(screen.queryByText(plain)).not.toBeInTheDocument();
+
+      const toggle = screen.getByRole("button", { name: "Show the plain numbers" });
+      expect(toggle).toHaveAttribute("aria-pressed", "false");
+      await user.click(toggle);
+      expect(screen.getByText(plain)).toBeInTheDocument();
+      expect(screen.queryByText(worded)).not.toBeInTheDocument();
+      expect(screen.getByText("Plain numbers")).toBeInTheDocument();
+      expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+      await user.click(toggle);
+      expect(screen.getByText(worded)).toBeInTheDocument();
+    });
+
+    it("a wording that failed the check shows the plain briefing with a notice", async () => {
+      routes(fx.briefing({ narrationStatus: "rejected" }), []);
+      renderWithQuery(<BriefingsPage />);
+      expect(await screen.findByText(plain)).toBeInTheDocument();
+      expect(screen.getByRole("note")).toHaveTextContent("The AI wording didn't match your numbers");
+      expect(screen.queryByText("Worded by AI")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Show the plain numbers" })).not.toBeInTheDocument();
+    });
+
+    it("an unavailable wording shows the plain briefing with a notice", async () => {
+      routes(fx.briefing({ narrationStatus: "unavailable" }), []);
+      renderWithQuery(<BriefingsPage />);
+      expect(await screen.findByText(plain)).toBeInTheDocument();
+      expect(screen.getByRole("note")).toHaveTextContent("wasn't available this week");
+    });
+
+    it("no AI wording: the plain briefing, no marker and no notice", async () => {
+      routes(fx.briefing(), []);
+      renderWithQuery(<BriefingsPage />);
+      expect(await screen.findByText(plain)).toBeInTheDocument();
+      expect(screen.queryByText("Worded by AI")).not.toBeInTheDocument();
+      expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    });
+
+    it("a narrated status without text falls back to the plain briefing", async () => {
+      routes(fx.briefing({ narrationStatus: "narrated", narration: null }), []);
+      renderWithQuery(<BriefingsPage />);
+      expect(await screen.findByText(plain)).toBeInTheDocument();
+      expect(screen.queryByText("Worded by AI")).not.toBeInTheDocument();
+    });
+
+    it("untrusted text in a wording renders as text, never HTML", async () => {
+      const hostile = "<img src=x onerror=alert(1)> you spent ₹18,000";
+      routes(fx.briefing({ narration: hostile, narrationModel: null, narrationStatus: "narrated" }), []);
+      const { container } = renderWithQuery(<BriefingsPage />);
+      expect(await screen.findByText(hostile)).toBeInTheDocument();
+      expect(container.querySelector("img")).toBeNull();
+      expect(screen.getByText("Worded by AI")).not.toHaveAttribute("title");
+    });
+  });
 });

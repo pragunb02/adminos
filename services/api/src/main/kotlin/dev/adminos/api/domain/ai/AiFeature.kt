@@ -9,7 +9,10 @@ enum class AiFeature(
     val key: String
 ) {
     /** The fallback categoriser for rows the rules left as Other (AOS-512, D-62). */
-    CATEGORIZATION("categorization");
+    CATEGORIZATION("categorization"),
+
+    /** The weekly briefing worded by a model from its computed facts, kept only if every number is a fact (AOS-716, D-140). */
+    BRIEFING("briefing");
 
     /** Prefix of this feature's settings: `AI_CATEGORIZATION_ENABLED`, `…_PROVIDER`, `…_MODEL`. */
     val envPrefix: String get() = "AI_$name"

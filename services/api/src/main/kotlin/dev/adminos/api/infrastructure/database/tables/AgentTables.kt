@@ -31,6 +31,11 @@ object BriefingsTable : Table("briefings") {
     val promptVersion = varchar("prompt_version", 20)
     val tokensUsed = integer("tokens_used")
     val generationMs = integer("generation_ms").nullable()
+    /** AOS-716 (V90): the optional AI wording; `content` stays the template. */
+    val narration = text("narration").nullable()
+    val narrationStatus = varchar("narration_status", 20).default("none")
+    val narrationCode = varchar("narration_code", 48).nullable()
+    val narrationModel = varchar("narration_model", 100).nullable()
     val createdAt = timestamp("created_at")
     val updatedAt = timestamp("updated_at")
     override val primaryKey = PrimaryKey(id)

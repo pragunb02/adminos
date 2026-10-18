@@ -191,6 +191,10 @@ export interface Briefing {
   status: string;
   insights: Insight[] | null;
   createdAt: string;
+  /** The AI wording (AOS-716), only when it passed the number check; `content` is always the plain briefing. */
+  narration: string | null;
+  narrationModel: string | null;
+  narrationStatus: "none" | "narrated" | "rejected" | "unavailable";
 }
 
 export interface Insight {

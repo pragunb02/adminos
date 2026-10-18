@@ -33,7 +33,8 @@ export const fx = {
   briefing: (over: Partial<Briefing> = {}): Briefing => ({
     id: "br-1", periodStart: "2026-10-05", periodEnd: "2026-10-11", type: "weekly", content: "You spent ₹18,000 this week.",
     totalSpent: "18000", totalIncome: "100000", topCategories: [{ category: "food", amount: "6000" }], subscriptionsFlagged: 1,
-    anomaliesDetected: 1, billsUpcoming: 2, status: "generated", insights: [], createdAt: "2026-10-12T03:00:00Z", ...over,
+    anomaliesDetected: 1, billsUpcoming: 2, status: "generated", insights: [], createdAt: "2026-10-12T03:00:00Z",
+    narration: null, narrationModel: null, narrationStatus: "none", ...over,
   }),
   subscription: (over: Partial<Subscription> = {}): Subscription => ({
     id: "s-1", name: "Netflix", merchantName: "Netflix", category: "entertainment", amount: "649", currency: "INR", billingCycle: "monthly",

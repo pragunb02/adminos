@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.agent
 
+import dev.adminos.api.domain.ai.AiReasonCode
 import kotlinx.serialization.Serializable
 import java.math.BigDecimal
 import java.time.Instant
@@ -56,10 +57,36 @@ data class Briefing(
     val promptVersion: String,
     val tokensUsed: Int,
     val generationMs: Int? = null,
+    /** The optional AI wording of [content] (AOS-716); [content] is always the template, with the plain numbers. */
+    val narration: BriefingNarration = BriefingNarration.None,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()
 )
 
+/**
+ * Whether a briefing was also worded by a model (AOS-716, D-140). Only [Narrated] has text, and it passed the number
+ * and name check; the others keep the template. Codes are reason codes (`[a-z0-9_]`), never model output.
+ */
+sealed interface BriefingNarration {
+    /** Not asked: the feature is off on the server or the user hasn't turned it on. No notice. */
+    data object None : BriefingNarration
+
+    /** Worded by [model]; every number and name in [text] is one of the briefing's facts. */
+    data class Narrated(val text: String, val model: String) : BriefingNarration {
+        init {
+            require(text.isNotBlank()) { "A narration has text" }
+            require(model.isNotBlank()) { "A narration names its model" }
+        }
+
+        override fun toString() = "Narrated(${text.length} chars, model=$model)"
+    }
+
+    /** The model answered, but the answer failed the check: the template is shown, with a notice. */
+    data class Rejected(val code: AiReasonCode) : BriefingNarration
+
+    /** No answer (provider down, cap reached, an error): the template is shown, with a notice. */
+    data class Unavailable(val code: AiReasonCode) : BriefingNarration
+}
 
 data class CategoryAmount(
     val category: String,

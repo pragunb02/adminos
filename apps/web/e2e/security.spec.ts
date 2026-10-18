@@ -3,6 +3,7 @@ import { test as base, type Page } from "@playwright/test";
 import { E2E_JWT_SECRET } from "../playwright.config";
 import { expect, test } from "./support/fixtures";
 import { signAccessToken, signIn, tamper } from "./support/session";
+import { fx } from "../test/fixtures";
 
 /**
  * Attack specs (AOS-619, D-91, D-100 §4a). The reviewer runs these before every merge.
@@ -96,6 +97,21 @@ test.describe("Settings → Security (mocked)", () => {
     await page.getByRole("button", { name: "Sign out everywhere", exact: true }).click();
     await expect.poll(() => api.callsTo("POST", "/api/v1/auth/sessions/revoke-all").length).toBe(1);
     await expect(page).toHaveURL(/\/login$/);
+  });
+});
+
+test.describe("Briefings → AI wording (mocked, AOS-716)", () => {
+  mockedOnly();
+
+  test("an AI wording renders as text, is marked, and the plain numbers are one click away", async ({ signedIn: page, api }) => {
+    const hostile = "<img src=x onerror=alert(1)> You spent ₹18,000 this week.";
+    api.on("GET /api/v1/briefings/latest", () => ({ data: fx.briefing({ narration: hostile, narrationModel: "claude-haiku-5-5", narrationStatus: "narrated" }) }));
+    await page.goto("/briefings");
+    await expect(page.getByText(hostile)).toBeVisible();
+    await expect(page.getByText("Worded by AI")).toBeVisible();
+    expect(await page.getByTestId("briefing-text").locator("img").count()).toBe(0);
+    await page.getByRole("button", { name: "Show the plain numbers" }).click();
+    await expect(page.getByTestId("briefing-text")).toHaveText("You spent ₹18,000 this week.");
   });
 });
 

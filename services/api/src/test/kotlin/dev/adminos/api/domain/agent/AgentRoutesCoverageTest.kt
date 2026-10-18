@@ -327,6 +327,42 @@ class AgentRoutesCoverageTest {
     }
 
     @Test
+    fun `a briefing carries its AI wording beside the plain numbers, and why it fell back`() = routeTest {
+        val narrated = briefings.save(briefing(createdAt = t0).copy(
+            narration = BriefingNarration.Narrated("You spent ₹12,450 this week.", "claude-haiku-5-5")))
+        val (_, body) = call(HttpMethod.Get, "/api/v1/briefings/latest")
+        val data = body["data"]!!.jsonObject
+        assertEquals(narrated.id.toString(), data.str("id"))
+        assertEquals("narrated", data.str("narrationStatus"))
+        assertEquals("You spent ₹12,450 this week.", data.str("narration"))
+        assertEquals("claude-haiku-5-5", data.str("narrationModel"))
+        assertEquals("You spent ₹12,450 this week; Swiggy was your top merchant.", data.str("content"), "the template stays")
+
+        briefings.save(briefing(createdAt = t0.plusSeconds(60)).copy(
+            narration = BriefingNarration.Rejected(dev.adminos.api.domain.ai.AiReasonCode("ungrounded_number"))))
+        val (_, after) = call(HttpMethod.Get, "/api/v1/briefings/latest")
+        val rejected = after["data"]!!.jsonObject
+        assertEquals("rejected", rejected.str("narrationStatus"))
+        assertEquals(JsonNull, rejected["narration"], "a rejected wording is never shown")
+        assertEquals(JsonNull, rejected["narrationModel"])
+        assertTrue("ungrounded_number" !in after.toString(), "reason codes stay server-side")
+
+        briefings.save(briefing(createdAt = t0.plusSeconds(120)).copy(
+            narration = BriefingNarration.Unavailable(dev.adminos.api.domain.ai.AiReasonCode("cap_reached"))))
+        val (_, history) = call(HttpMethod.Get, "/api/v1/briefings?limit=5")
+        assertEquals(listOf("unavailable", "rejected", "narrated"), history["data"]!!.jsonArray.map { it.str("narrationStatus") })
+    }
+
+    @Test
+    fun `another user's narrated briefing is never shown`() = routeTest {
+        briefings.save(briefing(userId = otherUserId).copy(narration = BriefingNarration.Narrated("Their week.", "claude-haiku-5-5")))
+        val (_, latest) = call(HttpMethod.Get, "/api/v1/briefings/latest")
+        assertEquals(JsonNull, latest["data"])
+        val (_, history) = call(HttpMethod.Get, "/api/v1/briefings")
+        assertTrue("Their week." !in history.toString())
+    }
+
+    @Test
     fun `briefing history pages with a cursor`() = routeTest {
         briefings.save(briefing(createdAt = t0))
         briefings.save(briefing(createdAt = t0.plusSeconds(60)))

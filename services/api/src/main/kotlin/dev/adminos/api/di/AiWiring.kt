@@ -2,6 +2,7 @@ package dev.adminos.api.di
 
 import dev.adminos.api.config.AiConfig
 import dev.adminos.api.config.AiFeatureSetting
+import dev.adminos.api.domain.agent.briefing.BriefingNarrationTask
 import dev.adminos.api.domain.ai.AiCallLogRepository
 import dev.adminos.api.domain.ai.AiCircuitBreaker
 import dev.adminos.api.domain.ai.AiConsentCheck
@@ -43,7 +44,8 @@ import org.slf4j.LoggerFactory
 
 /** Each feature's task: its prompt version (an eval record must match it, D-68) and its notice (AOS-704). One line per feature. */
 internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
-    AiFeature.CATEGORIZATION to CategorizeMerchantTask
+    AiFeature.CATEGORIZATION to CategorizeMerchantTask,
+    AiFeature.BRIEFING to BriefingNarrationTask
 )
 
 /**
