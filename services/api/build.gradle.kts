@@ -146,6 +146,19 @@ tasks.register<JavaExec>("categorizationReport") {
     project.findProperty("localGolden")?.let { args("--local-golden", file(it.toString()).path) }
 }
 
+// Subscription detection evaluation (AOS-516): ./gradlew -q subscriptionEvalReport prints precision/recall/F1 and
+// cycle accuracy on the synthetic eval set (subscriptions vs regular shopping). Add -PwriteBaseline to deliberately
+// record the current numbers as the new floor (src/test/resources/subscriptions/baseline.json).
+tasks.register<JavaExec>("subscriptionEvalReport") {
+    group = "verification"
+    description = "Evaluate subscription detection on the synthetic eval set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.evaluation.subscription.SubscriptionEvalKt")
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/subscriptions").path)
+    }
+}
+
 // Local-model bake-off (AOS-703, D-69): ./gradlew -q aiBakeOff -Pmodels=qwen3:4b,gemma3:4b runs each Ollama model
 // (OLLAMA_BASE_URL, default http://127.0.0.1:11434: start it with `docker compose --profile ollama up -d ollama`)
 // through the categorisation golden set via the AI port and prints a comparison with the rules and the recorded
@@ -248,6 +261,19 @@ tasks.register<JavaExec>("balanceReport") {
     args(layout.buildDirectory.file("reports/balances/report.json").get().asFile.path)
     if (project.hasProperty("writeBaseline")) {
         args("--write-baseline", file("src/test/resources/balances").path)
+    }
+}
+
+// Message-reading evaluation (AOS-705): ./gradlew -q messageReadingReport prints the fallback's scores on the synthetic
+// golden set (src/test/resources/messages/golden.tsv). Add -PwriteBaseline to record them in the eval records the
+// start-up gate reads (src/main/resources/ai/evals.json).
+tasks.register<JavaExec>("messageReadingReport") {
+    group = "verification"
+    description = "Evaluate the message-reading fallback on the golden set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.ingestion.fallback.evaluation.MessageReadingReportKt")
+    if (project.hasProperty("writeBaseline")) {
+        args("--eval-records", file("src/main/resources/ai/evals.json").path)
     }
 }
 

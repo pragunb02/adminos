@@ -15,7 +15,7 @@ class SmsIntakeTest {
     private val repo = InMemoryIngestEventRepository()
     private val balanceRepo = dev.adminos.api.domain.balances.InMemoryBalanceRepository()
     private val balances = dev.adminos.api.domain.balances.BalanceService(balanceRepo, java.time.Clock.fixed(Instant.parse("2026-10-20T00:00:00Z"), java.time.ZoneOffset.UTC))
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(repo), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), balances)
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(repo), dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), dev.adminos.api.domain.financial.InMemoryTransactionRepository()), dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), balances)
     private val userId = UUID.randomUUID()
     private val text = "Sent Rs.249.00 From HDFC Bank A/C *1234 To SWIGGY On 16/10/26 Ref 123456789012"
 

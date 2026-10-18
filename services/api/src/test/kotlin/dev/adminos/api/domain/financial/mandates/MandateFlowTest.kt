@@ -31,12 +31,12 @@ import kotlin.test.assertTrue
 
 /** SMS → mandate → debit → recurring transaction, and GET /api/v1/mandates (AOS-502). */
 class MandateFlowTest {
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-502")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-502")
     private val events = InMemoryIngestEventRepository()
     private val transactions = InMemoryTransactionRepository()
     private val mandates = InMemoryMandateRepository()
     private val service = MandateService(mandates, transactions)
-    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), service, dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()))
+    private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events), service, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()))
     private val processor = IngestProcessor(
         events,
         IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService()))),

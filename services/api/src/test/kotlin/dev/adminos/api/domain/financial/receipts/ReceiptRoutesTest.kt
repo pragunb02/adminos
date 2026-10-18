@@ -30,7 +30,7 @@ private const val APP_ORIGIN = "http://localhost:3000"
 /** GET /leaks/fees, GET /receipts, POST and DELETE /receipts/{id}/match (AOS-903). */
 class ReceiptRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "owner@example.in", googleId = "g-903")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-903")
     private val jwt = jwtService.generateAccessToken(user)
     private val receipts = InMemoryOrderReceiptRepository()
     private val txns = InMemoryTransactionRepository()

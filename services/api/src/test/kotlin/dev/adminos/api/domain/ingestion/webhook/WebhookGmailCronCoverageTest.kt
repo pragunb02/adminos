@@ -40,7 +40,7 @@ class WebhookGmailCronCoverageTest {
     )
 
     private fun gmail(status: ConnectionStatus = ConnectionStatus.CONNECTED, source: SourceType = SourceType.GMAIL, tokenExpiresAt: Instant? = null) = runBlocking {
-        connections.save(UserConnection(userId = UUID.randomUUID(), sourceType = source, status = status, gmailAddress = "u-${UUID.randomUUID()}@gmail.com",
+        connections.save(UserConnection(userId = UUID.randomUUID(), sourceType = source, status = status, gmailAddress = "u-${UUID.randomUUID()}@example.com",
             historyId = "9876", tokenExpiresAt = tokenExpiresAt))
     }
 

@@ -9,7 +9,8 @@ import java.util.UUID
 // ── Enums ──
 
 enum class TransactionType { DEBIT, CREDIT, TRANSFER, REFUND, REVERSAL }
-enum class PaymentMethod { UPI, CARD_DEBIT, CARD_CREDIT, NETBANKING, CASH, WALLET }
+/** How money left; PAY_LATER is a BNPL purchase, repaid later from the bank (AOS-909, V39). */
+enum class PaymentMethod { UPI, CARD_DEBIT, CARD_CREDIT, NETBANKING, CASH, WALLET, PAY_LATER }
 enum class TransactionCategory {
     FOOD, TRANSPORT, SHOPPING, UTILITIES, EMI, SUBSCRIPTION,
     ENTERTAINMENT, HEALTH, EDUCATION, TRANSFER, OTHER
@@ -48,7 +49,9 @@ enum class SubscriptionCategory {
 }
 enum class UsageStatus { ACTIVE, UNUSED, UNKNOWN }
 enum class BillType {
-    CREDIT_CARD, ELECTRICITY, INTERNET, MOBILE, RENT, INSURANCE, EMI, WATER, GAS, OTHER
+    CREDIT_CARD, ELECTRICITY, INTERNET, MOBILE, RENT, INSURANCE, EMI, WATER, GAS, OTHER,
+    /** A pay-later provider's bill (AOS-909, V39). */
+    PAY_LATER
 }
 enum class BillStatus { UPCOMING, DUE, OVERDUE, PAID, CANCELLED }
 

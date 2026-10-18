@@ -28,7 +28,8 @@ const AuthResultsHeader = "Authentication-Results"
 // authenticated mail from a listed financial sender. Every doubt is a rejection:
 //
 //   - exactly one From header holding exactly one address, whose domain is a listed sender (or a
-//     receipt sender, AOS-903, when the subject reads like an order);
+//     receipt sender, AOS-903, when the subject reads like an order, or a travel-booking sender,
+//     AOS-910, when it reads like a booking);
 //   - the topmost Authentication-Results header must be Gmail's (authserv-id mx.google.com). Gmail
 //     prepends its own, so a header the sender wrote into the message is always below it and is
 //     never read;
@@ -58,6 +59,9 @@ func Qualify(headers []MessageHeader) Verdict {
 	org := senderOrganisation(addr)
 	if org == "" {
 		org = receiptOrganisation(addr, subject)
+	}
+	if org == "" {
+		org = bookingOrganisation(addr, subject)
 	}
 	if org == "" {
 		return NotBankMail

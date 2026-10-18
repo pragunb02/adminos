@@ -293,17 +293,44 @@ class InfraPluginsCoverageTest {
 
     @Test
     fun `an expired window starts over`() {
-        val limiter = RateLimiter(maxRequests = 1, windowSeconds = -1) // every window is already expired
+        val clock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.parse("2026-10-18T06:30:00Z"))
+        val limiter = RateLimiter(maxRequests = 1, windowSeconds = 60, clock = clock)
         assertTrue(limiter.isAllowed("203.0.113.9"))
+        clock.advance(java.time.Duration.ofSeconds(61))
         assertTrue(limiter.isAllowed("203.0.113.9"))
     }
 
     @Test
     fun `more than 1000 tracked keys evicts the expired windows`() {
-        val limiter = RateLimiter(maxRequests = 1, windowSeconds = -1)
+        val clock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.parse("2026-10-18T06:30:00Z"))
+        val limiter = RateLimiter(maxRequests = 1, windowSeconds = 60, clock = clock)
         repeat(1001) { limiter.isAllowed("10.0.${it / 256}.${it % 256}") }
+        clock.advance(java.time.Duration.ofSeconds(121))
         limiter.isAllowed("203.0.113.9")
         assertEquals(1, limiter.remainingRequests("10.0.0.0"), "evicted, so a fresh allowance")
+    }
+
+    @Test
+    fun `the rate limit plugin lets a client back in once its window has passed`() = testApplication {
+        val clock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.parse("2026-10-18T06:30:00Z"))
+        val limiter = RateLimiter(maxRequests = 1, windowSeconds = 60, clock = clock)
+        environment { config = MapApplicationConfig() }
+        application {
+            configureSerialization(); configureRequestId()
+            routing {
+                route("/limited") {
+                    install(RateLimitPlugin) { this.limiter = limiter }
+                    get { call.respondText("ok") }
+                }
+            }
+        }
+        assertEquals(HttpStatusCode.OK, client.get("/limited").status)
+        clock.advance(java.time.Duration.ofSeconds(15))
+        val refused = client.get("/limited")
+        assertEquals(HttpStatusCode.TooManyRequests, refused.status)
+        assertEquals("45", refused.headers[HttpHeaders.RetryAfter], "the wait follows the injected clock")
+        clock.advance(java.time.Duration.ofSeconds(46))
+        assertEquals(HttpStatusCode.OK, client.get("/limited").status)
     }
 
     @Test

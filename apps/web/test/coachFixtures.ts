@@ -1,6 +1,8 @@
 import type { LeakNumbers, LeaksData, LensDefinition, LensesData, WeekdayNumbers } from "@/lib/leaks";
 import { WEEKDAYS } from "@/lib/leaks";
 import type { Limit, LimitsData } from "@/lib/limits";
+import type { Goal } from "@/lib/goals";
+import type { SavingsData } from "@/lib/savings";
 
 /** Canned spending-coach data (Epic E9) for unit tests and Playwright mocks. Synthetic; India time. */
 
@@ -34,7 +36,7 @@ export const cx = {
         numbers({ spent: "750.00", orders: 2, averageOrder: "375.00", lateNight: { orders: 0, timedOrders: 1, share: "0.0000", spent: "0.00" }, weekdays: days({ fri: [1, "500.00"], sat: [1, "250.00"] }) }),
         [{ merchant: "Swiggy", numbers: numbers({ spent: "750.00", orders: 2, averageOrder: "375.00" }) }]),
       lens("nights_out", "Nights out", "Bars, pubs, clubs and events", numbers()),
-      lens("pay_later", "Pay later", "Buy now, pay later repayments", numbers()),
+      lens("pay_later", "Pay later", "Purchases paid with buy now, pay later", numbers()),
       lens("travel", "Travel", "Flights, trains and buses", numbers()),
       lens("shopping", "Shopping", "Online and fashion shopping", numbers({ spent: "-999.00" }), [{ merchant: "Amazon", numbers: numbers({ spent: "-999.00" }) }]),
     ],
@@ -68,9 +70,42 @@ export const cx = {
       ],
     }],
   }),
+  /** A cut goal set on Mon 28 Sep, two weeks met, one over, this week so far. */
+  goal: (over: Partial<Goal> = {}): Goal => ({
+    id: "goal-1", lens: "quick_commerce", label: "Quick commerce", kind: "cut_percent", value: "30", period: "weekly",
+    baseline: "684.78", target: "479.00", startedOn: "2026-09-28",
+    periods: [
+      { from: "2026-09-28", to: "2026-10-04", spent: "400.00", target: "479.00", met: true, current: false },
+      { from: "2026-10-05", to: "2026-10-11", spent: "1100.00", target: "479.00", met: false, current: false },
+      { from: "2026-10-12", to: "2026-10-18", spent: "300.00", target: "479.00", met: true, current: true },
+    ],
+    metCount: 1, completedCount: 2, streak: 3, bestStreak: 7, ...over,
+  }),
+  /** Savings (AOS-908): Aug–Oct with salary, November so far without. */
+  savings: (over: Partial<SavingsData> = {}): SavingsData => {
+    const months = [
+      { month: "2026-08", income: "100000.00", spent: "65000.00", saved: "35000.00", rate: "0.3500", partial: false },
+      { month: "2026-09", income: "100000.00", spent: "60000.00", saved: "40000.00", rate: "0.4000", partial: false },
+      { month: "2026-10", income: "100000.00", spent: "69500.00", saved: "30500.00", rate: "0.3050", partial: false },
+      { month: "2026-11", income: "0.00", spent: "800.00", saved: "-800.00", rate: null, partial: true },
+    ];
+    return {
+      months, headline: months[2], previous: months[1], tooLittleData: false,
+      projection: {
+        month: "2026-10", monthlyAmount: "5550.00", annualReturnPct: "12", inflationPct: "6",
+        horizons: [
+          { years: 5, contributed: "333000.00", futureValue: "457799.00", inTodaysMoney: "342094.00" },
+          { years: 10, contributed: "666000.00", futureValue: "1289482.00", inTodaysMoney: "720040.00" },
+        ],
+        formula: "FV = P × ((1 + r)^n − 1) ÷ r × (1 + r); r = annual return ÷ 12; n = 12 × years; in today's money = FV ÷ (1 + inflation)^years",
+      },
+      defaults: { annualReturnPct: "12", inflationPct: "6" }, ...over,
+    };
+  },
+  noSavings: (): SavingsData => ({ months: [], headline: null, previous: null, tooLittleData: true, projection: null, defaults: { annualReturnPct: "12", inflationPct: "6" } }),
   lens: (over: Partial<LensDefinition> = {}): LensDefinition => ({
     id: "quick_commerce", label: "Quick commerce", description: "10-minute delivery apps", brands: ["Blinkit", "Zepto"], categories: [],
-    subcategories: [], keywords: [], added: [], removed: [], ...over,
+    subcategories: [], keywords: [], paymentMethods: [], added: [], removed: [], ...over,
   }),
   lenses: (): LensesData => ({
     version: "2026-10-17", lateNight: { from: "22:00", to: "05:00" },
@@ -79,7 +114,8 @@ export const cx = {
       cx.lens({ id: "food_delivery", label: "Food delivery", brands: ["Swiggy", "Zomato"], subcategories: ["food_delivery"] }),
       cx.lens({ id: "nights_out", label: "Nights out", brands: ["Toit"], keywords: ["bar", "pub", "club", "lounge"], added: ["Rohit Sharma"] }),
       cx.lens({ id: "shopping", label: "Shopping", brands: ["Amazon"], subcategories: ["ecommerce", "fashion"] }),
-      cx.lens({ id: "pay_later", label: "Pay later", brands: ["LazyPay"] }),
+      // AOS-912: the pay-later lens is a payment-method rule only.
+      cx.lens({ id: "pay_later", label: "Pay later", brands: [], paymentMethods: ["pay_later"] }),
       cx.lens({ id: "travel", label: "Travel", brands: ["IndiGo"] }),
     ],
   }),

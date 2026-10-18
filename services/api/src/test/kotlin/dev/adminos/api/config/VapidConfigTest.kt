@@ -26,7 +26,7 @@ class VapidConfigTest {
 
     @Test
     fun `a matching pair with a contact turns push on, and the private key is never printed`() {
-        val c = from("VAPID_PUBLIC_KEY" to "$public=", "VAPID_PRIVATE_KEY" to private, "VAPID_SUBJECT" to "mailto:pragun@example.com")!!
+        val c = from("VAPID_PUBLIC_KEY" to "$public=", "VAPID_PRIVATE_KEY" to private, "VAPID_SUBJECT" to "mailto:owner@example.com")!!
         assertEquals(public, c.publicKey)
         assertFalse(private in c.toString())
         assertTrue(public in c.toString())
@@ -39,7 +39,7 @@ class VapidConfigTest {
             arrayOf("VAPID_PUBLIC_KEY" to public) to "VAPID_PRIVATE_KEY",
             arrayOf("VAPID_PRIVATE_KEY" to private) to "VAPID_PUBLIC_KEY",
             arrayOf("VAPID_PUBLIC_KEY" to public, "VAPID_PRIVATE_KEY" to private) to "VAPID_SUBJECT",
-            arrayOf("VAPID_PUBLIC_KEY" to public, "VAPID_PRIVATE_KEY" to private, "VAPID_SUBJECT" to "pragun@example.com") to "VAPID_SUBJECT",
+            arrayOf("VAPID_PUBLIC_KEY" to public, "VAPID_PRIVATE_KEY" to private, "VAPID_SUBJECT" to "owner@example.com") to "VAPID_SUBJECT",
             arrayOf("VAPID_PUBLIC_KEY" to other, "VAPID_PRIVATE_KEY" to private, "VAPID_SUBJECT" to "https://adminos.example") to "doesn't match",
             arrayOf("VAPID_PUBLIC_KEY" to public, "VAPID_PRIVATE_KEY" to "AAAA", "VAPID_SUBJECT" to "mailto:a@b.co") to "VAPID_PRIVATE_KEY",
         ).forEach { (env, expected) ->

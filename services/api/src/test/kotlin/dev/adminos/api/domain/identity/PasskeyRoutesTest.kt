@@ -32,7 +32,7 @@ import kotlin.test.*
 class PasskeyRoutesTest {
 
     private val google = FakeGoogleServer()
-    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "pragun.b@gmail.com", googleClientId = "test-client-id")) }
+    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "owner@example.com", googleClientId = "test-client-id")) }
     private val origin = config.app.appUrl
     private val users = InMemoryUserRepository()
     private val sessions = InMemorySessionRepository()
@@ -120,7 +120,7 @@ class PasskeyRoutesTest {
         // Can't sneak in another passkey from the unverified session.
         assertEquals(HttpStatusCode.Forbidden, call(HttpMethod.Post, "/api/v1/auth/passkey/register/options", next.access, "{}").status)
 
-        val user = assertNotNull(users.findByEmail("pragun.b@gmail.com"))
+        val user = assertNotNull(users.findByEmail("owner@example.com"))
         val assertion = authenticator.get(options("/api/v1/auth/passkey/authenticate/options", next.access), handleOf(user.id))
         val ok = call(HttpMethod.Post, "/api/v1/auth/passkey/authenticate", next.access, """{"response":$assertion}""")
         assertEquals(HttpStatusCode.OK, ok.status, ok.bodyAsText())
@@ -133,7 +133,7 @@ class PasskeyRoutesTest {
         call(HttpMethod.Post, "/api/v1/auth/passkey/register", first.access,
             """{"response":${authenticator.create(options("/api/v1/auth/passkey/register/options", first.access))}}""")
         val next = signIn()
-        val user = assertNotNull(users.findByEmail("pragun.b@gmail.com"))
+        val user = assertNotNull(users.findByEmail("owner@example.com"))
         val forged = authenticator.get(options("/api/v1/auth/passkey/authenticate/options", next.access), handleOf(user.id),
             SoftAuthenticator.Tweaks(origin = "https://evil.example"))
         val res = call(HttpMethod.Post, "/api/v1/auth/passkey/authenticate", next.access, """{"response":$forged}""")
@@ -192,7 +192,7 @@ class PasskeyRoutesTest {
         val big = call(HttpMethod.Post, "/api/v1/auth/passkey/register", s.access, """{"response":"${"x".repeat(70_000)}"}""")
         assertEquals(HttpStatusCode.BadRequest, big.status)
         // A token without a session (dev-mode style) can't do the passkey step.
-        val user = assertNotNull(users.findByEmail("pragun.b@gmail.com"))
+        val user = assertNotNull(users.findByEmail("owner@example.com"))
         assertEquals(HttpStatusCode.Unauthorized, call(HttpMethod.Get, "/api/v1/auth/passkey/status", jwt.generateAccessToken(user)).status)
     }
 

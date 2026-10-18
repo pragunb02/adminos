@@ -34,6 +34,8 @@ See the research report §10–§12. Isolation Forest, Prophet and deep forecast
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
+| [AOS-721](AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ⬜ | 3h | |
+| [AOS-722](AOS-722.md) | Confirm or correct the detected salary | Claude | ⬜ | 3h | |
 | [AOS-714](AOS-714.md) | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ✅ | 8h | 9h |
 | [AOS-720](AOS-720.md) | Latest balance per account, for money left until salary | Claude | 🟦 | 4h | 7h |
 | [AOS-713](AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ✅ | 6h | 5h |
@@ -47,6 +49,7 @@ A synthetic spending stream with injected spikes alerts on the spikes, and other
 
 ## Activity log
 - 2026-10-18 — Claude (agent): AOS-720 built (latest balance per account, money left from recent balances; D-170 proposed); in review.
+- 2026-10-18 — Claude (integration engineer): AOS-720, AOS-721, AOS-722 created from AOS-714's follow-ups.
 - 2026-10-18 — Claude (integration engineer): AOS-714 integrated onto main; D-76 recorded.
 - 2026-10-18 — Claude (integration engineer): AOS-709 integrated onto main; D-75 recorded.
 - 2026-10-18 — Claude (integration engineer): AOS-715 integrated onto main; D-74 recorded.

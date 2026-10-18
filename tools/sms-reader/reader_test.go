@@ -60,7 +60,7 @@ func TestIsBusinessSender(t *testing.T) {
 			t.Errorf("%q should be a business sender", s)
 		}
 	}
-	for _, s := range []string{"+919876543210", "9876543210", "friend@icloud.com", "", "Mom", "MOM", "ad-sbiupi-t", "Raj Kumar"} {
+	for _, s := range []string{"+919876543210", "9876543210", "friend@example.com", "", "Mom", "MOM", "ad-sbiupi-t", "Raj Kumar"} {
 		if isBusinessSender(s) {
 			t.Errorf("%q must not be forwarded", s)
 		}
@@ -85,7 +85,7 @@ func fakeMessagesDB(t *testing.T) (string, *sql.DB) {
 	stmts := []string{
 		`CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT)`,
 		`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, handle_id INTEGER, text TEXT, attributedBody BLOB, date INTEGER, is_from_me INTEGER, service TEXT)`,
-		`INSERT INTO handle VALUES (1, 'AX-HDFCBK-S'), (2, '+919876543210'), (3, 'friend@icloud.com'), (4, 'VM-ICICIT-S')`,
+		`INSERT INTO handle VALUES (1, 'AX-HDFCBK-S'), (2, '+919876543210'), (3, 'friend@example.com'), (4, 'VM-ICICIT-S')`,
 	}
 	for _, s := range stmts {
 		if _, err := w.Exec(s); err != nil {

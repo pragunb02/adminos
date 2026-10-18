@@ -64,7 +64,7 @@ class DiAppModuleCoverageTest {
             channels(smtp::get)
         )
         val jobs = koinOf(buildAppModule(useDatabase = false, env = smtp::get)).getAll<dev.adminos.api.domain.scheduling.ScheduledJob>()
-        assertEquals(11, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry, gmail fallback sync, gmail watch renewal, receipt matching, coach limit alerts")
+        assertEquals(12, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry, gmail fallback sync, gmail watch renewal, receipt matching, coach limit alerts, coach evening digest")
         assertTrue(jobs.any { it.name.value == "subscription-waste-score" }, "AOS-509")
         assertTrue(jobs.any { it.name.value == "document-expiry" }, "AOS-507")
         assertTrue(jobs.any { it.name.value == "gmail-fallback-sync" }, "AOS-401")
@@ -78,7 +78,7 @@ class DiAppModuleCoverageTest {
         val vapid = mapOf(
             "VAPID_PUBLIC_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.public as java.security.interfaces.ECPublicKey)),
             "VAPID_PRIVATE_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.private as java.security.interfaces.ECPrivateKey)),
-            "VAPID_SUBJECT" to "mailto:pragun@example.com"
+            "VAPID_SUBJECT" to "mailto:owner@example.com"
         )
         val koin = koinOf(buildAppModule(useDatabase = false, env = vapid::get))
         assertTrue(dev.adminos.api.domain.notifications.NotificationChannel.PUSH in

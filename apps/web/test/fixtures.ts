@@ -15,7 +15,7 @@ export const fx = {
     evaluation: { answers: "recorded-synthetic", evaluatedOn: "2026-10-17", goldenRows: 288 }, spentThisMonthUsd: "0.00", ...over,
   }),
   home: (over: Partial<DashboardHome> = {}): DashboardHome => ({
-    greeting: "Good morning, Pragun",
+    greeting: "Good morning, Owner",
     summary: { totalSpentThisWeek: "12500", activeSubscriptions: 4, flaggedSubscriptions: 1, upcomingBills: 2, openAnomalies: 1 },
     actionItems: [
       { id: "a1", type: "anomaly", title: "Unusual charge", description: "₹50,000 at 3am", severity: "critical", entityId: "an-1", actionLabel: "Review" },
@@ -114,6 +114,15 @@ export const fx = {
     primary: fx.transaction({ id: "sg-1-p", sourceType: "sms" }),
     related: fx.transaction({ id: "sg-1-r", merchantName: "SWIGGY BLR", sourceType: "statement" }),
     ...over,
+  }),
+  /** A payment the AI reader found in an unrecognised bank message, waiting in Review (AOS-705). */
+  messageProposal: (over: Partial<import("@/app/review/AiReadMessages").MessageProposal> = {}): import("@/app/review/AiReadMessages").MessageProposal => ({
+    id: "mp-1", channel: "sms", direction: "debit", amount: "249.00", accountLast4: "4321", merchant: "ZEPTO", bankCode: null,
+    occurredAt: "2026-10-16T05:00:00Z", readBy: "qwen3:4b", ...over,
+  }),
+  /** A format learnt from confirmed readings, waiting for approval (AOS-706). */
+  messageTemplate: (over: Partial<import("@/app/review/LearnFormats").MessageTemplate> = {}): import("@/app/review/LearnFormats").MessageTemplate => ({
+    id: "mt-1", channel: "sms", bankCode: null, direction: "debit", shape: "Card XX<ACCT> charged Rs.<AMT> at <M> on <DATE>.", seen: 3, ...over,
   }),
   /** A category question for Review (AOS-708): the learned model's unsure guess on a row still left as Other. */
   categoryQuestion: (over: Partial<import("@/lib/types").CategoryQuestion> = {}, guess: Partial<import("@/lib/types").CategoryGuess> = {}): import("@/lib/types").CategoryQuestion => ({

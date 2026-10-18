@@ -1,0 +1,63 @@
+scenario,id,at,merchant,category,amount,source,method,expected
+# Synthetic eval set for the trip grouping rule (AOS-910, D-90). No real data. "expected" is the trip a careful person would assign, or empty.
+# A: a trip home by air, outbound and return booked weeks ahead (booking emails give the journey dates)
+A,a1,2026-09-20T10:00+05:30,IndiGo,transport,5432.00,sms,upi,A
+A,a2,2026-09-20T10:20+05:30,Air India,transport,4100.00,sms,upi,A
+A,a3,2026-10-24T04:30+05:30,Uber,transport,450.00,sms,upi,A
+A,a4,2026-10-24T07:00+05:30,Third Wave Coffee,food,380.00,sms,card_credit,A
+A,a5,2026-10-24T09:30+05:30,Ola,transport,520.00,sms,upi,A
+A,a6,2026-10-26T20:00+05:30,Swiggy,food,600.00,sms,upi,A
+A,a7,2026-10-28T13:00+05:30,Rapido,transport,120.00,sms,upi,A
+A,a8,2026-10-30T18:00+05:30,Uber,transport,500.00,sms,upi,A
+A,a9,2026-10-27T15:00+05:30,Myntra,shopping,2000.00,sms,upi,
+A,a10,2026-10-20T21:00+05:30,Swiggy,food,400.00,sms,upi,
+A,a11,2026-11-02T21:00+05:30,Zomato,food,350.00,sms,upi,
+# B: a train trip, both tickets booked early (IRCTC booking SMS give the journey dates)
+B,b1,2026-08-01T09:01+05:30,IRCTC,transport,845.00,sms,upi,B
+B,b2,2026-08-02T20:01+05:30,IRCTC,transport,845.00,sms,upi,B
+B,b3,2026-08-15T18:00+05:30,Uber,transport,300.00,sms,upi,B
+B,b4,2026-08-15T19:00+05:30,Haldiram's,food,200.00,sms,upi,B
+B,b5,2026-08-16T13:00+05:30,Zomato,food,450.00,sms,upi,B
+B,b6,2026-08-18T09:00+05:30,Ola,transport,350.00,sms,upi,B
+B,b7,2026-08-10T21:00+05:30,Swiggy,food,500.00,sms,upi,
+# C: a one-way bus booked the same day, no booking email
+C,c1,2026-07-05T21:00+05:30,redBus,transport,1150.00,sms,upi,C
+C,c2,2026-07-05T20:30+05:30,Rapido,transport,90.00,sms,upi,C
+C,c3,2026-07-06T13:00+05:30,Zomato,food,300.00,sms,upi,C
+C,c4,2026-07-08T21:00+05:30,Swiggy,food,250.00,sms,upi,
+# D: a flight booked and refunded in full: no trip
+D,d1,2026-06-01T10:00+05:30,IndiGo,transport,6000.00,sms,upi,
+D,d2,2026-06-01T19:00+05:30,Uber,transport,400.00,sms,upi,
+# E: a trip booked through an agency without any booking email: the rule places it on the booking day (a known miss)
+E,e1,2026-05-01T11:00+05:30,MakeMyTrip,transport,9000.00,sms,upi,E
+E,e2,2026-05-20T06:00+05:30,Uber,transport,500.00,sms,upi,E
+E,e3,2026-05-22T20:00+05:30,Swiggy,food,400.00,sms,upi,E
+E,e4,2026-05-25T09:00+05:30,Ola,transport,450.00,sms,upi,E
+E,e5,2026-05-01T21:00+05:30,Swiggy,food,300.00,sms,upi,
+# F: the user's own dates: a cab at 00:10 India time on the travel day is in (still the day before in UTC); 23:50 the night before is not
+F,f1,2026-04-10T12:00+05:30,Akasa Air,transport,4999.00,sms,upi,F
+F,f2,2026-04-11T23:50+05:30,Ola,transport,400.00,sms,upi,
+F,f3,2026-04-12T00:10+05:30,Uber,transport,350.00,sms,upi,F
+F,f4,2026-04-13T13:00+05:30,Zomato,food,300.00,sms,upi,F
+F,f5,2026-04-14T21:00+05:30,Swiggy,food,300.00,sms,upi,
+# G: two trips three weeks apart stay two trips
+G,g1,2026-03-01T07:00+05:30,IRCTC,transport,640.00,sms,upi,G1
+G,g2,2026-03-01T08:00+05:30,Uber,transport,250.00,sms,upi,G1
+G,g3,2026-03-04T07:00+05:30,IRCTC,transport,640.00,sms,upi,G1
+G,g4,2026-03-04T19:00+05:30,Ola,transport,300.00,sms,upi,G1
+G,g5,2026-03-25T06:00+05:30,IndiGo,transport,5100.00,sms,upi,G2
+G,g6,2026-03-25T09:00+05:30,Uber,transport,480.00,sms,upi,G2
+G,g7,2026-03-26T20:00+05:30,Swiggy,food,550.00,sms,upi,G2
+G,g8,2026-03-28T18:00+05:30,Uber,transport,520.00,sms,upi,G2
+G,g9,2026-03-15T21:00+05:30,Zomato,food,420.00,sms,upi,
+# H: a card statement row (date only, posted the next day) tied to its booking email
+H,h1,2026-02-11T00:00+05:30,IndiGo,transport,7000.00,statement,card_credit,H
+H,h2,2026-02-20T05:00+05:30,Uber,transport,600.00,sms,upi,H
+H,h3,2026-02-21T21:00+05:30,Zomato,food,500.00,sms,upi,H
+H,h4,2026-02-11T21:00+05:30,Swiggy,food,350.00,sms,upi,
+# I: a month at home: food delivery and cabs, no travel, no trips
+I,i1,2026-01-05T21:00+05:30,Swiggy,food,400.00,sms,upi,
+I,i2,2026-01-06T09:00+05:30,Uber,transport,250.00,sms,upi,
+I,i3,2026-01-07T13:00+05:30,Zomato,food,350.00,sms,upi,
+I,i4,2026-01-08T22:00+05:30,Blinkit,shopping,600.00,sms,upi,
+I,i5,2026-01-09T09:00+05:30,Rapido,transport,80.00,sms,upi,

@@ -17,6 +17,8 @@ import { delta } from "@/lib/format";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantList from "@/components/console/MerchantList";
 import LeaksHomeCard from "@/components/leaks/LeaksHomeCard";
+import GoalsHomeCard from "@/components/goals/GoalsHomeCard";
+import SavingsCard from "@/components/savings/SavingsCard";
 import BalancesCard from "@/components/balances/BalancesCard";
 import FeedRow from "@/components/console/FeedRow";
 import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
@@ -65,6 +67,8 @@ function HomeContent() {
 
   return (
     <div className="space-y-4">
+      {/* The headline metric (AOS-908, D-80): self-contained */}
+      <SavingsCard />
       <PeriodSwitcher period={period} today={today} />
       {notice && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>}
       <Link href="/ask" className="block rounded-xl border border-line bg-surface px-4 py-3 text-sm hover:bg-page">
@@ -126,6 +130,7 @@ function HomeContent() {
           </Section>
 
           <LeaksHomeCard range={range} />
+          <GoalsHomeCard />
 
           {/* Latest balance per account (AOS-720): what money left until salary starts from. */}
           <BalancesCard />
