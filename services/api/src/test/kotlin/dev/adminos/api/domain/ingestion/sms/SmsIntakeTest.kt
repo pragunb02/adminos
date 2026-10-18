@@ -65,6 +65,14 @@ class SmsIntakeTest {
     }
 
     @Test
+    fun `an as-on time dates the balance at that time, and one not before the SMS is ignored`() = runBlocking<Unit> {
+        intake.receive(userId, SmsMessage("AX-HDFCBK-S", "Avl Bal in HDFC Bank A/c XX4321 as on 14-10-26 09:30 is INR 100.00", Instant.parse("2026-10-16T05:00:00Z")))
+        assertEquals(Instant.parse("2026-10-14T04:00:00Z"), balanceRepo.forUser(userId).single().observedAt, "09:30 in India")
+        intake.receive(userId, SmsMessage("AX-HDFCBK-S", "Avl Bal in HDFC Bank A/c XX5555 as on 16-10-26 18:00 is INR 100.00", Instant.parse("2026-10-16T05:00:00Z")))
+        assertEquals(Instant.parse("2026-10-16T05:00:00Z"), balanceRepo.forUser(userId).single { it.account.last4 == "5555" }.observedAt, "a later 'as on' can't be checked")
+    }
+
+    @Test
     fun `balances from generic, promotional or personal senders are never noted`() = runBlocking<Unit> {
         val sms = "Rs.500.00 debited from A/c XX4321. Avl Bal Rs 99,99,999.00"
         for (sender in listOf("AX-NEWBNK-S", "AX-HDFCBK-P", "+919800000000")) {

@@ -3,6 +3,7 @@ package dev.adminos.api.domain.ingestion.sms
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
+import java.time.LocalTime
 
 /** A bank account balance an SMS shows (AOS-720). Only these fields survive; the text does not (D-33). */
 data class SmsBalance(
@@ -10,7 +11,9 @@ data class SmsBalance(
     /** Last 4 digits, or 3 when the bank masks more ("Acct XX123"). */
     val accountHint: String,
     /** "as on 15-10-2026": the day the bank says the balance was true, when it says one. */
-    val asOn: LocalDate?
+    val asOn: LocalDate?,
+    /** "as on 15-10-2026 10:30": the time on that day, when it says one. */
+    val asOnTime: LocalTime? = null
 ) {
     override fun toString() = "SmsBalance(asOn=$asOn)" // never the amount or the account
 }
@@ -33,8 +36,13 @@ enum class NoBalance {
     NO_ACCOUNT,
     /** The sender isn't a bank we know (a generic or unknown header), so its figures aren't trusted. */
     UNTRUSTED_SENDER,
-    /** The balance phrase is inside the merchant's name, which the merchant chose. */
+    /**
+     * The balance phrase sits inside text someone else chose: a merchant's or payee's name ("at SHOP AVL BAL RS 9999 On…",
+     * "from MR X AVL BAL…"), or mid-sentence rather than starting its own clause, or followed by a transaction's date or reference.
+     */
     IN_MERCHANT,
+    /** Only a debit card is named: the card's account isn't known, so the balance would be counted twice beside it. */
+    CARD_ONLY,
     /** The message is one we never read (OTP, failed, promise, request, notice, unclear). */
     NOT_READ
 }
@@ -52,9 +60,12 @@ sealed interface SmsBalanceResult {
  * Fail closed, never a guess:
  * - credit cards (available limit, outstanding), wallets, loans, deposits and reward points are not account balances;
  * - an available balance is preferred to a ledger/closing one; two different figures of the same kind are refused;
- * - two different accounts in one message are refused (an account number is preferred over a debit card's);
+ * - two different accounts in one message are refused; a debit card alone isn't an account (its account's own
+ *   balance would be counted again beside it);
  * - an opening, closing, average or minimum balance is not a current balance;
- * - a balance phrase right after "at", "to", "from" or "VPA" is a name the payee chose ("at AVL BAL RS 99999 On"), not a figure.
+ * - a balance starts its own clause (the text's start, or after ". ", "; ", ": ", "! ", "| ", ") ", optionally "Your" /
+ *   "The" / "Total"), and isn't followed by a transaction's date ("On 13-10-26") or reference ("Ref", "UPI"): anything
+ *   else is a name someone chose ("at SHOP AVL BAL RS 99999 On…", "from MR X AVL BAL RS 9,99,999 Ref…").
  *
  * Which messages may be read at all (a known bank's sender, a transaction or a balance alert) is [SmsBalanceGate].
  */
@@ -72,15 +83,27 @@ object SmsBalanceReader {
      * (a bare one needs a thousands comma or 3 whole digits, so a time like "10.30" is never a balance).
      */
     private val FIGURE = Regex(
-        "(?:(?:Rs\\.?|INR|₹)\\s*(?<minus>-)?(?<cur>[0-9][0-9,]*(?:\\.[0-9]{1,2})?)|(?<bare>[0-9]{1,3}(?:,[0-9]{2,3})+\\.[0-9]{2}|[0-9]{3,}\\.[0-9]{2})(?![0-9.]))" +
+        "(?:(?:Rs\\.?|INR|₹)\\s*(?<minus>-)?(?<cur>[0-9][0-9,]*(?:\\.[0-9]{1,2})?)(?![0-9]|\\.[0-9])" +
+            "|(?<bare>[0-9]{1,3}(?:,[0-9]{2,3})+\\.[0-9]{2}|[0-9]{3,}\\.[0-9]{2})(?![0-9]|\\.[0-9]))" +
             "(?:\\s*(?<mark>Cr|Dr)\\b\\.?)?", I
     )
 
-    /** What may sit between a label and its figure: "is", "of", ":", "in A/c XX1234", "as on 15-10-26". */
+    /**
+     * What may sit between a label and its figure: "is", "of", ":", "in State Bank of India A/c XX1234", "as on 15-10-26 10:30".
+     * Every token is atomic and every separator possessive, so no input can make it backtrack (a digit run is never split).
+     */
     private val BETWEEN = Regex(
-        "^[\\s:.\\-=]*(?:(?:is|of|was|in|for|your|(?:[a-z]{2,10}\\s+)?bank|a/c|ac|acct|account|no\\.?|ending|with|as\\s+(?:on|of)|on|at|[X*x]*\\d{3,6}|" +
-            "\\d{1,2}[-/.](?:\\d{1,2}|[A-Za-z]{3})[-/.]\\d{2,4}|\\d{1,2}[:.]\\d{2}(?::\\d{2})?(?:\\s*[AP]M)?|hrs?)[\\s:.,\\-=]*){0,10}$", I
+        "^[\\s:.\\-=]*+(?>(?:is|of|was|in|for|your|(?:[a-z]{2,10}\\s+){0,3}bank(?:\\s+of\\s+[a-z]{2,10})?|account|acct|a/c|ac|no\\.?|ending|with|" +
+            "as\\s+(?:on|of)|on|at|\\d{1,2}[-/.](?:\\d{1,2}|[A-Za-z]{3})[-/.]\\d{2,4}(?![0-9])|\\d{1,2}[:.]\\d{2}(?::\\d{2})?(?:\\s*[AP]M)?(?![0-9])|" +
+            "[X*x]*+\\d{3,6}(?![0-9])|hrs?)[\\s:.,\\-=]*+){0,10}$", I
     )
+
+    /** After the figure: a transaction's date or reference means the "balance" was inside a name. */
+    private val NAME_TAIL = Regex("^\\s*(?:on\\s+\\d|ref\\b|upi\\b|rrn\\b|txn\\b|at\\s|to\\s|from\\s|by\\s|via\\s)", I)
+
+    /** A clause ends with one of these, so what follows may start a balance clause. */
+    private val CLAUSE_ENDS = setOf('.', ';', ':', '!', '|', ')')
+    private val LEAD_WORD = Regex("\\b(?:your|the|total|net)$", I)
 
     private val NON_ACCOUNT_BEFORE = Regex("\\b(?:wallet|reward|points?|loan|emi|fd|rd|deposit|ppf|outstanding|o/s|unbilled|due|min(?:imum)?|average|avg|mab|amb|opening|monthly|quarterly|limit|credit\\s+card|card)\\s*\\.?\\s*$", I)
     /** "at AVL BAL RS 99999 On …", "to Bal Traders": a payee's or merchant's name, which they chose. */
@@ -96,7 +119,9 @@ object SmsBalanceReader {
     /** Debit card numbers: "Debit Card XX9876", "Card ending 9876". */
     private val CARD = Regex("\\b(?:debit\\s+)?card(?:\\s+no\\.?)?(?:\\s+ending(?:\\s+with|\\s+in)?)?\\s*[:\\-]?\\s*[X*x]*\\s*(\\d{3,})\\b", I)
 
-    private val AS_ON = Regex("\\bas\\s+(?:on|of)\\s+(\\d{1,2})[-/.]([A-Za-z]{3}|\\d{1,2})[-/.](\\d{2}|\\d{4})\\b", I)
+    private val AS_ON = Regex(
+        "\\bas\\s+(?:on|of)\\s+(\\d{1,2})[-/.]([A-Za-z]{3}|\\d{1,2})[-/.](\\d{2}|\\d{4})\\b(?:,?\\s*(?:at\\s+)?(\\d{1,2})[:.](\\d{2})(?::\\d{2})?(?:\\s*([AP]M))?(?![0-9]))?", I
+    )
 
     /** Which figure wins when a message quotes several: available, then cleared, then ledger/closing, then a plain "Bal". */
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
@@ -105,6 +130,9 @@ object SmsBalanceReader {
 
     private data class Figure(val kind: Kind, val amount: BigDecimal, val start: Int)
 
+    /** A figure after a label, and whether what follows it is a transaction's date or reference (a name, then). */
+    private data class FigureRead(val amount: BigDecimal, val inName: Boolean)
+
     fun read(text: String): SmsBalanceResult {
         val flat = text.replace(Regex("\\s+"), " ").trim()
         val figures = mutableListOf<Figure>()
@@ -112,10 +140,6 @@ object SmsBalanceReader {
         for (label in LABEL.findAll(flat)) {
             val before = flat.substring(maxOf(0, label.range.first - 24), label.range.first)
             val kindWord = label.groups["kind"]?.value?.lowercase()?.replace(Regex("\\s+"), " ")
-            if (PAYEE_BEFORE.containsMatchIn(before)) {
-                excluded = excluded ?: NoBalance.IN_MERCHANT
-                continue
-            }
             if (kindWord == "closing") { // a period's closing balance in an SMS is a summary, not today's figure
                 excluded = excluded ?: NoBalance.NOT_CURRENT
                 continue
@@ -124,8 +148,12 @@ object SmsBalanceReader {
                 excluded = excluded ?: if (OPENING_BEFORE.containsMatchIn(before)) NoBalance.NOT_CURRENT else NoBalance.NOT_AN_ACCOUNT
                 continue
             }
-            val figure = figureAfter(flat, label.range.last + 1) ?: continue
-            figures += Figure(kindOf(kindWord), figure, label.range.first)
+            val read = figureAfter(flat, label.range.last + 1) ?: continue
+            if (PAYEE_BEFORE.containsMatchIn(before) || !startsClause(flat.substring(0, label.range.first)) || read.inName) {
+                excluded = excluded ?: NoBalance.IN_MERCHANT
+                continue
+            }
+            figures += Figure(kindOf(kindWord), read.amount, label.range.first)
         }
         if (figures.isEmpty()) {
             return SmsBalanceResult.NotFound(when {
@@ -142,13 +170,22 @@ object SmsBalanceReader {
         val amount = amounts.singleOrNull() ?: return SmsBalanceResult.NotFound(NoBalance.AMBIGUOUS_FIGURE)
 
         val accounts = ACCOUNT.findAll(flat).map { hint(it.groupValues[1]) }.toSet()
-        val hints = accounts.ifEmpty { CARD.findAll(flat).map { hint(it.groupValues[1]) }.toSet() }
-        val account = when (hints.size) {
-            0 -> return SmsBalanceResult.NotFound(NoBalance.NO_ACCOUNT)
-            1 -> hints.single()
+        val account = when (accounts.size) {
+            0 -> return SmsBalanceResult.NotFound(if (CARD.containsMatchIn(flat)) NoBalance.CARD_ONLY else NoBalance.NO_ACCOUNT)
+            1 -> accounts.single()
             else -> return SmsBalanceResult.NotFound(NoBalance.AMBIGUOUS_ACCOUNT)
         }
-        return SmsBalanceResult.Found(SmsBalance(amount, account, asOn(flat)))
+        val (day, time) = asOn(flat)
+        return SmsBalanceResult.Found(SmsBalance(amount, account, day, time))
+    }
+
+    /** [head] (the text before a label) ends a clause, maybe followed by "Your" / "The" / "Total". */
+    private fun startsClause(head: String): Boolean {
+        val h = head.trimEnd()
+        if (h.isEmpty() || h.last() in CLAUSE_ENDS) return true
+        val lead = LEAD_WORD.find(h) ?: return false
+        val rest = h.substring(0, lead.range.first).trimEnd()
+        return rest.isEmpty() || rest.last() in CLAUSE_ENDS || rest.last() == ','
     }
 
     /** True when [merchant] (text the merchant chose) contains a balance phrase with a figure. */
@@ -156,14 +193,18 @@ object SmsBalanceReader {
         merchant != null && LABEL.findAll(merchant).any { figureAfter(merchant, it.range.last + 1) != null }
 
     /** The figure that follows a label at [from], with only connecting words between. */
-    private fun figureAfter(text: String, from: Int): BigDecimal? {
-        val window = text.substring(from, minOf(text.length, from + 60))
+    private fun figureAfter(text: String, from: Int): FigureRead? {
+        val window = text.substring(from, minOf(text.length, from + WINDOW))
         val m = FIGURE.findAll(window).firstOrNull { BETWEEN.matches(window.substring(0, it.range.first)) } ?: return null
         val raw = (m.groups["cur"] ?: m.groups["bare"])?.value?.replace(",", "") ?: return null
         val value = raw.toBigDecimalOrNull()?.setScale(2, RoundingMode.HALF_UP) ?: return null
         val negative = m.groups["minus"] != null || m.groups["mark"]?.value?.lowercase() == "dr"
-        return if (negative) value.negate() else value
+        val tail = text.substring(from + m.range.last + 1, minOf(text.length, from + m.range.last + 1 + 16))
+        return FigureRead(if (negative) value.negate() else value, NAME_TAIL.containsMatchIn(tail))
     }
+
+    /** How far after a label its figure may be (long bank names: "in State Bank of India A/c XXXXXXX1234 as on …"). */
+    private const val WINDOW = 90
 
     private fun kindOf(word: String?): Kind = when (word) {
         "avl", "avbl", "aval", "avail", "available", "net avl", "total avbl" -> Kind.AVAILABLE
@@ -175,15 +216,26 @@ object SmsBalanceReader {
     /** The last 4 digits of a longer number; a 3-digit masked suffix stays 3. */
     private fun hint(digits: String): String = if (digits.length >= 4) digits.takeLast(4) else digits
 
-    private fun asOn(text: String): LocalDate? {
-        val m = AS_ON.find(text) ?: return null
-        val (d, mo, y) = m.destructured
+    /** The "as on" day and, when given, its time; (null, null) when there's none or it isn't a real date. */
+    private fun asOn(text: String): Pair<LocalDate?, LocalTime?> {
+        val m = AS_ON.find(text) ?: return null to null
+        val (d, mo, y, hh, mm, ampm) = m.destructured
         val year = if (y.length == 2) "20$y" else y
-        val month = mo.toIntOrNull() ?: (MONTHS.indexOf(mo.lowercase()) + 1).takeIf { it > 0 } ?: return null
-        return try {
+        val month = mo.toIntOrNull() ?: (MONTHS.indexOf(mo.lowercase()) + 1).takeIf { it > 0 } ?: return null to null
+        val day = try {
             LocalDate.of(year.toInt(), month, d.toInt())
         } catch (_: java.time.DateTimeException) {
-            null
+            return null to null
         }
+        val time = hh.toIntOrNull()?.let { h ->
+            val hour = when {
+                ampm.isEmpty() -> h
+                h !in 1..12 -> return day to null
+                ampm.equals("pm", ignoreCase = true) -> h % 12 + 12
+                else -> h % 12
+            }
+            try { LocalTime.of(hour, mm.toInt()) } catch (_: java.time.DateTimeException) { null }
+        }
+        return day to time
     }
 }

@@ -124,7 +124,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
 - **2026-10-18:**
   - AOS-720 (PR open; awaiting review + merge): latest balance per account (D-170 proposed).
     - **What changed:** readings from trusted bank SMS ("Avl Bal" etc.; only headers our parsers own) and reconciled statement closings, stored append-only with the figure AES-GCM encrypted (V92); `GET /api/v1/balances` (fresh / aging / stale); money left until salary starts from recent post-salary balances, else the last salary, and "How we got this" says which; Home "Bank balances" card and `/balances` page.
-    - **Verified:** API `test integrationTest koverVerify`; web typecheck, lint, `test:coverage`, `next build`; mocked Playwright (desktop, iPhone, Android); balance eval 122 synthetic SMS (held out first run 95.2% exact; shipped 100%, 0 false balances; naive 47.5%).
+    - **Verified:** API `test integrationTest koverVerify`; web typecheck, lint, `test:coverage`, `next build`; mocked Playwright (desktop, iPhone, Android); balance eval 132 synthetic SMS (held out first run 95.2% exact; shipped 100%, 0 false balances; naive 39.4%); a child reviewer's 3 blocking findings (payee-name injection, ReDoS, debit-card double count) fixed with tests.
     - **Found (not fixed):**
       - HDFC debit-card SMS ("Thank you for using HDFC Bank Debit Card XX… for Rs … at …") isn't read as a transaction (no direction word);
       - the Go Gmail extractor takes the first money figure, so a mail naming the balance first would read it as the amount;

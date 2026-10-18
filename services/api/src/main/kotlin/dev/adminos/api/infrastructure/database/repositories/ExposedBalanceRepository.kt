@@ -58,19 +58,36 @@ class ExposedBalanceRepository(private val encryptor: TokenEncryptor) : BalanceR
         if (old.isNotEmpty()) T.deleteWhere { (T.userId eq reading.userId) and (T.id inList old) }
     }
 
+    /**
+     * A row that can't be read (another key, a tampered or copied figure) is skipped and logged by its id only, so one
+     * bad row can't take down the balances and the forecast; it never becomes a figure.
+     */
     override suspend fun forUser(userId: UUID): List<BalanceReading> = dbQuery {
-        T.selectAll().where { T.userId eq userId }.map { it.toReading() }
+        T.selectAll().where { T.userId eq userId }.mapNotNull { it.toReadingOrNull() }
     }.sortedWith(BalanceReading.NEWEST_FIRST)
 
-    private fun ResultRow.toReading(): BalanceReading {
+    private fun ResultRow.toReadingOrNull(): BalanceReading? {
         val id = this[T.id]
-        return BalanceReading(
-            id = id, userId = this[T.userId], account = BalanceAccount(this[T.bankCode], this[T.accountLast4]),
-            amount = BigDecimal(encryptor.decrypt(this[T.amount], context(id))),
-            observedAt = this[T.observedAt], source = BalanceSource.of(this[T.sourceKind]), sourceRef = this[T.sourceRef],
-            recordedAt = this[T.recordedAt]
-        )
+        return try {
+            BalanceReading(
+                id = id, userId = this[T.userId], account = BalanceAccount(this[T.bankCode], this[T.accountLast4]),
+                amount = BigDecimal(encryptor.decrypt(this[T.amount], context(id))),
+                observedAt = this[T.observedAt], source = BalanceSource.of(this[T.sourceKind]), sourceRef = this[T.sourceRef],
+                recordedAt = this[T.recordedAt]
+            )
+        } catch (e: java.security.GeneralSecurityException) {
+            unreadable(id, e)
+        } catch (e: IllegalArgumentException) {
+            unreadable(id, e)
+        }
     }
+
+    private fun unreadable(id: UUID, e: Exception): BalanceReading? {
+        log.warn("Balance reading {} can't be read ({}); skipped", id, e.javaClass.simpleName) // never the value
+        return null
+    }
+
+    private val log = org.slf4j.LoggerFactory.getLogger(ExposedBalanceRepository::class.java)
 
     private fun context(id: UUID) = "balance_readings:$id:amount"
 }

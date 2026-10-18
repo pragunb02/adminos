@@ -94,7 +94,7 @@ class BalanceReadingsIntegrationTest {
         assertTrue(rows.all { (_, a) -> a.startsWith("v2:") && "43210" !in a })
         val (first, second) = rows
         dbQuery { BalanceReadingsTable.update({ BalanceReadingsTable.id eq second.first }) { it[amount] = first.second } }
-        assertFails("a figure copied to another row must not decrypt") { repo.forUser(me) }
+        assertEquals(listOf(first.first), repo.forUser(me).map { it.id }, "a figure copied to another row doesn't decrypt, and that row is skipped")
         dbQuery { BalanceReadingsTable.deleteWhere { BalanceReadingsTable.id eq second.first } }
     }
 

@@ -1634,13 +1634,13 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
     - read deterministically: available, then cleared, then ledger, then plain "Bal";
     - not credit cards, wallets, loans, deposits or points;
     - not opening, closing, average or minimum balances;
-    - a label after at/to/from/VPA is a name;
-    - two figures of a kind, or two accounts, are refused;
-    - "as on" dates the reading to the end of that day.
-  - **Statements:** the closing balance only when it follows from the previous row (previous − debit + credit). It is dated to the end of the closing day or the period's end, never after the import. The running balance is no longer copied into ingest events.
+    - a balance starts its own clause, doesn't follow at/to/from/VPA and isn't followed by a transaction's date or reference (otherwise it's a name someone chose);
+    - two figures of a kind, two accounts, or only a debit card are refused;
+    - "as on" dates the reading to that time (or the end of that day) when earlier than the SMS.
+  - **Statements:** the closing balance only when it follows from the previous row (previous − debit + credit); one balance alone isn't taken. It is dated to the end of the closing day or the period's end, never after the import. The running balance is no longer copied into ingest events.
   - **Not:** Gmail (deferred; no Go duplicate of the rule), WhatsApp exports (no trusted sender), Shortcut records and cash.
 - **Money left until salary:**
-  - It starts from the recent balances (≤ 7 days, from the salary's day or later). Spending is subtracted from the day after the oldest of them, then what's expected until payday. Without such a balance it starts from the last salary (D-76).
+  - It starts from the recent balances (≤ 7 days, from the salary's day or later). Spending is subtracted from the oldest of their days in full, then what's expected until payday. Without such a balance it starts from the last salary (D-76). The choice is its own component (`MoneyLeftBasisPicker`).
   - The API says which (`basis`), lists the accounts counted and those not counted with why (`stale`, `before_salary`), and Home's "How we got this" shows it.
 - **Rejected:**
   - a mutable "current balance" per account: a late message could overwrite a newer one, and the evidence is lost;
@@ -1651,5 +1651,5 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a new bank is one parser registry entry;
   - a new source is a `BalanceSource` value and one `BalanceService.record` call;
   - card outstanding and unpaid card bills are still not in "money left" (D-39);
-  - the extraction eval set (`balances/sms.tsv`, 122 synthetic SMS) and its floor gate changes.
+  - the extraction eval set (`balances/sms.tsv`, 132 synthetic SMS) and its floor gate changes.
 

@@ -129,9 +129,9 @@ class ForecastRoutesTest {
         assertEquals("balance", until.str("basis"))
         assertEquals("50000.00", until.str("balance"))
         assertEquals("2026-10-18", until.str("balanceAsOf"))
-        assertEquals("2026-10-19", until.str("spentFrom"))
-        assertEquals("600.00", until.str("spentSince"))
-        assertEquals("46100.00", until.str("left"))
+        assertEquals("2026-10-18", until.str("spentFrom"))
+        assertEquals("900.00", until.str("spentSince"))
+        assertEquals("45800.00", until.str("left"))
         assertEquals(7, until["balanceMaxAgeDays"]!!.jsonPrimitive.int)
         val account = until["accounts"]!!.jsonArray.single().jsonObject
         assertEquals(listOf("hdfc", "1234", "50000.00", "2026-10-18", "sms"), listOf("bank", "last4", "amount", "observedOn", "source").map { account.str(it) })

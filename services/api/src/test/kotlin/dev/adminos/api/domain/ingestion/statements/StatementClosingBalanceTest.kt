@@ -54,20 +54,20 @@ class StatementClosingBalanceTest {
         assertEquals(NoClosingBalance.NONE, reason(statement(listOf(row(1, debit = "1.00", bal = null)))))
         assertEquals(NoClosingBalance.NONE, reason(statement(emptyList())))
         assertEquals(BigDecimal("900.00"), found(statement(listOf(row(1, credit = "1000.00", bal = "1000.00"), row(2, debit = "100.00", bal = "900.00"), row(3, debit = "5.00", bal = null)))).amount)
-        assertEquals(BigDecimal("42.00"), found(statement(listOf(row(1, debit = "1.00", bal = "42.00")))).amount, "one row can't be checked, and is taken")
+        assertEquals(NoClosingBalance.UNCHECKABLE, reason(statement(listOf(row(1, debit = "1.00", bal = "42.00")))), "one balance can't be checked, so it isn't taken")
     }
 
     @Test
     fun `the period's end dates the closing when later, but never after the import`() {
-        val rows = listOf(row(1, credit = "10.00", bal = "10.00"))
+        val rows = listOf(row(1, credit = "10.00", bal = "10.00"), row(1, debit = "4.00", bal = "6.00"))
         assertEquals(LocalDate.of(2026, 10, 15), found(statement(rows, LocalDate.of(2026, 10, 15))).on)
         assertEquals(LocalDate.of(2026, 10, 1), found(statement(rows, LocalDate.of(2026, 10, 25))).on, "a period ending after today isn't over")
-        val today = found(statement(listOf(row(20, credit = "10.00", bal = "10.00"))))
+        val today = found(statement(listOf(row(20, credit = "10.00", bal = "10.00"), row(20, debit = "1.00", bal = "9.00"))))
         assertEquals(imported, today.observedAt, "a statement downloaded today is true as of the import")
     }
 
     @Test
     fun `printing a closing never shows the figure`() {
-        assertEquals("ClosingBalance(2026-10-01)", found(statement(listOf(row(1, debit = "1.00", bal = "4321.00")))).toString())
+        assertEquals("ClosingBalance(2026-10-01)", found(statement(listOf(row(1, credit = "4322.00", bal = "4322.00"), row(1, debit = "1.00", bal = "4321.00")))).toString())
     }
 }

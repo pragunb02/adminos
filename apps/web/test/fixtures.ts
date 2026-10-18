@@ -232,10 +232,10 @@ export const fx = {
     maxAgeDays: 7,
     ...over,
   }),
-  /** Money left from recent balances (AOS-720) on the ready forecast: ₹41,300.50 − ₹3,200 spent 13–16 Oct − ₹10,481.25. */
+  /** Money left from recent balances (AOS-720) on the ready forecast: ₹41,300.50 − ₹3,200 spent 12–16 Oct − ₹10,481.25. */
   balanceUntilSalary: (): import("@/lib/forecast").UntilSalary => ({
     ...fx.forecast().salary!.untilSalary!,
-    basis: "balance", spentFrom: "2026-10-13", spentSince: "3200.00", left: "27619.25", leftLow: "23200.50", leftHigh: "31300.50",
+    basis: "balance", spentFrom: "2026-10-12", spentSince: "3200.00", left: "27619.25", leftLow: "23200.50", leftHigh: "31300.50",
     balance: "41300.50", balanceAsOf: "2026-10-12",
     accounts: [
       { bank: "hdfc", last4: "1234", amount: "42500.50", observedOn: "2026-10-16", source: "sms", reason: null },

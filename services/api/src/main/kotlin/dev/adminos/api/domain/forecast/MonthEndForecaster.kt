@@ -17,47 +17,6 @@ data class ForecastInput(
     val balances: List<BankBalance> = emptyList()
 )
 
-/** An account's latest balance as the forecast sees it (AOS-720, D-170). Negative = overdrawn. */
-data class BankBalance(val bankCode: String?, val last4: String, val amount: BigDecimal, val observedOn: LocalDate, val source: String) {
-    override fun toString() = "BankBalance(${bankCode ?: "?"}, ••$last4, $observedOn)" // never the amount
-}
-
-/** Why an account's balance isn't in "money left". */
-enum class NotCountedReason {
-    /** Older than the forecast's limit ([MonthEndForecaster.maxBalanceAgeDays]). */
-    STALE,
-    /** From before the last salary came, so it doesn't hold it. */
-    BEFORE_SALARY
-}
-
-data class NotCounted(val balance: BankBalance, val reason: NotCountedReason)
-
-/** What "money left" starts from (AOS-720, D-170). */
-sealed interface MoneyBasis {
-    val start: BigDecimal
-    /** Spending is subtracted from this day through today; null when nothing has been spent since (today's balance). */
-    fun spentSince(today: LocalDate): DateRange?
-
-    /** The last salary, less everything spent since the day it came (D-76; when no recent balance is known). */
-    data class LastSalary(val amount: BigDecimal, val receivedOn: LocalDate) : MoneyBasis {
-        override val start: BigDecimal get() = amount
-        override fun spentSince(today: LocalDate) = DateRange(receivedOn, today)
-    }
-
-    /**
-     * The recent balances of the accounts in [accounts], less what was spent on the days after the oldest of them,
-     * [asOf] (a reading already holds that day's spending until it was sent).
-     */
-    data class Balances(val accounts: List<BankBalance>, val asOf: LocalDate) : MoneyBasis {
-        init {
-            require(accounts.isNotEmpty()) { "A balance basis has at least one account" }
-        }
-
-        override val start: BigDecimal get() = accounts.fold(BigDecimal.ZERO) { acc, b -> acc + b.amount }.money()
-        override fun spentSince(today: LocalDate) = asOf.plusDays(1).takeIf { !it.isAfter(today) }?.let { DateRange(it, today) }
-    }
-}
-
 /** The month-end forecast: what's spent, plus what each component expects for the rest of the month. */
 data class MonthEndForecast(
     val month: YearMonth,
@@ -119,9 +78,9 @@ sealed interface Forecast {
  * - **month-end** = spent so far + known dues after today (one component per source) + everyday spending at a
  *   robust daily rate × the remaining days, by weekday and weekend;
  * - **range** = the everyday part moved by the user's own past per-day errors on the same day of the month;
- * - **money left** = the recent bank balances (none older than [maxBalanceAgeDays], none from before the last
- *   salary) − spent after them − what the same components expect until the next salary (AOS-720, D-170); without
- *   such a balance, the last salary − spent since it − the same (D-76), and the API says which.
+ * - **money left** = the recent bank balances ([MoneyLeftBasisPicker] says which count) − spent after them − what
+ *   the same components expect until the next salary (AOS-720, D-170); without such a balance, the last salary −
+ *   spent since it − the same (D-76), and the API says which.
  * Pure: the caller loads [ForecastInput].
  */
 class MonthEndForecaster(
@@ -129,7 +88,7 @@ class MonthEndForecaster(
     private val interval: EmpiricalInterval = EmpiricalInterval.DEFAULT,
     private val salaries: SalaryDetector = SalaryDetector(),
     private val minHistoryDays: Int = MIN_HISTORY_DAYS,
-    val maxBalanceAgeDays: Long = MAX_BALANCE_AGE_DAYS
+    private val basisPicker: MoneyLeftBasisPicker = MoneyLeftBasisPicker()
 ) {
     init {
         require(minHistoryDays >= model.minLookbackDays) { "minHistoryDays: at least the run-rate's minimum lookback" }
@@ -172,33 +131,11 @@ class MonthEndForecaster(
         val lastDay = salary.expectedOn.minusDays(1)
         val window = if (lastDay.isAfter(today)) DateRange(today.plusDays(1), lastDay) else null
         val parts = components.map { it.estimate(window) }
-        val (basis, notCounted) = basisOf(input, salary)
+        val (basis, notCounted) = basisPicker.pick(today, salary, input.balances)
         val spent = basis.spentSince(today)
         val spentSince = spent?.let { input.history.total(it) }?.money() ?: BigDecimal.ZERO.money()
         val expected = parts.sumOf { it.amount }
         return UntilSalary(salary, basis, spentSince, spent?.from, window, parts, interval.range(expected, runRateOf(parts), window?.days?.toInt() ?: 0, errors), notCounted)
-    }
-
-    /**
-     * The balances that may start "money left": at most [maxBalanceAgeDays] old, and from the salary's day or later (an
-     * older one doesn't hold the salary). With none, the last salary is the start.
-     */
-    private fun basisOf(input: ForecastInput, salary: DetectedSalary): Pair<MoneyBasis, List<NotCounted>> {
-        val today = input.today
-        val notCounted = mutableListOf<NotCounted>()
-        val counted = input.balances.filter { b ->
-            val reason = when {
-                b.observedOn.isAfter(today) -> null
-                java.time.temporal.ChronoUnit.DAYS.between(b.observedOn, today) > maxBalanceAgeDays -> NotCountedReason.STALE
-                b.observedOn.isBefore(salary.lastReceivedOn) -> NotCountedReason.BEFORE_SALARY
-                else -> null
-            }
-            if (reason != null) notCounted += NotCounted(b, reason)
-            reason == null
-        }.map { if (it.observedOn.isAfter(today)) it.copy(observedOn = today) else it }
-        val basis = if (counted.isEmpty()) MoneyBasis.LastSalary(salary.lastAmount, salary.lastReceivedOn)
-        else MoneyBasis.Balances(counted, counted.minOf { it.observedOn })
-        return basis to notCounted
     }
 
     private fun runRateOf(parts: List<ComponentEstimate>): BigDecimal = parts.filterIsInstance<ComponentEstimate.RunRate>().sumOf { it.amount }
@@ -207,6 +144,6 @@ class MonthEndForecaster(
         /** "Not enough history" below three months (AOS-S7.4). */
         const val MIN_HISTORY_DAYS = 90
         /** A balance older than this isn't "money left" (the balances' stale limit, D-170). */
-        const val MAX_BALANCE_AGE_DAYS = dev.adminos.api.domain.balances.BalanceRules.MAX_AGE_DAYS
+        const val MAX_BALANCE_AGE_DAYS = MoneyLeftBasisPicker.MAX_BALANCE_AGE_DAYS
     }
 }

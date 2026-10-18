@@ -5,7 +5,6 @@ import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 
 /** AOS-720 (D-170): money left until salary starts from recent bank balances when known, else from the last salary. */
 class MoneyLeftFromBalanceTest {
@@ -37,23 +36,23 @@ class MoneyLeftFromBalanceTest {
     }
 
     @Test
-    fun `recent balances replace the salary, less spending after the oldest of them`() {
+    fun `recent balances replace the salary, less spending from the oldest of their days`() {
         val u = until(listOf(bal("1234", "40000.00", "2026-10-18"), bal("5678", "10000.00", "2026-10-19", bank = "sbi")))
         val basis = assertIs<MoneyBasis.Balances>(u.basis)
         assertEquals(BigDecimal("50000.00"), basis.start)
         assertEquals(d("2026-10-18"), basis.asOf)
-        assertEquals(d("2026-10-19"), u.spentFrom)
-        assertEquals(BigDecimal("600.00"), u.spentSince) // 19 and 20 Oct
-        assertEquals(BigDecimal("46100.00"), u.left) // 50,000 − 600 − 3,300
+        assertEquals(d("2026-10-18"), u.spentFrom)
+        assertEquals(BigDecimal("900.00"), u.spentSince) // 18, 19 and 20 Oct: the reading's own day in full
+        assertEquals(BigDecimal("45800.00"), u.left) // 50,000 − 900 − 3,300
         assertEquals(emptyList(), u.notCounted)
     }
 
     @Test
-    fun `a balance from today subtracts nothing already spent`() {
+    fun `a balance from today still subtracts today's spending, so none after the reading is missed`() {
         val u = until(listOf(bal("1234", "20000.00", "2026-10-20")))
-        assertEquals(BigDecimal("0.00"), u.spentSince)
-        assertNull(u.spentFrom)
-        assertEquals(BigDecimal("16700.00"), u.left)
+        assertEquals(BigDecimal("300.00"), u.spentSince)
+        assertEquals(today, u.spentFrom)
+        assertEquals(BigDecimal("16400.00"), u.left)
     }
 
     @Test
@@ -81,7 +80,7 @@ class MoneyLeftFromBalanceTest {
     @Test
     fun `an overdrawn account lowers money left, and the range moves with the start`() {
         val u = until(listOf(bal("1234", "-2000.00", "2026-10-20")))
-        assertEquals(BigDecimal("-5300.00"), u.left)
+        assertEquals(BigDecimal("-5600.00"), u.left)
         u.leftRange?.let { (low, high) -> assertEquals(true, low <= u.left && u.left <= high) }
     }
 

@@ -56,7 +56,7 @@ describe("ForecastCard", () => {
     expect(screen.getByText(/In your accounts: ₹41,300.50/)).toHaveTextContent(
       "In your accounts: ₹41,300.50 (HDFC ••1234 ₹42,500.50 on 16 Oct from a bank SMS, SBI ••5678 −₹1,200 on 12 Oct from a statement)");
     expect(screen.queryByText(/Last salary/)).not.toBeInTheDocument();
-    expect(screen.getByText("− Spent since 13 Oct: ₹3,200")).toBeInTheDocument();
+    expect(screen.getByText("− Spent since 12 Oct: ₹3,200")).toBeInTheDocument();
     expect(screen.getByText("= ₹27,619.25 left")).toBeInTheDocument();
     expect(screen.getByText(/Not counted:/)).toHaveTextContent("Not counted: Account ••9012 ₹8,000 on 30 Sept (older than 7 days).");
     expect(screen.getByText(/Starts from your latest bank balances/)).toBeInTheDocument();

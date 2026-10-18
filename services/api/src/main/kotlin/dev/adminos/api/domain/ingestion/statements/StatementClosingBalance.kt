@@ -15,6 +15,8 @@ data class ClosingBalance(val amount: BigDecimal, val on: LocalDate, val observe
 enum class NoClosingBalance {
     /** No row has a balance (many card statements, some exports). */
     NONE,
+    /** Only one row has a balance, so whether it is money in the account (not a card's amount owed) can't be checked. */
+    UNCHECKABLE,
     /** The rows' order can't be told (all one day, and the balances don't say). */
     ORDER_UNCLEAR,
     /**
@@ -34,7 +36,8 @@ sealed interface ClosingBalanceResult {
  * - Statements list rows oldest first or newest first; the dates say which, and when every row is on one day the
  *   running balances do.
  * - The closing figure must follow from the previous balance and the last row (previous − debit + credit), so a
- *   misread column or a card statement's amount owed is never taken for money in the account.
+ *   misread column or a card statement's amount owed is never taken for money in the account; with only one balance
+ *   there's nothing to check it against, so it isn't taken.
  * - It's true at the end of the closing day (or the statement period's end, if later), but never after the import:
  *   a statement downloaded today holds today's rows so far.
  */
@@ -49,14 +52,13 @@ object StatementClosingBalance {
         val chronological = when {
             rows.last().date.isAfter(rows.first().date) -> rows
             rows.first().date.isAfter(rows.last().date) -> rows.reversed()
-            rows.size == 1 -> rows
+            rows.size == 1 -> return ClosingBalanceResult.NotFound(NoClosingBalance.UNCHECKABLE)
             reconciles(rows) -> rows
             reconciles(rows.reversed()) -> rows.reversed()
             else -> return ClosingBalanceResult.NotFound(NoClosingBalance.ORDER_UNCLEAR)
         }
         val last = chronological.last()
-        val previous = chronological.getOrNull(chronological.size - 2)
-        if (previous != null && !follows(previous, last)) return ClosingBalanceResult.NotFound(NoClosingBalance.UNRECONCILED)
+        if (!follows(chronological[chronological.size - 2], last)) return ClosingBalanceResult.NotFound(NoClosingBalance.UNRECONCILED)
         val importDay = importedAt.atZone(ZONE).toLocalDate()
         val on = statement.periodEnd?.takeIf { it.isAfter(last.date) && !it.isAfter(importDay) } ?: last.date
         val endOfDay = on.atTime(END_OF_DAY).atZone(ZONE).toInstant()

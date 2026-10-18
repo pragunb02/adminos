@@ -65,9 +65,10 @@ class SmsIntake(
     private suspend fun noteBalance(userId: UUID, message: SmsMessage, parsed: SmsParseResult): Boolean {
         val capture = balanceGate.read(message, parsed) as? SmsBalanceCapture.Trusted ?: return false
         val b = capture.balance
-        // The balance is as of the SMS, unless the bank dates it earlier ("as on 15-10-26": the end of that day).
-        val observedAt = b.asOn?.takeIf { it.isBefore(message.receivedAt.atZone(IST).toLocalDate()) }
-            ?.let { it.atTime(END_OF_DAY).atZone(IST).toInstant() } ?: message.receivedAt
+        // The balance is as of the SMS, unless the bank dates it earlier: "as on 15-10-26 09:30" at that time, a bare
+        // "as on 15-10-26" at the end of that day. A date that isn't before the SMS can't be checked, so the SMS's time wins.
+        val observedAt = b.asOn?.let { day -> day.atTime(b.asOnTime ?: END_OF_DAY).atZone(IST).toInstant() }
+            ?.takeIf { it.isBefore(message.receivedAt) } ?: message.receivedAt
         val r = balances.record(BalanceObservation(userId, capture.bankCode, b.accountHint, b.amount, observedAt, BalanceSource.SMS, fingerprint(message)))
         return r == BalanceRecordResult.Saved
     }
