@@ -2,24 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-
-const CATEGORIES = [
-  { value: "food", label: "Food", icon: "🍽️" },
-  { value: "transport", label: "Transport", icon: "🛺" },
-  { value: "shopping", label: "Shopping", icon: "🛍️" },
-  { value: "health", label: "Health", icon: "💊" },
-  { value: "entertainment", label: "Fun", icon: "🎬" },
-  { value: "utilities", label: "Bills", icon: "💡" },
-  { value: "education", label: "Education", icon: "📚" },
-  { value: "other", label: "Other", icon: "•••" },
-] as const;
-
-const AMOUNT = /^\d{1,8}(\.\d{1,2})?$/;
+import { CASH_CATEGORIES as CATEGORIES, validAmount } from "@/lib/cash";
+import CashTextEntry from "@/components/CashTextEntry";
 
 /**
  * Cash quick-add (AOS-204): "+ Cash" → type the amount → tap a category, and it's saved.
  * One clientRef per entry, so a double tap or a retry after a network error is saved once.
  * ATM withdrawals count as moving money to cash (D-42), so only what's logged here is spending.
+ * Below it, the same sheet reads free text or dictation into entries to check and save (AOS-718).
  */
 export default function CashQuickAdd() {
   const [open, setOpen] = useState(false);
@@ -54,7 +44,7 @@ export default function CashQuickAdd() {
     return () => clearTimeout(t);
   }, [saved]);
 
-  const valid = AMOUNT.test(amount) && Number(amount) > 0;
+  const valid = validAmount(amount);
 
   const save = async (category: string) => {
     if (!valid || saving) return;
@@ -97,7 +87,7 @@ export default function CashQuickAdd() {
             role="dialog"
             aria-modal="true"
             aria-label="Add cash spending"
-            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-5 space-y-4"
+            className="w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 text-3xl font-bold">
@@ -142,6 +132,7 @@ export default function CashQuickAdd() {
                 {error}
               </p>
             )}
+            <CashTextEntry onSaved={(message) => { setOpen(false); setSaved(message); }} />
           </div>
         </div>
       )}

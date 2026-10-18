@@ -164,13 +164,17 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-621](tickets/AOS-621.md) | Encrypted backups: age-encrypted pg_dump to a locked R2 bucket, restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | └ [AOS-622](tickets/AOS-622.md) | Supply chain and runtime: CI on every PR, OSV/npm audit/govulncheck/Trivy/CodeQL, Dependabot, pinned and locked-down containers (D-99) | Claude (agent) | ✅ | 4h | 6h |
 | └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
-| └ AOS-624 | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) | Claude | ⬜ | 3h |  |
-| └ AOS-625 | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude | ⬜ | 1h |  |
-| └ AOS-626 | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) | Claude | ⬜ | 2h |  |
-| └ AOS-627 | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude | ⬜ | 0.5h |  |
-| └ AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
-| └ AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
-| └ AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
+| └ [AOS-630](tickets/AOS-630.md) | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) (D-114) | Claude (agent) | ✅ | 1h | 1.5h |
+| └ [AOS-629](tickets/AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
+| └ [AOS-628](tickets/AOS-628.md) | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-627](tickets/AOS-627.md) | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude (agent) | ✅ | 0.5h | 0.5h |
+| └ [AOS-626](tickets/AOS-626.md) | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) (D-113) | Claude (agent) | ✅ | 2h | 1.5h |
+| └ [AOS-625](tickets/AOS-625.md) | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude (agent) | ✅ | 1h | 0.75h |
+| └ [AOS-624](tickets/AOS-624.md) | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) (D-112) | Claude (agent) | ✅ | 3h | 2h |
+| └ [AOS-634](tickets/AOS-634.md) | Redis requires a password; API and worker get it and refuse to start without it (D-103) | Claude (agent) | ✅ | 2h | 2h |
+| └ [AOS-633](tickets/AOS-633.md) | Non-JSON bodies are 415, malformed JSON 400, fixed messages (never 500, never echoed) (D-102) | Claude (agent) | ✅ | 1.5h | 1.5h |
+| └ [AOS-632](tickets/AOS-632.md) | Web image ships public/ (service worker, icons) + image check | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-641](tickets/AOS-641.md) | Merge script: required checks must pass; others may be neutral/skipped, never failing | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-635](tickets/AOS-635.md) | AI replies: size and depth checked before parsing; a validator exception or stack overflow rejects the answer (audited), other JVM errors propagate | Claude (agent) | ✅ | 1h | 1h |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
@@ -198,20 +202,20 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ AOS-705 | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ⬜ | 8h |  |
 | └ AOS-706 | Template learning from repeated message shapes, human-approved | Claude | ⬜ | 8h |  |
 | └ [AOS-707](tickets/AOS-707.md) | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | ✅ | 8h | 7h |
-| └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | 🟦 | 6h |  |
+| └ [AOS-708](tickets/AOS-708.md) | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | ✅ | 6h | 5.5h |
 | **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ⬜ | 18h | |
 | └ [AOS-712](tickets/AOS-712.md) | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ✅ | 4h | 4h |
 | └ [AOS-710](tickets/AOS-710.md) | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ✅ | 10h | 5h |
 | └ AOS-711 | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ⬜ | 4h |  |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
-| └ AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | 🟦 | 6h |  |
-| └ AOS-714 | Month-end forecast + money left until salary | Claude (agent) | 🟦 | 8h |  |
-| └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | 🟦 | 5h |  |
-| └ AOS-715 | Subscription price-rise alert | Claude (agent) | 🟦 | 2h |  |
+| └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
+| └ [AOS-713](tickets/AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | ✅ | 6h | 5h |
+| └ [AOS-709](tickets/AOS-709.md) | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | ✅ | 5h | 5h |
+| └ [AOS-715](tickets/AOS-715.md) | Subscription price-rise alert | Claude (agent) | ✅ | 2h | 1.5h |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
-| └ AOS-718 | Cash quick-add from free text or dictation | Claude (agent) | 🟦 | 5h |  |
+| └ [AOS-718](tickets/AOS-718.md) | Cash quick-add from free text or dictation | Claude (agent) | ✅ | 5h | 6h |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
 
 ## 🟦 [AOS-E9](tickets/AOS-E9.md) — Spending coach · P0 · ETA 47h
