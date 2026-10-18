@@ -25,7 +25,7 @@ class ExposedAnalyticsRepository : AnalyticsRepository {
         TransactionManager.current().exec(
             """
             SELECT (transacted_at AT TIME ZONE ?)::date AS day, nature::text AS nature, category::text AS category,
-                   merchant_name, SUM(amount) AS amount, COUNT(*) AS n
+                   merchant_name, SUM(COALESCE(own_share, amount)) AS amount, COUNT(*) AS n
             FROM transactions
             WHERE user_id = ?::uuid AND transacted_at >= ?::timestamptz AND transacted_at < ?::timestamptz
               AND nature IN ('spend', 'refund', 'income')

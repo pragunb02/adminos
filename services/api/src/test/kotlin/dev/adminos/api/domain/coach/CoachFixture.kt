@@ -34,6 +34,7 @@ object CoachFixture {
             TransactionNature.REFUND -> TransactionType.REFUND
             TransactionNature.REVERSAL -> TransactionType.REVERSAL
             TransactionNature.INCOME -> TransactionType.CREDIT
+            TransactionNature.SETTLEMENT -> TransactionType.DEBIT
         },
         category = category, subcategory = subcategory, upiVpa = vpa,
         paymentMethod = if (vpa != null) PaymentMethod.UPI else PaymentMethod.CARD_DEBIT,

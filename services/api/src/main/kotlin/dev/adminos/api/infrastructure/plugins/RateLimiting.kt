@@ -86,6 +86,8 @@ object RateLimiters {
     fun manualSync(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 5, windowSeconds = 3600, clock = clock)   // 5/hour per user
     /** Retraining is CPU work: a few per hour per user is plenty for a "retrain now" button (AOS-707). */
     fun retrain(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 6, windowSeconds = 3600, clock = clock)      // 6/hour per user
+    fun forecast(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 30, windowSeconds = 60, clock = clock)      // 30/min per user: month-end forecast (AOS-714)
+    fun cashParse(clock: Clock = Clock.systemUTC()) = RateLimiter(maxRequests = 30, windowSeconds = 60, clock = clock)     // 30/min per user: cash text previews (AOS-718)
 }
 
 /**

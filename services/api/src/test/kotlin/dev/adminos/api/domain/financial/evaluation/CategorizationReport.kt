@@ -67,15 +67,17 @@ fun rulesLearnedRun(trainer: CategoryModelTrainer = SoftmaxRegressionTrainer()):
 fun rulesLearnedReport(): EvaluationReport = CategorizationEvaluator.evaluate(rulesLearnedRun().outcomes)
 
 /**
- * `./gradlew -q categorizationReport` (AOS-511, AOS-512, AOS-702, AOS-707): prints the tables and writes the JSON reports.
+ * `./gradlew -q categorizationReport` (AOS-511, AOS-512, AOS-702, AOS-707, AOS-708): prints the tables and writes the JSON reports.
  * Args: `<report.json>`, then optionally `--write-baseline <dir> --eval-records <evals.json>` (with
- * `-PwriteBaseline`: also refreshes the categorisation record the start-up eval gate reads) or
- * `--record-ai <ai-recorded.csv>` (with `-PrecordAi`: asks the real Claude API, needs ANTHROPIC_API_KEY).
+ * `-PwriteBaseline`: also refreshes the categorisation record the start-up eval gate reads),
+ * `--record-ai <ai-recorded.csv>` (with `-PrecordAi`: asks the real Claude API, needs ANTHROPIC_API_KEY), or
+ * `--local-golden <csv>` (with `-PlocalGolden=<csv>`: scores your own local golden set, AOS-708; printed only).
  */
 fun main(args: Array<String>) {
-    require(args.isNotEmpty()) { "usage: <report.json> [--write-baseline <dir> --eval-records <evals.json>] [--record-ai <csv>]" }
+    require(args.isNotEmpty()) { "usage: <report.json> [--write-baseline <dir> --eval-records <evals.json>] [--record-ai <csv>] [--local-golden <csv>]" }
     fun arg(name: String) = args.indexOf(name).takeIf { it >= 0 }?.let { File(args.getOrNull(it + 1) ?: error("$name needs a path")) }
     arg("--record-ai")?.let { return record(it) }
+    arg("--local-golden")?.let { return localReport(it) }
 
     val rules = rulesReport()
     val withAi = rulesAiReport()
@@ -154,4 +156,19 @@ private fun learnedSummary(name: String, run: LearnedRun): String {
     return "Learned ($name): accuracy ${report.accuracy}, macro-F1 ${report.macroF1}, coverage ${report.coverage}; " +
         "asked about ${run.answers.size} rows the rules left as Other: $did; applied right ${applied.count { it.correct }}/${applied.size}; " +
         "held-out calibration error ${run.calibrationError?.let { "%.3f".format(it) }}"
+}
+
+/**
+ * Scores a local golden set (AOS-708: scrubbed copies of your own Review answers, exported from
+ * `GET /api/v1/categories/golden.csv`) with the rules and with rules + learned (trained on the shipped golden set).
+ * Printed only: nothing is written, nothing is gated, and the file stays where you keep it (never in the repo).
+ */
+fun localReport(file: File) = runBlocking {
+    require(file.isFile) { "local golden set not found: ${file.path}" }
+    val cases = GoldenSet.parse(file.readText())
+    val rules = CategorizationEvaluator.evaluate(PipelineLabeller().labelAll(cases))
+    val learned = LearnedLabeller().runWithPrior(cases, GoldenSet.load())
+    println(ReportFormatter.table("Local golden set (${cases.size} rows): rules", rules))
+    println(ReportFormatter.table("Local golden set: rules + learned (trained on the shipped golden set)", CategorizationEvaluator.evaluate(learned.outcomes)))
+    println(learnedSummary("softmax regression, local set", learned))
 }
