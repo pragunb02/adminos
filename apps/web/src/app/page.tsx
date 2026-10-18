@@ -9,6 +9,7 @@ import PeriodSwitcher from "@/components/PeriodSwitcher";
 import Section, { Skeleton } from "@/components/console/Section";
 import Hero from "@/components/console/Hero";
 import ReviewBanner from "@/components/console/ReviewBanner";
+import ForecastCard from "@/components/console/ForecastCard";
 import DailyBars from "@/components/console/DailyBars";
 import CumulativeLine from "@/components/console/CumulativeLine";
 import { cumulativeByDay } from "@/lib/cumulative";
@@ -16,6 +17,8 @@ import { delta } from "@/lib/format";
 import CategoryBars from "@/components/console/CategoryBars";
 import MerchantList from "@/components/console/MerchantList";
 import LeaksHomeCard from "@/components/leaks/LeaksHomeCard";
+import GoalsHomeCard from "@/components/goals/GoalsHomeCard";
+import SavingsCard from "@/components/savings/SavingsCard";
 import FeedRow from "@/components/console/FeedRow";
 import { analyticsPath, type CategoryRow, type MerchantRow, type SeriesData, type SummaryData } from "@/lib/analytics";
 import { browserZone } from "@/lib/format";
@@ -63,8 +66,13 @@ function HomeContent() {
 
   return (
     <div className="space-y-4">
+      {/* The headline metric (AOS-908, D-80): self-contained */}
+      <SavingsCard />
       <PeriodSwitcher period={period} today={today} />
       {notice && <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>}
+      <Link href="/ask" className="block rounded-xl border border-line bg-surface px-4 py-3 text-sm hover:bg-page">
+        Ask your money <span className="text-ink-muted">· “How much on Zepto last month?”</span>
+      </Link>
 
       <div className="rounded-xl border border-line bg-surface p-4">
         {summary.isPending || compared.isPending ? (
@@ -84,6 +92,9 @@ function HomeContent() {
       </div>
 
       <ReviewBanner count={reviews.data?.length ?? 0} />
+
+      {/* Month-end forecast (AOS-714): only for the month in progress, and not before there's anything at all. */}
+      {isMonth && isCurrent(period, today) && !nothingYet && <ForecastCard />}
 
       {nothingYet ? (
         <EmptyState period={period} today={today} />
@@ -118,6 +129,7 @@ function HomeContent() {
           </Section>
 
           <LeaksHomeCard range={range} />
+          <GoalsHomeCard />
 
           <Section title="Top merchants" error={merchants.error ? errorMessage(merchants.error) : null} onRetry={() => merchants.refetch()}>
             {merchants.data ? (merchants.data.merchants.length ? <MerchantList rows={merchants.data.merchants} /> : <Quiet>No merchants in this period.</Quiet>) : <Skeleton />}

@@ -34,6 +34,7 @@ export default function CoachSettingsSection() {
             onChange={(e) => save.mutate({ limitAlerts: e.target.checked })} />
         </label>
       )}
+      {settings.data && <DigestControls settings={settings.data} busy={save.isPending} onChange={(v) => save.mutate(v)} />}
       {limits.data && (
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase text-gray-500">Limits</p>
@@ -112,5 +113,33 @@ function AddLimit({ busy, onAdd }: { busy: boolean; onAdd: (v: NewLimit) => void
       <input aria-label="Amount in rupees" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="₹" className="h-10 rounded-md border border-gray-300 px-2" />
       <button type="submit" disabled={busy || !ok} className="h-10 rounded-md bg-blue-700 px-3 font-semibold text-white disabled:opacity-40">Add limit</button>
     </form>
+  );
+}
+
+/** The evening digest (AOS-905): on/off, the time (default 21:30, your zone) and "skip on a zero day". */
+function DigestControls({ settings, busy, onChange }: { settings: CoachSettings; busy: boolean; onChange: (v: Partial<CoachSettings>) => void }) {
+  const [time, setTime] = useState(settings.digestTime);
+  return (
+    <div className="space-y-2 text-sm">
+      <label className="flex min-h-11 items-center justify-between gap-3">
+        <span>Evening digest</span>
+        <input type="checkbox" className="h-5 w-5" checked={settings.eveningDigest} disabled={busy} onChange={(e) => onChange({ eveningDigest: e.target.checked })} />
+      </label>
+      {settings.eveningDigest && (
+        <div className="ml-4 space-y-2">
+          <label className="flex items-center gap-2">
+            <span className="text-gray-600">At</span>
+            <input type="time" aria-label="Digest time" value={time} onChange={(e) => setTime(e.target.value)}
+              onBlur={() => { if (/^([01]\d|2[0-3]):[0-5]\d$/.test(time) && time !== settings.digestTime) onChange({ digestTime: time }); }}
+              className="rounded-md border border-gray-300 px-2 py-1" />
+          </label>
+          <label className="flex min-h-11 items-center gap-2">
+            <input type="checkbox" className="h-5 w-5" checked={settings.digestSkipZeroDay} disabled={busy} onChange={(e) => onChange({ digestSkipZeroDay: e.target.checked })} />
+            <span>Skip on a day with no spending</span>
+          </label>
+          <p className="text-xs text-gray-500">During quiet hours the digest waits until they end.</p>
+        </div>
+      )}
+    </div>
   );
 }

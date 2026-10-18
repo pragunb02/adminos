@@ -19,7 +19,7 @@ test.describe("console Home", () => {
     await expect(page.getByRole("region", { name: "Top merchants" }).getByText("Amazon")).toBeVisible();
     // Month view (AOS-304): a running-total line and day-by-day columns, both drawn by Recharts.
     await expect(page.getByRole("region", { name: "Running total" }).getByRole("img", { name: /^Spent ₹48,250 by / })).toBeVisible();
-    await expect(page.locator(".recharts-line-curve").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Running total" }).locator(".recharts-line-curve").first()).toBeVisible(); // not the savings-rate trend (AOS-908)
     await expect(page.getByRole("region", { name: "Day by day" }).locator(".recharts-bar-rectangle").first()).toBeVisible();
     await expect(page.getByRole("region", { name: "This week" })).toHaveCount(0);
   });

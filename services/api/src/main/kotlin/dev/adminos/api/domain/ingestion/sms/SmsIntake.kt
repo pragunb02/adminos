@@ -10,6 +10,10 @@ sealed interface SmsIntakeResult {
     data object Accepted : SmsIntakeResult
     /** A mandate notice, applied to the user's mandates (AOS-502). */
     data object Mandate : SmsIntakeResult
+    /** A pay-later bill, now (or already) in the dues calendar (AOS-909). */
+    data object Bill : SmsIntakeResult
+    /** A travel booking, kept for trips (AOS-910). */
+    data object Booking : SmsIntakeResult
     data object Duplicate : SmsIntakeResult
     data class Ignored(val reason: String) : SmsIntakeResult
 }
@@ -21,7 +25,9 @@ sealed interface SmsIntakeResult {
 class SmsIntake(
     private val parsers: SmsParserRegistry,
     private val intake: IngestEventService,
-    private val mandates: dev.adminos.api.domain.financial.mandates.MandateService
+    private val mandates: dev.adminos.api.domain.financial.mandates.MandateService,
+    private val payLaterBills: dev.adminos.api.domain.financial.paylater.PayLaterBills,
+    private val travelBookings: dev.adminos.api.domain.financial.trips.TravelBookings
 ) {
 
     suspend fun accept(userId: UUID, message: SmsMessage): SmsIntakeResult =
@@ -30,6 +36,14 @@ class SmsIntake(
             is SmsParseResult.Mandate -> {
                 mandates.record(userId, result.notice, message.receivedAt, fingerprint(message))
                 SmsIntakeResult.Mandate
+            }
+            is SmsParseResult.PayLaterBill -> {
+                payLaterBills.record(userId, result.notice, message.receivedAt, fingerprint(message), source = "sms")
+                SmsIntakeResult.Bill
+            }
+            is SmsParseResult.TravelBooking -> {
+                travelBookings.record(userId, result.notice, message.receivedAt, fingerprint(message))
+                SmsIntakeResult.Booking
             }
             is SmsParseResult.Transaction -> {
                 val p = result.parsed

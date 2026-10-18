@@ -89,6 +89,8 @@ class LimitService(
 
     suspend fun delete(userId: UUID, id: UUID): Boolean = limits.delete(userId, id)
 
+    suspend fun limitsOf(userId: UUID): List<SpendingLimit> = limits.findByUser(userId)
+
     /** "Not now" on a suggestion: hidden for [LimitSuggester.SNOOZE]. @return false for an unknown lens */
     suspend fun dismiss(userId: UUID, lens: String): Boolean {
         val id = LensId.parse(lens)?.takeIf { leaks.matcher.catalogue.byId(it) != null } ?: return false

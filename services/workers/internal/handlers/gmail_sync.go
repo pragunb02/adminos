@@ -30,8 +30,11 @@ type fetchedMail struct {
 	// NewHistoryID is Gmail's real mailbox history ID: the startHistoryId of the next incremental sync.
 	NewHistoryID string
 	Mode         syncMode
-	// NotFinancial counts new messages skipped by the sender filters (only their headers were read).
+	// NotFinancial counts messages skipped by the sender filters (only their headers were read).
 	NotFinancial int
+	// Unauthenticated counts messages from a listed sender that Gmail didn't authenticate
+	// (AOS-624): spoofed bank mail. Nothing of them is parsed.
+	Unauthenticated int
 	// Gone counts messages deleted between listing and fetching.
 	Gone int
 }
@@ -42,7 +45,8 @@ var gmailHistoryID = regexp.MustCompile(`^[0-9]{1,20}$`)
 
 // fetchMail gets the financial email added since the stored history ID (AOS-401, D-59):
 //   - with a usable history ID, users.history.list lists what was added; each new message's From and
-//     Subject (metadata only) are checked against the sender filters, and only matches are fetched;
+//     Authentication-Results (metadata only) are qualified (gmail.Qualify), and only bank mail is
+//     fetched;
 //   - with none, or when Gmail answers 404 (history expired), a bounded full sync runs instead: the
 //     filtered search over the last fullSyncDays days, at most maxFullSyncMessages messages.
 //
@@ -97,8 +101,11 @@ func (h *GmailHandler) incrementalSync(ctx context.Context, accessToken, startHi
 		if err != nil {
 			return nil, err
 		}
-		if skippedLabel(meta.LabelIDs) || !gmail.IsFinancial(meta.Header("From"), meta.Header("Subject")) {
+		if skippedLabel(meta.LabelIDs) {
 			out.NotFinancial++
+			continue
+		}
+		if !out.admit(gmail.Qualify(meta.Payload.Headers)) {
 			continue
 		}
 		if err := h.fetchFull(ctx, accessToken, id, out); err != nil {
@@ -149,7 +156,9 @@ func (h *GmailHandler) fullSync(ctx context.Context, accessToken, previousHistor
 	return out, nil
 }
 
-// fetchFull reads one financial message's headers and readable body into out.
+// fetchFull reads one financial message's headers and readable body into out. The full message is
+// qualified again (AOS-624): for a full sync this is the only check, because Gmail's search is not
+// an authentication; for an incremental one it re-checks the complete header set.
 func (h *GmailHandler) fetchFull(ctx context.Context, accessToken, id string, out *fetchedMail) error {
 	msg, err := h.gmailClient.GetMessage(ctx, accessToken, id)
 	if errors.Is(err, gmail.ErrNotFound) {
@@ -158,6 +167,13 @@ func (h *GmailHandler) fetchFull(ctx context.Context, accessToken, id string, ou
 	}
 	if err != nil {
 		return fmt.Errorf("fetch message: %w", err)
+	}
+	if skippedLabel(msg.LabelIDs) {
+		out.NotFinancial++
+		return nil
+	}
+	if !out.admit(gmail.Qualify(msg.Payload.Headers)) {
+		return nil
 	}
 	body := gmail.PlainBody(msg)
 	if body == "" {
@@ -171,6 +187,19 @@ func (h *GmailHandler) fetchFull(ctx context.Context, accessToken, id string, ou
 		Body:      body,
 	})
 	return nil
+}
+
+// admit counts a rejected verdict and reports whether the message is authenticated bank mail.
+func (out *fetchedMail) admit(v gmail.Verdict) bool {
+	switch v {
+	case gmail.BankMail:
+		return true
+	case gmail.Unauthenticated:
+		out.Unauthenticated++
+	default:
+		out.NotFinancial++
+	}
+	return false
 }
 
 // skippedLabel: spam, trash, drafts and chats are never read (Gmail search skips them too).

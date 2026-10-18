@@ -1,34 +1,37 @@
 package dev.adminos.api.domain.agent
 
+import dev.adminos.api.domain.agent.baselines.ToleranceLevel
 import dev.adminos.api.domain.common.DuplicateEntityException
 import dev.adminos.api.domain.common.workflow.AnomalyRule
 import dev.adminos.api.domain.common.workflow.RuleResult
 import dev.adminos.api.domain.common.workflow.TransactionData
+import dev.adminos.api.domain.financial.MerchantKey
 import dev.adminos.api.domain.financial.Transaction
 import dev.adminos.api.domain.financial.TransactionNature
 import dev.adminos.api.domain.financial.TransactionRepository
-import dev.adminos.api.domain.identity.UserRepository
+import dev.adminos.api.domain.identity.UserCalendar
 import org.slf4j.LoggerFactory
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.time.DateTimeException
 import java.time.Duration
-import java.time.ZoneId
 
 /**
- * Checks a new spend against the five deterministic rules (AOS-505) and records an anomaly when
- * any fire. Context is taken **relative to the transaction's own time**, so an imported statement
- * from March is compared with February, not with today:
- * - category average: the user's spends in the same category in the 30 days before it (at least
- *   [MIN_HISTORY] of them, so a first-ever purchase isn't "3x the average");
+ * Checks a new spend and records an anomaly when any rule fires (AOS-505, AOS-713). Context is taken
+ * **relative to the transaction's own time**, so an imported statement from March is compared with
+ * the months before March, not with today:
+ * - amount: [RobustAmountRule], per-merchant then per-category robust baselines in the user's days,
+ *   relaxed by what the user said about earlier alerts at that merchant ([AnomalyToleranceRepository]);
  * - duplicates: the same amount at the same merchant in the 24 hours up to it;
- * - odd hours: in the user's own time zone.
+ * - odd hours: in the user's own time zone;
+ * - foreign currency and card testing: from the spend alone.
  * One anomaly per transaction at most, so a re-processed event never creates a second.
  */
 class AnomalyDetectorService(
     private val anomalyRepository: AnomalyRepository,
     private val transactionRepository: TransactionRepository,
-    private val users: UserRepository
+    private val calendar: UserCalendar,
+    private val tolerances: AnomalyToleranceRepository,
+    private val amountRule: RobustAmountRule = RobustAmountRule(),
+    /** Duplicates below this are recorded, not pushed ([DuplicateChargeRule]); zero is the AOS-505 behaviour (for the eval). */
+    private val smallDuplicate: java.math.BigDecimal = DuplicateChargeRule.SMALL_AMOUNT
 ) {
     private val logger = LoggerFactory.getLogger(AnomalyDetectorService::class.java)
 
@@ -37,23 +40,25 @@ class AnomalyDetectorService(
         if (transaction.nature != TransactionNature.SPEND) return null
         if (anomalyRepository.findByTransactionId(transaction.id) != null) return null
 
-        val subject = transaction.toRuleData()
+        val zone = calendar.zoneOf(transaction.userId)
         val history = transactionRepository.findByUserId(
             userId = transaction.userId,
-            from = transaction.transactedAt.minus(AVERAGE_WINDOW),
+            from = RobustAmountRule.windowStart(transaction.transactedAt, amountRule.lookbackDays, zone),
             to = transaction.transactedAt,
             limit = HISTORY_LIMIT,
             nature = TransactionNature.SPEND
         ).filter { it.id != transaction.id }
+        val merchantKey = MerchantKey.of(transaction.merchantName)
 
-        val rules: List<AnomalyRule> = listOf(
-            LargeAmountRule(categoryAverage(transaction, history)?.let { mapOf(subject.category to it) } ?: emptyMap(), LARGE_MINIMUM),
+        val subject = transaction.toRuleData()
+        val crisp: List<AnomalyRule> = listOf(
             ForeignCurrencyRule(),
-            OddHoursRule(zoneOf(transaction)),
+            OddHoursRule(zone),
             CardTestingRule(),
-            DuplicateChargeRule(history.filter { !it.transactedAt.isBefore(transaction.transactedAt.minus(DUPLICATE_WINDOW)) }.map { it.toRuleData() })
+            DuplicateChargeRule(history.filter { !it.transactedAt.isBefore(transaction.transactedAt.minus(DUPLICATE_WINDOW)) }.map { it.toRuleData() }, smallDuplicate)
         )
-        val fired = rules.mapNotNull { it.evaluate(subject) }
+        val amount = amountRule.evaluate(transaction, AmountContext(history, zone, toleranceAt(transaction, merchantKey)))
+        val fired = listOfNotNull(amount) + crisp.mapNotNull { it.evaluate(subject) }
         if (fired.isEmpty()) return null
 
         val anomaly = Anomaly(
@@ -61,7 +66,9 @@ class AnomalyDetectorService(
             transactionId = transaction.id,
             type = determineType(fired),
             confidenceScore = computeConfidence(fired),
-            reason = fired.joinToString("; ") { it.reason }
+            reason = fired.joinToString("; ") { it.reason },
+            rulesFired = fired.map { it.ruleName }.toSet(),
+            merchantKey = merchantKey
         )
         return try {
             anomalyRepository.save(anomaly).also {
@@ -72,17 +79,8 @@ class AnomalyDetectorService(
         }
     }
 
-    /** Mean of earlier same-category spends in the window, or null with too little history. */
-    private fun categoryAverage(t: Transaction, history: List<Transaction>): BigDecimal? {
-        val earlier = history.filter { it.category == t.category && it.transactedAt.isBefore(t.transactedAt) }
-        if (earlier.size < MIN_HISTORY) return null
-        return earlier.fold(BigDecimal.ZERO) { sum, x -> sum + x.amount }.divide(BigDecimal(earlier.size), 2, RoundingMode.HALF_UP)
-    }
-
-    private suspend fun zoneOf(t: Transaction): ZoneId {
-        val id = users.findById(t.userId)?.timezone ?: return DEFAULT_ZONE
-        return try { ZoneId.of(id) } catch (e: DateTimeException) { DEFAULT_ZONE }
-    }
+    private suspend fun toleranceAt(t: Transaction, merchantKey: String?): ToleranceLevel =
+        merchantKey?.let { tolerances.find(t.userId, it, TolerableRule.LARGE_AMOUNT)?.level } ?: ToleranceLevel.DEFAULT
 
     private fun Transaction.toRuleData() = TransactionData(
         userId = userId.toString(),
@@ -98,13 +96,7 @@ class AnomalyDetectorService(
     )
 
     companion object {
-        val DEFAULT_ZONE: ZoneId = ZoneId.of("Asia/Kolkata")
-        val AVERAGE_WINDOW: Duration = Duration.ofDays(30)
         val DUPLICATE_WINDOW: Duration = Duration.ofHours(24)
-        /** Fewer earlier spends than this in a category means no average to compare with. */
-        const val MIN_HISTORY = 3
-        /** Large-amount alerts only from ₹2,000. */
-        val LARGE_MINIMUM = BigDecimal(2000)
         private const val HISTORY_LIMIT = 5000
 
         /**
