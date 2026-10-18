@@ -256,7 +256,7 @@ class IdorTest {
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
             "/api/v1/leaks/fees", "/api/v1/receipts",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
-            "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation",
+            "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation", "/api/v1/wealth/investment-flows",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)

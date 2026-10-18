@@ -218,7 +218,7 @@ internal fun buildAppModule(
         val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(
             ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
-            TransferStep(get(), get()), RefundReversalStep(get(), get(), get())
+            TransferStep(get(), get()), dev.adminos.api.domain.wealth.flows.InvestmentFlowStep(get()), RefundReversalStep(get(), get(), get())
         ) + learnedStep)
     }
     single<IngestOutcomeWriter> {

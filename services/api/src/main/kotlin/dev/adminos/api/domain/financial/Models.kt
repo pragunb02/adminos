@@ -14,8 +14,11 @@ enum class TransactionCategory {
     FOOD, TRANSPORT, SHOPPING, UTILITIES, EMI, SUBSCRIPTION,
     ENTERTAINMENT, HEALTH, EDUCATION, TRANSFER, OTHER
 }
-/** What a transaction is for the totals (D-39), independent of debit/credit. */
-enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL;
+/**
+ * What a transaction is for the totals (D-39), independent of debit/credit. `INVESTMENT` (AOS-815, D-79) is a kind of
+ * transfer: money to or from the owner's investments, neither spent nor received.
+ */
+enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL, INVESTMENT;
     companion object {
         fun defaultFor(type: TransactionType) = when (type) {
             TransactionType.CREDIT -> INCOME

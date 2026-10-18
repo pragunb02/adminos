@@ -29,7 +29,7 @@ object CoachFixture {
     ) = Transaction(
         userId = user, sourceType = source, amount = BigDecimal(amount), nature = nature, merchantName = merchant,
         type = when (nature) {
-            TransactionNature.SPEND -> TransactionType.DEBIT
+            TransactionNature.SPEND, TransactionNature.INVESTMENT -> TransactionType.DEBIT
             TransactionNature.TRANSFER -> TransactionType.TRANSFER
             TransactionNature.REFUND -> TransactionType.REFUND
             TransactionNature.REVERSAL -> TransactionType.REVERSAL
