@@ -48,9 +48,21 @@ services:
     cpus: 1
     pids_limit: 128
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6379:6379"   # loopback only; the API and workers use the compose network
+    # Password required (AOS-634). REDISCLI_AUTH is read by redis-cli (the healthcheck) and becomes
+    # `requirepass` on redis-server's stdin (`-`), so it never sits on a command line (`ps`, the
+    # container's Cmd). The image's entrypoint still drops root. Hex only (no quoting in the config line).
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?}
+    command:
+      - sh
+      - -c
+      - |
+        exec docker-entrypoint.sh redis-server - <<EOF
+        requirepass $$REDISCLI_AUTH
+        EOF
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]   # NOAUTH or a wrong password is unhealthy
       interval: 5s
       timeout: 5s
       retries: 5
@@ -86,6 +98,7 @@ services:
       DB_USER: adminos
       DB_PASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}   # Redis requires it (AOS-634); beside the URL, so no URL carries it
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (openssl rand -base64 48)}
       OWNER_EMAIL: ${OWNER_EMAIL:?}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -121,6 +134,9 @@ services:
       AI_CATEGORIZATION_PROVIDER: ${AI_CATEGORIZATION_PROVIDER:-anthropic}
       AI_CATEGORIZATION_MODEL: ${AI_CATEGORIZATION_MODEL:-claude-haiku-5-5}
       LEARNED_CATEGORIZATION_ENABLED: ${LEARNED_CATEGORIZATION_ENABLED:-false}
+      AI_ASK_ENABLED: ${AI_ASK_ENABLED:-false}
+      AI_ASK_PROVIDER: ${AI_ASK_PROVIDER:-anthropic}
+      AI_ASK_MODEL: ${AI_ASK_MODEL:-claude-sonnet-5-5}
       DOCS_S3_ENDPOINT: ${DOCS_S3_ENDPOINT:-}
       DOCS_S3_REGION: ${DOCS_S3_REGION:-auto}
       DOCS_S3_BUCKET: ${DOCS_S3_BUCKET:-}
@@ -151,6 +167,7 @@ services:
       DATABASE_URL: postgresql://adminos@postgres:5432/adminos
       PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}   # Redis requires it (AOS-634); beside the URL, so no URL carries it
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # The API's key: the worker reads and writes the encrypted Gmail tokens (AOS-401, D-59).
@@ -180,6 +197,7 @@ services:
       DATABASE_URL: postgresql://adminos@postgres:5432/adminos
       PGPASSWORD: ${DB_PASSWORD:?}
       REDIS_URL: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}   # Redis requires it (AOS-634); beside the URL, so no URL carries it
 
   pdf-parser:
     # Statement parser (D-37): stateless, internal network only (no published port). The API calls it.
