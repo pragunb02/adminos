@@ -9,14 +9,17 @@
 # Its own network: it can reach Postgres (which joins `backup` too) and the internet (R2), nothing else.
 services:
   postgres:
-    networks: [default, backup]
+    networks: [backend, backup]       # added to its backend network; nothing else joins `backup`
 
   backup:
     build:
       context: ./services/backup
       dockerfile: Dockerfile
     command: ["schedule"]
-    networks: [backup]
+    networks: [backup]                # Postgres and the internet (R2) only
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 64
     depends_on:
       postgres:
         condition: service_healthy

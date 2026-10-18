@@ -33,6 +33,15 @@ describe("Import a WhatsApp bank chat (AOS-403)", () => {
     expect(done).toHaveTextContent("21 new transactions imported");
     expect(done).toHaveTextContent("30 of 40");
     expect(screen.getByRole("list", { name: "Skipped messages" })).toHaveTextContent("3 messages skipped: one-time password");
+    expect(done).not.toHaveTextContent("read by AI");
+  });
+
+  it("says how many messages wait for the AI reader in Review (AOS-705)", async () => {
+    respond({ success: true, data: result({ reading: 2 }), error: null, meta });
+    await importChat();
+    const done = await screen.findByRole("status", { name: "WhatsApp import result" });
+    expect(done).toHaveTextContent("2 messages will be read by AI and wait for you in Review.");
+    expect(screen.getByRole("link", { name: "Review" })).toHaveAttribute("href", "/review");
   });
 
   it("explains when the chat has no bank messages, and reports unreadable dates", async () => {

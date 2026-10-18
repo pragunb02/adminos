@@ -39,7 +39,7 @@ private fun PushSubscription.toResponse() = PushDeviceResponse(id.toString(), la
 /**
  * Web Push per device (AOS-510), signed-in users only:
  * - `GET /push` — is push set up, the public key to subscribe with, this user's devices
- * - `POST /push/subscriptions` — turn push on for this device (201)
+ * - `POST /push/subscriptions` — turn push on for this device (201; 409 if another account has it)
  * - `DELETE /push/subscriptions` — turn it off (200; 404 if it wasn't on)
  * - `POST /push/test` — send a test push to this user's devices now
  */
@@ -53,8 +53,12 @@ fun Route.pushRoutes(service: PushSubscriptionService) {
             }
             post("/subscriptions") {
                 val request = call.receive<PushSubscribeRequest>()
-                val saved = guarded {
-                    service.register(call.userPrincipal.userId, PushEndpoint(request.endpoint), PushKeys(request.keys.p256dh, request.keys.auth), request.label)
+                val saved = try {
+                    guarded {
+                        service.register(call.userPrincipal.userId, PushEndpoint(request.endpoint), PushKeys(request.keys.p256dh, request.keys.auth), request.label)
+                    }
+                } catch (e: PushEndpointTakenException) {
+                    throw ApiException(HttpStatusCode.Conflict, ApiError("PUSH_003", e.message.orEmpty()))
                 }
                 call.respond(HttpStatusCode.Created, ApiResponse.success(saved.toResponse(), call.requestId))
             }

@@ -14,22 +14,16 @@ import java.util.UUID
  * Connections to data sources. [ingestion] queues Gmail syncs for the Go worker (AOS-401): the first
  * sync after connecting Gmail, and manual syncs. Without it (some tests) nothing is queued.
  * [gmailWatch] registers Gmail push after connecting and stops it on disconnect (AOS-405).
+ * [tokenEncryptor] is required (AOS-629, AUD-25): there is no path that stores an OAuth token in plaintext.
  */
 class ConnectionService(
     private val connectionRepository: ConnectionRepository,
     private val syncSessionRepository: SyncSessionRepository,
-    private val tokenEncryptor: TokenEncryptor? = null,
+    private val tokenEncryptor: TokenEncryptor,
     private val ingestion: IngestionService? = null,
     private val gmailWatch: GmailWatchService? = null
 ) {
     private val logger = LoggerFactory.getLogger(ConnectionService::class.java)
-
-    init {
-        if (tokenEncryptor == null) {
-            logger.warn("TokenEncryptor not configured — OAuth tokens will be stored in PLAINTEXT. " +
-                "Set TOKEN_ENCRYPTION_KEY env var for production.")
-        }
-    }
 
     suspend fun createConnection(
         userId: UUID,
@@ -178,9 +172,7 @@ class ConnectionService(
     /** Where a token is stored: bound into its ciphertext so it can't be moved to another row or field (AOS-608). */
     internal fun tokenContext(connectionId: UUID, field: String) = connectionTokenContext(connectionId, field)
 
-    private fun encryptToken(token: String, context: String): String {
-        return tokenEncryptor?.encrypt(token, context) ?: token
-    }
+    private fun encryptToken(token: String, context: String): String = tokenEncryptor.encrypt(token, context)
 }
 
 /** The TokenEncryptor context of a stored token (AOS-608); the Go worker uses the same (D-59). */

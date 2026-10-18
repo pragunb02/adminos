@@ -33,7 +33,7 @@ class IngestionRepositoriesIntegrationTest {
                 sourceType = source,
                 status = ConnectionStatus.CONNECTED,
                 oauthScope = listOf("openid", "email", "https://www.googleapis.com/auth/gmail.readonly"),
-                gmailAddress = "me-${UUID.randomUUID()}@gmail.com",
+                gmailAddress = "me-${UUID.randomUUID()}@example.com",
                 historyId = "12345",
                 totalSynced = 3
             )
@@ -107,5 +107,25 @@ class IngestionRepositoriesIntegrationTest {
         assertEquals(at(12), syncSessions.lastCompletedAt(connection.id, setOf(SyncType.CRON_FALLBACK)))
         assertEquals(null, syncSessions.lastCompletedAt(connection.id, setOf(SyncType.HISTORICAL)))
         assertEquals(null, syncSessions.lastCompletedAt(connection.id, emptySet()))
+    }
+
+    @Test
+    fun `the queued session lookup finds only the connection's newest not-started session after the cutoff (AOS-630)`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val connection = newConnection(userId)
+        val other = newConnection(PostgresTestDatabase.newUser())
+        val at = { m: Long -> java.time.Instant.parse("2026-10-18T09:00:00Z").plusSeconds(m * 60) }
+        suspend fun session(conn: UserConnection, status: SyncSessionStatus, created: java.time.Instant) =
+            syncSessions.save(SyncSession(userId = conn.userId, connectionId = conn.id, syncType = SyncType.INCREMENTAL, status = status,
+                createdAt = created, updatedAt = created))
+        session(connection, SyncSessionStatus.QUEUED, at(0))          // before the cutoff: treated as lost
+        val newest = session(connection, SyncSessionStatus.QUEUED, at(20))
+        session(connection, SyncSessionStatus.QUEUED, at(15))
+        session(connection, SyncSessionStatus.IN_PROGRESS, at(25))    // started: doesn't coalesce
+        session(connection, SyncSessionStatus.COMPLETED, at(26))
+        session(other, SyncSessionStatus.QUEUED, at(30))              // another connection
+
+        assertEquals(newest.id, syncSessions.findQueued(connection.id, createdAfter = at(10))?.id)
+        assertEquals(null, syncSessions.findQueued(connection.id, createdAfter = at(21)))
     }
 }

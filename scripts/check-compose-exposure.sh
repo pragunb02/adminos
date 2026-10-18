@@ -11,14 +11,11 @@
 #     address, a long-form entry without host_ip, or a host_ip from a variable whose default is wide);
 #   - uses host networking (`network_mode: host` skips publishing, so it would bypass this check);
 #   - runs privileged.
-# Fail closed: a stack compose can't render is a failure too.
-#
-# Variables the files require (`${VAR:?}`) get a dummy value only when they're not set in the shell or in
-# the .env next to the first file, so the check runs in CI without secrets. The rendered config holds
-# secrets when a real .env exists, so it is only piped to jq and never printed.
+# Fail closed: a stack compose can't render is a failure too. Secrets in a real .env are never printed.
 set -euo pipefail
-
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/compose-render.sh
+source "$here/lib/compose-render.sh"
 
 command -v docker >/dev/null || { echo "check-compose-exposure: docker is required" >&2; exit 2; }
 command -v jq >/dev/null || { echo "check-compose-exposure: jq is required" >&2; exit 2; }
@@ -38,23 +35,9 @@ violations() {
 
 # check_stack <file> [<file> ...]: returns 0 when the stack is loopback-only.
 check_stack() {
-  local label="$*" file dir var
-  local -a args=() dummies=()
-  for file in "$@"; do
-    if [[ ! -f "$file" ]]; then echo "FAIL $label: no such file $file"; return 1; fi
-    args+=(-f "$file")
-  done
-  dir="$(cd "$(dirname "$1")" && pwd)"
-  while IFS= read -r var; do
-    [[ -z "$var" ]] && continue
-    if [[ -n "${!var+x}" ]]; then continue; fi
-    if [[ -f "$dir/.env" ]] && grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$dir/.env"; then continue; fi
-    dummies+=("$var=/compose-exposure-check")   # absolute, so it also works as a bind-mount path
-  done < <(cat "$@" | grep -oE '\$\{[A-Za-z_][A-Za-z0-9_]*:?\?' | sed -E 's/^\$\{//; s/:?\?$//' | sort -u)
-
-  local rendered found
-  if ! rendered="$(env ${dummies[@]+"${dummies[@]}"} docker compose "${args[@]}" --profile '*' config --format json 2>/dev/null)"; then
-    echo "FAIL $label: docker compose could not render it (run: docker compose ${args[*]} config)"
+  local label="$*" rendered found
+  if ! rendered="$(render_stack "$@")"; then
+    echo "FAIL $label: docker compose could not render it (run: docker compose -f … config)"
     return 1
   fi
   found="$(violations <<<"$rendered")"
@@ -66,15 +49,8 @@ check_stack() {
   echo "OK   $label: every published port is loopback-only; no host networking or privileged services"
 }
 
-status=0
 if [[ $# -gt 0 ]]; then
-  check_stack "$@" || status=1
+  check_stack "$@"
 else
-  base="$repo_root/docker-compose.yml"
-  check_stack "$base" || status=1
-  shopt -s nullglob
-  for overlay in "$repo_root"/docker-compose.*.yml; do
-    check_stack "$base" "$overlay" || status=1
-  done
+  for_each_stack check_stack
 fi
-exit "$status"

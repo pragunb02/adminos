@@ -37,7 +37,8 @@ object AiPrivacyGate {
         return AiCategoryQuestion(name, t.paymentMethod, AI_ALLOWED_CATEGORIES)
     }
 
-    private fun isBusiness(t: Transaction): Boolean {
+    /** Positive evidence the payee is a business (also used by merchant grouping, AOS-709). */
+    fun isBusiness(t: Transaction): Boolean {
         if (t.paymentMethod in CARDS) return true
         val raw = t.merchantRaw.orEmpty()
         if (GATEWAY.containsMatchIn(raw.trim()) || LEGAL_ENTITY.containsMatchIn(MerchantCatalogue.matchForm(raw))) return true

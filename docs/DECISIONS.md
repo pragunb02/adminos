@@ -5,12 +5,38 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-123 | Architecture | Repositories never read the clock or a zone: callers pass dates from UserCalendar (today(userId) for one user, serverToday() for cross-user pre-filters refined per user) | Accepted | AOS-638 |
+| D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
+| D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
+| D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
+| D-111 | Architecture / Product | Splitwise: import the owner's CSV export (no credentials); every total counts the owner's share (`own_share`); settle-ups are the new nature `settlement` (neither spending nor income); `split-v1` matcher with Review and undo; names encrypted at rest | Accepted | AOS-911 |
+| D-110 | Product / Architecture | Ask is a page at /ask (from Home and More) whose answers you can trace ("How I got this": each tool, dates, numbers, a link to the same payments); thumbs up/down by answer id (recent answers kept 1 h, another user's id is 404), stored masked and encrypted | Accepted | AOS-711 |
+| D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
+| D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
+| D-72 | Product / Architecture | Review asks about the learned model's and the AI's least-sure category guesses, ordered by (1 − confidence) × amount; one tap with Undo; every answer is a remembered correction; optional scrubbed copy into a local, never-committed golden set | Accepted | AOS-708 |
+| D-76 | Architecture / Product | The month-end forecast is deterministic decomposition (spent so far + known bills, renewals and mandates + a weekly-median weekday/weekend run-rate × days left) with an 80% range from the user's own past errors; money left until salary from a learnt salary; measured by a synthetic backtest with a floor | Accepted | AOS-714 |
+| D-75 | Architecture / Product | Look-alike merchants are proposed in Review, never merged silently (cleaned names, guarded Jaro-Winkler, shared UPI ID; never two brands or two people); a confirmed merge is an alias every reader uses (subscriptions, analytics); rejections remembered; stored transactions never rewritten | Accepted | AOS-709 |
+| D-74 | Product | A subscription price rise (latest charge vs the median of the previous up to 3, at least max(5%, ₹20), plan switches excluded) is told once per new price; one rule for the alert, the ↑/↓ and the waste score; cuts shown, not alerted | Accepted | AOS-715 |
+| D-73 | Architecture / Product | Unusual amounts are judged against the merchant's own robust baseline (median/MAD on log amounts, a measured fallback chain down to the AOS-505 rule); 'this is normal' / 'unexpected' tune a capped per-merchant tolerance; crisp rules never relaxed; synthetic eval set with a floor | Accepted | AOS-713 |
+| D-114 | Architecture | A verified Gmail push is folded into a queued, not-yet-started sync of the connection (or ignored when its history ID is already read); the worker marks a sync in_progress when it starts; at most one running and one waiting sync per connection (extends D-63) | Accepted | AOS-630 |
+| D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
+| D-103 | Architecture | Redis always requires a password: REDIS_PASSWORD (hex) on the server's stdin, beside a credential-free REDIS_URL for clients (a host-run URL may carry it; both must agree); API and worker refuse to start without it and never log it | Accepted | AOS-634 |
+| D-113 | Architecture | Statement parser: each file parsed in its own spawned child, killed after 30 s, 1 GiB address space, at most 2 at once; per-file budgets (300 pages, 50 sheets, 100 000 rows, 2 000 000 cells); over a limit is 422 with a stable code | Accepted | AOS-626 |
+| D-112 | Architecture | Bank mail is admitted by sender only, and only when Gmail's topmost Authentication-Results show DMARC pass or aligned DKIM pass; SPF alone and subjects never admit; receipt senders (AOS-903) go through the same check, their order words only narrow candidates (amends D-59) | Accepted | AOS-624, AOS-903 |
+| D-102 | Architecture | Unreadable request bodies get fixed answers: 415 VALIDATION_005 for a non-JSON Content-Type, 400 VALIDATION_004 for JSON that doesn't parse or fit, 413 VALIDATION_006 for the body limit; never a 500, never decoder or library text | Accepted | AOS-633 |
 | D-79 | Architecture | Wealth: holdings only from files the owner provides (never broker or aggregator credentials); parsed in the Python service and discarded; append-only ledger with FIFO lots that must reconcile; exact numbers with FX rate type and date; bulk end-of-day prices; tax rules as yearly data; INVESTMENT transfers avoid double counting; immutable monthly net-worth snapshots; guidance only against the owner's written policy (asset classes, never tips); AI explains only; identifiers encrypted, backups first | Accepted | AOS-801 |
 | D-120 | Business logic | Promised credits are not transactions, removed one clause at a time | Accepted | AOS-213 |
 | D-119 | Business logic | SMS direction from account-anchored phrases and Dr/Cr; conflicts are needs-review | Accepted | AOS-215 |
 | D-71 | Architecture | Local learned categoriser (hand-written TF-IDF + softmax regression, temperature-calibrated, per user, trained on corrections with the synthetic golden set as prior) fills in plain Other only, never over a rule; sure ≥ 0.8 sets source learned, unsure suggests; off by default; Tribuo rejected | Accepted | AOS-707, AOS-708 |
+| D-90 | Architecture / Product | Trips are computed on read: travel bookings (transactions, booking emails, IRCTC SMS) within 7 days chain into one trip, transport and food spends in the span join it; only the owner's edits are stored; the rule is measured on a synthetic eval set with a committed baseline | Accepted | AOS-910, AOS-901 |
+| D-89 | Product / Architecture | Pay-later is counted like a card: purchases are spends at the merchant (`paymentMethod = pay_later`), the bank repayment is a transfer that pays the provider's bill (a `pay_later` bill in dues); providers are data; a bill larger than the recorded purchases shows the gap, never a guess | Accepted | AOS-909, AOS-901, AOS-902 |
 | D-88 | Architecture | Order receipts are evidence about a payment, never a spend: parsed per sender in the Go worker, structured fields only (order number hashed), one row per order, matched to the payment by a reusable `PaymentMatcher`; hidden fees per app and month (`GET /leaks/fees`) | Accepted | AOS-903, AOS-902 |
+| D-87 | Product / Architecture | Savings rate (income − spent) ÷ income per calendar month from the console's analytics is the Home headline with its trend; last month's leaks shown as a monthly SIP over 5 and 10 years with the formula and editable assumptions (12% return, 6% inflation), computed in Kotlin; not advice | Accepted | AOS-908 |
+| D-86 | Product | Goals on habit lenses: cut by X% vs a baseline frozen at creation (the 3 full months before) or keep under ₹Y, weekly or monthly, one per lens; progress per period with refunds netted; streaks are consecutive no-order days; goals never push | Accepted | AOS-907 |
+| D-85 | Architecture / Product | The Sunday report card is a BriefingSection of the weekly briefing (one notification, format weekly-v2): week vs the usual week, best and worst lens, limit outcomes, suggested limit ready, and exactly one rule-based suggestion (first rule that applies wins) | Accepted | AOS-906 |
+| D-84 | Product / Architecture | Evening digest: polled every 15 minutes, sent once per local day at or after the owner's time (default 21:30, never the next morning) via a claim row; today's spent, top two lenses and limits, deterministic text; optional skip on a zero day; a COACH notification under quiet hours | Accepted | AOS-905 |
 | D-83 | Product / Architecture | Limits: no limits during a 30-day learning month; per-lens suggested weekly limits (median of 4 weeks − 10%, rounded down to ₹50) that only push once accepted; lens, merchant or category, weekly or monthly; one push per (limit, period, threshold) at 50/80/100% via a claim ledger | Accepted | AOS-904 |
+| D-99 | Architecture / Process | Supply chain and runtime: CI, OSV-Scanner, npm audit, govulncheck, Trivy and CodeQL on every PR as required checks (fail CVSS ≥ 7 or unscored, CRITICAL images or secrets); images by digest, Gradle locked + SHA-256 verified, Python hash-locked, Actions by SHA, Dependabot; containers non-root, read-only, no capabilities, limits, segmented networks; merge-pr.sh waits for every required check | Accepted | AOS-622 |
 | D-96 | Architecture | Google plus a passkey (WebAuthn, user verification required, exact origin) for every full session; hashed single-use recovery codes; the first signed-in owner enrols the first passkey; Yubico java-webauthn-server | Accepted | AOS-617 |
 | D-82 | Architecture / Product | Leaks are computed from the range's transactions with the lens matcher (not SQL), range capped at 3 × 366 days; spent = spend − refunds (unclipped), late night 22:00–05:00 local; every number has its drill-down through the same filter | Accepted | AOS-902 |
 | D-95 | Architecture | Refresh-token rotation with reuse detection (30 s grace for two tabs; later reuse revokes the session and alerts); access tokens carry the session id and end with it; sign-in alerts for new devices, refused sign-ins (masked) and copied keys; Security page with sign out everywhere | Accepted | AOS-620 |
@@ -1183,6 +1209,7 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - A new pipeline step (`InvestmentFlowStep`) changes spending totals for investment debits, so the D-61 golden set gains investment rows.
   - Tax rules need a yearly verification commit.
   - Evidence and options: `docs/research/WEALTH-RESEARCH.md`.
+
 ### D-71 — A local learned categoriser fills in Other from your corrections: hand-written, calibrated, never over a rule
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-707, AOS-708 · Builds on D-41, D-50, D-61, D-62, D-67
 - **What:**
@@ -1215,7 +1242,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a step inside `CategorizationService` (per-user model state in the rule categoriser, and before transfers and links);
   - JSON storage (larger and slower).
 - **Consequence:** the Review queue (AOS-708) can ask about the model's and the AI's unsure guesses, and each answer becomes a correction the model learns from.
-
 ### D-88 — Order receipts: parsed per sender in the worker, stored apart, matched to the payment
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-903, AOS-902 · Builds on D-33, D-38, D-54, D-59
 - **What a receipt is:** evidence about a payment, never a money event. Mail from a receipt sender never reaches the bank-email parser, so an order is never a second spend.
@@ -1242,3 +1268,358 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Limits:** scope = lens, merchant or category; weekly (Mon–Sun) or monthly, in the user's zone; one per scope and period. Person-to-person UPI never counts for lenses or categories (D-81); a merchant limit counts that merchant exactly.
 - **Alerts:** 50/80/100%. A ledger row per (limit, period start, threshold), primary key = the claim; claim then send (at most once). Several thresholds at once → one push for the highest. Thresholds already passed when a limit is set or changed are recorded silently. A refund that drops spending below a threshold does not re-arm it in that period. Alerts off → thresholds still recorded silently (no backlog when switched on). Checked after each new payment and every 10 minutes. Coach pushes are `NotificationType.COACH`, gated by `coach_settings`, quiet hours as usual.
 - **Rejected:** flags on the limit reset per period (a reset job to keep right); looking for earlier notifications (per channel, prunable); a listener only (misses re-categorisation and lens edits); pushing suggestions (the owner hasn't agreed to them).
+
+### D-99 — Supply chain and runtime: scan everything, pin everything, run least-privileged
+2026-10-18 · Accepted · Type: Architecture / Process · Tasks: AOS-622 · Builds on D-91, D-100, D-101
+- **Every PR** runs CI (all stacks), Security (OSV-Scanner, npm audit, govulncheck, Trivy + hardened-stack smoke)
+  and CodeQL; Security and CodeQL also weekly. All are **required checks** (`.github/required-checks.txt` = branch protection).
+- **Policies:** dependencies fail at CVSS ≥ 7 or unscored; images fail on any CRITICAL or secret; HIGH is
+  reported. Exceptions only with a reason and an expiry (`osv-scanner.toml`, `.trivyignore.yaml`).
+- **Pinning:** images by digest; Gradle locked + SHA-256 verified; Python hash-locked (pip-tools); npm/Go lock
+  files; Actions by SHA. Dependabot proposes every update weekly, grouped.
+- **Runtime:** every container non-root, read-only root, all capabilities dropped, no-new-privileges, memory/CPU/PID
+  limits, healthchecks; no package manager at run time; networks `backend` / `edge` / internal `parser`.
+- **Merging:** `merge-pr.sh` (main's copy) waits for every required check, refuses on any non-success, and keeps D-101.
+- **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
+  base-image findings); Dependabot alerts as the only gate.
+
+### D-111 — Splitwise: import the CSV export; count the owner's share; settle-ups are settlements
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-911 · Builds on D-38, D-39, D-46, D-64, D-78, D-80
+- **Source:** the owner's Splitwise "Export as spreadsheet" CSV, uploaded with "which column is me". No credentials. The Splitwise API (OAuth 2, no read-only scope, full-access tokens) is a later adapter behind the same port (`SharedEntry`), only if manual exports prove tedious.
+- **Share rule:** from the owner's net change `n` on a row of cost `C`: `n > 0` → they paid it all, share `C − n`; `n < 0` → a friend paid, share `−n`; `n = 0` → no effect. Rows that don't balance are skipped.
+- **Effects:**
+  - a bill the owner paid sets `transactions.own_share` on its bank debit, and every total counts `COALESCE(own_share, amount)` (the bank amount is never changed);
+  - a friend-paid share becomes a `splitwise` spend with no personal data;
+  - a settle-up turns its UPI transfer into the new nature `settlement` (neither spending nor income).
+- **Matching `split-v1`:** exact amount; bills from 1 day before to 3 days after, settle-ups ±2 days; points with apply/suggest bands and an ambiguity margin of 3; a settle-up is applied only with the friend's name or UPI handle on the bank record; one transaction per entry; later bank records are offered to waiting entries.
+- **Review and undo:** confirm, pick another transaction, reject (remembered), ignore, undo one entry or a whole import.
+- **Privacy:** descriptions and counterparties are encrypted at rest (TokenEncryptor, row-bound), never logged, and never sent to a model. Splitwise rows are never deduplicated, refunded, bill-matched, detected as subscriptions, or AI-categorised.
+- **Measured:** a seeded synthetic eval set with a committed floor (`splits/baseline.json`, enforced by `SplitEvalTest`). On it: 1.00 precision for automatic matches, 0.73 automatic and 0.93 with-Review recall, spend error from ₹30,470 to ₹1,523.
+- **Rejected:**
+  - the API first (full-access token for a read need);
+  - a pasted personal API key;
+  - a synthetic "owed by friends" refund row;
+  - reusing `transfer` for settle-ups (D-39 means own accounts).
+### D-84 — The evening digest: polled, once per local day, at the owner's time
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-905 · Builds on D-50, D-51, D-57, D-80, D-83
+- **When:** at or after the chosen local time (default 21:30), until local midnight; a missed evening is never sent the next day. A job polls every 15 minutes; a `coach_digests_sent` row per (user, kind, day) is the claim (claim then send, at most once).
+- **What:** today's spent (the console's number), up to two lenses with spending today (orders, late-night orders), up to two limits by use; deterministic text (D-57). A zero day says "No spending recorded today." or, with "skip on a zero day", sends nothing and claims nothing (a later payment that evening still gets a digest).
+- **How:** a `COACH` notification through the dispatcher's channels; quiet hours apply (a digest time inside quiet hours is delivered when they end).
+- **Settings:** `coach_settings.evening_digest`, `digest_time`, `digest_skip_zero_day`; Settings → Spending coach.
+- **Rejected:** `Schedule.Daily` (one time and zone for everyone); storing digests as briefings (fills the Briefings page, couples features).
+
+### D-85 — The report card is a section of the weekly briefing, with exactly one rule-based suggestion
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Architecture / Product · Tasks: AOS-906 · Builds on D-57, D-67, D-80, D-83
+- **Where:** a `BriefingSection` (port owned by the briefing, implemented by the coach) appends the report card to the weekly briefing; one notification a week; briefing format version `weekly-v2`.
+- **What:** spent vs the usual week (median of the 8 same-weekday windows before; none with fewer than 2 weeks of data); best and worst lens vs their usual; limit outcomes on the week's last day; "A suggested limit is ready on the leaks page." when one exists; exactly one suggestion.
+- **Suggestion rules, first that applies wins:** (1) would-have-saved: the biggest lens with ≥ 3 orders above its cap (accepted weekly limit, else usual − 10% down to ₹50, ≥ ₹100); (2) late night: ≥ 3 orders after the late-night start, with their total; (3) below usual by ≥ 10%: the saving and its monthly equivalent (× 4); (4) steady: the week's habit total (always applies).
+- **"Sunday":** the briefing's 7 days; by default Mon–Sun, delivered Monday 08:00.
+- **Rejected:** a separate weekly push (more nudges, duplicate scheduling); the briefing calling coach services directly (couples domains); AI-written suggestions (D-67, D-80).
+
+### D-86 — Goals freeze their baseline; streaks are no-order days
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product · Tasks: AOS-907 · Builds on D-46, D-80, D-82
+- **Kinds:** cut a lens by X% (1..90) vs the 3 full months before the goal began, or keep it under ₹Y; weekly (Mon–Sun) or monthly, in the user's zone; one goal per lens.
+- **Baseline frozen at creation** (per week = total × 7 ÷ days; per month = total ÷ 3); target rounded down to the rupee. A cut with nothing to cut from is refused.
+- **Progress:** up to 12 periods since the start; refunds net off; met = spent ≤ target.
+- **Streak:** consecutive days without an order in the lens ending today, and the best run in the last year since the first day with data; refunds don't break it.
+- **Shown** on the leaks page and Home; goals don't push (limits do, D-83).
+- **Rejected:** goals as flagged limits; a moving baseline.
+
+### D-87 — The savings rate is computed from the console's analytics; projections show their formula and assumptions
+2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-908 · Builds on D-39, D-45, D-46, D-67, D-80, D-82
+- **Rate:** per calendar month in the user's zone, (income − spent) ÷ income, where income = the income nature and spent = spend − refunds (D-39/D-46), from `AnalyticsService`; no rate for a month without income; negative allowed.
+- **Headline:** this month if it has income yet, else the latest month that does; trend vs the previous month in percentage points.
+- **"What this could become":** last full month's leak total (AOS-902) as a monthly SIP, 5 and 10 years; defaults 12% return and 6% inflation, editable (0..30, 0..20); formula shown; computed in Kotlin with BigDecimal; framed as the habit's cost over time, not investment advice (E8 owns guidance).
+- **Too little data:** no month with income in the last 12 → say what's needed.
+- **Rejected:** computing in the browser (duplicate money rules, D-67); stored snapshots (drift after corrections).
+### D-108 — "Ask your money" is measured on a synthetic eval set in a typed tool vocabulary, with a number check, before it is built
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-712, AOS-710, AOS-711 · Builds on D-45, D-46, D-61, D-67, D-68
+- **Vocabulary:** five read-only tools over `AnalyticsService` (`spending_summary`, `category_spend`, `merchant_spend`, `top_merchants`, `spending_trend`). Arguments are typed: a period preset or month or range, a category, a merchant matched against the user's own, a bucket, a limit of 1–10. There are at most 3 calls, and a decline has a reason. There is no user, zone or SQL, and any extra or unused field rejects the plan.
+- **Periods** are resolved by the server in the user's zone (Monday weeks, never past today). `PeriodPhrases` reads English and Hinglish ("aaj", "kal" = yesterday, "pichle mahine", month names) deterministically.
+- **Number check:** every number in an answer must be a tool value. Money must match an amount; scale words and spelled-out large numbers are refused; digits are read in any script. The server computes differences and % changes.
+- **Eval:** 133 questions (English and Hinglish, answerable, unanswerable, injection) on a seeded synthetic DB.
+  - Scored on: tool choice, arguments with periods resolved, abstention, injection resistance, period hints, and grounded/invented answers.
+  - Floors: arguments, tools, abstention, answered and valid plans ≥ 0.9; injection and invented-rejected 1.0; grounded accepted ≥ 0.95; period hints ≥ 0.85.
+  - The record (`ask`, anthropic, `claude-sonnet-5-5`, `ask-v1`, recorded-synthetic) gates start-up.
+- **Rejected:** free-form tool arguments scored by string match; live-only evals; text-to-SQL (D-67).
+### D-109 — Ask is two structured-output steps through the AI gateway, with the number check and a visible template fallback
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-710 · Builds on D-67, D-68, D-108
+- **Flow:**
+  1. `POST /api/v1/ask` validates (1–300 characters, no hidden characters), then checks the flag, consent and the per-user quota (30/hour, 150/day).
+  2. It masks the question (`PiiMasker`) and finds its periods.
+  3. Plan step (`AskPlanTask`): structured output in the D-108 vocabulary, read strictly.
+  4. The server runs the tools for the token's user and zone.
+  5. Answer step (`AskAnswerTask`): `{"answer"}`, ≤ 600 characters, no links, markup or hidden characters, and every number from the results.
+- **Fallback:** a failed or missing answer is replaced by a templated answer from the results with a notice (`source: template`). Declines and unreadable plans say so (`declined`, `unanswered`). Nothing falls back silently.
+- **Errors:** `ASK_001–007` and `RATE_001`, as 400/409/429/503. Fixed messages; the question is never echoed.
+- **Defaults:** off (`AI_ASK_ENABLED=false`); `claude-sonnet-5-5` on Anthropic with an eval record; 2,000 output tokens per step.
+- **Rejected:** native tool use through a wider port; one combined plan-and-answer call; ignoring unknown plan fields.
+### D-110 — Ask is a page at `/ask` with answers you can trace, and feedback by answer id, encrypted
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-711 · Builds on D-47, D-49, D-67, D-108, D-109
+- **Where:** `/ask`, linked from Home and More. There is no 6th tab (D-49) and no sheet for now. The question is never put in the URL.
+- **What it shows:**
+  - the answer, labelled as worded by AI (numbers checked) or straight from the data, with the notice on a templated answer;
+  - "How I got this": each tool, its dates and numbers, and a link to the same payments in Activity (`/transactions?from&to&category&q`).
+- **Feedback:**
+  - 👍/👎 sends `{askId, helpful}` only;
+  - the server keeps each answer's masked question and plan for 1 hour (at most 20 per user) and stores them only on a vote, in `ask_feedback`, AES-GCM encrypted and bound to the row;
+  - another user's or an expired id gets 404.
+- **Rejected:** a Home sheet (focus trap, not linkable); putting the question in the URL (personal details in history); a client-sent question and plan (could poison the eval set).
+### D-72 — Review asks about the models' least-sure categories, biggest first; answers are remembered corrections; scrubbed copies stay local
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-708 · Builds on D-41, D-49, D-61, D-62, D-67, D-71
+- **What is asked:**
+  - the learned categoriser's and the AI's unsure suggestions (rows still Other);
+  - categories they set that nobody has touched.
+  - Spending and refunds, from the last 90 days.
+  - The order is `(1 − confidence) × amount`; of two guesses, the more confident is asked.
+  - The queue is derived from the transactions, with no queue table: answering closes a question.
+- **Answering:**
+  - one tap: "Yes", the model's next two guesses, Other, or any category;
+  - 5 s Undo before sending (D-49);
+  - always a remembered correction (D-41), audited with `via: review`;
+  - the learned model learns from it at its next training.
+- **Local golden set:**
+  - optional, per answer batch (an explicit checkbox);
+  - it keeps a cleaned business name in a synthetic narration, the method, the direction and the category;
+  - it refuses payments that look like ones to a person, transfers and income, and nameless payees;
+  - it is stored in the user's database and exported as `golden.csv`-shaped CSV marked "never commit as is";
+  - it is scored locally with `-PlocalGolden`;
+  - promotion to the repo's golden set is manual (AOS-511).
+- **Rejected:**
+  - a `review_items` table (a second source of truth);
+  - reusing `PATCH /transactions` (two calls per answer);
+  - margin or entropy ordering (the AI stores only its top answer);
+  - writing to `golden.csv` from the API, or to server disk.
+- **Consequence:** fewer, better-chosen questions, each one improving a payee at once and the model overnight, and a path for real-shaped test rows that never puts personal data in the public repo.
+### D-76 — The month-end forecast is deterministic decomposition, measured by a backtest
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-714 · Builds on D-39, D-46, D-55, D-56, D-61, D-67
+- **What it says:**
+  - **month-end** = spent so far (the console's "spent", D-46) + known payments after today, one component per source (unpaid bills except credit cards, renewals, mandate debits) + everyday spending at a robust daily rate × the days left;
+  - **money left until salary** = the last salary − spent since it − what the same components expect until the day before the next salary.
+- **No double counting:**
+  - what a mandate, a bill payment or an active subscription took is kept out of the everyday rate;
+  - credit-card bills aren't dues (they're paid by transfer, D-39).
+- **The rate:** the median of weekly totals over the last 8 weeks, separately for weekdays and weekends. It is robust to one big purchase and to days without spending.
+- **The range:**
+  - an 80% range from the user's own past errors on the same day of the month (±3 days), using split-conformal ranks;
+  - none with fewer than 3 past months, and the card says how many more months it needs.
+- **Salary:**
+  - learnt from income credits: the same payer, about monthly, a similar amount, a similar day (a plain day or from the month's end), and the payer's own weekend habit;
+  - weekly payouts and irregular credits are not a salary;
+  - "late", "stopped", "varies" and "none" are said, never guessed.
+- **Not enough history:** below 90 days the API says so and when the forecast starts; nothing is estimated.
+- **Explainable:** the API returns every part (dues items; rates × day counts and the learning window), and Home's "How we got this" shows the sum. No model computes any number (D-67).
+- **Measured (D-61 style):**
+  - a synthetic backtest (24 histories, 720 forecasts on the 10th and 20th) against the naive pace and seasonal naive;
+  - `forecast/baseline.json` is a floor that a test enforces;
+  - it is raised only deliberately (`./gradlew -q forecastReport -PwriteBaseline`).
+  - Today: MAPE 9.5% (seasonal naive 21.8%), coverage 75.6%, payday exact 94%.
+  - ETS / seasonal naive on daily totals (they can't use known dues and are 2.3× worse);
+  - Prophet and foundation models (they need years of data, a heavy dependency, and give no explanation);
+  - an LLM (D-67);
+  - medians of days (0 for intermittent spenders);
+  - interpolated quantiles of few months (61.6% coverage).
+- **Consequences:**
+  - a new source of expected spending is one `ForecastComponent`;
+  - "money left" from a bank balance needs the balance stored (follow-up);
+  - unreceived bills aren't forecast yet (follow-up `ProjectedBillsComponent`).
+### D-74 — A subscription price rise is told once per new price, by the rule the waste score uses
+2026-10-18 · Accepted · Type: Product · Tasks: AOS-715 · Builds on D-51, D-58, D-65
+- **Context:** `priceChanged` compared only the last two charges (GST rounding or one odd charge was noise), and nothing told the user when a price went up.
+- **Decision:**
+  - **The rule (`PriceChangeRule`):** the latest charge vs the median of the up-to-3 charges before it, in whole currency units, same currency only; a change is at least max(5%, ₹20); 8–14× (or 1/14–1/8) is a monthly ↔ yearly plan switch, not a change; monthly and weekly plans need 2 earlier charges, yearly and quarterly 1.
+  - **One rule for three things:** the alert, the Subscriptions page's ↑/↓ (`priceChanged`, `priceChangePct`) and the waste score's price-rise factor (D-58).
+  - **Once per new price:** the nightly detection records each rise in `subscription_price_rises` (V45), unique per (subscription, new price in whole units); the same job then sends the untold ones as a subscription alert ("Netflix went up: ₹649 → ₹799 (+23%)", opening Subscriptions) and marks them told. A failed send is retried the next night; a user with subscription alerts off is not told later.
+  - **Price cuts are shown, not alerted.**
+- **Alternatives rejected:** a per-transaction listener (a second copy of the grouping, inside ingestion), a "notified price" flag on the subscription (forgets history; can't tell a rise back to an old price from a repeat), last-two comparison (noisy).
+- **Consequences:** a price history per subscription exists for later UI; the thresholds are constants to tune on real data.
+### D-75 — Look-alike merchants are proposed, never merged silently; a confirmed merge is an alias every reader uses
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-709 · Builds on D-41, D-44, D-58, D-61, D-100
+- **Context:** Merchants were grouped by exact name. One uncatalogued service could be two subscriptions (both flagged as duplicates) and two lines in spending.
+- **Decision:**
+  - **Matching (`MerchantMatcher` over a `MerchantSimilarity` strategy):**
+    - names are cleaned (legal, web and filler words, gateways, honorifics, initials, glued suffixes, NFKC);
+    - a pair is evidence when the cleaned names are equal, a non-gateway UPI ID is shared, or a business's names are Jaro-Winkler ≥ 0.92 word by word with the same first 3 letters;
+    - **never**: two different catalogue brands, two people's names without a shared UPI ID, or a name with look-alike foreign letters or invisible characters.
+  - **Proposals** are computed when Review asks (400 days, after existing aliases, without rejected pairs), grouped around the most used name or the catalogue brand. They are bounded to 1,000 merchants and same-start/UPI comparisons.
+  - **Answers:**
+    - confirming stores one alias per member (V46), and earlier aliases follow, so they never chain;
+    - rejecting stores every pair, never asked again;
+    - both are audited (names only);
+    - the web gives one tap with a 5 s Undo before sending.
+  - **Readers:** `AliasResolver` is the one rule.
+    - Subscription detection groups by it, and ends a merged member's subscription "Merged into X".
+    - The analytics read facts through `AliasedAnalyticsRepository`.
+    - Stored transactions are never rewritten.
+  - **Measured (D-61 style):** 160 synthetic pairs (`merchants/pairs.csv`, `baseline.json`). The shipped matcher has precision 1.00 and recall 0.88, vs 0.72 recall for exact names. The gate requires precision ≥ 0.98 and no drop.
+- **Alternatives rejected:**
+  - a nightly proposals job (stale, a second state machine);
+  - rewriting transactions (destructive, fights the normalizer);
+  - token-set ratio (calls a subset identical);
+  - unguarded Jaro-Winkler (merges people, 0.95 precision);
+  - embeddings or an LLM (not needed for spelling variants).
+  - better similarity is one class;
+  - follow-ups: removing an alias, per-name answers, and anomaly baselines keyed by alias.
+### D-73 — Unusual amounts are judged against the merchant's own robust baseline, and answers tune it
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-713 · Builds on D-53, D-61
+- **Context:** The AOS-505 rule (over 3× the 30-day category mean) alerted 2.2 times a month per person on synthetic streams with 10% precision: averages are pulled up by outliers, categories mix chai with dinners and flights with cab rides, and a dismissal taught nothing.
+  - **Baselines:** a `BaselineModel` port with two models (robust median/MAD; the old 3× mean). An amount is unusual when the modified z-score on **log amounts** is above 3.5, it is at least ₹2,000, and it is above the median. Spread: MAD, else 1.2533 × mean absolute deviation, never below 10% of the median.
+  - **Fallback chain**, the first tier with enough history decides, in the user's days:
+    1. the merchant's last 180 days, 5+ payments;
+    2. 1–4 payments at the merchant: over 3× their mean;
+    3. a first payment: the typical amount of each other place in the category, 5+ places;
+    4. the AOS-505 rule (3× the 30-day category mean, 3+ spends).
+  - **History:** same-currency spends only; refunds, reversals, transfers and the spend itself never count.
+  - **Text:** the alert shows the usual range (25th–75th percentile) and the count it rests on.
+  - **Answers teach:** "this is normal" raises the (user, merchant, rule) tolerance one step, "unexpected" lowers it one, within 0..3 (z 3.5 → 6.5); only the first answer per anomaly counts. Crisp rules (duplicate, card testing, foreign currency, odd hours) are never relaxed.
+  - **Duplicates under ₹100** are recorded but not pushed (confidence 0.5); everything else in D-53 is unchanged.
+  - **Measured (D-61 style):** `anomalies/streams.csv` (synthetic, seeded, committed) and `anomalies/baseline.json`; `./gradlew -q anomalyReport` prints old vs new; a gate test fails on a drop. On the set: false alerts per month 2.18 → 0.36, precision 10.3% → 43.5%, recall 90% → 100%.
+- **Alternatives rejected:** median/MAD on rupees (flags ordinary big orders), a category baseline over all spends (frequent small merchants outvote the rest), dropping the old rule (new expensive merchants missed), precomputed nightly baselines (stale, second source of truth), muting a merchant on dismissal (hides fraud), Beta-Bernoulli per merchant (needs many labels; the upgrade path).
+- **Consequences:** new models or scopes are one class or one tier; thresholds are constants to revisit on real answers; AOS-709's merchant aliases should feed the merchant key.
+### D-77 — Cash from words: a deterministic grammar first, previewed, with a grounded fallback port
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-718 · Builds on D-41, D-42, D-44, D-61, D-67, D-100
+- **What:**
+  - free text or keyboard dictation ("200 chai and 150 auto yesterday") becomes cash entries to preview;
+  - the user checks, edits or removes each entry, and only confirmed entries are saved, each through the existing cash intake with its own `clientRef` and day (D-42);
+  - the text itself is never stored or logged.
+- **How it reads:**
+  - a deterministic grammar normalizes the text (digits, number words, grouping, invisible characters), splits it into entries, and takes out dates (the user's zone; "kal"/"parso" read as the past and flagged; nothing after today) and times;
+  - it pairs amounts with words, including quantities and "15 x 2";
+  - categories come in the D-41 order: remembered → catalogue → cash keywords (data, `cash/keywords.json`) → patterns → Other (flagged).
+- **What it refuses, with the reason:** no amount, zero, negative, over ₹1 crore, over-precise, future or impossible dates.
+- **Extension point:**
+  - the `CashPhraseParser` port, with `FallbackCashPhraseParser(rules, fallback)` for a later AI parser (AOS-702);
+  - the fallback sees only what the rules left open, may add an entry only when its amount is written in that text, may fill only an undecided category, and never proposes Transfer or changes a rule-decided entry (D-67).
+  - 165 synthetic phrases (40 held out) with `cash/baseline.json`, which a test enforces;
+  - today: 99.4% of phrases exactly right overall, 97.5% held out, against 7.9% for "every number is an entry".
+- **Security (D-100):**
+  - the routes are authenticated;
+  - the parse route accepts JSON only (CSRF), caps text at 500 characters and allows 30 previews a minute per user;
+  - it is per-user (no cross-user rules);
+  - it renders as text.
+  - an LLM for every entry (privacy, and it needs AOS-702);
+  - a trained tagger (no labelled data);
+  - a batch save endpoint (it duplicates the intake);
+  - server-side audio (dictation is free and keeps audio off our server).
+
+### D-123 — Repositories never read the clock or a zone
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-638 · Builds on D-78
+- Repositories never read the clock or a time zone. Callers pass dates from `UserCalendar`: `today(userId)` for one user, `serverToday()` for cross-user pre-filters that are then refined per user.
+- The domain owns the calendar; persistence filters on what it is given (bill dates follow the user's calendar on an injected clock).
+- **Rejected:** a clock in each repository (persistence would still decide what "today" means, in one zone for everyone); repositories calling `UserCalendar` (breaks the layer rule).
+### D-106 — Messages the regexes can't read are read by a model, grounded, and wait in Review as proposals
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-705, AOS-706 · Builds on D-33, D-43, D-67, D-68
+- **Where:** only bank messages the parsers return as unrecognised, from a bank sender (TRAI business header or a WhatsApp bank name), that mention money. OTPs, failures, reminders, promotions and personal senders never reach it.
+- **What is sent:** the message, redacted (cards and accounts → last 4, also 5–8 digit numbers; phones, emails, VPAs, Aadhaar and PAN masked), as a JSON string value, plus the day it arrived.
+  - **Withheld, not sent:** a message over 1,000 characters, with hidden characters, with non-ASCII digits, or with model-directed text (instructions, JSON, markup).
+- **What is accepted:** the strict six-field schema, and only if grounded:
+  - the amount is the one non-balance money figure written in the text;
+  - the last 4 is an account or card ending in the text;
+  - the date is written in the text and within a day of arrival;
+  - the merchant is a span of the text;
+  - the direction agrees with D-43's words (extended with `Dr`/`Cr` and "debit/credit of"). Unclear words are rejected, never guessed.
+- **Where it goes:** a `message_proposals` row (structured fields only), shown in Review. **Confirm** creates an ordinary intake event (`extractedBy = ai:<model>:<prompt>`), so dedup and the pipeline apply. **Dismiss** keeps the row dismissed, so a resent message isn't read again. Nothing AI-read is in any total until confirmed.
+- **How it runs:**
+  - Redacted text waits in a bounded in-memory queue (≤ 200; lost on restart, never persisted, so it is not a D-33 "queue") and is read by a job every minute.
+  - A per-day limit (`AI_MESSAGES_DAILY_LIMIT`, default 100) applies, plus the gateway's cap, breaker and audit.
+  - An unavailable model is retried up to 3 times.
+- **Defaults:** off (`AI_MESSAGES_ENABLED`); the provider defaults to **ollama** for this feature, so cloud reading of message text needs `AI_MESSAGES_PROVIDER=anthropic` and logs a warning.
+- **Eval gate:**
+  - a synthetic golden set run through the shipped path;
+  - floors: transaction precision ≥ 0.99, amount exact ≥ 0.98, grounded accepted = 1.0, hostile held = 1.0, dropped never asked = 1.0;
+  - other metrics may not regress.
+- **Rejected:**
+  - flagging intake rows and filtering every total (one missed filter breaks D-67);
+  - reading inline (timeouts, bursts);
+  - persisting messages for a worker (D-33);
+  - accepting an unclear direction.
+### D-130 — The message-reading eval measures the fallback; routing is tested on its own
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-705 · Amends D-106's eval gate
+- **Context:** the eval ran every golden message through the regex intake first. After AOS-213/214/215 the rules read 106 of its 218 messages (`Dr.`/`Cr.` and more), so they never reached the fallback and the eval stopped measuring it. Every parser improvement would do that again.
+- **Decision:**
+  - `MessageEvaluation` offers each golden row to `MessageFallback` directly, as the unreadable bank message it stands for (sender's bank, user's zone, text). Only the 10 drop rows (OTPs, declines, promotions, people, reminders) still go through the shipped intake. The set (≥ 200 rows), the PII and hostile tests, the floors and the records are unchanged.
+  - `MessageRoutingTest` runs the same rows through the shipped SMS and WhatsApp intake against today's rules: a message the rules read or drop is never offered to the AI, and a bank message they can't read is offered once, as written.
+- **Rejected:** relabelling the rows the rules now read (the eval shrinks with every parser change and loses its PII and hostile rows); rewriting them into formats the rules can't read (stale again at the next parser change).
+- **Consequence:** parser improvements move rows between the routing test's two halves without touching the eval or its records.
+### D-107 — Confirmed AI readings teach message formats; approved formats are read by code before any model
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-706 · Builds on D-33, D-67, D-106
+- **What is kept:** only masked shapes. Every value is a slot (amount, balance, last 4, date, payee, other numbers, a greeting's name), and a shape with a digit is refused in code and by a database CHECK. No message text, amount or payee is stored in a shape.
+- **Learning:**
+  - only from readings the user **confirmed**;
+  - one sender (channel + bank) and direction per format;
+  - Drain-style merge (same length, ≤ 25% plain words differ, never a slot) turns differing words into `<ANY>`;
+  - proposed after 3 confirmations.
+- **Approval:** only the user approves a format. A rejected format is never proposed again. A decided format's shape never changes.
+- **Reading:**
+  - approved formats are tried before the AI reader, even with AI off;
+  - a template's reading must pass the same grounding validator as a model's;
+  - it goes straight into the intake with `parsedBy = template:<id>` (exact, like a regex parser), and anything else goes on to the AI reader;
+  - regexes are compiled from shapes with quoted literals and bounded slots (no ReDoS).
+- **Rejected:**
+  - Review for template reads (keeps the click it removes);
+  - generated parser code;
+  - LLM-written regexes (more data sent, unverified patterns).
+### D-89 — Pay-later is counted like a card; gaps are shown, not guessed
+2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-909, AOS-901, AOS-902 · Builds on D-39, D-54, D-55, D-59
+- **Counting:**
+  - A pay-later purchase is a spend at the merchant, with `paymentMethod = pay_later` and `metadata.payLater = <provider>`.
+  - The bank repayment to the provider is a **transfer** (`subcategory = pay_later_bill`), as card bills are (D-39), and it pays the provider's bill (D-54, both directions).
+- **Bills:**
+  - A provider's bill (SMS or email) is a bill of type `pay_later` with the provider as biller, so dues and reminders apply (D-55).
+  - The same provider and due date (or within 2 days with the same amount) is one bill, across reminders and channels.
+- **Providers are data** on both sides: LazyPay, Simpl, Amazon Pay Later, Flipkart Pay Later, ICICI PayLater, Paytm Postpaid, MobiKwik ZIP.
+  - Provider SMS are read before the drop rules, and only when the text names a provider and isn't a bank account alert or a mandate notice.
+  - Provider email is decided by the sender's domain; shared domains (Amazon, Flipkart, Paytm) also need the provider's name in the subject.
+- **The gap is visible:** a bill larger than the purchases recorded for its period shows the difference in `GET /api/v1/pay-later` and in Review. It is never filled in by guessing.
+- **Debt outstanding** = unpaid pay-later bills + pay-later purchases since the provider's latest bill.
+  - the cash model (category and timing lost);
+  - a separate debt ledger (a second source of truth);
+  - recognising provider SMS by sender header only (headers vary and aren't public).
+### D-90 — Trips are computed on read by a measured rule; only edits are stored
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-910, AOS-901 · Builds on D-40, D-61, D-67, D-88
+- **Legs:** each travel booking is a leg on its journey date.
+  - Bookings come from transactions to travel brands, booking emails (per-sender parsers in the worker) and IRCTC SMS.
+  - The journey date comes from the email or SMS tied to the payment by `PaymentMatcher` (auto only); otherwise it is the booking date.
+  - A booking refunded in full or cancelled is not a leg.
+- **Trips:**
+  - legs within 7 days chain into one trip;
+  - the trip spans the first to the last leg (a single leg spans its day and the next);
+  - transport and food spends in the span join it;
+  - days are the user's own.
+  The parameters are data (`TripRules`).
+- **Total** = members − their linked refunds.
+- **Edits are the only stored state** (`trip_edits`, keyed by an ID derived from the first leg): name, added (that trip only), removed (never auto-added again), dismissed.
+- **Measured** like D-61: a synthetic eval set reports assignment and pairwise precision and recall. The baseline is committed (0.9688 / 0.8857 / 0.9839 / 0.8714), and a test fails below it.
+- **Privacy:** bookings keep brand, mode, journey date, amount and a SHA-256 of the PNR only.
+  - materialised trips with a nightly job (stale, and hard to reconcile);
+  - a 10-day chain gap (merged separate trips on the eval);
+  - manual-only trips.
+### D-114 — Gmail pushes are folded into a waiting sync
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-630 · Extends D-63 · Builds on D-59, D-100
+- A verified Gmail push queues an incremental sync unless its history ID is at or before the stored one, or a Gmail sync of the connection is queued and not yet started (created within 10 minutes); then it is acknowledged (200, so Pub/Sub doesn't retry) and folded into that sync.
+- The worker marks a session `in_progress` when it starts.
+- At most one running and one waiting sync exist per connection, so a replayed push can't multiply syncs (AUD-27).
+- **Rejected:** a fixed time window (loses mail that arrives mid-sync); Asynq unique tasks.
+### D-103 — Redis always requires a password
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-634 · Builds on D-91, D-99
+- Redis always requires a password (`REDIS_PASSWORD`, hex, required by compose). The server gets it on stdin, never as an argument.
+- Clients get it as `REDIS_PASSWORD` beside a credential-free `REDIS_URL` (no URL in the repo carries a password, which also keeps GitGuardian green); a host-run client may put it in the URL instead, and if both are set they must agree.
+- The API and the Go worker refuse to start without it and never log or echo the URL or the password. The worker supports only the default user (no user name in the URL).
+- The hardened-stack smoke test (D-99) sets a random password per run, never a literal.
+### D-113 — Statement parser: one killable child per file, per-file budgets
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-626 · Builds on D-37, D-92, D-100
+- The statement parser runs each file in its own `spawn`ed child process, which is killed after 30 s and limited to a 1 GiB address space, with at most 2 at once.
+- Every reader charges a per-file budget: 300 pages, 50 sheets, 100 000 rows and 2 000 000 cells.
+- Over a limit, the parser answers 422 with a stable code.
+- Works inside the hardened parser container (D-99: read-only root, `/tmp` tmpfs, no capabilities, 1 GiB, 128 PIDs).
+- **Rejected:** thread timeouts (a thread can't be stopped); `SIGALRM` (main thread only); a process pool (a stuck worker stays in the pool).
+### D-112 — Bank mail is admitted by authenticated sender only
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-624, AOS-903 · Amends D-59 (sender filter) · Builds on D-63, D-33, D-91, D-100
+- Gmail mail is admitted by sender only, and only when Gmail's topmost `Authentication-Results` (`mx.google.com`) shows DMARC pass for the From domain or a DKIM pass aligned with the listed organisation; SPF alone and subject phrases never admit; every fetched message is qualified locally (`Qualify`).
+- **With AOS-903 (integration):** order-receipt senders (`ReceiptDomains`) go through the same `Qualify`: their mail must be authenticated in the same way, and the receipt subject words only narrow which of their messages are candidates (promotions stay unread); a subject never admits a message on its own. The metadata step therefore reads `From`, `Subject` and `Authentication-Results`.
+- **Rejected:** subject as a filter that admits mail on its own; verifying DKIM ourselves from raw mail.
+### D-102 — Unreadable request bodies get fixed 415 / 400 / 413 answers
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-633 · Builds on D-91, D-94
+- Request bodies the API can't read get fixed answers: 415 `VALIDATION_005` when the request's Content-Type isn't JSON (including none or an unparseable one), 400 `VALIDATION_004` "Malformed request body" for JSON that doesn't parse or fit, 413 `VALIDATION_006` for Ktor's body limit.
+- No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
+- Never a 500 for a client's body; the Content-Type sent is never echoed.

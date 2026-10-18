@@ -2,6 +2,7 @@ package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.notifications.push.PushEndpoint
 import dev.adminos.api.domain.notifications.push.PushKeys
+import dev.adminos.api.domain.notifications.push.PushSaveResult
 import dev.adminos.api.domain.notifications.push.PushSubscription
 import dev.adminos.api.domain.notifications.push.PushSubscriptionRepository
 import dev.adminos.api.infrastructure.database.dbQuery
@@ -17,12 +18,15 @@ import org.jetbrains.exposed.v1.jdbc.upsert
 import java.time.Instant
 import java.util.UUID
 
-/** Postgres [PushSubscriptionRepository] (AOS-510). Upsert on the unique endpoint keeps one row per device. */
+/**
+ * Postgres [PushSubscriptionRepository] (AOS-510). Upsert on the unique endpoint keeps one row per device; its
+ * `ON CONFLICT … DO UPDATE … WHERE user_id = <caller>` never touches another user's row (AOS-627).
+ */
 class ExposedPushSubscriptionRepository : PushSubscriptionRepository {
     private val t = PushSubscriptionsTable
 
-    override suspend fun upsert(subscription: PushSubscription): PushSubscription = dbQuery {
-        t.upsert(t.endpoint, onUpdateExclude = listOf(t.id, t.createdAt)) {
+    override suspend fun save(subscription: PushSubscription): PushSaveResult = dbQuery {
+        t.upsert(t.endpoint, onUpdateExclude = listOf(t.id, t.userId, t.createdAt), where = { t.userId eq subscription.userId }) {
             it[id] = subscription.id
             it[userId] = subscription.userId
             it[endpoint] = subscription.endpoint.url
@@ -32,7 +36,8 @@ class ExposedPushSubscriptionRepository : PushSubscriptionRepository {
             it[createdAt] = subscription.createdAt
             it[lastSuccessAt] = subscription.lastSuccessAt
         }
-        t.selectAll().where { t.endpoint eq subscription.endpoint.url }.single().toSubscription()
+        val stored = t.selectAll().where { t.endpoint eq subscription.endpoint.url }.single().toSubscription()
+        if (stored.userId == subscription.userId) PushSaveResult.Saved(stored) else PushSaveResult.OwnedByAnotherUser
     }
 
     override suspend fun findByUserId(userId: UUID): List<PushSubscription> = dbQuery {

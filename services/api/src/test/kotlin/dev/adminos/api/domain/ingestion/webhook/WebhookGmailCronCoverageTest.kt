@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion.webhook
 
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import dev.adminos.api.domain.ingestion.connection.ConnectionStatus
 import dev.adminos.api.domain.ingestion.connection.InMemoryConnectionRepository
 import dev.adminos.api.domain.ingestion.connection.SourceType
@@ -32,14 +33,14 @@ class WebhookGmailCronCoverageTest {
     private val syncSessions = InMemorySyncSessionRepository()
 
     private fun cron(syncRepo: SyncSessionRepository = syncSessions) = GmailCronService(
-        ConnectionService(connections, syncRepo),
+        ConnectionService(connections, syncRepo, randomTokenEncryptor()),
         IngestionService(IngestEventService(InMemoryIngestEventRepository()), syncRepo),
         syncRepo,
         Clock.fixed(now, ZoneOffset.UTC)
     )
 
     private fun gmail(status: ConnectionStatus = ConnectionStatus.CONNECTED, source: SourceType = SourceType.GMAIL, tokenExpiresAt: Instant? = null) = runBlocking {
-        connections.save(UserConnection(userId = UUID.randomUUID(), sourceType = source, status = status, gmailAddress = "u-${UUID.randomUUID()}@gmail.com",
+        connections.save(UserConnection(userId = UUID.randomUUID(), sourceType = source, status = status, gmailAddress = "u-${UUID.randomUUID()}@example.com",
             historyId = "9876", tokenExpiresAt = tokenExpiresAt))
     }
 

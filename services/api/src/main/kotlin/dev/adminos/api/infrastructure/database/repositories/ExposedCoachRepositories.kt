@@ -1,5 +1,11 @@
 package dev.adminos.api.infrastructure.database.repositories
 
+import dev.adminos.api.domain.coach.digest.DigestKind
+import dev.adminos.api.domain.coach.digest.DigestLedger
+import dev.adminos.api.domain.coach.goals.DuplicateGoalException
+import dev.adminos.api.domain.coach.goals.Goal
+import dev.adminos.api.domain.coach.goals.GoalKind
+import dev.adminos.api.domain.coach.goals.GoalRepository
 import dev.adminos.api.domain.coach.lenses.LensId
 import dev.adminos.api.domain.coach.limits.DuplicateLimitException
 import dev.adminos.api.domain.coach.limits.LimitAlertLedger
@@ -14,6 +20,8 @@ import dev.adminos.api.domain.coach.settings.CoachSettings
 import dev.adminos.api.domain.coach.settings.CoachSettingsRepository
 import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.infrastructure.database.dbQuery
+import dev.adminos.api.infrastructure.database.tables.CoachDigestsSentTable
+import dev.adminos.api.infrastructure.database.tables.CoachGoalsTable
 import dev.adminos.api.infrastructure.database.tables.CoachSettingsTable
 import dev.adminos.api.infrastructure.database.tables.LimitAlertsTable
 import dev.adminos.api.infrastructure.database.tables.LimitSuggestionDismissalsTable
@@ -128,11 +136,16 @@ class ExposedCoachSettingsRepository : CoachSettingsRepository {
     private val t = CoachSettingsTable
 
     override suspend fun find(userId: UUID): CoachSettings? = dbQuery {
-        t.selectAll().where { t.userId eq userId }.singleOrNull()?.let { CoachSettings(it[t.userId], it[t.limitAlerts], it[t.updatedAt]) }
+        t.selectAll().where { t.userId eq userId }.singleOrNull()?.let {
+            CoachSettings(it[t.userId], it[t.limitAlerts], it[t.eveningDigest], it[t.digestTime], it[t.digestSkipZeroDay], it[t.updatedAt])
+        }
     }
 
     override suspend fun save(settings: CoachSettings): CoachSettings = dbQuery {
-        t.upsert(t.userId) { it[userId] = settings.userId; it[limitAlerts] = settings.limitAlerts; it[updatedAt] = settings.updatedAt }
+        t.upsert(t.userId) {
+            it[userId] = settings.userId; it[limitAlerts] = settings.limitAlerts; it[eveningDigest] = settings.eveningDigest
+            it[digestTime] = settings.digestTime; it[digestSkipZeroDay] = settings.digestSkipZeroDay; it[updatedAt] = settings.updatedAt
+        }
         settings
     }
 }
@@ -145,4 +158,40 @@ class ExposedSpendHistory : SpendHistory {
             listOf(TextColumnType() to userId.toString())
         ) { rs -> if (rs.next()) rs.getObject("first", OffsetDateTime::class.java)?.toInstant() else null }
     }
+}
+
+/** One digest per (user, kind, day): `INSERT … ON CONFLICT DO NOTHING` is the claim (AOS-905). */
+class ExposedDigestLedger : DigestLedger {
+    private val t = CoachDigestsSentTable
+    override suspend fun claim(userId: UUID, kind: DigestKind, day: LocalDate, at: Instant): Boolean = dbQuery {
+        t.insertIgnore { it[t.userId] = userId; it[t.kind] = kind.name.lowercase(); it[t.day] = day; it[sentAt] = at }.insertedCount == 1
+    }
+}
+
+/** Postgres goals (AOS-907); one per (user, lens). */
+class ExposedGoalRepository : GoalRepository {
+    private val t = CoachGoalsTable
+
+    override suspend fun save(goal: Goal): Goal = try {
+        dbQuery {
+            t.insert {
+                it[id] = goal.id; it[userId] = goal.userId; it[lensId] = goal.lens.value; it[kind] = goal.kind.name.lowercase()
+                it[value] = goal.value; it[period] = goal.period.name.lowercase(); it[baseline] = goal.baseline; it[target] = goal.target
+                it[startedOn] = goal.startedOn; it[createdAt] = goal.createdAt
+            }
+            goal
+        }
+    } catch (e: ExposedSQLException) {
+        if (e.sqlState == "23505") throw DuplicateGoalException("There is already a goal for this habit") else throw e
+    }
+
+    override suspend fun findByUser(userId: UUID): List<Goal> = dbQuery {
+        t.selectAll().where { t.userId eq userId }.orderBy(t.createdAt to SortOrder.ASC, t.lensId to SortOrder.ASC).map {
+            Goal(id = it[t.id], userId = it[t.userId], lens = LensId(it[t.lensId]), kind = GoalKind.valueOf(it[t.kind].uppercase()), value = it[t.value],
+                period = LimitPeriod.valueOf(it[t.period].uppercase()), baseline = it[t.baseline], target = it[t.target],
+                startedOn = it[t.startedOn], createdAt = it[t.createdAt])
+        }
+    }
+
+    override suspend fun delete(userId: UUID, id: UUID): Boolean = dbQuery { t.deleteWhere { (t.id eq id) and (t.userId eq userId) } > 0 }
 }
