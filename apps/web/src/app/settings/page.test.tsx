@@ -49,7 +49,7 @@ describe("Settings", () => {
     await user.selectOptions(screen.getByLabelText("Briefing day"), "fri");
     await user.clear(screen.getByLabelText("Quiet hours start"));
     await user.type(screen.getByLabelText("Quiet hours start"), "23:00");
-    await waitFor(() => expect(saved).toHaveLength(1), { timeout: 2000 });
+    await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0]).toMatchObject({ billReminders: false, briefingDay: "fri", quietHoursStart: "23:00" });
     expect(await screen.findByText("Saving...").catch(() => null)).toBeNull();
   });
@@ -67,7 +67,7 @@ describe("Settings", () => {
     await user.type(screen.getByLabelText("Briefing time"), "07:30");
     await user.clear(screen.getByLabelText("Quiet hours end"));
     await user.type(screen.getByLabelText("Quiet hours end"), "07:00");
-    await waitFor(() => expect(saved).toMatchObject({ weeklyBriefing: true, anomalyAlerts: false, subscriptionFlags: false, emailNotifications: false, pushNotifications: true, briefingTime: "07:30", quietHoursEnd: "07:00" }), { timeout: 2000 });
+    await waitFor(() => expect(saved).toMatchObject({ weeklyBriefing: true, anomalyAlerts: false, subscriptionFlags: false, emailNotifications: false, pushNotifications: true, briefingTime: "07:30", quietHoursEnd: "07:00" }));
   });
 
   it("a failed save shows an error and reloads the real values", async () => {
@@ -76,7 +76,7 @@ describe("Settings", () => {
     const { user } = renderWithQuery(<SettingsPage />);
     const alerts = await screen.findByRole("switch", { name: "Anomaly alerts" });
     await user.click(alerts);
-    expect(await screen.findByText("Save failed", {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByText("Save failed")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("switch", { name: "Anomaly alerts" })).toHaveAttribute("aria-checked", "true"));
   });
 
@@ -132,11 +132,11 @@ describe("Settings", () => {
 
   it("a gmail in error shows its last error and reconnects through Google", async () => {
     const go = vi.spyOn(browser, "go").mockImplementation(() => {});
-    routes({ connections: [fx.connection({ status: "error", gmailAddress: "pragun.b@gmail.com", lastError: "gmail access revoked: reconnect Gmail" })] });
+    routes({ connections: [fx.connection({ status: "error", gmailAddress: "owner@example.com", lastError: "gmail access revoked: reconnect Gmail" })] });
     server.use(consentAt([]));
     const { user } = renderWithQuery(<SettingsPage />);
     const row = await screen.findByRole("listitem", { name: "gmail connection" });
-    expect(within(row).getByText("pragun.b@gmail.com")).toBeInTheDocument();
+    expect(within(row).getByText("owner@example.com")).toBeInTheDocument();
     expect(within(row).getByText("Last error: gmail access revoked: reconnect Gmail")).toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: "Sync" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Connect Gmail" })).not.toBeInTheDocument();

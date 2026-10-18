@@ -51,7 +51,7 @@ class ScheduledJobsTest {
         val calendar = dev.adminos.api.domain.identity.UserCalendar(users)
         val job = BillRemindersJob(ReminderEngine(bills, prefs, sender, calendar),
             dev.adminos.api.domain.notifications.RenewalReminders(InMemorySubscriptionRepository(), prefs, sender, calendar),
-            dev.adminos.api.domain.financial.BillTrackingService(bills, InMemoryTransactionRepository()), ist)
+            dev.adminos.api.domain.financial.BillTrackingService(bills, InMemoryTransactionRepository(), calendar), ist)
         assertEquals(JobName("bill-reminders"), job.name)
         assertEquals(Schedule.Daily(LocalTime.of(9, 0), ist), job.schedule)
         assertEquals(java.time.Duration.ofMinutes(10), job.timeout, "default timeout")
@@ -83,11 +83,16 @@ class ScheduledJobsTest {
             override suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction> =
                 if (userId == broken.id) throw IOException("read timed out") else transactions.findDebitsByUserIdSince(userId, since)
         }
-        val job = SubscriptionDetectionJob(users, SubscriptionDetectorService(failingForOne, InMemorySubscriptionRepository(), dev.adminos.api.domain.identity.UserCalendar(users)), ist)
+        val subs = InMemorySubscriptionRepository()
+        val rises = dev.adminos.api.domain.financial.InMemoryPriceRiseRepository()
+        val calendar = dev.adminos.api.domain.identity.UserCalendar(users)
+        val alerts = dev.adminos.api.domain.notifications.PriceRiseAlerts(rises, subs,
+            dev.adminos.api.domain.notifications.notificationService(dev.adminos.api.domain.notifications.InMemoryNotificationPreferencesRepository(), dev.adminos.api.domain.notifications.InMemoryNotificationRepository()), calendar)
+        val job = SubscriptionDetectionJob(users, SubscriptionDetectorService(failingForOne, subs, calendar, rises, dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository()), alerts, ist)
 
         assertEquals(JobName("subscription-detection"), job.name)
         assertEquals(Schedule.Daily(LocalTime.of(4, 0), ist), job.schedule)
-        assertEquals(mapOf("users" to 2, "subscriptionsFound" to 1, "failed" to 1), job.run().counts)
+        assertEquals(mapOf("users" to 2, "subscriptionsFound" to 1, "priceRiseAlerts" to 0, "failed" to 1), job.run().counts)
     }
 
     @Test

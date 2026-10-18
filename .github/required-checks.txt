@@ -6,6 +6,7 @@
 # CI (.github/workflows/ci.yml)
 api
 web
+e2e
 go (services/workers)
 go (tools/sms-reader)
 pdf-parser

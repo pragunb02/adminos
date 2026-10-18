@@ -45,7 +45,15 @@ interface TransactionRepository {
         nature: TransactionNature? = null
     ): Long
 
+    /** Writes every field except [Transaction.ownShare], which only [setOwnShare] changes. */
     suspend fun update(transaction: Transaction): Transaction
+
+    /**
+     * Sets (or with null clears) the owner's share of a split bill (AOS-911). One narrow write, so a concurrent
+     * [update] holding an older copy can't undo it, and it can't undo an update.
+     * @return false when the transaction doesn't exist
+     */
+    suspend fun setOwnShare(id: UUID, share: java.math.BigDecimal?): Boolean
 
     /** Spending (nature = SPEND) since [since]: excludes transfers, refunds and reversals (D-39). */
     suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction>
@@ -118,9 +126,15 @@ interface BillRepository {
     ): List<Bill>
     suspend fun countByUserId(userId: UUID, status: BillStatus? = null): Long
     suspend fun findPendingBills(userId: UUID): List<Bill>
-    suspend fun findUpcoming(userId: UUID, withinDays: Int = 30): List<Bill>
-    suspend fun findUpcoming(withinDays: Int): List<Bill> // across all users — for cron
-    suspend fun findOverdue(): List<Bill>
+    // The repository never reads the clock (AOS-638): callers pass the date, the user's own
+    // (UserCalendar.today) or the server's for cross-user pre-filters (UserCalendar.serverToday).
+
+    /** The user's unpaid bills due in [today]..[today] + [withinDays], soonest first. */
+    suspend fun findUpcoming(userId: UUID, today: LocalDate, withinDays: Int = 30): List<Bill>
+    /** Every user's unpaid bills due in [today]..[today] + [withinDays] (cron pre-filter). */
+    suspend fun findUpcoming(today: LocalDate, withinDays: Int): List<Bill>
+    /** Every user's unpaid (upcoming or due) bills due before [today] (cron pre-filter). */
+    suspend fun findOverdue(today: LocalDate): List<Bill>
     suspend fun update(bill: Bill): Bill
 }
 

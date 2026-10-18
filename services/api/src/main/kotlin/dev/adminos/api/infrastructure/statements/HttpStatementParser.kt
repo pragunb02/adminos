@@ -30,7 +30,7 @@ class HttpStatementParser(
 
     override suspend fun parse(file: ByteArray, filename: String, password: String?): ParsedStatement {
         val boundary = "adminos-" + UUID.randomUUID()
-        val body = multipart(boundary, file, "statement." + filename.substringAfterLast('.', "bin").lowercase().take(5), password)
+        val body = parserMultipart(boundary, file, "statement." + filename.substringAfterLast('.', "bin").lowercase().take(5), password)
         val request = HttpRequest.newBuilder(URI.create("$baseUrl/v1/statements:parse"))
             .timeout(Duration.ofSeconds(60))
             .header("Content-Type", "multipart/form-data; boundary=$boundary")
@@ -51,19 +51,6 @@ class HttpStatementParser(
         }
     }
 
-    private fun multipart(boundary: String, file: ByteArray, name: String, password: String?): ByteArray {
-        val out = ByteArrayOutputStream()
-        fun w(s: String) = out.write(s.toByteArray())
-        w("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"$name\"\r\nContent-Type: application/octet-stream\r\n\r\n")
-        out.write(file)
-        w("\r\n")
-        if (!password.isNullOrEmpty()) {
-            w("--$boundary\r\nContent-Disposition: form-data; name=\"password\"\r\n\r\n$password\r\n")
-        }
-        w("--$boundary--\r\n")
-        return out.toByteArray()
-    }
-
     @Serializable private data class WireRow(val date: String, val description: String, val debit: String? = null, val credit: String? = null, val balance: String? = null, val reference: String? = null)
     @Serializable private data class WireResult(val bankCode: String? = null, val accountLast4: String? = null, val periodStart: String? = null, val periodEnd: String? = null, val rows: List<WireRow>, val skippedRows: Int = 0, val warnings: List<String> = emptyList())
     @Serializable private data class WireErrorBody(val code: String, val message: String)
@@ -75,4 +62,18 @@ class HttpStatementParser(
         rows = rows.map { StatementRow(LocalDate.parse(it.date), it.description, it.debit?.let(::BigDecimal), it.credit?.let(::BigDecimal), it.balance?.let(::BigDecimal), it.reference) },
         skippedRows = skippedRows, warnings = warnings
     )
+}
+
+/** The parser service's form: one `file` part and an optional `password` (shared by the statement and CAS readers). */
+internal fun parserMultipart(boundary: String, file: ByteArray, name: String, password: String?): ByteArray {
+    val out = ByteArrayOutputStream()
+    fun w(s: String) = out.write(s.toByteArray())
+    w("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"$name\"\r\nContent-Type: application/octet-stream\r\n\r\n")
+    out.write(file)
+    w("\r\n")
+    if (!password.isNullOrEmpty()) {
+        w("--$boundary\r\nContent-Disposition: form-data; name=\"password\"\r\n\r\n$password\r\n")
+    }
+    w("--$boundary--\r\n")
+    return out.toByteArray()
 }

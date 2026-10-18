@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17",
+  "version": "2026-10-18",
   "lateNight": {"from": "22:00", "to": "05:00"},
   "lenses": [
     {
@@ -33,9 +33,8 @@
     {
       "id": "pay_later",
       "label": "Pay later",
-      "description": "Buy now, pay later repayments",
-      "brands": ["LazyPay", "Simpl", "Amazon Pay Later", "Flipkart Pay Later", "Paytm Postpaid", "ZestMoney", "Snapmint"],
-      "subcategories": ["pay_later"]
+      "description": "Purchases paid with buy now, pay later",
+      "paymentMethods": ["pay_later"]
     },
     {
       "id": "travel",

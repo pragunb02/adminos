@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.coach.lenses
 
 import dev.adminos.api.domain.financial.MerchantCatalogue
+import dev.adminos.api.domain.financial.PaymentMethod
 import java.time.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,6 +44,21 @@ class LensCatalogueTest {
     fun `unknown or transfer categories are rejected`() {
         assertTrue(failure(file(LensEntry("x_lens", "X", categories = listOf("groceries")))).contains("groceries"))
         assertTrue(failure(file(LensEntry("x_lens", "X", categories = listOf("transfer")))).contains("transfer"))
+    }
+
+    @Test
+    fun `the pay later lens matches by payment method only, never by provider brand`() {
+        val lens = LensCatalogue.DEFAULT.byId(LensId("pay_later"))!!
+        assertEquals(listOf(LensRule.PaymentMethods(setOf(PaymentMethod.PAY_LATER))), lens.rules)
+    }
+
+    @Test
+    fun `a payment-method rule is accepted in any case and an unknown method is rejected with its name`() {
+        val c = LensCatalogue(file(LensEntry("x_lens", "X", paymentMethods = listOf("Pay_Later", "wallet"))))
+        assertEquals(LensRule.PaymentMethods(setOf(PaymentMethod.PAY_LATER, PaymentMethod.WALLET)), c.lenses.single().rules.single())
+        val msg = failure(file(LensEntry("x_lens", "X", paymentMethods = listOf("bnpl"))))
+        assertTrue(msg.contains("bnpl"), msg)
+        assertFailsWith<IllegalArgumentException> { LensRule.PaymentMethods(emptySet()) }
     }
 
     @Test

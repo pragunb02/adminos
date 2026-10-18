@@ -37,7 +37,7 @@ class WebPushSenderTest {
     private val vapid = VapidConfig(
         publicKey = B64.encode(P256.encode(pair.public as ECPublicKey)),
         privateKey = B64.encode(P256.encode(pair.private as ECPrivateKey)),
-        subject = "mailto:pragun@example.com"
+        subject = "mailto:owner@example.com"
     )
     private val clock = TestClock(Instant.parse("2026-10-16T09:30:00Z"))
     private val subscription = PushFixtures.subscription(UUID.randomUUID(), device = "abc")
@@ -78,7 +78,7 @@ class WebPushSenderTest {
         val jwt = SignedJWT.parse(auth.removePrefix("vapid t=").substringBefore(","))
         assertTrue(jwt.verify(ECDSAVerifier(pair.public as ECPublicKey)))
         assertEquals(listOf("https://web.push.apple.com"), jwt.jwtClaimsSet.audience)
-        assertEquals("mailto:pragun@example.com", jwt.jwtClaimsSet.subject)
+        assertEquals("mailto:owner@example.com", jwt.jwtClaimsSet.subject)
         assertEquals(clock.now.plus(Duration.ofHours(12)), jwt.jwtClaimsSet.expirationTime.toInstant())
 
         val json = Json.parseToJsonElement(decrypt(body)).jsonObject

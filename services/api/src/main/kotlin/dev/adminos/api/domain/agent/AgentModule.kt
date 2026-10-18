@@ -1,6 +1,5 @@
 package dev.adminos.api.domain.agent
 
-import dev.adminos.api.domain.audit.AuditService
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
@@ -10,15 +9,14 @@ import org.koin.ktor.ext.inject
  * Dependencies are resolved via Koin (single instances).
  */
 fun Application.agentModule() {
-    val anomalyRepository: AnomalyRepository by inject()
+    val anomalyReviewService: AnomalyReviewService by inject()
     val briefingRepository: BriefingRepository by inject()
     val insightRepository: InsightRepository by inject()
     val subscriptionReviewService: SubscriptionReviewService by inject()
-    val auditService: AuditService by inject()
 
     routing {
         route("/api/v1") {
-            anomalyRoutes(anomalyRepository, auditService)
+            anomalyRoutes(anomalyReviewService)
             briefingRoutes(briefingRepository, insightRepository)
             subscriptionAgentRoutes(subscriptionReviewService)
         }

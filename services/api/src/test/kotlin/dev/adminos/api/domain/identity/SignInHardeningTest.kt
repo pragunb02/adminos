@@ -33,7 +33,7 @@ import kotlin.test.*
 class SignInHardeningTest {
 
     private val google = FakeGoogleServer()
-    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "pragun.b@gmail.com", googleClientId = "test-client-id")) }
+    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "owner@example.com", googleClientId = "test-client-id")) }
     private val users = InMemoryUserRepository()
     private val stateRepo = InMemoryOAuthStateRepository()
     private val states = OAuthStateService(stateRepo, null)

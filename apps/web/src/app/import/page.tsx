@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import AppShell from "@/components/AppShell";
+import SplitwiseImport from "@/components/SplitwiseImport";
 import WhatsAppImport from "@/components/WhatsAppImport";
 import { api } from "@/lib/api";
 
@@ -113,6 +114,7 @@ export default function ImportPage() {
       )}
 
       <WhatsAppImport />
+      <SplitwiseImport />
     </AppShell>
   );
 }

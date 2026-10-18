@@ -19,7 +19,7 @@ class ConnectionServiceCoverageTest {
 
     @Test
     fun `oauth tokens are stored encrypted, not in plaintext`() = runBlocking<Unit> {
-        val conn = service.createConnection(userId, SourceType.GMAIL, "pragun.b@gmail.com", accessToken = "ya29.secret", refreshToken = "1//0g-secret")
+        val conn = service.createConnection(userId, SourceType.GMAIL, "owner@example.com", accessToken = "ya29.secret", refreshToken = "1//0g-secret")
 
         val stored = assertNotNull(connections.findById(conn.id))
         assertNotEquals("ya29.secret", stored.accessToken)
@@ -28,25 +28,41 @@ class ConnectionServiceCoverageTest {
     }
 
     @Test
-    fun `without an encryptor tokens are kept as given`() = runBlocking<Unit> {
-        val plain = ConnectionService(connections, syncSessions)
+    fun `tokens are never stored as given, on reconnect either (AOS-629)`() = runBlocking<Unit> {
+        val access = "ya29." + UUID.randomUUID()
+        val conn = service.createConnection(userId, SourceType.GMAIL, "owner@example.com", accessToken = access)
+        service.disconnect(userId, conn.id)
+        val again = service.createConnection(userId, SourceType.GMAIL, null, accessToken = access)
 
-        val conn = plain.createConnection(userId, SourceType.GMAIL, "pragun.b@gmail.com", accessToken = "ya29.dev")
+        for (stored in listOfNotNull(connections.findById(conn.id), connections.findById(again.id))) {
+            assertNotEquals(access, stored.accessToken)
+            assertTrue(stored.accessToken!!.startsWith("v2:"), "stored in the TokenEncryptor v2 format")
+            assertNull(stored.refreshToken)
+        }
+    }
 
-        assertEquals("ya29.dev", conn.accessToken)
-        assertNull(conn.refreshToken)
+    @Test
+    fun `a ConnectionService can't be built without a TokenEncryptor`() {
+        val constructors = ConnectionService::class.java.constructors
+        assertTrue(constructors.all { TokenEncryptor::class.java in it.parameterTypes }, "every constructor takes the encryptor")
+        val full = ConnectionService::class.java.getConstructor(ConnectionRepository::class.java,
+            dev.adminos.api.domain.ingestion.sync.SyncSessionRepository::class.java, TokenEncryptor::class.java,
+            dev.adminos.api.domain.ingestion.sync.IngestionService::class.java, GmailWatchService::class.java)
+        // Even from Java (or reflection, or a DI container handing out null) a null encryptor is refused.
+        val e = assertFailsWith<java.lang.reflect.InvocationTargetException> { full.newInstance(connections, syncSessions, null, null, null) }
+        assertTrue(e.cause is NullPointerException, "a null encryptor fails at construction")
     }
 
     @Test
     fun `reconnecting a disconnected source reactivates the same connection (AOS-613)`() = runBlocking<Unit> {
-        val old = service.createConnection(userId, SourceType.GMAIL, "me@gmail.com", "ya29.old", "1//old")
+        val old = service.createConnection(userId, SourceType.GMAIL, "me@example.com", "ya29.old", "1//old")
         service.disconnect(userId, old.id)
 
         val again = service.createConnection(userId, SourceType.GMAIL, null, "ya29.new", "1//new")
 
         assertEquals(ConnectionStatus.CONNECTED, again.status)
         assertEquals(old.id, again.id)
-        assertEquals("me@gmail.com", again.gmailAddress) // kept when the new grant doesn't say
+        assertEquals("me@example.com", again.gmailAddress) // kept when the new grant doesn't say
         assertEquals("ya29.new", encryptor.decrypt(again.accessToken!!, "user_connections:${again.id}:access_token"))
         assertEquals(null, again.historyId)
     }
@@ -63,7 +79,7 @@ class ConnectionServiceCoverageTest {
 
     @Test
     fun `connecting gmail stores encrypted tokens with their expiry and scopes and queues the first sync`() = runBlocking<Unit> {
-        val conn = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val conn = withQueue.connectGmail(userId, "owner@example.com", grant())
 
         val stored = assertNotNull(connections.findById(conn.id))
         assertEquals("ya29.access", encryptor.decrypt(stored.accessToken!!, "user_connections:${conn.id}:access_token"))
@@ -77,19 +93,19 @@ class ConnectionServiceCoverageTest {
 
     @Test
     fun `connecting gmail again while connected queues nothing more`() = runBlocking<Unit> {
-        withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        withQueue.connectGmail(userId, "owner@example.com", grant())
 
-        withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        withQueue.connectGmail(userId, "owner@example.com", grant())
 
         assertEquals(1, syncSessions.findByUserId(userId).size)
     }
 
     @Test
     fun `reconnecting a disconnected gmail queues a new first sync`() = runBlocking<Unit> {
-        val old = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val old = withQueue.connectGmail(userId, "owner@example.com", grant())
         withQueue.disconnect(userId, old.id)
 
-        val again = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val again = withQueue.connectGmail(userId, "owner@example.com", grant())
 
         assertEquals(old.id, again.id)
         assertEquals(2, syncSessions.findByUserId(userId).size)
@@ -98,7 +114,7 @@ class ConnectionServiceCoverageTest {
     @Test
     fun `a grant without gmail read access is refused`() = runBlocking<Unit> {
         for (scope in listOf("openid email", null)) {
-            assertFailsWith<GmailGrantException.ReadAccessMissing> { withQueue.connectGmail(userId, "pragun.b@gmail.com", grant(scope = scope)) }
+            assertFailsWith<GmailGrantException.ReadAccessMissing> { withQueue.connectGmail(userId, "owner@example.com", grant(scope = scope)) }
         }
         assertNull(connections.findByUserAndSource(userId, SourceType.GMAIL))
     }
@@ -106,7 +122,7 @@ class ConnectionServiceCoverageTest {
     @Test
     fun `a grant without a refresh token is refused`() = runBlocking<Unit> {
         for (refresh in listOf(null, " ")) {
-            assertFailsWith<GmailGrantException.OfflineAccessMissing> { withQueue.connectGmail(userId, "pragun.b@gmail.com", grant(refresh = refresh)) }
+            assertFailsWith<GmailGrantException.OfflineAccessMissing> { withQueue.connectGmail(userId, "owner@example.com", grant(refresh = refresh)) }
         }
         assertTrue(syncSessions.findByUserId(userId).isEmpty())
     }
@@ -122,7 +138,7 @@ class ConnectionServiceCoverageTest {
 
     @Test
     fun `a manual gmail sync is queued for the worker as manual`() = runBlocking<Unit> {
-        val conn = withQueue.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val conn = withQueue.connectGmail(userId, "owner@example.com", grant())
 
         val session = withQueue.triggerManualSync(userId, conn.id)
 
@@ -150,7 +166,7 @@ class ConnectionServiceCoverageTest {
 
     @Test
     fun `syncing another user's connection is not found`() = runBlocking<Unit> {
-        val theirs = service.createConnection(UUID.randomUUID(), SourceType.GMAIL, "them@gmail.com")
+        val theirs = service.createConnection(UUID.randomUUID(), SourceType.GMAIL, "them@example.com")
 
         assertFailsWith<ConnectionNotFoundException> { service.triggerManualSync(userId, theirs.id) }
         assertTrue(syncSessions.findByUserId(userId).isEmpty())
@@ -177,24 +193,24 @@ class ConnectionServiceCoverageTest {
 
     @Test
     fun `gmail connections are found by their address`() = runBlocking<Unit> {
-        val gmail = service.createConnection(userId, SourceType.GMAIL, "pragun.b@gmail.com")
+        val gmail = service.createConnection(userId, SourceType.GMAIL, "owner@example.com")
 
-        assertEquals(gmail.id, service.findByGmailAddress("pragun.b@gmail.com")?.id)
-        assertNull(service.findByGmailAddress("someone.else@gmail.com"))
+        assertEquals(gmail.id, service.findByGmailAddress("owner@example.com")?.id)
+        assertNull(service.findByGmailAddress("someone.else@example.com"))
     }
 
     @Test
     fun `a non-gmail connection is never found by a gmail address`() = runBlocking<Unit> {
-        service.createConnection(userId, SourceType.SMS, gmailAddress = "pragun.b@gmail.com")
+        service.createConnection(userId, SourceType.SMS, gmailAddress = "owner@example.com")
 
-        assertNull(service.findByGmailAddress("pragun.b@gmail.com"))
+        assertNull(service.findByGmailAddress("owner@example.com"))
     }
 
     @Test
     fun `only connected connections of a source are listed for syncing`() = runBlocking<Unit> {
-        val live = service.createConnection(userId, SourceType.GMAIL, "a@gmail.com")
+        val live = service.createConnection(userId, SourceType.GMAIL, "a@example.com")
         val other = UUID.randomUUID()
-        service.disconnect(other, service.createConnection(other, SourceType.GMAIL, "b@gmail.com").id)
+        service.disconnect(other, service.createConnection(other, SourceType.GMAIL, "b@example.com").id)
         service.createConnection(userId, SourceType.SMS)
 
         assertEquals(listOf(live.id), service.findConnectedBySourceType(SourceType.GMAIL).map { it.id })
@@ -246,7 +262,7 @@ class ConnectionServiceCoverageTest {
     fun `connection response round-trips with and without sync details`() {
         val minimal = ConnectionResponse("c-1", "sms", "connected", createdAt = "2026-10-16T06:00:00Z")
         assertWireFormat(ConnectionResponse.serializer(), minimal,
-            minimal.copy(gmailAddress = "a@gmail.com", lastSyncedAt = "2026-10-16T07:00:00Z", lastSyncStatus = "completed", totalSynced = 7),
+            minimal.copy(gmailAddress = "a@example.com", lastSyncedAt = "2026-10-16T07:00:00Z", lastSyncStatus = "completed", totalSynced = 7),
             """{"id":"c-1","sourceType":"sms"}""")
     }
 }

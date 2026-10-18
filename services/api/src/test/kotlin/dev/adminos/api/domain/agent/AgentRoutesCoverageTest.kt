@@ -39,11 +39,12 @@ import kotlin.test.assertTrue
 /** Route coverage for /anomalies, /briefings and /subscriptions agent actions (AOS-312). */
 class AgentRoutesCoverageTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-agent-1", role = UserRole.OWNER)
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-agent-1", role = UserRole.OWNER)
     private val otherUserId = UUID.randomUUID()
     private val jwt = jwtService.generateAccessToken(user)
 
     private val anomalies = InMemoryAnomalyRepository()
+    private val tolerances = InMemoryAnomalyToleranceRepository()
     private val briefings = InMemoryBriefingRepository()
     private val insights = InMemoryInsightRepository()
     private val subscriptions = InMemorySubscriptionRepository()
@@ -62,7 +63,7 @@ class AgentRoutesCoverageTest {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
             routing {
                 route("/api/v1") {
-                    anomalyRoutes(anomalies, auditService)
+                    anomalyRoutes(AnomalyReviewService(anomalies, dev.adminos.api.domain.financial.InMemoryTransactionRepository(), tolerances, auditService))
                     briefingRoutes(briefings, insights)
                     subscriptionAgentRoutes(SubscriptionReviewService(subscriptions, mandateService, auditService))
                 }
@@ -474,6 +475,7 @@ class AgentRoutesCoverageTest {
                     single<SubscriptionRepository> { subscriptions }
                     single { auditService }
                     single { SubscriptionReviewService(subscriptions, mandateService, auditService) }
+                    single { AnomalyReviewService(anomalies, dev.adminos.api.domain.financial.InMemoryTransactionRepository(), tolerances, auditService) }
                 })
             }
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)

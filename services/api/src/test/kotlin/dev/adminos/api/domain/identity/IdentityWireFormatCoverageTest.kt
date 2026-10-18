@@ -24,7 +24,7 @@ internal fun <T> assertWireFormat(serializer: KSerializer<T>, minimal: T, full: 
 
 class IdentityWireFormatCoverageTest {
 
-    private val user = UserResponse("6f1c0f3e-0000-4000-8000-000000000001", "pragun.b@gmail.com", onboardingStatus = "started", role = "owner")
+    private val user = UserResponse("6f1c0f3e-0000-4000-8000-000000000001", "owner@example.com", onboardingStatus = "started", role = "owner")
 
     @Test
     fun `google login request round-trips and needs both fields`() =
@@ -33,7 +33,7 @@ class IdentityWireFormatCoverageTest {
 
     @Test
     fun `user response round-trips with and without name and avatar`() =
-        assertWireFormat(UserResponse.serializer(), user, user.copy(name = "Pragun", avatarUrl = "https://lh3.googleusercontent.com/a/p"),
+        assertWireFormat(UserResponse.serializer(), user, user.copy(name = "Owner", avatarUrl = "https://lh3.googleusercontent.com/a/p"),
             """{"id":"x","email":"a@b.c","onboardingStatus":"started"}""")
 
     @Test
@@ -56,8 +56,8 @@ class IdentityWireFormatCoverageTest {
 
     @Test
     fun `google user info round-trips with and without the optional profile fields`() =
-        assertWireFormat(GoogleUserInfo.serializer(), GoogleUserInfo("1098", "a@gmail.com"),
-            GoogleUserInfo("1099", "b@gmail.com", "Pragun", "https://lh3/p", true), """{"sub":"1098"}""")
+        assertWireFormat(GoogleUserInfo.serializer(), GoogleUserInfo("1098", "a@example.com"),
+            GoogleUserInfo("1099", "b@example.com", "Owner", "https://lh3/p", true), """{"sub":"1098"}""")
 
     @Test
     fun `device token request defaults to the sms scope and needs a name`() {
