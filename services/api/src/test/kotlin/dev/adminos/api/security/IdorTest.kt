@@ -98,10 +98,10 @@ class IdorTest {
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
         val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
         val receipt: OrderReceipt, val limit: SpendingLimit, val tripId: String, val flight: Transaction, val splitImportId: String, val splitEntryIds: List<String>,
-        val goal: Goal
+        val goal: Goal, val wealthBatch: dev.adminos.api.domain.wealth.ImportBatch
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id, receipt.id, limit.id, flight.id, goal.id).map { it.toString() } + documentId + tripId + splitImportId + splitEntryIds
+            push.id, mandate.id, notification.id, receipt.id, limit.id, flight.id, goal.id, wealthBatch.id).map { it.toString() } + documentId + tripId + splitImportId + splitEntryIds
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -168,10 +168,30 @@ class IdorTest {
             ?.takeIf { it.size == 2 } ?: error("expected Alice's two Splitwise entries in $entries")
         val goal = app.get<GoalRepository>().save(Goal(userId = alice.id, lens = LensId("travel"), kind = GoalKind.CAP_AMOUNT, value = BigDecimal("5000"),
             period = LimitPeriod.WEEKLY, baseline = null, target = BigDecimal("5000"), startedOn = LocalDate.now(), createdAt = Instant.now()))
+        // A mutual fund import of Alice's (AOS-805): a folio, a scheme and the batch, with its reconciliation.
+        val wealthBatch = seedWealthImport(app)
         // Alice's salary as she corrected it (AOS-722): one row per user, reached only through the session's user.
         app.get<SalaryChoiceRepository>().put(alice.id, ALICE_SALARY)
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
-            receipt, limit, tripId, flight, splitImportId, splitEntryIds, goal)
+            receipt, limit, tripId, flight, splitImportId, splitEntryIds, goal, wealthBatch)
+    }
+
+    private suspend fun seedWealthImport(app: Application): dev.adminos.api.domain.wealth.ImportBatch {
+        val accountId = UUID.randomUUID()
+        val account = app.get<dev.adminos.api.domain.wealth.InvestmentAccountRepository>().findOrCreate(dev.adminos.api.domain.wealth.InvestmentAccount(
+            id = accountId, userId = alice.id, kind = dev.adminos.api.domain.wealth.InvestmentAccountKind.MF_FOLIO, institution = "Alice Fund House",
+            identifier = app.get<dev.adminos.api.infrastructure.crypto.WealthIdentifiers>().protect(
+                dev.adminos.api.infrastructure.crypto.IdentifierKind.FOLIO, "77001234", "investment_accounts:$accountId:identifier")))
+        val fund = app.get<dev.adminos.api.domain.wealth.InstrumentRepository>().findOrCreate(dev.adminos.api.domain.wealth.Instrument(
+            name = "Alice Secret Fund", assetClass = dev.adminos.api.domain.wealth.AssetClass.EQUITY_IN, isin = "INFZZ9770010"))
+        val batch = dev.adminos.api.domain.wealth.ImportBatch(userId = alice.id, readerId = "casparser", readerVersion = "test",
+            statementFrom = null, statementTo = LocalDate.now(), events = 0, added = 0, duplicates = 0)
+        app.get<dev.adminos.api.domain.wealth.InvestmentLedger>().record(batch, emptyList())
+        app.get<dev.adminos.api.domain.wealth.imports.HoldingCheckRepository>().saveAll(listOf(dev.adminos.api.domain.wealth.imports.HoldingCheck(
+            userId = alice.id, batchId = batch.id, accountId = account.id, instrumentId = fund.id, schemeName = "Alice Secret Fund", statementFrom = null,
+            statementTo = LocalDate.now(), openingUnits = dev.adminos.api.domain.wealth.Quantity.ZERO, closingUnits = dev.adminos.api.domain.wealth.Quantity.parse("10"),
+            valuationDate = null, valuationNav = null, valuationValue = null, issue = null)))
+        return batch
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -216,6 +236,7 @@ class IdorTest {
             Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
             Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
+            Attack(HttpMethod.Post, { "/api/v1/wealth/imports/$it/undo" }, a.wealthBatch.id.toString()),
             Attack(HttpMethod.Delete, { "/api/v1/coach/goals/$it" }, a.goal.id.toString()),
             Attack(HttpMethod.Get, { "/api/v1/trips/$it" }, a.tripId),
             Attack(HttpMethod.Get, { "/api/v1/trips/$it/candidates" }, a.tripId),
@@ -271,6 +292,9 @@ class IdorTest {
         assertTrue(app.get<SessionRepository>().findActiveByUserId(alice.id).any { it.id == a.sessionId }, "Alice's session is still active")
         assertTrue(app.get<PushSubscriptionRepository>().findByUserId(alice.id).any { it.id == a.push.id }, "Alice still has push")
         assertEquals(BigDecimal("3000"), app.get<SpendingLimitRepository>().findById(alice.id, a.limit.id)?.amount, "Alice's limit is unchanged")
+        client.asBob(HttpMethod.Post, "/api/v1/wealth/imports/${a.wealthBatch.id}/undo", null)
+        assertEquals(dev.adminos.api.domain.wealth.ImportStatus.APPLIED,
+            app.get<dev.adminos.api.domain.wealth.InvestmentLedger>().findBatch(alice.id, a.wealthBatch.id)?.status, "Alice's import is not undone")
         assertTrue(app.get<GoalRepository>().findByUser(alice.id).any { it.id == a.goal.id }, "Alice still has her goal")
         assertEquals(ALICE_SALARY, app.get<SalaryChoiceRepository>().find(alice.id), "Alice's salary choice is unchanged")
         assertEquals("Bob Employer", app.get<SalaryChoiceRepository>().find(bob.id)?.payer, "Bob's PUT wrote only his own row")
@@ -315,6 +339,7 @@ class IdorTest {
             "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/pay-later", "/api/v1/trips", "/api/v1/splitwise/entries", "/api/v1/splitwise/summary", "/api/v1/splitwise/imports",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings", "/api/v1/coach/goals", "/api/v1/coach/savings",
             "/api/v1/forecast/salary",
+            "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation", "/api/v1/wealth/investment-flows",
         )
         val leaks = lists.mapNotNull { path ->
             val res = client.asBob(HttpMethod.Get, path, null)
@@ -345,6 +370,9 @@ class IdorTest {
         for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
             assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
+        // Mutual fund imports (AOS-805) show Alice her own import and holding.
+        assertTrue(a.wealthBatch.id.toString() in client.get("/api/v1/wealth/imports") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        assertTrue("Alice Secret Fund" in client.get("/api/v1/wealth/reconciliation") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
         // Pay-later debt (AOS-909): Alice's unpaid pay-later bill shows for her, and not for Bob.
         val payLater = app.get<BillRepository>().save(Bill(userId = alice.id, billType = BillType.PAY_LATER, billerName = "LazyPay",
             amount = BigDecimal("1200"), dueDate = LocalDate.now().plusDays(5)))
@@ -394,6 +422,21 @@ class IdorTest {
         assertEquals(proposal, grouping.proposals(alice.id).single().id.toString(), "Alice's proposal is still open")
         val bobs = client.asBob(HttpMethod.Get, "/api/v1/merchants/merge-proposals", null).bodyAsText()
         assertFalse(proposal in bobs || "Kuku" in bobs, "Bob's list shows Alice's proposal")
+    }
+
+    @Test
+    fun `Bob's balances and forecast never show Alice's balance (AOS-720)`() = realApp { app ->
+        val balances = app.get<dev.adminos.api.domain.balances.BalanceService>()
+        val ref = java.security.MessageDigest.getInstance("SHA-256").digest("alice-balance".toByteArray()).joinToString("") { "%02x".format(it) }
+        assertEquals(dev.adminos.api.domain.balances.BalanceRecordResult.Saved, balances.record(dev.adminos.api.domain.balances.BalanceObservation(
+            alice.id, "hdfc", "4242", BigDecimal("77777.77"), Instant.now().minusSeconds(3600), dev.adminos.api.domain.balances.BalanceSource.SMS, ref)))
+        assertTrue("77777.77" in client.get("/api/v1/balances") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), "Alice sees her own")
+        for (path in listOf("/api/v1/balances", "/api/v1/forecast")) {
+            val res = client.asBob(HttpMethod.Get, path, null)
+            assertEquals(HttpStatusCode.OK, res.status, path)
+            val text = res.bodyAsText()
+            assertFalse("77777" in text || "4242" in text, "$path shows Alice's balance to Bob")
+        }
     }
 
     @Test

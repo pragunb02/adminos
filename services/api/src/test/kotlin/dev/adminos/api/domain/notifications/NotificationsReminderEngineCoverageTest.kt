@@ -29,7 +29,7 @@ class NotificationsReminderEngineCoverageTest {
 
     private val userId = UUID.randomUUID()
     private val clock = clockAt("2026-10-16T18:45:00Z")
-    private val bills = InMemoryBillRepository(clock)
+    private val bills = InMemoryBillRepository()
     private val prefsRepo = InMemoryNotificationPreferencesRepository()
     private val notifRepo = InMemoryNotificationRepository()
     private val notifications = notificationService(prefsRepo, notifRepo)
@@ -274,7 +274,7 @@ class NotificationsReminderEngineCoverageTest {
 
     private fun engineAt(instant: String): Pair<ReminderEngine, InMemoryBillRepository> {
         val at = clockAt(instant)
-        val repo = InMemoryBillRepository(at)
+        val repo = InMemoryBillRepository()
         val cal = dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), at)
         return ReminderEngine(repo, prefsRepo, notifications, cal) to repo
     }

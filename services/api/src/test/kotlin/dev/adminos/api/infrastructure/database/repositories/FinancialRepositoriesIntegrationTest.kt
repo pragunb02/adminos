@@ -26,6 +26,9 @@ class FinancialRepositoriesIntegrationTest {
     private val subscriptions = ExposedSubscriptionRepository()
     private val bills = ExposedBillRepository()
 
+    /** Bill queries take the date from the caller (AOS-638), so any fixed day works. */
+    private val billDay = LocalDate.of(2031, 2, 10)
+
     @BeforeAll
     fun start() = PostgresTestDatabase.ensureStarted()
 
@@ -194,13 +197,13 @@ class FinancialRepositoriesIntegrationTest {
         val userId = PostgresTestDatabase.newUser()
         val b = bills.save(
             Bill(userId = userId, billType = BillType.CREDIT_CARD, billerName = "HDFC Credit Card", amount = BigDecimal("12500.00"),
-                 minimumDue = BigDecimal("625.00"), dueDate = LocalDate.now().plusDays(5), metadata = mapOf("card" to "1234"))
+                 minimumDue = BigDecimal("625.00"), dueDate = billDay.plusDays(5), metadata = mapOf("card" to "1234"))
         )
         val found = assertNotNull(bills.findById(b.id))
         assertEquals(BillType.CREDIT_CARD, found.billType)
         assertEquals(b.dueDate, found.dueDate)
         assertEquals(0, BigDecimal("625.00").compareTo(found.minimumDue))
-        assertTrue(bills.findUpcoming(userId, withinDays = 30).any { it.id == b.id })
+        assertTrue(bills.findUpcoming(userId, billDay, withinDays = 30).any { it.id == b.id })
         assertTrue(bills.findPendingBills(userId).any { it.id == b.id })
 
         val payment = transactions.save(txn(userId, amount = "12500.00", merchant = "HDFC Credit Card"))
@@ -211,14 +214,30 @@ class FinancialRepositoriesIntegrationTest {
     }
 
     @Test
+    fun `bill date queries use the day the caller passes, inclusive of today and the cutoff`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        suspend fun due(d: LocalDate) = bills.save(Bill(userId = userId, billerName = "Biller", amount = BigDecimal("100.00"), dueDate = d))
+        val yesterday = due(billDay.minusDays(1))
+        val today = due(billDay)
+        val cutoff = due(billDay.plusDays(7))
+        val after = due(billDay.plusDays(8))
+
+        assertEquals(listOf(today.id, cutoff.id), bills.findUpcoming(userId, billDay, withinDays = 7).map { it.id })
+        val everyone = bills.findUpcoming(billDay, withinDays = 7).map { it.id }
+        assertTrue(today.id in everyone && cutoff.id in everyone && yesterday.id !in everyone && after.id !in everyone)
+        val overdue = bills.findOverdue(billDay).map { it.id }
+        assertTrue(yesterday.id in overdue && today.id !in overdue)
+    }
+
+    @Test
     fun `every bill type and status persists and overdue bills are found`() = runBlocking<Unit> {
         val userId = PostgresTestDatabase.newUser()
-        fun bill() = Bill(userId = userId, billerName = "Biller", amount = BigDecimal("100.00"), dueDate = LocalDate.now().plusDays(3))
+        fun bill() = Bill(userId = userId, billerName = "Biller", amount = BigDecimal("100.00"), dueDate = billDay.plusDays(3))
         for (t in BillType.entries) assertEquals(t, bills.findById(bills.save(bill().copy(billType = t)).id)?.billType)
         for (s in BillStatus.entries) assertEquals(s, bills.findById(bills.save(bill().copy(status = s)).id)?.status)
 
-        val late = bills.save(bill().copy(dueDate = LocalDate.now().minusDays(2), status = BillStatus.UPCOMING))
-        assertTrue(bills.findOverdue().any { it.id == late.id })
+        val late = bills.save(bill().copy(dueDate = billDay.minusDays(2), status = BillStatus.UPCOMING))
+        assertTrue(bills.findOverdue(billDay).any { it.id == late.id })
     }
 
     @Test

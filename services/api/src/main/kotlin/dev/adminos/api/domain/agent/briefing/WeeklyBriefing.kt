@@ -3,6 +3,7 @@ package dev.adminos.api.domain.agent.briefing
 import dev.adminos.api.domain.agent.AnomalyRepository
 import dev.adminos.api.domain.agent.AnomalyStatus
 import dev.adminos.api.domain.agent.Briefing
+import dev.adminos.api.domain.agent.BriefingNarration
 import dev.adminos.api.domain.agent.BriefingRepository
 import dev.adminos.api.domain.agent.BriefingStatus
 import dev.adminos.api.domain.agent.BriefingType
@@ -49,7 +50,16 @@ data class BriefingFacts(
     val openAnomalies: Int,
     val flaggedSubscriptions: Int,
     val dormantMandates: List<String>
-)
+) {
+    /** This week's spending minus the week before's. */
+    val difference: BigDecimal get() = spent - previousSpent
+
+    /** What the [upcoming] dues add up to. */
+    val upcomingTotal: BigDecimal get() = upcoming.fold(BigDecimal.ZERO) { s, d -> s + d.amount }
+
+    /** The first of the [upcoming] dues, or null when nothing is due. */
+    val firstUpcoming: DueItem? get() = upcoming.minByOrNull { it.date }
+}
 
 /** Where the facts come from (one object, so the service keeps few dependencies). */
 data class BriefingSources(
@@ -62,7 +72,8 @@ data class BriefingSources(
 
 /**
  * Weekly briefings (AOS-506): every number comes from the analytics the console shows; the text is
- * written by [BriefingWriter] from those numbers — deterministic, so it can't invent anything.
+ * written by [BriefingWriter] from those numbers — deterministic, so it can't invent anything. An optional AI wording
+ * of the same facts is added by [BriefingNarrator] when the user turned it on (AOS-716); the template always stays.
  *
  * **When:** on the user's briefing day and time (preferences), in their zone, about the 7 days
  * before that day. If the app was down at that moment it catches up later the same week; one
@@ -73,6 +84,7 @@ class WeeklyBriefingService(
     private val sources: BriefingSources,
     private val briefings: BriefingRepository,
     private val notifications: NotificationService,
+    private val narrator: BriefingNarrator,
     private val clock: Clock = Clock.systemUTC(),
     /** Parts other features add, e.g. the coach's report card (AOS-906); appended in order. */
     private val sections: List<BriefingSection> = emptyList()
@@ -111,7 +123,19 @@ class WeeklyBriefingService(
             userTimezone = zone.id
         )
         logger.info("Weekly briefing {} made for user {} ({}..{})", briefing.id, user.id, period.from, period.to)
-        return briefing
+        return narrate(briefing, facts)
+    }
+
+    /**
+     * The optional AI wording (AOS-716), asked **after** the template briefing is saved and sent: at most one model
+     * call per briefing, and a failure afterwards (even storing the answer) never asks again.
+     */
+    private suspend fun narrate(briefing: Briefing, facts: BriefingFacts): Briefing {
+        val narration = narrator.narrate(briefing.userId, facts)
+        if (narration == BriefingNarration.None) return briefing
+        val at = clock.instant()
+        briefings.updateNarration(briefing.id, narration, at)
+        return briefing.copy(narration = narration, updatedAt = at)
     }
 
     internal suspend fun gather(user: User, period: DateRange, zone: ZoneId, briefingDay: LocalDate): BriefingFacts {
@@ -178,10 +202,8 @@ object BriefingWriter {
         if (f.topCategories.isNotEmpty()) add("Most went to " + f.topCategories.joinToString(", ") { "${label(it)} (${it.spent.formatInr()})" } + ".")
         f.topMerchant?.let { add("Biggest payee: ${it.merchant} (${it.spent.formatInr()} over ${it.count} payment${if (it.count == 1) "" else "s"}).") }
         if (f.received.signum() > 0) add("You received ${f.received.formatInr()}.")
-        if (f.upcoming.isNotEmpty()) {
-            val total = f.upcoming.fold(BigDecimal.ZERO) { s, d -> s + d.amount }
-            val first = f.upcoming.minBy { it.date }
-            add("Coming up in the next 7 days: ${f.upcoming.size} due${if (f.upcoming.size == 1) "" else "s"} totalling ${total.formatInr()} — first ${first.name} on ${first.date.format(WEEKDAY)}.")
+        f.firstUpcoming?.let { first ->
+            add("Coming up in the next 7 days: ${f.upcoming.size} due${if (f.upcoming.size == 1) "" else "s"} totalling ${f.upcomingTotal.formatInr()} — first ${first.name} on ${first.date.format(WEEKDAY)}.")
         }
         if (f.openAnomalies > 0) add("${f.openAnomalies} unusual charge${if (f.openAnomalies == 1) "" else "s"} waiting for your review.")
         if (f.flaggedSubscriptions > 0) add("${f.flaggedSubscriptions} subscription${if (f.flaggedSubscriptions == 1) " looks" else "s look"} worth a second look.")
@@ -191,7 +213,7 @@ object BriefingWriter {
     private fun spendLine(f: BriefingFacts): String {
         val range = "${f.period.from.format(DAY)}–${f.period.to.format(DAY)}"
         if (f.spent.signum() == 0) return "A quiet week ($range): no spending recorded."
-        val diff = f.spent - f.previousSpent
+        val diff = f.difference
         val compare = when {
             f.previousSpent.signum() == 0 -> "nothing the week before"
             diff.signum() > 0 -> "${diff.formatInr()} more than the week before"
@@ -201,5 +223,6 @@ object BriefingWriter {
         return "Last week ($range) you spent ${f.spent.formatInr()} — $compare."
     }
 
-    private fun label(c: CategoryShare) = c.category.name.lowercase().replaceFirstChar { it.uppercase() }
+    /** A category as the briefing names it ("Food"). */
+    internal fun label(c: CategoryShare) = c.category.name.lowercase().replaceFirstChar { it.uppercase() }
 }

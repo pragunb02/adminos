@@ -8,6 +8,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from app.cas import read_cas
 from app.isolation import ParseCrashed, ParseFailed, ParseTimeout, run_isolated
 from app.models import ParseError
 from app.parser import parse_statement
@@ -57,4 +58,22 @@ async def parse(file: UploadFile = File(...), password: Optional[str] = Form(def
         logger.warning("statement parse failed: %s", type(e).__name__)
         return _error(422, "UNREADABLE", "The statement couldn't be read")
     logger.info("statement parsed: bank=%s rows=%d skipped=%d", result.bank_code, len(result.rows), result.skipped_rows)
+    return result.model_dump(by_alias=True, mode="json")
+
+
+@app.post("/v1/cas:parse")
+async def parse_cas(file: UploadFile = File(...), password: Optional[str] = Form(default=None)):
+    """A CAMS / KFintech consolidated account statement (AOS-805). Same rules as statements: memory only, codes in logs."""
+    data = await file.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:
+        return _error(413, "FILE_TOO_LARGE", "Statement exceeds 20 MB")
+    try:
+        result = read_cas(data, password)
+    except ParseError as e:
+        logger.info("cas rejected: %s", e.code)
+        return _error(422, e.code, e.message)
+    except Exception as e:  # never echo details: they can contain statement content
+        logger.warning("cas parse failed: %s", type(e).__name__)
+        return _error(422, "UNREADABLE", "The statement couldn't be read")
+    logger.info("cas parsed: issuer=%s folios=%d schemes=%d", result.issuer, len(result.folios), sum(len(f.schemes) for f in result.folios))
     return result.model_dump(by_alias=True, mode="json")

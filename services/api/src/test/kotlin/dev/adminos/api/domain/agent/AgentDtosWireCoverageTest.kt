@@ -34,7 +34,8 @@ class AgentDtosWireCoverageTest {
         id = "b1", periodStart = "2026-10-05", periodEnd = "2026-10-11", type = "weekly", content = "Weekly summary",
         totalSpent = "12450.50", totalIncome = null, topCategories = listOf(CategoryAmountResponse("food", "4200.25")),
         subscriptionsFlagged = 1, anomaliesDetected = 0, billsUpcoming = 2, status = "generated",
-        insights = listOf(insight), createdAt = "2026-10-12T03:30:00Z"
+        insights = listOf(insight), createdAt = "2026-10-12T03:30:00Z",
+        narration = "You spent ₹12,450.50 last week.", narrationModel = "claude-haiku-5-5", narrationStatus = "narrated"
     )
 
     private fun <T> assertRoundTrips(serializer: KSerializer<T>, value: T) {

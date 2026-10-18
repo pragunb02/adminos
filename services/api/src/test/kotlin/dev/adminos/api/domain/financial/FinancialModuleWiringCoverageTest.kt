@@ -46,7 +46,7 @@ class FinancialModuleWiringCoverageTest {
         single<SubscriptionRepository> { subscriptions }
         single { CategoryCorrectionService(InMemoryCategoryRuleRepository(), transactions) }
         single { AccountDiscoveryService(accounts, transactions) }
-        single { BillTrackingService(bills, transactions) }
+        single { BillTrackingService(bills, transactions, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository())) }
         single { AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined)) }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
@@ -74,8 +74,9 @@ class FinancialModuleWiringCoverageTest {
             dev.adminos.api.domain.financial.review.CategoryReviewService(transactions, get(),
                 dev.adminos.api.domain.financial.review.InMemoryGoldenCandidateRepository(), get())
         }
+        single { dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()) }
         single { dev.adminos.api.domain.forecast.ForecastService(dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills), get(), subscriptions, bills,
-            dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository()) }
+            dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository(), get()) }
         single {
             dev.adminos.api.domain.forecast.SalaryChoiceService(dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository(),
                 dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills))

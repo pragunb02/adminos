@@ -39,9 +39,9 @@ class FinancialDashboardRoutesCoverageTest {
     private val insights = InMemoryInsightRepository()
 
     private fun dashboardTest(clock: Clock = Clock.fixed(morning, IST), block: suspend io.ktor.server.testing.ApplicationTestBuilder.(InMemoryBillRepository) -> Unit) {
-        val bills = InMemoryBillRepository(clock)
+        val bills = InMemoryBillRepository()
         routeTest({
-            dashboardRoutes(transactions, subscriptions, BillTrackingService(bills, transactions), anomalies, briefings, insights, clock)
+            dashboardRoutes(transactions, subscriptions, BillTrackingService(bills, transactions, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository(), clock)), anomalies, briefings, insights, clock)
         }) { block(bills) }
     }
 
@@ -231,6 +231,29 @@ class FinancialDashboardRoutesCoverageTest {
             assertEquals("Good morning", homeOf(tokenFor(nyUser)).str("greeting"))
         }
     }
+    @Test
+    fun `a minute before India midnight a bill due that day is due today`() {
+        val beforeMidnight = LocalDateTime.of(2026, 10, 16, 23, 59).atZone(IST).toInstant()
+        dashboardTest(Clock.fixed(beforeMidnight, ZoneOffset.UTC)) { bills ->
+            runBlocking { bills.save(bill("HDFC Credit Card", LocalDate.of(2026, 10, 16), "1499.00")) }
+            assertEquals("Due today — ₹1499.00", homeOf().items("bill").single().str("description"))
+        }
+    }
+
+    @Test
+    fun `a minute after India midnight yesterday's bill is no longer listed and today's is due today`() {
+        val afterMidnight = LocalDateTime.of(2026, 10, 17, 0, 1).atZone(IST).toInstant()
+        dashboardTest(Clock.fixed(afterMidnight, ZoneOffset.UTC)) { bills ->
+            runBlocking {
+                bills.save(bill("BESCOM", LocalDate.of(2026, 10, 16), "800.00"))
+                bills.save(bill("HDFC Credit Card", LocalDate.of(2026, 10, 17), "1499.00"))
+            }
+            val item = homeOf().items("bill").single()
+            assertEquals("HDFC Credit Card bill", item.str("title"))
+            assertEquals("Due today — ₹1499.00", item.str("description"))
+        }
+    }
+
     @Test
     fun `a bill due today in India says due today even when the server runs on UTC`() {
         // 01:30 on 17 Oct in India is still 16 Oct on a UTC server.

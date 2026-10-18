@@ -120,6 +120,7 @@ export class MockApi {
       })
       .on("GET /api/v1/mandates", () => ({ data: [fx.mandate(), fx.mandate({ id: "m-2", payee: "Cult.fit", rail: "upi_autopay", amount: "999.00", nextDebitOn: null, nextDebitAmount: null, dormant: true })] }))
       .on("GET /api/v1/forecast", () => ({ data: forecastWithProjectedBills() }))
+      .on("GET /api/v1/balances", () => ({ data: fx.balances() }))
       .on("GET /api/v1/dues", (_r, u) => {
         const m = u.searchParams.get("month");
         return { data: m && m !== "2026-10" ? fx.duesMonth({ month: m, items: [], totals: { open: "0.00", paid: "0.00", renewals: "0.00" } }) : fx.duesMonth() };

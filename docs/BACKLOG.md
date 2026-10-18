@@ -163,7 +163,11 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-620](tickets/AOS-620.md) | Sign-in alerts, Security page, sign out everywhere; refresh rotation with reuse detection (also AOS-121) (D-95) | Claude (agent) | ✅ | — | — |
 | └ [AOS-621](tickets/AOS-621.md) | Encrypted backups: age-encrypted pg_dump to a locked R2 bucket, restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | └ [AOS-622](tickets/AOS-622.md) | Supply chain and runtime: CI on every PR, OSV/npm audit/govulncheck/Trivy/CodeQL, Dependabot, pinned and locked-down containers (D-99) | Claude (agent) | ✅ | 4h | 6h |
-| └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
+| └ [AOS-623](tickets/AOS-623.md) | Self pen-test before go-live: ZAP baseline + scripted probes + manual checklist; findings fixed or accepted (D-150, D-151) | Claude | ✅ | 4h | 4h |
+| └ [AOS-643](tickets/AOS-643.md) | Web: TRACE and other unsupported methods → 500 (accepted until the edge filters methods, D-151) | Claude | ✅ | — | — |
+| └ [AOS-644](tickets/AOS-644.md) | Web: 404 pages under /favicon.ico had no CSP (fixed) | Claude | ✅ | 0.25h | 0.25h |
+| └ [AOS-638](tickets/AOS-638.md) | Bill dates follow the user's calendar on an injected clock; unused Redis config removed (D-123) | Claude (agent) | ✅ | 2h | 2h |
+| └ [AOS-637](tickets/AOS-637.md) | Worker logs the database as host:port/database only (no user info, no pgx error text) | Claude (agent) | ✅ | 1h | 1h |
 | └ [AOS-636](tickets/AOS-636.md) | Test fixtures use reserved, obviously fake personal data + guard test | Claude (agent) | ✅ | 1h | 1h |
 | └ [AOS-642](tickets/AOS-642.md) | Web tests: 5 s async timeout and real timers after each test (findBy flake under load) | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-640](tickets/AOS-640.md) | Playwright in GitHub CI as the required `e2e` check (all projects, cached browsers, per-run secret, report on failure) | Claude (agent) | 🟨 | 1h | 1h |
@@ -211,15 +215,15 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ [AOS-710](tickets/AOS-710.md) | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ✅ | 10h | 5h |
 | └ [AOS-711](tickets/AOS-711.md) | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ✅ | 4h | 4h |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
-| └ [AOS-720](tickets/AOS-720.md) | Latest balance per account, for money left until salary | Claude | ⬜ | 4h |  |
 | └ [AOS-721](tickets/AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ✅ | 3h | 3h |
 | └ [AOS-722](tickets/AOS-722.md) | Confirm or correct the detected salary | Claude | ✅ | 3h | 4h |
 | └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
+| └ [AOS-720](tickets/AOS-720.md) | Latest balance per account, for money left until salary | Claude (agent) | 🟦 | 4h | 7h |
 | └ [AOS-713](tickets/AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | ✅ | 6h | 5h |
 | └ [AOS-709](tickets/AOS-709.md) | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | ✅ | 5h | 5h |
 | └ [AOS-715](tickets/AOS-715.md) | Subscription price-rise alert | Claude (agent) | ✅ | 2h | 1.5h |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
-| └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
+| └ [AOS-716](tickets/AOS-716.md) | Briefing narration with a number check (falls back to the template) | Claude (agent) | 🟨 | 4h | 5h |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
 | └ [AOS-718](tickets/AOS-718.md) | Cash quick-add from free text or dictation | Claude (agent) | ✅ | 5h | 6h |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |

@@ -3,8 +3,8 @@ package config
 import "os"
 
 type Config struct {
-	DatabaseURL        string
-	RedisURL           string
+	DatabaseURL string
+	RedisURL    string
 	// RedisPassword is REDIS_PASSWORD: Redis requires it (AOS-634). It may instead be in RedisURL.
 	RedisPassword      string
 	WorkerType         string

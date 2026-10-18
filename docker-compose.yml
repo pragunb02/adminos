@@ -133,6 +133,9 @@ services:
       AI_CATEGORIZATION_ENABLED: ${AI_CATEGORIZATION_ENABLED:-false}
       AI_CATEGORIZATION_PROVIDER: ${AI_CATEGORIZATION_PROVIDER:-anthropic}
       AI_CATEGORIZATION_MODEL: ${AI_CATEGORIZATION_MODEL:-claude-haiku-5-5}
+      AI_BRIEFING_ENABLED: ${AI_BRIEFING_ENABLED:-false}
+      AI_BRIEFING_PROVIDER: ${AI_BRIEFING_PROVIDER:-anthropic}
+      AI_BRIEFING_MODEL: ${AI_BRIEFING_MODEL:-claude-haiku-5-5}
       LEARNED_CATEGORIZATION_ENABLED: ${LEARNED_CATEGORIZATION_ENABLED:-false}
       # AI message reading (AOS-705): off by default; local (ollama) unless anthropic is chosen.
       AI_MESSAGES_ENABLED: ${AI_MESSAGES_ENABLED:-false}
@@ -217,6 +220,9 @@ services:
     build:
       context: ./services/pdf-parser
       dockerfile: Dockerfile
+    # No outbound network at all (AOS-805, D-79): its only network (`parser`, above) is internal, shared with the API
+    # alone, so a compromised parser library can't send a statement anywhere. Read-only, no capabilities and no new
+    # privileges come from *hardened; it writes only to its /tmp tmpfs.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 10s
@@ -293,6 +299,7 @@ volumes:
 networks:
   backend:
   edge:
+  # The statement parser's network: internal (no route out of the host), only api-server and pdf-parser (AOS-805).
   parser:
     internal: true                    # no route to the internet
   # The optional local-model network: only api-server and ollama are on it (AOS-703, D-69).

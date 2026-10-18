@@ -7,10 +7,14 @@
 |---|---|---|---|---|
 | D-172 | Architecture / Product | The owner confirms or corrects the salary (payer, usual day, amount; one per user, V93); confirm stores exactly what was detected, the client sends no values; with a choice, detection only reads the chosen payer's credits (loose whole-word match in any script, ≥ half the amount) for the last salary, the weekend habit and late/stopped; `not_seen` when none | Proposed | AOS-722 |
 | D-171 | Architecture / Product | Projected monthly bills: utility billers (electricity, mobile, internet, water, gas) billed each of the last 3 calendar months and not yet billed this month are projected at the median amount on the median due day (after today only); any same-type bill in the month or within ±10 days means arrived, never counted twice; under-counting is the accepted side | Proposed | AOS-721 |
+| D-170 | Architecture | Latest balance per account: append-only readings (V92, figure AES-GCM encrypted) from trusted bank SMS (headers our parsers own; never OTP, failed, promise, notice or mandate; not cards, wallets, loans; names after at/to/from aren't figures) and reconciled statement closings; latest = newest observed time, never arrival; fresh / aging (≤ 7 days, counted) / stale; money left until salary starts from recent post-salary balances, else the last salary (D-76), and says which | Proposed | AOS-720 |
+| D-150 | Process | Self pen-test: a local-only ZAP baseline plus scripted black-box probes against a throwaway stack with no published ports, and a manual checklist for the signed-in stack; run by hand before go-live, after security changes and monthly; not in CI yet | Accepted | AOS-623 |
+| D-151 | Process | Accepted pen-test results: CSP `style-src 'unsafe-inline'`, no COEP, no Content-Type on body-less redirects, and TRACE → 500 on the web until the edge filters methods (AOS-643) | Accepted | AOS-623, AOS-643 |
+| D-140 | Architecture / Product | The briefing's AI wording is an optional rewrite of its own facts through the AI gateway (feature `briefing`, off by default, consent, cap, audit): the model sees only formatted totals, counts, days, category labels and names that pass SafeName + a 40-char/6-word/no-markup/no-phishing filter; every number (money only as an amount), every mid-sentence capitalised name, and the total spent must come from those facts, with no links, markup or phishing words; else the template stays with a notice. Asked once per briefing, after the template is saved and sent; stored beside it (V90) | Accepted | AOS-716 |
+| D-123 | Architecture | Repositories never read the clock or a zone: callers pass dates from UserCalendar (today(userId) for one user, serverToday() for cross-user pre-filters refined per user) | Accepted | AOS-638 |
 | D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
 | D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
 | D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
-| D-111 | Architecture / Product | Splitwise: import the owner's CSV export (no credentials); every total counts the owner's share (`own_share`); settle-ups are the new nature `settlement` (neither spending nor income); `split-v1` matcher with Review and undo; names encrypted at rest | Accepted | AOS-911 |
 | D-110 | Product / Architecture | Ask is a page at /ask (from Home and More) whose answers you can trace ("How I got this": each tool, dates, numbers, a link to the same payments); thumbs up/down by answer id (recent answers kept 1 h, another user's id is 404), stored masked and encrypted | Accepted | AOS-711 |
 | D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
 | D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
@@ -1503,6 +1507,11 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
 
+### D-123 — Repositories never read the clock or a zone
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-638 · Builds on D-78
+- Repositories never read the clock or a time zone. Callers pass dates from `UserCalendar`: `today(userId)` for one user, `serverToday()` for cross-user pre-filters that are then refined per user.
+- The domain owns the calendar; persistence filters on what it is given (bill dates follow the user's calendar on an injected clock).
+- **Rejected:** a clock in each repository (persistence would still decide what "today" means, in one zone for everyone); repositories calling `UserCalendar` (breaks the layer rule).
 ### D-106 — Messages the regexes can't read are read by a model, grounded, and wait in Review as proposals
 2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-705, AOS-706 · Builds on D-33, D-43, D-67, D-68
 - **Where:** only bank messages the parsers return as unrecognised, from a bank sender (TRAI business header or a WhatsApp bank name), that mention money. OTPs, failures, reminders, promotions and personal senders never reach it.
@@ -1529,7 +1538,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - reading inline (timeouts, bursts);
   - persisting messages for a worker (D-33);
   - accepting an unclear direction.
-
 ### D-130 — The message-reading eval measures the fallback; routing is tested on its own
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-705 · Amends D-106's eval gate
 - **Context:** the eval ran every golden message through the regex intake first. After AOS-213/214/215 the rules read 106 of its 218 messages (`Dr.`/`Cr.` and more), so they never reached the fallback and the eval stopped measuring it. Every parser improvement would do that again.
@@ -1538,7 +1546,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - `MessageRoutingTest` runs the same rows through the shipped SMS and WhatsApp intake against today's rules: a message the rules read or drop is never offered to the AI, and a bank message they can't read is offered once, as written.
 - **Rejected:** relabelling the rows the rules now read (the eval shrinks with every parser change and loses its PII and hostile rows); rewriting them into formats the rules can't read (stale again at the next parser change).
 - **Consequence:** parser improvements move rows between the routing test's two halves without touching the eval or its records.
-
 ### D-107 — Confirmed AI readings teach message formats; approved formats are read by code before any model
 2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-706 · Builds on D-33, D-67, D-106
 - **What is kept:** only masked shapes. Every value is a slot (amount, balance, last 4, date, payee, other numbers, a greeting's name), and a shape with a digit is refused in code and by a database CHECK. No message text, amount or payee is stored in a shape.
@@ -1645,3 +1652,65 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - **Two salaries, a new employer, a raise:** the choice picks the payer; a correction applies at once. Several salaries stay out of scope.
 - **Security:** session-only routes, global Origin check, JSON only, user from the session only, 20 changes a minute; payer and amount never logged. Plaintext at rest, like the transactions they come from.
 - **Rejected:** taking confirm's values from the client (a stale or forged confirm); an exact payer match (narrations vary month to month); forgetting the choice when the payer stops (it is shown as stopped / not seen, so the owner corrects it); a DELETE route (a correction covers it; not needed for one owner).
+### D-170 — Latest balance per account: trusted readings, newest observed wins, money left from recent balances
+2026-10-18 · Proposed · Type: Architecture · Tasks: AOS-720 · Builds on D-33, D-39, D-67, D-76, D-100
+- **What it says:**
+  - A balance is a **reading**: an account (last 4 digits, plus the bank when the input names it), a figure, the moment it was true, a source (SMS or statement) and the input's fingerprint. Readings are append-only and stored once per input. The figure is encrypted (AES-GCM, bound to the row, V92), and the newest 20 per account are kept.
+  - **The latest per account** is the newest `observedAt`; at the same moment a statement beats an SMS. A reading never wins by arriving later.
+  - **Labels:** fresh (today or yesterday), aging (2–7 days) and stale (over 7 days: shown, never counted).
+- **Where readings come from:**
+  - **Bank SMS:**
+    - only from registered, non-promotional headers our bank parsers own (HDFC, SBI, ICICI, Axis, Kotak today);
+    - only transactions, balance alerts or messages with no transaction; never OTP, failed, promise, request, notice or mandate messages;
+    - read deterministically: available, then cleared, then ledger, then plain "Bal";
+    - not credit cards, wallets, loans, deposits or points;
+    - not opening, closing, average or minimum balances;
+    - a balance starts its own clause, doesn't follow at/to/from/VPA and isn't followed by a transaction's date or reference (otherwise it's a name someone chose);
+    - two figures of a kind, two accounts, or only a debit card are refused;
+    - "as on" dates the reading to that time (or the end of that day) when earlier than the SMS.
+  - **Statements:** the closing balance only when it follows from the previous row (previous − debit + credit); one balance alone isn't taken. It is dated to the end of the closing day or the period's end, never after the import. The running balance is no longer copied into ingest events.
+  - **Not:** Gmail (deferred; no Go duplicate of the rule), WhatsApp exports (no trusted sender), Shortcut records and cash.
+- **Money left until salary:**
+  - It starts from the recent balances (≤ 7 days, from the salary's day or later). Spending is subtracted from the oldest of their days in full, then what's expected until payday. Without such a balance it starts from the last salary (D-76). The choice is its own component (`MoneyLeftBasisPicker`).
+  - The API says which (`basis`), lists the accounts counted and those not counted with why (`stale`, `before_salary`), and Home's "How we got this" shows it.
+- **Rejected:**
+  - a mutable "current balance" per account: a late message could overwrite a newer one, and the evidence is lost;
+  - reading balances back out of plaintext ingest-event metadata: sensitive, unencrypted, and it can't hold pure balance alerts;
+  - an LLM reader (D-67);
+  - trusting any bank-looking header: a spoofed figure would mislead "money left".
+- **Consequences:**
+  - a new bank is one parser registry entry;
+  - a new source is a `BalanceSource` value and one `BalanceService.record` call;
+  - card outstanding and unpaid card bills are still not in "money left" (D-39);
+  - the extraction eval set (`balances/sms.tsv`, 132 synthetic SMS) and its floor gate changes.
+### D-150 — How we pen-test ourselves
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-623 · Builds on D-91, D-99, D-100
+- `scripts/security/zap-baseline.sh` starts a throwaway copy of the stack: random secrets, an empty database, **no published host port** (the rendered config is checked, fail closed).
+  - It runs the OWASP ZAP baseline (passive) and `pentest-probes.sh` (black-box probes) from containers on the stack's internal network.
+  - It then removes everything. ZAP and curl are pinned by digest.
+- The manual checklist in `docs/security/PENTEST.md` covers what needs the real signed-in stack. Each item is **auto** (covered by probes or attack suites) or **owner**.
+- Every finding gets a ticket, and is fixed or explicitly accepted in a decision.
+- **When:** run by hand before go-live, after any security change, and monthly with the restore drill.
+- **Not in CI yet:** it builds the whole stack and takes minutes; revisit once CI has a cache for the images.
+  - scanning a published or remote stack (exposure; D-91);
+  - an active ZAP scan by default (noisy, and the attack suites already cover injection and authorisation);
+  - minting tokens to scan signed-in pages (the attack suites test those paths with the real auth code).
+### D-151 — Accepted pen-test results (2026-10-18)
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-623, AOS-643 · Builds on D-94, D-97
+- **CSP `style-src 'unsafe-inline'`:** accepted. Scripts never get it (nonce + `strict-dynamic`); inline styles come from React/Next and Recharts.
+- **No Cross-Origin-Embedder-Policy:** accepted. No cross-origin isolation is needed; COOP and CORP are `same-origin`.
+- **No Content-Type on body-less 307 redirects:** accepted (`nosniff` is set).
+- **TRACE and other unsupported methods → 500 on the web (AOS-643):** accepted.
+  - Next.js fails before our code runs; no data is disclosed; only tailnet devices can reach it (D-97).
+  - The edge (AOS-605) will allow only the methods we use.
+- **Revisit** on any change to the CSP or the edge.
+### D-140 — The briefing's AI wording: an optional rewrite of its own facts, kept only if every number and name is a fact
+2026-10-18 · Accepted (built by a background agent under D-67/D-68/D-70/D-100; for review) · Type: Architecture / Product · Tasks: AOS-716 · Builds on D-67, D-68, D-70, D-100
+- **Feature:** `AiFeature.BRIEFING` (`AI_BRIEFING_ENABLED/PROVIDER/MODEL`, off by default, Haiku by default), one task `BriefingNarrationTask` (prompt `briefing-narration-v1`) with its notice, only through `AiGateway` (flag, consent, redaction, breaker, cap, audit).
+- **What the model sees:** `NarrationInput.of(BriefingFacts)`: the template's own formatted totals, difference, counts, days and category labels, plus payee, due and AutoPay names only when they pass `SafeName` and `NarrationNames` (≤40 characters, ≤6 words, a letter, no markup, currency symbols, links or phishing words); others are sent as `null`. Never transactions, messages, account numbers or who the user is. The same builder records every number and name it sends, so the check accepts exactly that.
+- **The check (`NarrationCheck`):** every number must be a fact by value (money-marked numbers must be amounts; digits in a name may appear, never as money); scaled, spelled-out large and unmatched small number words are rejected; the total spent must be stated; every capitalised word that doesn't start a sentence must be a word of a name or label sent, or a fixed date/payment word; no hidden characters, markup, links (names that look like domains excepted) or phishing words; one flat `{"narration"}` of 1–900 characters.
+- **When:** in the weekly job, after the template briefing is saved and its notification sent: at most one model call per briefing, and a failure afterwards (even storing the answer) never asks again. No route triggers a call.
+- **Storage (V90):** `briefings.narration`, `narration_status` (`none` / `narrated` / `rejected` / `unavailable`), `narration_code` (reason code) and `narration_model`, with a shape check; `content` is always the template. The API returns the narration only when narrated, plus the status (never the code).
+- **Web:** a "Worded by AI" marker with "Show the plain numbers"; a notice when the wording was rejected or unavailable; text only, never HTML. Push notifications keep the template.
+- **Eval:** 47 synthetic cases through the gateway (`recorded-synthetic`): faithful kept 1.0, invented numbers, followed injections, phishing rejected 1.0, hostile names withheld 1.0, invented names rejected 0.8 (a sentence-initial invented name is not caught; floor 0.8).
+- **Rejected:** placeholders filled by code (the model can still write a number or name, so the same check is needed and the wording is stilted); narrating on read (a call per page view, cost abuse); masking hostile names (withheld instead, as D-68); reusing Ask's `AnswerGrounding` now (built in parallel; sharing one checker is a follow-up).

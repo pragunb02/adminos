@@ -52,7 +52,7 @@ class WeeklyBriefingTest {
     private val notifications = InMemoryNotificationRepository()
     private val service = WeeklyBriefingService(
         BriefingSources(AnalyticsService(InMemoryAnalyticsRepository(transactions), clock), DuesService(bills, subscriptions, mandates), anomalies, subscriptions, mandates),
-        briefings, notificationService(prefsRepo, notifications, clock = clock), clock
+        briefings, notificationService(prefsRepo, notifications, clock = clock), BriefingNarrator(NarrationFixture.gatewayWithNoRoutes(clock)), clock
     )
     private val user = runBlocking { users.save(User(email = "p@example.com", googleId = "g", createdAt = Instant.parse("2026-01-01T00:00:00Z"))) }
     private val prefs = NotificationPreferences(userId = user.id)

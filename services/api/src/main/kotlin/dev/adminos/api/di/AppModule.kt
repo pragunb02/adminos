@@ -89,6 +89,8 @@ internal fun buildAppModule(
 ): Module = module {
     // Spending coach (Epic E9): its own module, so its tasks don't edit this file.
     includes(coachKoinModule(useDatabase))
+    // Wealth (Epic E8, D-79): its own module too.
+    includes(wealthKoinModule(useDatabase))
     single { AppConfig.load() }
     single { TokenEncryptor(get<AppConfig>().security.tokenEncryptionKey) }
     single { JwtService(get<AppConfig>().auth) }
@@ -140,6 +142,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.trips.TripEditRepository> { ExposedTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
         single<dev.adminos.api.domain.forecast.SalaryChoiceRepository> { dev.adminos.api.infrastructure.database.repositories.ExposedSalaryChoiceRepository() }
+        single<dev.adminos.api.domain.balances.BalanceRepository> { dev.adminos.api.infrastructure.database.repositories.ExposedBalanceRepository(get()) }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -178,6 +181,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.trips.TripEditRepository> { dev.adminos.api.domain.financial.trips.InMemoryTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
         single<dev.adminos.api.domain.forecast.SalaryChoiceRepository> { dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository() }
+        single<dev.adminos.api.domain.balances.BalanceRepository> { dev.adminos.api.domain.balances.InMemoryBalanceRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -253,7 +257,7 @@ internal fun buildAppModule(
         val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(
             ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
-            TransferStep(get(), get()), RefundReversalStep(get(), get(), get())
+            TransferStep(get(), get()), dev.adminos.api.domain.wealth.flows.InvestmentFlowStep(get()), RefundReversalStep(get(), get(), get())
         ) + learnedStep)
     }
     single<IngestOutcomeWriter> {
@@ -272,7 +276,9 @@ internal fun buildAppModule(
     single { TemplateLearning(get()) }
     single { TemplateReviewService(get()) }
     single<UnrecognisedMessageSink> { TemplateReader(get(), get(), getOrNull<MessageFallback>() ?: UnrecognisedMessageSink.NONE) }
-    single { SmsIntake(get(), get(), get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
+    // Latest balance per account (AOS-720, D-170): from trusted bank SMS and reconciled statement closings, encrypted at rest.
+    single { dev.adminos.api.domain.balances.BalanceService(get()) }
+    single { SmsIntake(get(), get(), get(), get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get(), fallback = get()) }
     // Review of AI-read messages: always present, so Review shows (and decides) what was read while it was on.
     single<MessageProposalRepository> { if (useDatabase) ExposedMessageProposalRepository() else InMemoryMessageProposalRepository() }
@@ -286,7 +292,7 @@ internal fun buildAppModule(
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
-    single { StatementImportService(get(), get()) }
+    single { StatementImportService(get(), get(), get()) }
     // Gmail push (AOS-405, D-63): the API calls users.watch/stop itself; off without GOOGLE_GMAIL_PUBSUB_TOPIC.
     single<GmailPushApi> { HttpGmailPushApi() }
     single { GmailAccessTokens(get(), get<GoogleOAuthClient>(), get()) }
@@ -307,7 +313,7 @@ internal fun buildAppModule(
     // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
     single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
-    single { BillTrackingService(get(), get()) }
+    single { BillTrackingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
     single { DuesService(get(), get(), get()) }
     // Pay-later (AOS-909, D-89): provider bills into dues; repayments are transfers that pay them.
@@ -323,7 +329,7 @@ internal fun buildAppModule(
     // The owner's confirmed or corrected salary (AOS-722).
     single { dev.adminos.api.domain.forecast.SalaryChoiceService(get(), get()) }
     // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
-    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get(), get()) }
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get(), get(), get()) }
 
     // Agent Services
     // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)
@@ -376,7 +382,9 @@ internal fun buildAppModule(
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
     // Weekly briefing from real data (AOS-506)
     single { dev.adminos.api.domain.agent.briefing.BriefingSources(get(), get(), get(), get(), get()) }
-    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get(), sections = getAll<dev.adminos.api.domain.agent.briefing.BriefingSection>()) }
+    // The optional AI wording of the briefing (AOS-716): through the AI gateway only, off unless enabled and consented.
+    single { dev.adminos.api.domain.agent.briefing.BriefingNarrator(get()) }
+    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get(), get(), sections = getAll<dev.adminos.api.domain.agent.briefing.BriefingSection>()) }
     single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingJob(get(), get(), get()) } bind ScheduledJob::class
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
