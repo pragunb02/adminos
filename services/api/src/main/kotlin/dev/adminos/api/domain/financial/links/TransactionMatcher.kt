@@ -41,6 +41,7 @@ class TransactionMatcher(private val zone: ZoneId = ZoneId.of("Asia/Kolkata")) {
         private val REALTIME_WINDOW: Duration = Duration.ofMinutes(10)
         private val MANUAL_WINDOW: Duration = Duration.ofDays(2)
         private val REALTIME_SOURCES = setOf("sms", "gmail", "whatsapp")
+        private const val SPLITWISE = dev.adminos.api.domain.financial.splits.SplitMatcher.SPLITWISE_SOURCE
     }
 
     fun decide(incoming: Transaction, candidates: List<MatchCandidate>, rejectedWith: Set<UUID> = emptySet()): MatchDecision {
@@ -71,7 +72,9 @@ class TransactionMatcher(private val zone: ZoneId = ZoneId.of("Asia/Kolkata")) {
             t.sourceType != incoming.sourceType && incoming.sourceType !in c.mergedSources &&
             t.id !in rejectedWith &&
             // Cash has no bank record to duplicate (AOS-204); its ATM withdrawal is a transfer (D-42).
-            t.paymentMethod != PaymentMethod.CASH && incoming.paymentMethod != PaymentMethod.CASH
+            t.paymentMethod != PaymentMethod.CASH && incoming.paymentMethod != PaymentMethod.CASH &&
+            // A Splitwise share has no bank record either: a bank debit of the same amount is a different payment (AOS-911).
+            t.sourceType != SPLITWISE && incoming.sourceType != SPLITWISE
     }
 
     /** @return (score, reason), or null when a hard rule says "different payments". */

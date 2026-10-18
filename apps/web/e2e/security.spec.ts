@@ -15,7 +15,7 @@ import { signAccessToken, signIn, tamper } from "./support/session";
 /** Every page of the app. A new page must be added here. */
 export const PAGES = [
   "/", "/spending", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/bills", "/subscriptions",
-  "/documents", "/briefings", "/leaks", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
+  "/documents", "/briefings", "/leaks", "/ask", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
   "/trips", "/trips/trip-1",
 ];
 

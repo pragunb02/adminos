@@ -18,7 +18,7 @@ import kotlin.test.assertNull
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ConnectionServicePostgresIntegrationTest {
 
-    private val service = ConnectionService(ExposedConnectionRepository(), ExposedSyncSessionRepository())
+    private val service = ConnectionService(ExposedConnectionRepository(), ExposedSyncSessionRepository(), randomTokenEncryptor())
 
     @BeforeAll
     fun start() = PostgresTestDatabase.ensureStarted()
