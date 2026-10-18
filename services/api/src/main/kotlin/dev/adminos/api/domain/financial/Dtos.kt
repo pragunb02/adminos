@@ -19,7 +19,7 @@ data class CategoryOverrideRequest(
 data class TransactionResponse(
     val id: String,
     val type: String,
-    /** spend / income / transfer / refund / reversal (D-39): what it counts as in totals. */
+    /** spend / income / transfer / refund / reversal / settlement (D-39, D-111): what it counts as in totals. */
     val nature: String,
     /** Exact decimal string, e.g. "349.00" (D-30). */
     val amount: String,
@@ -33,7 +33,9 @@ data class TransactionResponse(
     val paymentMethod: String?,
     val isRecurring: Boolean,
     val isAnomaly: Boolean,
-    val transactedAt: String
+    val transactedAt: String,
+    /** The owner's share when the bill was split with friends (AOS-911): what the totals count. Exact string. */
+    val ownShare: String? = null
 ) {
     companion object {
         fun from(t: Transaction) = TransactionResponse(
@@ -51,7 +53,8 @@ data class TransactionResponse(
             paymentMethod = t.paymentMethod?.name?.lowercase(),
             isRecurring = t.isRecurring,
             isAnomaly = t.isAnomaly,
-            transactedAt = t.transactedAt.toString()
+            transactedAt = t.transactedAt.toString(),
+            ownShare = t.ownShare?.toMoney()
         )
     }
 }

@@ -13,6 +13,9 @@ data class PushTestResult(val devices: Int, val delivered: Boolean, val detail: 
 /** Thrown when push is used while the server has no VAPID keys. */
 class PushNotConfiguredException : RuntimeException("Push notifications aren't set up on this server")
 
+/** Thrown when a device's endpoint is already registered to another user (AOS-627): it is refused, never moved. */
+class PushEndpointTakenException : RuntimeException("This device already receives another account's notifications")
+
 /**
  * Turning push on and off per device. [channel] is null when the server has no VAPID keys; then
  * registering is refused (with a clear error) rather than storing subscriptions nothing will use.
@@ -28,11 +31,17 @@ class PushSubscriptionService(
     /**
      * Registers this device for [userId]. Re-registering the same endpoint updates it (keys rotate);
      * beyond [MAX_DEVICES] the oldest device is dropped, so reinstalling never locks anyone out.
+     * An endpoint registered to another user is refused ([PushEndpointTakenException]): whoever knows a device's
+     * endpoint can't take over its notifications (AOS-627, AUD-23).
      */
     suspend fun register(userId: UUID, endpoint: PushEndpoint, keys: PushKeys, label: String?): PushSubscription {
         if (channel == null) throw PushNotConfiguredException()
-        val saved = subscriptions.upsert(PushSubscription(userId = userId, endpoint = endpoint, keys = keys,
+        val result = subscriptions.save(PushSubscription(userId = userId, endpoint = endpoint, keys = keys,
             label = label?.trim()?.take(100)?.ifEmpty { null }, createdAt = clock.instant()))
+        val saved = when (result) {
+            is PushSaveResult.Saved -> result.subscription
+            PushSaveResult.OwnedByAnotherUser -> throw PushEndpointTakenException()
+        }
         subscriptions.findByUserId(userId).sortedByDescending { it.createdAt }.drop(MAX_DEVICES).forEach { subscriptions.deleteById(it.id) }
         return saved
     }

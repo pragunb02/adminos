@@ -36,3 +36,7 @@ __pycache__/
 .next/
 next-env.d.ts
 *.tsbuildinfo
+
+# AOS-708: a local golden set exported from Review holds your own (scrubbed) payees: never commit it.
+services/api/local/
+*.local.csv

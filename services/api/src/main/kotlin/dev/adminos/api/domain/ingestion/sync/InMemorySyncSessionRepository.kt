@@ -21,6 +21,11 @@ class InMemorySyncSessionRepository : SyncSessionRepository {
             .mapNotNull { it.completedAt }
             .maxOrNull()
 
+    override suspend fun findQueued(connectionId: UUID, createdAfter: Instant): SyncSession? =
+        sessions.values
+            .filter { it.connectionId == connectionId && it.status == SyncSessionStatus.QUEUED && it.createdAt.isAfter(createdAfter) }
+            .maxByOrNull { it.createdAt }
+
     override suspend fun save(session: SyncSession): SyncSession {
         sessions[session.id] = session
         return session
