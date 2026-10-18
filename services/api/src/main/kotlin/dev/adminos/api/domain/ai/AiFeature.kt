@@ -6,10 +6,21 @@ package dev.adminos.api.domain.ai
  */
 enum class AiFeature(
     /** Stable id in configuration, the audit log, eval records and the API. Never renamed. */
-    val key: String
+    val key: String,
+    /**
+     * The provider used when `AI_<FEATURE>_PROVIDER` isn't set. Features that read documents, receipts or raw text
+     * default to the local model (D-67: local-first); the rest to Anthropic.
+     */
+    val defaultProvider: AiProviderKind = AiProviderKind.ANTHROPIC
 ) {
     /** The fallback categoriser for rows the rules left as Other (AOS-512, D-62). */
-    CATEGORIZATION("categorization");
+    CATEGORIZATION("categorization"),
+
+    /**
+     * Fields the rules couldn't find in a vault document's text (AOS-717): expiry date, issuer, amount. Local by
+     * default; identity documents never go to any model, and document numbers are never sent.
+     */
+    DOCUMENT_FIELDS("document_fields", AiProviderKind.OLLAMA);
 
     /** Prefix of this feature's settings: `AI_CATEGORIZATION_ENABLED`, `…_PROVIDER`, `…_MODEL`. */
     val envPrefix: String get() = "AI_$name"

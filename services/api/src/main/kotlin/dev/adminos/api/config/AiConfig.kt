@@ -17,7 +17,8 @@ data class OllamaSettings(val baseUrl: URI, val timeout: Duration)
 /**
  * The AI layer's settings (AOS-702, D-67), read once at start-up. Every feature is **off** unless
  * `AI_<FEATURE>_ENABLED=true`; then:
- * - `AI_<FEATURE>_PROVIDER` is `anthropic` (default) or `ollama`;
+ * - `AI_<FEATURE>_PROVIDER` is `anthropic` or `ollama`; the default is the feature's own ([AiFeature.defaultProvider]:
+ *   local for features that read documents, D-67);
  * - `AI_<FEATURE>_MODEL` names the model (on Anthropic it defaults to `claude-haiku-5-5`; on Ollama it is required);
  * - Anthropic needs `ANTHROPIC_API_KEY`; Ollama needs `OLLAMA_BASE_URL` (and takes `OLLAMA_TIMEOUT_SECONDS`, default 120).
  * `AI_MONTHLY_CAP_USD` (default 2.00) caps this server's AI spend per UTC month; 0 allows only free (local) calls.
@@ -79,7 +80,7 @@ class AiConfig(
                 else -> throw IllegalArgumentException("${p}_ENABLED must be true or false, was '$flag'")
             }
             if (!enabled) return null
-            val providerKey = value("${p}_PROVIDER")?.lowercase() ?: AiProviderKind.ANTHROPIC.key
+            val providerKey = value("${p}_PROVIDER")?.lowercase() ?: feature.defaultProvider.key
             val provider = AiProviderKind.fromKey(providerKey)
                 ?: throw IllegalArgumentException("${p}_PROVIDER must be one of ${AiProviderKind.entries.joinToString { it.key }}, was '$providerKey'")
             val model = value("${p}_MODEL") ?: when (provider) {
