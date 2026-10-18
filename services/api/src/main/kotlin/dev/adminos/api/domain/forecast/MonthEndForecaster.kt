@@ -12,7 +12,13 @@ data class ForecastInput(
     val history: SpendHistory,
     /** Known payments after today (bills, renewals, mandates), through at least the next salary. */
     val dues: List<KnownDue>,
-    val incomes: List<IncomeCredit>
+    val incomes: List<IncomeCredit>,
+    /** Monthly bills expected but not arrived yet (AOS-721), counted like known dues. */
+    val projectedBills: List<ProjectedBill> = emptyList(),
+    /** The owner's confirmed or corrected salary (AOS-722); detection uses it instead of guessing. */
+    val salaryChoice: SalaryChoice? = null,
+    /** Each bank account's latest balance, however old (the forecaster decides what counts, AOS-720). */
+    val balances: List<BankBalance> = emptyList()
 )
 
 /** The month-end forecast: what's spent, plus what each component expects for the rest of the month. */
@@ -32,28 +38,38 @@ data class MonthEndForecast(
     val total: BigDecimal get() = (spentSoFar + expected).money()
 }
 
-/** What's left of the last salary when the next one comes, if spending goes as forecast. */
+/**
+ * What's left when the next salary comes, if spending goes as forecast: from the accounts' recent balances when
+ * they're known (AOS-720), else from the last salary (D-76).
+ */
 data class UntilSalary(
     val salary: DetectedSalary,
-    /** Spent from the day the last salary came, through today. */
+    val basis: MoneyBasis,
+    /** Spent from [spentFrom] through today ([MoneyBasis.spentSince]). */
     val spentSince: BigDecimal,
+    /** Null when nothing is subtracted (a balance from today). */
+    val spentFrom: LocalDate?,
     /** Tomorrow to the day before the next salary; null when it's due tomorrow or today. */
     val window: DateRange?,
     val parts: List<ComponentEstimate>,
-    val range: ForecastRange?
+    val range: ForecastRange?,
+    /** Accounts whose balance is known but not counted, and why. */
+    val notCounted: List<NotCounted> = emptyList()
 ) {
     val expected: BigDecimal get() = parts.fold(BigDecimal.ZERO) { acc, p -> acc + p.amount }
     /** Negative when the forecast runs out before the salary comes. */
-    val left: BigDecimal get() = (salary.lastAmount - spentSince - expected).money()
+    val left: BigDecimal get() = (basis.start - spentSince - expected).money()
     /** The range of [left]: a high spend leaves the low end. */
-    val leftRange: Pair<BigDecimal, BigDecimal>? get() = range?.let { (salary.lastAmount - spentSince - it.high).money() to (salary.lastAmount - spentSince - it.low).money() }
+    val leftRange: Pair<BigDecimal, BigDecimal>? get() = range?.let { (basis.start - spentSince - it.high).money() to (basis.start - spentSince - it.low).money() }
 }
 
 sealed interface SalaryOutlook {
     data class Expected(val untilSalary: UntilSalary) : SalaryOutlook
     /** The salary's day has passed without it, so "money left" isn't computed. */
     data class Late(val salary: DetectedSalary) : SalaryOutlook
-    data class Unknown(val reason: NoSalaryReason, val payer: String?, val lastSeen: LocalDate?) : SalaryOutlook
+    data class Unknown(val reason: NoSalaryReason, val payer: String?, val lastSeen: LocalDate?,
+        /** True when the owner's stored salary choice was used (AOS-722), e.g. it isn't seen in the credits. */
+        val chosen: Boolean = false) : SalaryOutlook
 }
 
 sealed interface Forecast {
@@ -68,14 +84,17 @@ sealed interface Forecast {
  * - **month-end** = spent so far + known dues after today (one component per source) + everyday spending at a
  *   robust daily rate × the remaining days, by weekday and weekend;
  * - **range** = the everyday part moved by the user's own past per-day errors on the same day of the month;
- * - **money left** = the last salary − spent since it − what the same components expect until the next one.
+ * - **money left** = the recent bank balances ([MoneyLeftBasisPicker] says which count) − spent after them − what
+ *   the same components expect until the next salary (AOS-720, D-170); without such a balance, the last salary −
+ *   spent since it − the same (D-76), and the API says which.
  * Pure: the caller loads [ForecastInput].
  */
 class MonthEndForecaster(
     private val model: RunRateModel = RunRateModel.DEFAULT,
     private val interval: EmpiricalInterval = EmpiricalInterval.DEFAULT,
     private val salaries: SalaryDetector = SalaryDetector(),
-    private val minHistoryDays: Int = MIN_HISTORY_DAYS
+    private val minHistoryDays: Int = MIN_HISTORY_DAYS,
+    private val basisPicker: MoneyLeftBasisPicker = MoneyLeftBasisPicker()
 ) {
     init {
         require(minHistoryDays >= model.minLookbackDays) { "minHistoryDays: at least the run-rate's minimum lookback" }
@@ -88,7 +107,8 @@ class MonthEndForecaster(
             return Forecast.NotEnoughHistory(today, historyDays, minHistoryDays, readyOn = input.history.firstDay.plusDays(minHistoryDays - 1L).takeIf { historyDays > 0 })
         }
         val fit = model.fit(input.history, today) ?: error("history of $historyDays days must fit a rate")
-        val components = componentsFor(input.dues.filter { it.date.isAfter(today) }, fit)
+        val components = componentsFor(input.dues.filter { it.date.isAfter(today) }, fit,
+            projected = input.projectedBills.filter { it.expectedOn.isAfter(today) })
         val errors = interval.errors(input.history, today)
         return Forecast.Ready(monthEnd(input, components, errors), salaryOutlook(input, components, errors))
     }
@@ -108,8 +128,8 @@ class MonthEndForecaster(
     }
 
     private fun salaryOutlook(input: ForecastInput, components: List<ForecastComponent>, errors: RateErrors): SalaryOutlook =
-        when (val found = salaries.detect(input.incomes, input.today)) {
-            is SalaryFinding.NotFound -> SalaryOutlook.Unknown(found.reason, found.payer, found.lastSeen)
+        when (val found = salaries.detect(input.incomes, input.today, input.salaryChoice)) {
+            is SalaryFinding.NotFound -> SalaryOutlook.Unknown(found.reason, found.payer, found.lastSeen, chosen = input.salaryChoice != null)
             is SalaryFinding.Found -> if (found.late) SalaryOutlook.Late(found.salary) else SalaryOutlook.Expected(untilSalary(input, found.salary, components, errors))
         }
 
@@ -118,9 +138,11 @@ class MonthEndForecaster(
         val lastDay = salary.expectedOn.minusDays(1)
         val window = if (lastDay.isAfter(today)) DateRange(today.plusDays(1), lastDay) else null
         val parts = components.map { it.estimate(window) }
-        val spentSince = input.history.total(DateRange(salary.lastReceivedOn, today)).money()
+        val (basis, notCounted) = basisPicker.pick(today, salary, input.balances)
+        val spent = basis.spentSince(today)
+        val spentSince = spent?.let { input.history.total(it) }?.money() ?: BigDecimal.ZERO.money()
         val expected = parts.sumOf { it.amount }
-        return UntilSalary(salary, spentSince, window, parts, interval.range(expected, runRateOf(parts), window?.days?.toInt() ?: 0, errors))
+        return UntilSalary(salary, basis, spentSince, spent?.from, window, parts, interval.range(expected, runRateOf(parts), window?.days?.toInt() ?: 0, errors), notCounted)
     }
 
     private fun runRateOf(parts: List<ComponentEstimate>): BigDecimal = parts.filterIsInstance<ComponentEstimate.RunRate>().sumOf { it.amount }
@@ -128,5 +150,7 @@ class MonthEndForecaster(
     companion object {
         /** "Not enough history" below three months (AOS-S7.4). */
         const val MIN_HISTORY_DAYS = 90
+        /** A balance older than this isn't "money left" (the balances' stale limit, D-170). */
+        const val MAX_BALANCE_AGE_DAYS = MoneyLeftBasisPicker.MAX_BALANCE_AGE_DAYS
     }
 }

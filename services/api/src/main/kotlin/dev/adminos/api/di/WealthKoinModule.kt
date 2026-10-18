@@ -61,6 +61,8 @@ internal fun wealthKoinModule(useDatabase: Boolean): Module = module {
 
     // FIFO lots (AOS-811): derived from the ledger on read.
     single { LotService(get()) }
+    // The Wealth overview (AOS-820): lots × prices × returns, blocked holdings kept apart.
+    single { dev.adminos.api.domain.wealth.holdings.HoldingsService(get(), get(), get(), get(), get()) }
 
     // CAS import (AOS-805): the parser service reads the file in memory (D-37); the API reconciles and records.
     single<CasReader> { HttpCasReader(get<AppConfig>().statementParser.url) }

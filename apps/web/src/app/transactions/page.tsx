@@ -23,6 +23,7 @@ const KINDS = [
   { value: "refund", label: "Refunds" },
   { value: "transfer", label: "Transfers" },
   { value: "reversal", label: "Reversals" },
+  { value: "investment", label: "Investments" },
   { value: "settlement", label: "Settle-ups" },
 ] as const;
 

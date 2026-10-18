@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppShell from "@/components/AppShell";
 import { Skeleton } from "@/components/console/Section";
 import UndoToast from "@/components/console/UndoToast";
+import WealthReviewSection from "@/components/wealth/NeedsReview";
 import PayLaterGaps from "@/components/PayLaterGaps";
 import SplitwiseReview from "@/components/SplitwiseReview";
 import MerchantMergeReview from "@/components/review/MerchantMergeReview";
@@ -93,6 +94,7 @@ function ReviewContent() {
       {note && <p aria-live="polite" className="text-sm text-ink-muted">{note}</p>}
       <CategoryQuestions hiddenId={hiddenQuestion} onAnswer={answer} />
       <p className="text-sm text-ink-muted">These pairs look related. Your answers make the totals final.</p>
+      <WealthReviewSection />
       <PayLaterGaps />
       <AiReadMessages />
       <LearnFormats />

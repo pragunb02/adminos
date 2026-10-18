@@ -5,7 +5,12 @@ import dev.adminos.api.domain.ingestion.events.IngestDirection
 import dev.adminos.api.domain.ingestion.events.IngestEvent
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.IngestSource
+import dev.adminos.api.domain.balances.BalanceObservation
+import dev.adminos.api.domain.balances.BalanceRecordResult
+import dev.adminos.api.domain.balances.BalanceService
+import dev.adminos.api.domain.balances.BalanceSource
 import java.security.MessageDigest
+import java.time.Clock
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
@@ -19,7 +24,9 @@ data class StatementImportResult(
     val accepted: Int,
     val duplicates: Int,
     val skippedRows: Int,
-    val warnings: List<String>
+    val warnings: List<String>,
+    /** The closing balance updated the account's latest balance (AOS-720). */
+    val balanceNoted: Boolean = false
 )
 
 /**
@@ -27,7 +34,12 @@ data class StatementImportResult(
  * bank, account, date, direction, amount, description and balance, plus an occurrence counter for
  * identical lines in the same file. Re-uploading a statement, or an overlapping one, adds only new rows.
  */
-class StatementImportService(private val parser: StatementParser, private val intake: IngestEventService) {
+class StatementImportService(
+    private val parser: StatementParser,
+    private val intake: IngestEventService,
+    private val balances: BalanceService,
+    private val clock: Clock = Clock.systemUTC()
+) {
 
     companion object {
         /** Statements carry dates, not times: use midday India time so the day never shifts across time zones. */
@@ -61,10 +73,9 @@ class StatementImportService(private val parser: StatementParser, private val in
                 upiVpa = VPA.find(row.description)?.value?.lowercase(),
                 paymentMethod = paymentMethodOf(row.description),
                 paymentRef = row.reference?.trim()?.takeIf { RRN_EXACT.matches(it) } ?: RRN_IN_TEXT.find(row.description)?.value,
-                metadata = buildMap {
-                    parsed.bankCode?.let { put("bank", it) }
-                    row.balance?.let { put("balance", it) }
-                }.ifEmpty { null }
+                // The running balance stays out of the event (it's sensitive and unused there): the closing one is
+                // kept, encrypted, as the account's balance (AOS-720).
+                metadata = parsed.bankCode?.let { mapOf("bank" to it) }
             )
         }
         var accepted = 0
@@ -78,8 +89,19 @@ class StatementImportService(private val parser: StatementParser, private val in
             bankCode = parsed.bankCode, accountLast4 = parsed.accountLast4,
             periodStart = parsed.periodStart, periodEnd = parsed.periodEnd,
             rows = events.size, accepted = accepted, duplicates = duplicates,
-            skippedRows = parsed.skippedRows + (parsed.rows.size - events.size), warnings = parsed.warnings
+            skippedRows = parsed.skippedRows + (parsed.rows.size - events.size), warnings = parsed.warnings,
+            balanceNoted = noteClosingBalance(userId, parsed)
         )
+    }
+
+    /** The statement's closing balance becomes its account's balance when it reconciles (AOS-720, D-170). */
+    private suspend fun noteClosingBalance(userId: UUID, parsed: ParsedStatement): Boolean {
+        val last4 = parsed.accountLast4 ?: return false
+        val closing = (StatementClosingBalance.of(parsed, clock.instant()) as? ClosingBalanceResult.Found)?.closing ?: return false
+        // Identity: the account, the day and the figure, so re-importing the same statement records once.
+        val ref = sha256(listOf("statement-balance", parsed.bankCode, last4, closing.on, closing.amount.toPlainString()).joinToString("|"))
+        val r = balances.record(BalanceObservation(userId, parsed.bankCode, last4, closing.amount, closing.observedAt, BalanceSource.STATEMENT, ref))
+        return r == BalanceRecordResult.Saved
     }
 
     /** Statement narrations name the rail: "UPI-…", "POS …", "NEFT CR-…", "ATM WDL". */

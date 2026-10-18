@@ -5,7 +5,7 @@ import { server } from "../../../test/msw/server";
 import { fail, ok } from "../../../test/msw/envelope";
 import { fx } from "../../../test/fixtures";
 import { renderWithQuery } from "../../../test/render";
-import { dayAndDate, monthEndDate, shortDate } from "@/lib/forecast";
+import { dayAndDate, monthEndDate, shortDate, type ForecastPart } from "@/lib/forecast";
 import ForecastCard from "./ForecastCard";
 
 const ready = fx.forecast();
@@ -42,10 +42,35 @@ describe("ForecastCard", () => {
     expect(screen.getByText("Likely ₹33,000 to ₹41,100")).toBeInTheDocument();
     await user.click(screen.getAllByText("How we got this")[1]);
     expect(screen.getByText("Last salary: ₹1,00,000 on 30 Sept")).toBeInTheDocument();
-    expect(screen.getByText("− Spent since: ₹52,100")).toBeInTheDocument();
+    expect(screen.getByText("− Spent since 30 Sept: ₹52,100")).toBeInTheDocument();
     expect(screen.getByText("− Expected 17 Oct–29 Oct: ₹10,481.25")).toBeInTheDocument();
     expect(screen.getByText(/of which Everyday spending: ₹8,130.75/)).toBeInTheDocument();
     expect(screen.getByText("= ₹37,418.75 left")).toBeInTheDocument();
+  });
+
+  it("starts money left from recent bank balances and lists the ones not counted (AOS-720)", async () => {
+    forecastWith({ salary: { ...salary, untilSalary: fx.balanceUntilSalary() } });
+    const { user } = renderWithQuery(<ForecastCard />);
+    expect(await screen.findByText("₹27,619.25 left before it comes")).toBeInTheDocument();
+    await user.click(screen.getAllByText("How we got this")[1]);
+    expect(screen.getByText(/In your accounts: ₹41,300.50/)).toHaveTextContent(
+      "In your accounts: ₹41,300.50 (HDFC ••1234 ₹42,500.50 on 16 Oct from a bank SMS, SBI ••5678 −₹1,200 on 12 Oct from a statement)");
+    expect(screen.queryByText(/Last salary/)).not.toBeInTheDocument();
+    expect(screen.getByText("− Spent since 12 Oct: ₹3,200")).toBeInTheDocument();
+    expect(screen.getByText("= ₹27,619.25 left")).toBeInTheDocument();
+    expect(screen.getByText(/Not counted:/)).toHaveTextContent("Not counted: Account ••9012 ₹8,000 on 30 Sept (older than 7 days).");
+    expect(screen.getByText(/Starts from your latest bank balances/)).toBeInTheDocument();
+  });
+
+  it("a balance from before the salary is named as such, and the salary is the start", async () => {
+    const u = salary.untilSalary!;
+    forecastWith({ salary: { ...salary, untilSalary: { ...u, notCounted: [{ bank: "hdfc", last4: "1234", amount: "900.00", observedOn: "2026-09-29", source: "sms", reason: "before_salary" }] } } });
+    const { user } = renderWithQuery(<ForecastCard />);
+    expect(await screen.findByText("₹37,418.75 left from this salary")).toBeInTheDocument();
+    await user.click(screen.getAllByText("How we got this")[1]);
+    expect(screen.getByText(/Not counted:/)).toHaveTextContent("HDFC ••1234 ₹900 on 29 Sept (from before the salary came)");
+    expect(screen.getByText(/No bank balance from the last 7 days is known/)).toBeInTheDocument();
+    expect(screen.getByText("− Spent since 30 Sept: ₹52,100")).toBeInTheDocument();
   });
 
   it("says short by, in words, when the forecast runs out before payday", async () => {
@@ -127,6 +152,106 @@ describe("ForecastCard", () => {
     expect(screen.getAllByText(/<script>alert\(2\)<\/script>/).length).toBeGreaterThan(0);
     expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("script")).toBeNull();
+  });
+
+  describe("bills not arrived yet (AOS-721)", () => {
+    const projected: ForecastPart = {
+      ...monthEnd.parts[0], kind: "projected_bills", amount: "2140.00",
+      items: [
+        { name: "Sample Power Co", date: "2026-10-24", amount: "1240.00", overdue: false, billType: "electricity", monthsSeen: 4, seenFrom: "2026-06" },
+        { name: "Example Mobile", date: "2026-10-27", amount: "900.00", overdue: false, billType: "mobile", monthsSeen: 1, seenFrom: "2026-09" },
+      ],
+    };
+    const withProjected = (p: ForecastPart) => forecastWith({
+      monthEnd: { ...monthEnd, total: "63680.50", parts: [monthEnd.parts[0], p, ...monthEnd.parts.slice(1)] },
+      salary: { ...salary, untilSalary: { ...salary.untilSalary!, parts: [...salary.untilSalary!.parts, p] } },
+    });
+
+    it("shows them as their own part, a bar and a line with each bill's usual amount and day", async () => {
+      withProjected(projected);
+      const { user } = renderWithQuery(<ForecastCard />);
+      const card = await screen.findByRole("region", { name: "Month-end forecast" });
+      const bars = await within(card).findByRole("list", { name: "Parts of the forecast" });
+      expect(within(bars).getAllByRole("listitem").map((li) => li.textContent)).toContain("Bills not arrived yet₹2,140");
+      await user.click(within(card).getAllByText("How we got this")[0]);
+      expect(within(card).getByText("+ Bills not arrived yet: ₹2,140")).toBeInTheDocument();
+      const [monthItems, salaryItems] = within(card).getAllByRole("list", { name: "Bills not arrived yet" });
+      expect(within(monthItems).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+        "Sample Power Co · expected 24 Oct · ₹1,240 · usual amount, billed 4 months running",
+        "Example Mobile · expected 27 Oct · ₹900 · usual amount, billed 1 month running",
+      ]);
+      expect(within(salaryItems).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(card).getByText("of which Bills not arrived yet: ₹2,140")).toBeInTheDocument();
+      expect(within(card).getByText("= About ₹63,680.50 by 31 Oct")).toBeInTheDocument();
+    });
+
+    it("without a months count it shows only the name, day and amount; none known when empty", async () => {
+      withProjected({ ...projected, items: [{ ...projected.items[0], billType: null, monthsSeen: null, seenFrom: null }] });
+      const { user } = renderWithQuery(<ForecastCard />);
+      await user.click((await screen.findAllByText("How we got this"))[0]);
+      expect(screen.getAllByText("Sample Power Co · expected 24 Oct · ₹1,240")[0]).toBeInTheDocument();
+    });
+
+    it("an empty projection reads none known and is left out of money left", async () => {
+      withProjected({ ...projected, amount: "0.00", items: [] });
+      const { user } = renderWithQuery(<ForecastCard />);
+      await user.click((await screen.findAllByText("How we got this"))[0]);
+      expect(screen.getByText("+ Bills not arrived yet: none known")).toBeInTheDocument();
+      expect(screen.queryByText(/of which Bills not arrived yet/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: "Bills not arrived yet" })).not.toBeInTheDocument();
+    });
+
+    it("a hostile biller name is shown as literal text, never as HTML", async () => {
+      const evil = "<img src=x onerror=alert(1)>";
+      withProjected({ ...projected, items: [{ ...projected.items[0], name: evil }] });
+      const { user } = renderWithQuery(<ForecastCard />);
+      await user.click((await screen.findAllByText("How we got this"))[0]);
+      const [monthItems] = screen.getAllByRole("list", { name: "Bills not arrived yet" });
+      expect(within(monthItems).getByRole("listitem")).toHaveTextContent(`${evil} · expected 24 Oct · ₹1,240 · usual amount, billed 4 months running`);
+      expect(document.querySelector("img")).toBeNull();
+    });
+  });
+
+  describe("your salary (AOS-722)", () => {
+    it("an expected salary has Your salary inside its working; a confirmed one says so beside the salary line", async () => {
+      forecastWith({ salary: { ...salary, source: "confirmed", usualDay: 30 } });
+      const { user } = renderWithQuery(<ForecastCard />);
+      const line = await screen.findByText(/^Salary expected Fri, 30 Oct \(ACME TECHNOLOGIES\)/);
+      expect(within(line).getByText("confirmed")).toBeInTheDocument();
+      await user.click(screen.getAllByText("How we got this")[1]);
+      const yours = screen.getByRole("region", { name: "Your salary" });
+      expect(await within(yours).findByText(/around the 30th/)).toBeInTheDocument();
+    });
+
+    it("a detected salary has no badge", async () => {
+      forecastWith({ salary: { ...salary, source: "detected", usualDay: 30 } });
+      renderWithQuery(<ForecastCard />);
+      expect(await screen.findByText("Salary expected Fri, 30 Oct (ACME TECHNOLOGIES)")).toBeInTheDocument();
+      expect(screen.queryByText("confirmed")).not.toBeInTheDocument();
+    });
+
+    it("a late salary can be confirmed or corrected from its working", async () => {
+      forecastWith({ salary: { ...salary, status: "late", untilSalary: null, expectedOn: "2026-10-01", source: "confirmed" } });
+      const { user } = renderWithQuery(<ForecastCard />);
+      const line = await screen.findByText(/usually comes around 1 Oct and hasn't arrived yet/);
+      expect(within(line).getByText("confirmed")).toBeInTheDocument();
+      await user.click(screen.getAllByText("How we got this")[1]);
+      expect(await screen.findByRole("button", { name: "Correct it" })).toBeVisible();
+    });
+
+    it("an unknown salary shows Your salary in the card, and a chosen payer not seen lately says so", async () => {
+      forecastWith({ salary: { ...salary, status: "unknown", reason: "not_seen", untilSalary: null, expectedOn: null, source: "confirmed" } });
+      renderWithQuery(<ForecastCard />);
+      const line = await screen.findByText(/^Money left until salary: We haven't seen a credit from your salary payer yet\./);
+      expect(within(line).getByText("confirmed")).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Your salary" })).toBeVisible();
+    });
+
+    it("a reason it doesn't know yet still reads", async () => {
+      forecastWith({ salary: { ...salary, status: "unknown", reason: "brand_new" as never, untilSalary: null, expectedOn: null } });
+      renderWithQuery(<ForecastCard />);
+      expect(await screen.findByText("Money left until salary: No regular monthly salary found in your credits yet.")).toBeInTheDocument();
+    });
   });
 
   it("date helpers", () => {

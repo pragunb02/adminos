@@ -5,6 +5,9 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-172 | Architecture / Product | The owner confirms or corrects the salary (payer, usual day, amount; one per user, V93); confirm stores exactly what was detected, the client sends no values; with a choice, detection only reads the chosen payer's credits (loose whole-word match in any script, ≥ half the amount) for the last salary, the weekend habit and late/stopped; `not_seen` when none | Proposed | AOS-722 |
+| D-171 | Architecture / Product | Projected monthly bills: utility billers (electricity, mobile, internet, water, gas) billed each of the last 3 calendar months and not yet billed this month are projected at the median amount on the median due day (after today only); any same-type bill in the month or within ±10 days means arrived, never counted twice; under-counting is the accepted side | Proposed | AOS-721 |
+| D-170 | Architecture | Latest balance per account: append-only readings (V92, figure AES-GCM encrypted) from trusted bank SMS (headers our parsers own; never OTP, failed, promise, notice or mandate; not cards, wallets, loans; names after at/to/from aren't figures) and reconciled statement closings; latest = newest observed time, never arrival; fresh / aging (≤ 7 days, counted) / stale; money left until salary starts from recent post-salary balances, else the last salary (D-76), and says which | Proposed | AOS-720 |
 | D-175 | Process | The documents AI step (`document_fields`) can't be turned on until a real model eval on the documents eval set is recorded: no hand-written record is committed, so the D-68 start-up gate refuses it | Accepted | AOS-717 |
 | D-174 | Product / Architecture | Document field proposals are not stored (the owner confirms through PATCH; the number is kept as its last 4); identity documents never go to any model, by category or by their text; the libxml2 CVE-2026-6653 Trivy exception in the parser image is accepted (unreachable; expires 2026-12-31) | Accepted | AOS-717 |
 | D-173 | Architecture | Vault documents are read in the parser service: the PDF text layer first, else Tesseract 5.5 (Debian) OCR as a process with time, memory and pixel limits; deterministic field rules with evidence, re-grounded in the API | Accepted | AOS-717 |
@@ -1630,6 +1633,60 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
 - Never a 500 for a client's body; the Content-Type sent is never echoed.
 
+### D-171 — Projected monthly bills for the forecast, never counted twice
+2026-10-18 · Proposed · Type: Architecture / Product · Tasks: AOS-721 · Builds on D-39, D-55, D-67, D-76
+- **What it says:** a `ProjectedBillsComponent` adds the monthly bills that usually come later in the month but haven't arrived, so the month-end and money left until salary don't under-count in the first half of the month.
+  - **Which billers:** utility bills only (electricity, mobile, internet, water, gas). Rent and EMI are usually mandates or standing transfers too (already counted as mandate dues), insurance is yearly or quarterly, credit-card and pay-later bills are transfers whose purchases are already spending (D-39).
+  - **Regular:** a biller (type + name, case/punctuation/spacing ignored in any script + account ref) billed in each of the 3 calendar months right before the month. Quarterly, annual and skipped-month billers are never projected.
+  - **Amount and day:** the median of those 3 bills; the median due day, clamped to short months. Projected only when that day is after today; a day that has passed without a bill isn't guessed.
+  - **Never counted twice:** a month has arrived when any bill of the same type is due in it or within ±10 days of the expected day, whatever its name, account, amount or status (paid early, open or cancelled). The biller name, type and account ref the bill parser gives can change from month to month, so arrival is matched more loosely than the biller. Next month is projected only when this month's real bill is in.
+  - **Shown:** its own "How we got this" line, each bill with its expected day, amount and how many months it was seen. The range moves with it but isn't widened.
+  - **Bounded:** at most 500 bills are read; over that nothing is projected.
+- **Measured:** the D-76 backtest is unchanged (its dues are an oracle). A late-bills variant (the utility bill known only 7 days before its due date) improves MAPE from 10.91% to 9.67%; a test keeps "with" ≤ "without".
+- **Accepted limits (the under-counting side):** a bill paid outside AdminOS before its usual day with no bill row is still projected once; one arrived bill of a type hides the other projections of that type that month (two homes).
+- **Rejected:** projecting every bill type (double counts mandates, yearly insurance); matching arrival by the exact biller (name drift makes a second count); guessing a late bill after its usual day; a time-series model per biller (D-67, 3 points).
+
+### D-172 — The owner confirms or corrects the detected salary
+2026-10-18 · Proposed · Type: Architecture / Product · Tasks: AOS-722 · Builds on D-67, D-76, D-100, D-102, D-171
+- **What it says:** "money left until salary" depends on the right payer and day, so the owner can confirm or correct what detection found, and the forecast uses the answer.
+  - **Stored:** one choice per user (`salary_choices`, V93): payer (or none, for credits without a name), usual day 1–31 (clamped to short months), amount, confirmed or corrected. The latest wins.
+  - **Confirm** stores exactly what detection found (payer, the usual day before any weekend move, the typical amount); the client sends no values. **Correct** stores the owner's, validated on the server (strict amount pattern, bounds, printable payer up to 100 characters) and again in the database.
+  - **With a choice, detection reads only the chosen payer's credits** of at least half the chosen amount, matching payers loosely (whole words in order, any script; bank narrations add words like "SALARY OCT"). From them: the last salary (where money left starts, also for D-170's basis), the payer's weekend habit for the chosen day, and late / stopped as before. None in the last 200 days is said (`not_seen`), never guessed.
+  - **Shown:** the card marks a confirmed salary; "How we got this" shows what is used and offers "Yes, that's right" (while nothing is stored) and "Correct it". `GET /forecast` says `source` and `usualDay`.
+  - **Two salaries, a new employer, a raise:** the choice picks the payer; a correction applies at once. Several salaries stay out of scope.
+- **Security:** session-only routes, global Origin check, JSON only, user from the session only, 20 changes a minute; payer and amount never logged. Plaintext at rest, like the transactions they come from.
+- **Rejected:** taking confirm's values from the client (a stale or forged confirm); an exact payer match (narrations vary month to month); forgetting the choice when the payer stops (it is shown as stopped / not seen, so the owner corrects it); a DELETE route (a correction covers it; not needed for one owner).
+### D-170 — Latest balance per account: trusted readings, newest observed wins, money left from recent balances
+2026-10-18 · Proposed · Type: Architecture · Tasks: AOS-720 · Builds on D-33, D-39, D-67, D-76, D-100
+- **What it says:**
+  - A balance is a **reading**: an account (last 4 digits, plus the bank when the input names it), a figure, the moment it was true, a source (SMS or statement) and the input's fingerprint. Readings are append-only and stored once per input. The figure is encrypted (AES-GCM, bound to the row, V92), and the newest 20 per account are kept.
+  - **The latest per account** is the newest `observedAt`; at the same moment a statement beats an SMS. A reading never wins by arriving later.
+  - **Labels:** fresh (today or yesterday), aging (2–7 days) and stale (over 7 days: shown, never counted).
+- **Where readings come from:**
+  - **Bank SMS:**
+    - only from registered, non-promotional headers our bank parsers own (HDFC, SBI, ICICI, Axis, Kotak today);
+    - only transactions, balance alerts or messages with no transaction; never OTP, failed, promise, request, notice or mandate messages;
+    - read deterministically: available, then cleared, then ledger, then plain "Bal";
+    - not credit cards, wallets, loans, deposits or points;
+    - not opening, closing, average or minimum balances;
+    - a balance starts its own clause, doesn't follow at/to/from/VPA and isn't followed by a transaction's date or reference (otherwise it's a name someone chose);
+    - two figures of a kind, two accounts, or only a debit card are refused;
+    - "as on" dates the reading to that time (or the end of that day) when earlier than the SMS.
+  - **Statements:** the closing balance only when it follows from the previous row (previous − debit + credit); one balance alone isn't taken. It is dated to the end of the closing day or the period's end, never after the import. The running balance is no longer copied into ingest events.
+  - **Not:** Gmail (deferred; no Go duplicate of the rule), WhatsApp exports (no trusted sender), Shortcut records and cash.
+- **Money left until salary:**
+  - It starts from the recent balances (≤ 7 days, from the salary's day or later). Spending is subtracted from the oldest of their days in full, then what's expected until payday. Without such a balance it starts from the last salary (D-76). The choice is its own component (`MoneyLeftBasisPicker`).
+  - The API says which (`basis`), lists the accounts counted and those not counted with why (`stale`, `before_salary`), and Home's "How we got this" shows it.
+- **Rejected:**
+  - a mutable "current balance" per account: a late message could overwrite a newer one, and the evidence is lost;
+  - reading balances back out of plaintext ingest-event metadata: sensitive, unencrypted, and it can't hold pure balance alerts;
+  - an LLM reader (D-67);
+  - trusting any bank-looking header: a spoofed figure would mislead "money left".
+- **Consequences:**
+  - a new bank is one parser registry entry;
+  - a new source is a `BalanceSource` value and one `BalanceService.record` call;
+  - card outstanding and unpaid card bills are still not in "money left" (D-39);
+  - the extraction eval set (`balances/sms.tsv`, 132 synthetic SMS) and its floor gate changes.
 ### D-150 — How we pen-test ourselves
 2026-10-18 · Accepted · Type: Process · Tasks: AOS-623 · Builds on D-91, D-99, D-100
 - `scripts/security/zap-baseline.sh` starts a throwaway copy of the stack: random secrets, an empty database, **no published host port** (the rendered config is checked, fail closed).
@@ -1639,11 +1696,9 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - Every finding gets a ticket, and is fixed or explicitly accepted in a decision.
 - **When:** run by hand before go-live, after any security change, and monthly with the restore drill.
 - **Not in CI yet:** it builds the whole stack and takes minutes; revisit once CI has a cache for the images.
-- **Rejected:**
   - scanning a published or remote stack (exposure; D-91);
   - an active ZAP scan by default (noisy, and the attack suites already cover injection and authorisation);
   - minting tokens to scan signed-in pages (the attack suites test those paths with the real auth code).
-
 ### D-151 — Accepted pen-test results (2026-10-18)
 2026-10-18 · Accepted · Type: Process · Tasks: AOS-623, AOS-643 · Builds on D-94, D-97
 - **CSP `style-src 'unsafe-inline'`:** accepted. Scripts never get it (nonce + `strict-dynamic`); inline styles come from React/Next and Recharts.

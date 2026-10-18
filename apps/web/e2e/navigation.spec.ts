@@ -13,6 +13,8 @@ const MAIN: { tab: "Home" | "Spending" | "Activity" | "Review" | "More"; path: s
 /** Under More (a list on phones, expanded in the desktop rail). */
 const SECONDARY = [
   { label: "Where it leaks", path: "/leaks", heading: "Where it leaks" },
+  { label: "Wealth", path: "/wealth", heading: "Wealth" },
+  { label: "Bank balances", path: "/balances", heading: "Bank balances" },
   { label: "Ask your money", path: "/ask", heading: "Ask your money" },
   { label: "Import statement", path: "/import", heading: "Import a bank statement" },
   { label: "Bills", path: "/bills", heading: "Dues & renewals" },

@@ -2,9 +2,19 @@
  * Month-end forecast API types (AOS-714). All money is an exact decimal string (D-30); every number
  * comes from the API's deterministic forecast, the page only formats and labels it (D-67).
  */
-export interface ForecastDue { name: string; date: string; amount: string; overdue: boolean }
+export interface ForecastDue {
+  name: string;
+  date: string;
+  amount: string;
+  overdue: boolean;
+  /** Projected bills only (AOS-721): the bill's type, how many months running it was billed, and since when ("YYYY-MM"). */
+  billType?: string | null;
+  monthsSeen?: number | null;
+  seenFrom?: string | null;
+}
 
-export type ForecastPartKind = "bills" | "renewals" | "mandates" | "everyday";
+/** `projected_bills` (AOS-721): regular monthly bills that haven't arrived yet this month, at their usual amount and day. */
+export type ForecastPartKind = "bills" | "projected_bills" | "renewals" | "mandates" | "everyday";
 
 export interface ForecastPart {
   kind: ForecastPartKind;
@@ -32,6 +42,16 @@ export interface MonthEnd {
   rangeMonthsNeeded: number;
 }
 
+/** An account's balance in "money left" (AOS-720); `reason` says why one isn't counted. */
+export interface ForecastBalance {
+  bank: string | null;
+  last4: string;
+  amount: string;
+  observedOn: string;
+  source: "sms" | "statement";
+  reason: "stale" | "before_salary" | null;
+}
+
 export interface UntilSalary {
   from: string | null;
   to: string | null;
@@ -41,10 +61,20 @@ export interface UntilSalary {
   leftLow: string | null;
   leftHigh: string | null;
   parts: ForecastPart[];
+  /** What "left" starts from: recent bank balances (AOS-720) or the last salary (D-76). */
+  basis: "balance" | "salary";
+  /** The first day "spent since" counts; null when nothing is subtracted. */
+  spentFrom: string | null;
+  balance: string | null;
+  balanceAsOf: string | null;
+  accounts: ForecastBalance[];
+  notCounted: ForecastBalance[];
+  balanceMaxAgeDays: number;
 }
 
 export type SalaryStatus = "expected" | "late" | "unknown";
-export type NoSalaryReason = "no_regular_credit" | "amount_varies" | "date_varies" | "stopped";
+/** `not_seen` (AOS-722): the payer the owner chose has sent no credit lately. */
+export type NoSalaryReason = "no_regular_credit" | "amount_varies" | "date_varies" | "stopped" | "not_seen";
 
 export interface SalaryOutlook {
   status: SalaryStatus;
@@ -56,6 +86,9 @@ export interface SalaryOutlook {
   lastReceivedOn: string | null;
   credits: number | null;
   untilSalary: UntilSalary | null;
+  /** AOS-722: "confirmed" when the owner's stored choice was used instead of detection; and its usual day. */
+  source?: "detected" | "confirmed";
+  usualDay?: number | null;
 }
 
 export interface ForecastData {
@@ -71,6 +104,7 @@ export const FORECAST_PATH = "/api/v1/forecast";
 /** What each part is called on the card. */
 export const PART_LABEL: Record<ForecastPartKind, string> = {
   bills: "Bills",
+  projected_bills: "Bills not arrived yet",
   renewals: "Renewals",
   mandates: "AutoPay & mandates",
   everyday: "Everyday spending",
@@ -82,6 +116,7 @@ export const NO_SALARY_TEXT: Record<NoSalaryReason, string> = {
   amount_varies: "Your monthly credits vary too much to plan on.",
   date_varies: "Your monthly credits come on days too far apart to plan on.",
   stopped: "Your regular credit hasn't come for a while.",
+  not_seen: "We haven't seen a credit from your salary payer yet.",
 };
 
 const DAY = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });

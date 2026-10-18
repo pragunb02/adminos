@@ -1,11 +1,40 @@
 import type { Page, Request, Route } from "@playwright/test";
 import { fx } from "../../test/fixtures";
 import { cx } from "../../test/coachFixtures";
+import { wx } from "../../test/wealthFixtures";
+import { sx } from "../../test/salaryFixtures";
+import type { SalaryView } from "@/lib/salary";
 
 type Reply = { status?: number; data?: unknown; error?: { code: string; message: string }; pagination?: unknown; delayMs?: number };
 type Handler = (req: Request, url: URL) => Reply | Promise<Reply>;
 
 const meta = { requestId: "req-e2e", timestamp: "2026-10-16T06:30:00Z" };
+
+/** Bills that usually come but haven't yet this month (AOS-721), fake names only: ₹2,140 in all. */
+export const projectedBills = {
+  kind: "projected_bills" as const, amount: "2140.00",
+  items: [
+    { name: "Sample Power Co", date: "2026-10-24", amount: "1240.00", overdue: false, billType: "electricity", monthsSeen: 4, seenFrom: "2026-06" },
+    { name: "Example Mobile", date: "2026-10-27", amount: "900.00", overdue: false, billType: "mobile", monthsSeen: 3, seenFrom: "2026-07" },
+  ],
+  weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null,
+};
+
+/** The default mocked forecast: the shared fixture plus the projected bills, so its sums still add up (₹63,680.50; ₹35,278.75 left). */
+export function forecastWithProjectedBills(projected: typeof projectedBills = projectedBills) {
+  const f = fx.forecast();
+  const add = (a: string, b: string, sign = 1) => ((Math.round(Number(a) * 100) + sign * Math.round(Number(b) * 100)) / 100).toFixed(2);
+  const [bills, ...rest] = f.monthEnd!.parts;
+  const u = f.salary!.untilSalary!;
+  const [uBills, ...uRest] = u.parts;
+  return fx.forecast({
+    monthEnd: { ...f.monthEnd!, total: add(f.monthEnd!.total, projected.amount), parts: [bills, projected, ...rest] },
+    salary: {
+      ...f.salary!,
+      untilSalary: { ...u, expected: add(u.expected, projected.amount), left: add(u.left, projected.amount, -1), parts: [uBills, projected, ...uRest] },
+    },
+  });
+}
 
 /**
  * Answers the app's /api/v1 calls inside the browser (AOS-311 mocked mode). Defaults come from the
@@ -17,6 +46,7 @@ export class MockApi {
   private readonly handlers = new Map<string, Handler>();
 
   constructor(private readonly page: Page) {
+    let salary: SalaryView = sx.view(); // Your salary (AOS-722): a PUT is what later GETs see
     const opens = [fx.anomaly(), fx.anomaly({ id: "an-2", type: "odd_hours", reason: "Paid at 3am", agentExplanation: null })];
     this.on("GET /api/v1/dashboard/home", () => ({ data: fx.home() }))
       .on("GET /api/v1/bills/upcoming", () => ({ data: [fx.bill(), fx.bill({ id: "b-2", billerName: "BESCOM", amount: "1840", billType: "electricity", dueDate: "2026-10-28" })] }))
@@ -84,13 +114,21 @@ export class MockApi {
       .on("PATCH /api/v1/coach/settings", () => ({ data: { limitAlerts: false, eveningDigest: true, digestTime: "21:30", digestSkipZeroDay: false } }))
       .on("GET /api/v1/pay-later", () => ({ data: { outstanding: "0.00", currency: "INR", providers: [] } }))
       .on("GET /api/v1/trips", (_r, u) => ({ data: { year: Number(u.searchParams.get("year") ?? 2026), total: "0.00", currency: "INR", trips: [] } }))
+      // Wealth (AOS-820): one holding, nothing blocked, one import.
+      .on("GET /api/v1/wealth/holdings", () => ({ data: wx.overview() }))
+      .on("GET /api/v1/wealth/reconciliation", () => ({ data: { holdings: [], blocked: 0 } }))
+      .on("GET /api/v1/wealth/investment-flows", () => ({ data: wx.flows() }))
+      .on("GET /api/v1/wealth/imports", () => ({ data: { imports: [wx.batch()] } }))
+      .on("POST /api/v1/wealth/imports/cas", () => ({ status: 201, data: wx.importResult() }))
+      .on("POST /api/v1/wealth/imports/:id/undo", () => ({ data: { undone: true } }))
       .on("GET /api/v1/documents", (_r, u) => {
         const all = [fx.document(), fx.document({ id: "d-2", title: "Passport", category: "identity", fileType: "jpeg", mime: "image/jpeg", sizeBytes: 1_572_864, expiresOn: "2026-11-01" })];
         const c = u.searchParams.get("category"); const q = u.searchParams.get("q")?.toLowerCase();
         return { data: all.filter((d) => (!c || d.category === c) && (!q || d.title.toLowerCase().includes(q))) };
       })
       .on("GET /api/v1/mandates", () => ({ data: [fx.mandate(), fx.mandate({ id: "m-2", payee: "Cult.fit", rail: "upi_autopay", amount: "999.00", nextDebitOn: null, nextDebitAmount: null, dormant: true })] }))
-      .on("GET /api/v1/forecast", () => ({ data: fx.forecast() }))
+      .on("GET /api/v1/forecast", () => ({ data: forecastWithProjectedBills() }))
+      .on("GET /api/v1/balances", () => ({ data: fx.balances() }))
       .on("GET /api/v1/dues", (_r, u) => {
         const m = u.searchParams.get("month");
         return { data: m && m !== "2026-10" ? fx.duesMonth({ month: m, items: [], totals: { open: "0.00", paid: "0.00", renewals: "0.00" } }) : fx.duesMonth() };
@@ -102,7 +140,21 @@ export class MockApi {
       // Ask your money (AOS-711): on, with a fixed answer unless a test says otherwise.
       .on("GET /api/v1/ask", () => ({ data: { enabled: true, maxQuestionLength: 300 } }))
       .on("POST /api/v1/ask", () => ({ data: fx.askAnswer() }))
-      .on("POST /api/v1/ask/feedback", () => ({ data: { saved: true } }));
+      .on("POST /api/v1/ask/feedback", () => ({ data: { saved: true } }))
+      // Your salary (AOS-722): detected and not yet chosen; confirm keeps it, correct echoes the typed choice back.
+      .on("GET /api/v1/forecast/salary", () => ({ data: salary }))
+      .on("PUT /api/v1/forecast/salary", (req) => {
+        const b = (req.postDataJSON() ?? {}) as { action?: string; payer?: string | null; day?: number; amount?: string };
+        const at = "2026-10-18T05:00:00Z";
+        if (b.action === "confirm") {
+          if (!salary.detected) return { status: 409, error: { code: "SALARY_001", message: "No salary was detected to confirm: correct it instead" } };
+          const d = salary.detected;
+          salary = { ...salary, choice: { payer: d.payer, day: d.usualDay, amount: d.typicalAmount, kind: "confirmed", updatedAt: at } };
+        } else {
+          salary = { ...salary, choice: { payer: b.payer ?? null, day: b.day ?? 1, amount: b.amount ?? "0", kind: "corrected", updatedAt: at } };
+        }
+        return { data: salary };
+      });
   }
 
   on(key: string, handler: Handler): this {
