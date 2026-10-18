@@ -290,3 +290,15 @@ export interface AuthResponse {
   /** The passkey step this new session must take (AOS-617). */
   secondFactor?: "enrol" | "verify" | "done";
 }
+
+// ── Merchant grouping (AOS-709) ──
+
+/** "Are these one merchant?": the name a merge keeps and every name in the group, the kept one first. */
+export interface MergeProposal {
+  id: string;
+  name: string;
+  names: { name: string; payments: number }[];
+  /** Why they look like one merchant, in plain words. */
+  reasons: string[];
+  score: number;
+}

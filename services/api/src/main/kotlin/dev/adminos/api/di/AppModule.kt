@@ -98,15 +98,19 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { ExposedDeviceTokenRepository() }
         single<TransactionLinkRepository> { ExposedTransactionLinkRepository() }
         single<CategoryRuleRepository> { ExposedCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { ExposedAnalyticsRepository() }
+        // Read through confirmed merchant merges (AOS-709).
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(ExposedAnalyticsRepository(), get()) }
         single<dev.adminos.api.domain.forecast.ForecastHistoryRepository> { ExposedForecastHistoryRepository() }
         // Financial
         single<TransactionRepository> { ExposedTransactionRepository() }
         single<AccountRepository> { ExposedAccountRepository() }
         single<SubscriptionRepository> { ExposedSubscriptionRepository() }
+        single<PriceRiseRepository> { ExposedPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { ExposedMerchantAliasRepository() }
         single<BillRepository> { ExposedBillRepository() }
         // Agent
         single<AnomalyRepository> { ExposedAnomalyRepository() }
+        single<AnomalyToleranceRepository> { ExposedAnomalyToleranceRepository() }
         single<BriefingRepository> { ExposedBriefingRepository() }
         single<InsightRepository> { ExposedInsightRepository() }
         // Notifications
@@ -134,13 +138,16 @@ internal fun buildAppModule(
         single<DeviceTokenRepository> { InMemoryDeviceTokenRepository() }
         single<TransactionLinkRepository> { InMemoryTransactionLinkRepository() }
         single<CategoryRuleRepository> { InMemoryCategoryRuleRepository() }
-        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()) }
+        single<dev.adminos.api.domain.analytics.AnalyticsRepository> { dev.adminos.api.domain.analytics.AliasedAnalyticsRepository(dev.adminos.api.domain.analytics.InMemoryAnalyticsRepository(get()), get()) }
         single<dev.adminos.api.domain.forecast.ForecastHistoryRepository> { dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(get(), get()) }
         single<TransactionRepository> { InMemoryTransactionRepository() }
         single<AccountRepository> { InMemoryAccountRepository() }
         single<SubscriptionRepository> { InMemorySubscriptionRepository() }
+        single<PriceRiseRepository> { InMemoryPriceRiseRepository() }
+        single<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository> { dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository() }
         single<BillRepository> { InMemoryBillRepository() }
         single<AnomalyRepository> { InMemoryAnomalyRepository() }
+        single<AnomalyToleranceRepository> { InMemoryAnomalyToleranceRepository() }
         single<BriefingRepository> { InMemoryBriefingRepository() }
         single<InsightRepository> { InMemoryInsightRepository() }
         single<NotificationPreferencesRepository> { InMemoryNotificationPreferencesRepository() }
@@ -167,10 +174,12 @@ internal fun buildAppModule(
     single<WebAuthnCeremonies> { dev.adminos.api.infrastructure.webauthn.YubicoWebAuthn(get<AppConfig>().app.appUrl) }
     single { PasskeyService(get(), get(), get(), get(), get(), alerts = get()) }
 
-    // Redis queue publisher — only if REDIS_URL is configured and not default
+    // Redis queue publisher — only if REDIS_URL is configured. Parsed now, so a missing Redis password
+    // (REDIS_PASSWORD, or in the URL) stops the start-up instead of the first job (AOS-634).
     val redisUrl = env("REDIS_URL") ?: ""
     if (redisUrl.isNotBlank()) {
-        single { RedisClient.create(redisUrl) }
+        val redisUri = dev.adminos.api.infrastructure.queue.RedisUrl.parse(redisUrl, env("REDIS_PASSWORD"))
+        single { RedisClient.create(redisUri) }
         // TODO: Call AsynqPublisher.close() from Ktor ApplicationStopped event
         single { AsynqPublisher(get()) }
     }
@@ -235,6 +244,11 @@ internal fun buildAppModule(
     single { SmsIntake(get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
+    // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
+    // AiProvider exists, an AI CashPhraseParser plugs in as FallbackCashPhraseParser(rules, ai), behind its consent toggle and eval gate.
+    single<dev.adminos.api.domain.ingestion.cash.CashPhraseParser> {
+        dev.adminos.api.domain.ingestion.cash.RuleCashPhraseParser(dev.adminos.api.domain.ingestion.cash.CashCategoryGuesser(get()))
+    }
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
@@ -255,7 +269,9 @@ internal fun buildAppModule(
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get(), get()) }
+    single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
+    // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
+    single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
     single { BillTrackingService(get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
@@ -268,7 +284,12 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get()) }
 
     // Agent Services
-    single { AnomalyDetectorService(get(), get(), get()) }
+    // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)
+    single { AnomalyDetectorService(get(), get(), get(), get()) }
+    single {
+        if (useDatabase) AnomalyReviewService(get(), get(), get(), get(), java.time.Clock.systemUTC()) { work -> dev.adminos.api.infrastructure.database.dbQueryReadCommitted { work() } }
+        else AnomalyReviewService(get(), get(), get(), get())
+    }
     // Reactions to each new transaction (AOS-505); a new one is one `bind TransactionCreatedListener::class` line.
     single { AnomalyAlerts(get(), get()) } bind TransactionCreatedListener::class
     single { BillPaymentListener(get()) } bind TransactionCreatedListener::class
@@ -295,12 +316,14 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.identity.UserCalendar(get()) }
     single { ReminderEngine(get(), get(), get(), get()) }
     single { RenewalReminders(get(), get(), get(), get()) }
+    // Subscription price-rise alerts, once per new price (AOS-715, D-74); sent by the detection job.
+    single { PriceRiseAlerts(get(), get(), get(), get()) }
     single { DropOffNudgeService(get(), get(), get()) }
 
     // Scheduled jobs (AOS-501, D-50): a new job is one `single { … } bind ScheduledJob::class` line.
     single { BillRemindersJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { OnboardingNudgesJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
-    single { SubscriptionDetectionJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
+    single { SubscriptionDetectionJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { WasteScoreService(get(), get(), get(), java.time.Clock.systemUTC(), get<AppConfig>().scheduler.zone) }
     single { SubscriptionWasteScoreJob(get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
