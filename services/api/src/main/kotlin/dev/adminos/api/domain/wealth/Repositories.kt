@@ -56,7 +56,8 @@ class InMemoryInvestmentAccountRepository : InvestmentAccountRepository {
             ?: account.also { store[it.id] = it }
 
     override suspend fun findById(userId: UUID, id: UUID) = store[id]?.takeIf { it.userId == userId }
-    override suspend fun findByUser(userId: UUID) = store.values.filter { it.userId == userId }.sortedBy { it.createdAt }
+    // Oldest first; accounts created in the same instant fall back to their id, so the order is total (as in Postgres).
+    override suspend fun findByUser(userId: UUID) = store.values.filter { it.userId == userId }.sortedWith(compareBy({ it.createdAt }, { it.id }))
 }
 
 class InMemoryInstrumentRepository : InstrumentRepository {
