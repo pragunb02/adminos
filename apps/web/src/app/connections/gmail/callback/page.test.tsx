@@ -28,7 +28,7 @@ describe("Connect Gmail callback", () => {
     server.use(http.post("/api/v1/connections", async ({ request }) => {
       posts.push(await request.json());
       await gate;
-      return ok(fx.connection({ gmailAddress: "pragun.b@gmail.com" }));
+      return ok(fx.connection({ gmailAddress: "owner@example.com" }));
     }));
     renderWithQuery(<StrictMode><GmailCallbackPage /></StrictMode>);
     expect(await screen.findByRole("status")).toHaveTextContent("Connecting Gmail…");

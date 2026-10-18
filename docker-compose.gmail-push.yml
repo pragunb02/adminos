@@ -17,6 +17,10 @@ services:
   cloudflared:
     profiles: ["full"]           # runs with the web app and API it fronts
     image: cloudflare/cloudflared:2026.10.1@sha256:a15a3b50b8dabd57ac2090e9484c0247dba9dfa1f0df4d298d4317f9d69eb2d5
+    networks: [edge]                  # reaches the API (and the web app, which its ingress never routes to)
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
     command:
       - tunnel
       - --no-autoupdate

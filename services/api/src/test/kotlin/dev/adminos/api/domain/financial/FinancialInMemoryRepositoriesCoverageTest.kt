@@ -231,7 +231,7 @@ class FinancialInMemoryRepositoriesCoverageTest {
     // ── Bills ──
 
     private val today = LocalDate.of(2026, 10, 16)
-    private val bills = InMemoryBillRepository(Clock.fixed(Instant.parse("2026-10-16T04:30:00Z"), ZoneOffset.UTC))
+    private val bills = InMemoryBillRepository()
 
     private fun bill(biller: String, due: LocalDate, status: BillStatus = BillStatus.UPCOMING, owner: UUID = me) =
         Bill(userId = owner, billerName = biller, amount = BigDecimal("1499.00"), dueDate = due, status = status)
@@ -254,7 +254,7 @@ class FinancialInMemoryRepositoriesCoverageTest {
         bills.save(bill("LIC", today.plusDays(8)))
         bills.save(bill("BESCOM", today.minusDays(1)))
         bills.save(bill("Airtel", today.plusDays(2), BillStatus.PAID))
-        assertEquals(setOf(mine.id, theirs.id), bills.findUpcoming(7).map { it.id }.toSet())
+        assertEquals(setOf(mine.id, theirs.id), bills.findUpcoming(today, 7).map { it.id }.toSet())
     }
 
     @Test
@@ -263,7 +263,7 @@ class FinancialInMemoryRepositoriesCoverageTest {
         bills.save(bill("LIC", today.plusDays(31)))
         bills.save(bill("ICICI Card", today.plusDays(3), owner = other))
         bills.save(bill("SBI Card", today.plusDays(3), BillStatus.OVERDUE))
-        assertEquals(listOf(soon.id), bills.findUpcoming(me).map { it.id })
+        assertEquals(listOf(soon.id), bills.findUpcoming(me, today).map { it.id })
     }
 
     @Test
@@ -273,7 +273,7 @@ class FinancialInMemoryRepositoriesCoverageTest {
         bills.save(bill("Tata Power", today))
         bills.save(bill("Airtel", today.minusDays(4), BillStatus.PAID))
         bills.save(bill("SBI Card", today.minusDays(4), BillStatus.OVERDUE))
-        assertEquals(setOf(mine.id, theirs.id), bills.findOverdue().map { it.id }.toSet())
+        assertEquals(setOf(mine.id, theirs.id), bills.findOverdue(today).map { it.id }.toSet())
     }
 
     @Test
@@ -297,9 +297,11 @@ class FinancialInMemoryRepositoriesCoverageTest {
     }
 
     @Test
-    fun `the default bill repository uses the system clock`() = runBlocking<Unit> {
-        val repo = InMemoryBillRepository()
-        val due = repo.save(bill("Tata Power", LocalDate.now().plusDays(1)))
-        assertEquals(listOf(due.id), repo.findUpcoming(me, 30).map { it.id })
+    fun `the bill repository judges dates by the day it is given, never the clock`() = runBlocking<Unit> {
+        val longAgo = LocalDate.of(2001, 1, 1)
+        val due = bills.save(bill("Tata Power", longAgo.plusDays(1)))
+        assertEquals(listOf(due.id), bills.findUpcoming(me, longAgo, 30).map { it.id })
+        assertEquals(listOf(due.id), bills.findOverdue(longAgo.plusDays(2)).map { it.id })
+        assertTrue(bills.findOverdue(longAgo.plusDays(1)).isEmpty())
     }
 }

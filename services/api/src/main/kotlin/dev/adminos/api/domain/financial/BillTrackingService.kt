@@ -1,5 +1,6 @@
 package dev.adminos.api.domain.financial
 
+import dev.adminos.api.domain.identity.UserCalendar
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
@@ -10,10 +11,12 @@ import kotlin.math.abs
 /**
  * Bill tracking and payment matching service.
  * Fuzzy-matches transactions to pending bills and detects overdue bills.
+ * "Today" is always the user's own date ([UserCalendar]), never the JVM's (AOS-638).
  */
 class BillTrackingService(
     private val billRepository: BillRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val calendar: UserCalendar
 ) {
     private val logger = LoggerFactory.getLogger(BillTrackingService::class.java)
 
@@ -33,8 +36,12 @@ class BillTrackingService(
      * arrives late) are matched against the payments in their window, so no reminder goes out for a
      * bill that's paid. @return how many bills were marked paid
      */
-    suspend fun matchEarlierPayments(): Int =
-        matchEarlierPayments((billRepository.findUpcoming(dev.adminos.api.domain.notifications.ReminderEngine.MAX_REMINDER_DAYS + 1) + billRepository.findOverdue()).distinctBy { it.id })
+    suspend fun matchEarlierPayments(): Int {
+        // Every unpaid bill due up to the furthest reminder day; the server's date is only a pre-filter here.
+        val today = calendar.serverToday()
+        val ahead = dev.adminos.api.domain.notifications.ReminderEngine.MAX_REMINDER_DAYS + 1
+        return matchEarlierPayments((billRepository.findUpcoming(today, ahead) + billRepository.findOverdue(today)).distinctBy { it.id })
+    }
 
     suspend fun matchEarlierPayments(bills: List<Bill>): Int {
         var paid = 0
@@ -69,10 +76,12 @@ class BillTrackingService(
     }
 
     /**
-     * Mark overdue bills — bills whose due_date has passed without payment.
+     * Mark overdue bills: unpaid bills whose due date has passed **in their user's zone**. Candidates
+     * come from the server's date widened by a day (a user ahead of the server is already on tomorrow).
      */
     suspend fun markOverdueBills(): List<Bill> {
-        val overdue = billRepository.findOverdue()
+        val candidates = billRepository.findOverdue(calendar.serverToday().plusDays(1))
+        val overdue = candidates.filter { it.dueDate.isBefore(calendar.today(it.userId)) }
         return overdue.map { bill ->
             val updated = billRepository.update(bill.copy(status = BillStatus.OVERDUE))
             logger.info("Bill {} marked overdue", bill.id)
@@ -92,8 +101,9 @@ class BillTrackingService(
     suspend fun countUserBills(userId: UUID, status: BillStatus? = null): Long =
         billRepository.countByUserId(userId, status)
 
+    /** The user's unpaid bills due from their own today to [withinDays] ahead. */
     suspend fun getUpcomingBills(userId: UUID, withinDays: Int = 30): List<Bill> =
-        billRepository.findUpcoming(userId, withinDays)
+        billRepository.findUpcoming(userId, calendar.today(userId), withinDays)
 
     suspend fun getBill(id: UUID): Bill? = billRepository.findById(id)
 

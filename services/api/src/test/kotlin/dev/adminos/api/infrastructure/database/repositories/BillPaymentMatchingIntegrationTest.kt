@@ -28,7 +28,7 @@ class BillPaymentMatchingIntegrationTest {
     private val txns = ExposedTransactionRepository()
     private val links = ExposedTransactionLinkRepository()
     private val bills = ExposedBillRepository()
-    private val billing = BillTrackingService(bills, txns)
+    private val billing = BillTrackingService(bills, txns, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()))
     private lateinit var user: UUID
 
     private val processor by lazy {

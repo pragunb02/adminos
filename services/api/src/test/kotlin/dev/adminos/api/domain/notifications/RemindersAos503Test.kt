@@ -31,7 +31,7 @@ class RemindersAos503Test {
     private val clock = Clock.fixed(now, ZoneId.of("UTC"))
     private val users = InMemoryUserRepository()
     private val calendar = UserCalendar(users, clock)
-    private val bills = InMemoryBillRepository(Clock.fixed(now, ZoneId.of("Asia/Kolkata")))
+    private val bills = InMemoryBillRepository()
     private val prefs = InMemoryNotificationPreferencesRepository()
     private val notifications = InMemoryNotificationRepository()
     private val sender = notificationService(prefs, notifications, clock = clock)

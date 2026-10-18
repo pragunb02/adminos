@@ -2,7 +2,6 @@ package dev.adminos.api.config
 
 data class AppConfig(
     val database: DatabaseConfig,
-    val redis: RedisConfig,
     val auth: AuthConfig,
     val app: AppSettings,
     val security: SecurityConfig,
@@ -21,9 +20,6 @@ data class AppConfig(
                 user = env("DB_USER", "adminos"),
                 password = secret("DB_PASSWORD") { "" },
                 maxPoolSize = env("DB_MAX_POOL_SIZE", "10").toInt()
-            ),
-            redis = RedisConfig(
-                url = env("REDIS_URL", "redis://localhost:6379")
             ),
             auth = AuthConfig(
                 jwtSecret = secret("JWT_SECRET") { DevSecrets.jwtSecret },
@@ -147,10 +143,6 @@ data class DatabaseConfig(
     val user: String,
     val password: String,
     val maxPoolSize: Int
-)
-
-data class RedisConfig(
-    val url: String
 )
 
 data class AuthConfig(

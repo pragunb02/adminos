@@ -1,0 +1,12 @@
+fastapi==0.143.2
+uvicorn==0.54.0
+pydantic==2.14.1
+pdfplumber==0.11.10
+cryptography==50.0.2
+openpyxl==3.1.5
+xlrd==2.0.2
+python-multipart==0.0.32
+# CAS reader (AOS-805): MIT; its PDF engine pypdfium2 (Apache-2.0/BSD-3) and ISIN database (MIT) pinned with it.
+casparser==1.4.1
+casparser-isin==2026.6.9
+pypdfium2==5.14.0

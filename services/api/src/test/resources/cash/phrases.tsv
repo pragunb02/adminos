@@ -1,0 +1,168 @@
+# SYNTHETIC cash phrases (AOS-718). No real data. Tab-separated: id, today (blank = 2026-10-17, a Saturday), text, expected entries
+# ("amount category date" joined by "; "; T = today, T-N = N days before), unparsed reasons (joined by "; "), tags.
+id	today	text	expected	unparsed	tags
+B001		200 chai and 150 auto	200 food T; 150 transport T		basic amount-first and
+B002		chai 40, auto 120	40 food T; 120 transport T		basic word-first comma
+B003		chai 40 auto 120	40 food T; 120 transport T		basic no-separator
+B004		200 chai 150 auto	200 food T; 150 transport T		basic no-separator amount-first
+B005		paid 1.2k for groceries yesterday	1200 shopping T-1		k date filler
+B006		chai 40, auto 120 yesterday	40 food T-1; 120 transport T-1		shared-date
+B007		samosa 30	30 food T		basic
+B008		Auto 80	80 transport T		case
+B009		sabzi 250	250 shopping T		hinglish groceries
+B010		doodh 60 and bread 45	60 shopping T; 45 shopping T		hinglish groceries
+B011		dawai 340	340 health T		hinglish health
+B012		petrol 500	500 transport T		fuel
+B013		movie 600	600 entertainment T		entertainment
+B014		recharge 299	299 utilities T		utilities
+B015		tuition 2000	2000 education T		education
+B016		kapde 1500	1500 shopping T		shopping
+B017		haircut 150	150 other T		services
+B018		maid 3000	3000 other T		services
+B019		pani puri 50	50 food T		multiword
+B020		nimbu pani 20	20 food T		multiword longest
+B021		vada pav 25 cutting chai 15	25 food T; 15 food T		multiword no-separator
+B022		lunch 180; dinner 320	180 food T; 320 food T		semicolon
+B023		chai 20\nauto 60\nsabzi 140	20 food T; 60 transport T; 140 shopping T		newlines
+B024		chai 20 + samosa 30	20 food T; 30 food T		plus
+B025		chai 20 & biscuits 10	20 food T; 10 food T		ampersand
+B026		chai 20 aur samosa 30	20 food T; 30 food T		aur hinglish
+B027		bus ticket 45	45 transport T		transport
+B028		movie ticket 250	250 entertainment T		earliest keyword
+B029		train ticket 120	120 transport T		earliest keyword
+B030		water bottle 20	20 food T		longest keyword
+A001		₹200 chai	200 food T		rupee-sign
+A002		rs 150 auto	150 transport T		rs
+A003		Rs.150 auto	150 transport T		rs-dot
+A004		auto rs150	150 transport T		glued rs
+A005		150rs auto	150 transport T		glued suffix
+A006		auto 150/-	150 transport T		slash-dash
+A007		inr 499 shoes	499 shopping T		inr
+A008		groceries 1,250	1250 shopping T		grouping
+A009		rent 25,000	25000 other T		grouping
+A010		fees 1,20,000	120000 education T		indian-grouping lakh
+A011		2k petrol	2000 transport T		k
+A012		petrol 2.5k	2500 transport T		k decimal
+A013		gift 1.5 k	1500 shopping T		k spaced
+A014		school fees 1.5 lakh	150000 education T		lakh
+A015		1 lac for kapde	100000 shopping T		lac
+A016		chai 12.50	12.5 food T		decimal
+A017		chai40	40 food T		glued
+A018		two hundred for medicine	200 health T		number-words
+A019		fifty chai	50 food T		number-words
+A020		do sau ka petrol	200 transport T		hindi-number
+A021		dedh sau auto	150 transport T		hindi-number
+A022		paanch hazaar rent	5000 other T		hindi-number
+A023		chai ४०	40 food T		devanagari
+A024		2 hazar ka ration	2000 shopping T		hindi-multiplier
+A025		one thousand five hundred shoes	1500 shopping T		number-words
+A026		auto 80 rupees	80 transport T		rupees
+A027		chai ₹20 and auto ₹60	20 food T; 60 transport T		rupee-sign
+D001		yesterday chai 40	40 food T-1		date-first
+D002		kal 200 sabzi	200 shopping T-1		kal assumed
+D003		parso dinner 600	600 food T-2		parso assumed
+D004		day before yesterday auto 90	90 transport T-2		dby
+D005		3 days ago petrol 500	500 transport T-3		days-ago
+D006		2 din pehle dawai 120	120 health T-2		days-ago hinglish
+D007		monday lunch 200	200 food 2026-10-12		weekday
+D008		last saturday movie 500	500 entertainment 2026-10-10		weekday last same-day
+D009		saturday chai 30	30 food T		weekday today
+D010		on 12 oct dinner 800	800 food 2026-10-12		written
+D011		12th october auto 100	100 transport 2026-10-12		written ordinal
+D012		oct 5 groceries 900	900 shopping 2026-10-05		written month-first
+D013		dinner 900 on 5/10	900 food 2026-10-05		numeric day-first
+D014		chai 40 tomorrow		future_date	future
+D015		auto 60 on 31/02		invalid_date	invalid
+D016		chai 40 today, auto 120 yesterday	40 food T; 120 transport T-1		per-segment
+D017		aaj chai 30	30 food T		aaj
+D018		last night dinner 700	700 food T-1		last-night
+D019	2028-03-05	29 feb chai 20	20 food 2028-02-29		leap
+D020	2027-03-05	29 feb chai 20	20 food 2024-02-29		leap old
+D021		dinner 500 on 20 oct		future_date	future written
+D022		chai 40 on 15 dec	40 food 2025-12-15		written last-year
+D023	2027-01-02	dinner 600 on 31 dec	600 food 2026-12-31		year-boundary
+D024		kal raat dinner 450	450 food T-1		kal-raat
+D025		12/10/2026 rent 25000	25000 other 2026-10-12		numeric full
+D026		yesterday: chai 20, samosa 30	20 food T-1; 30 food T-1		shared-date first
+T001		chai 20 at 5pm	20 food T		time
+T002		auto 60 at 9:30	60 transport T		time
+T003		5 baje chai 20	20 food T		time hinglish
+Q001		2 samosa 30	30 food T		quantity
+Q002		3 chai 45 and 2 samosa 30	45 food T; 30 food T		quantity
+Q003		chai 2 cups 40	40 food T		quantity middle
+C001		swiggy 350	350 food T		catalogue
+C002		uber 230	230 transport T		catalogue
+C003		dominos 499	499 food T		catalogue
+C004		dmart 1800	1800 shopping T		catalogue
+C005		chai via gpay 20	20 food T		payment-app
+C006		pharmacy 220	220 health T		pattern
+C007		raju 500	500 other T		unknown person
+C008		paid 300	300 other T		no-note
+C009		ola auto 140	140 transport T		catalogue keyword
+C010		cylinder 1100	1100 utilities T		utilities
+C011		dhobi 200	200 other T		services
+C012		temple 101	101 other T		other keyword
+C013		xerox 10	10 education T		education
+C014		momos 60 and coke 40	60 food T; 40 other T		partial
+C015		zepto 640	640 shopping T		catalogue
+C016		gym 1500	1500 health T		health
+R001		chai		no_amount	no-amount
+R002		chai 0		zero_amount	zero
+R003		auto -50		negative_amount	negative
+R004		car 5 crore		too_large	too-large
+R005		chai 40.555		too_precise	too-precise
+R006		chai 40 and samosa	40 food T	no_amount	partial
+R007		hello		no_amount	no-amount
+R008		paid for			filler-only
+R009		yesterday			date-only
+R010		chai 40 and auto 60 tomorrow		future_date; future_date	future shared
+L001		chai 20, samosa 30, auto 60, sabzi 240 and milk 56	20 food T; 30 food T; 60 transport T; 240 shopping T; 56 shopping T		long
+L002		spent 450 on dinner and 120 on auto yesterday	450 food T-1; 120 transport T-1		amount-first sentence
+L003		Paid 80 for auto, 40 for chai	80 transport T; 40 food T		amount-first comma
+L004		kal 2k ka petrol aur 300 ki dawai	2000 transport T-1; 300 health T-1		hinglish sentence
+L005		breakfast 120 lunch 250 dinner 400	120 food T; 250 food T; 400 food T		no-separator three
+L006		auto 60. chai 20.	60 transport T; 20 food T		full-stops
+L007		200 auto and 2 chai 30	200 transport T; 30 food T		quantity mixed
+L008		parking 30 and toll 75 on monday	30 transport 2026-10-12; 75 transport 2026-10-12		shared-date weekday
+L009		Gave 500 to the maid and 200 to dhobi	500 other T; 200 other T		services sentence
+L010		chai 20 samosa 30 then auto 50	20 food T; 30 food T; 50 transport T		then
+H001		spent 60 on bus	60 transport T		heldout
+H002		coffee 180 at third wave	180 food T		heldout
+H003		Rapido 75	75 transport T		heldout catalogue
+H004		rs 30 for parking	30 transport T		heldout
+H005		aloo pyaz 90	90 shopping T		heldout hinglish
+H006		eggs 84, bread 50, milk 64	84 shopping T; 50 shopping T; 64 shopping T		heldout
+H007		electrician 400 yesterday	400 other T-1		heldout services
+H008		tip 50	50 other T		heldout
+H009		kal ka auto 140	140 transport T-1		heldout kal
+H010		petrol 1000 on friday	1000 transport 2026-10-16		heldout weekday
+H011		medicines 1.1k	1100 health T		heldout k
+H012		thali 150 & lassi 60	150 food T; 60 food T		heldout
+H013		Paid the plumber 600	600 other T		heldout services
+H014		300 for kids books	300 education T		heldout
+H015		paneer 120 dahi 40	120 shopping T; 40 shopping T		heldout
+H016		mandir 51	51 other T		heldout
+H017		auto se ghar 90	90 transport T		heldout hinglish
+H018		1 samosa 15	15 food T		heldout quantity
+H019		chai 15 x 2	30 food T		heldout ambiguous
+H020		dinner with friends 1,800	1800 food T		heldout
+H021		laundry 250 on 10/10	250 other 2026-10-10		heldout numeric
+H022		charger 499	499 shopping T		heldout
+H023		metro card recharge 500	500 transport T		heldout earliest
+H024		five hundred for gas	500 utilities T		heldout number-words
+H025		₹ 40 chai	40 food T		heldout spaced-rupee
+H026		juice 60 yesterday and chai 20 today	60 food T-1; 20 food T		heldout per-segment
+H027		zero		no_amount	heldout
+H028		chai 0.5	0.5 food T		heldout decimal
+H029		sugarcane juice 30	30 food T		heldout multiword
+H030		toll 120, parking 40, petrol 2000	120 transport T; 40 transport T; 2000 transport T		heldout
+H031		kachori 40 jalebi 60	40 food T; 60 food T		heldout
+H032		photocopy 20 last monday	20 education 2026-10-12		heldout weekday
+H033		watchman diwali 500	500 other T		heldout
+H034		cab to airport 850	850 transport T		heldout
+H035		biryani 280 swiggy	280 food T		heldout catalogue
+H036		45 for chai and 30 for biscuits	45 food T; 30 food T		heldout amount-first
+H037		sabji wale ko 150	150 shopping T		heldout hinglish
+H038		auto 60 at 10 am	60 transport T		heldout time
+H039		2.5 lakh car repair	250000 other T		heldout lakh
+H040		chai		no_amount	heldout
