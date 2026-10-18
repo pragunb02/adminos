@@ -1,6 +1,7 @@
 package dev.adminos.api.infrastructure.database.repositories
 
 import dev.adminos.api.domain.agent.*
+import dev.adminos.api.domain.ai.AiReasonCode
 import dev.adminos.api.domain.common.CursorCodec
 import dev.adminos.api.infrastructure.database.tables.BriefingsTable
 import kotlinx.serialization.json.Json
@@ -13,6 +14,12 @@ import java.time.Instant
 import java.util.UUID
 
 class ExposedBriefingRepository : BriefingRepository {
+    private companion object {
+        const val NARRATION_NONE = "none"
+        const val NARRATION_NARRATED = "narrated"
+        const val NARRATION_REJECTED = "rejected"
+        const val NARRATION_UNAVAILABLE = "unavailable"
+    }
 
     override suspend fun save(briefing: Briefing): Briefing = dbQuery {
         BriefingsTable.insert {
@@ -42,6 +49,7 @@ class ExposedBriefingRepository : BriefingRepository {
             it[promptVersion] = briefing.promptVersion
             it[tokensUsed] = briefing.tokensUsed
             it[generationMs] = briefing.generationMs
+            writeNarration(it, briefing.narration)
             it[createdAt] = briefing.createdAt
             it[updatedAt] = briefing.updatedAt
         }
@@ -82,6 +90,46 @@ class ExposedBriefingRepository : BriefingRepository {
         BriefingsTable.selectAll().where { BriefingsTable.userId eq userId }.count()
     }
 
+    override suspend fun updateNarration(id: UUID, narration: BriefingNarration, at: Instant) {
+        dbQuery {
+            BriefingsTable.update({ BriefingsTable.id eq id }) {
+                writeNarration(it, narration)
+                it[updatedAt] = at
+            }
+        }
+    }
+
+    /** One place maps [BriefingNarration] to its columns (V90's shape check holds them together). */
+    private fun writeNarration(row: org.jetbrains.exposed.v1.core.statements.UpdateBuilder<*>, n: BriefingNarration) {
+        row[BriefingsTable.narrationStatus] = when (n) {
+            BriefingNarration.None -> NARRATION_NONE
+            is BriefingNarration.Narrated -> NARRATION_NARRATED
+            is BriefingNarration.Rejected -> NARRATION_REJECTED
+            is BriefingNarration.Unavailable -> NARRATION_UNAVAILABLE
+        }
+        row[BriefingsTable.narration] = (n as? BriefingNarration.Narrated)?.text
+        row[BriefingsTable.narrationModel] = (n as? BriefingNarration.Narrated)?.model
+        row[BriefingsTable.narrationCode] = when (n) {
+            is BriefingNarration.Rejected -> n.code.value
+            is BriefingNarration.Unavailable -> n.code.value
+            else -> null
+        }
+    }
+
+    private fun ResultRow.toNarration(): BriefingNarration {
+        val code = this[BriefingsTable.narrationCode]?.let(::AiReasonCode)
+        return when (val status = this[BriefingsTable.narrationStatus]) {
+            NARRATION_NONE -> BriefingNarration.None
+            NARRATION_NARRATED -> BriefingNarration.Narrated(
+                this[BriefingsTable.narration] ?: error("narrated briefing without text (V90 check)"),
+                this[BriefingsTable.narrationModel] ?: error("narrated briefing without a model (V90 check)")
+            )
+            NARRATION_REJECTED -> BriefingNarration.Rejected(code ?: error("rejected narration without a code (V90 check)"))
+            NARRATION_UNAVAILABLE -> BriefingNarration.Unavailable(code ?: error("unavailable narration without a code (V90 check)"))
+            else -> error("Unknown narration status '$status'")
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun ResultRow.toBriefing(): Briefing {
         val topCats = this[BriefingsTable.topCategories]?.let { raw ->
@@ -111,6 +159,7 @@ class ExposedBriefingRepository : BriefingRepository {
             promptVersion = this[BriefingsTable.promptVersion],
             tokensUsed = this[BriefingsTable.tokensUsed],
             generationMs = this[BriefingsTable.generationMs],
+            narration = toNarration(),
             createdAt = this[BriefingsTable.createdAt],
             updatedAt = this[BriefingsTable.updatedAt]
         )

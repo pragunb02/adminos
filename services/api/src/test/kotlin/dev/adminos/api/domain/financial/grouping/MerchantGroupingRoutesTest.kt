@@ -33,8 +33,8 @@ import kotlin.test.assertTrue
 class MerchantGroupingRoutesTest {
     private val config = AppConfig.load().auth
     private val jwt = JwtService(config)
-    private val owner = User(id = UUID.randomUUID(), email = "owner@example.in", googleId = "g-owner", role = UserRole.OWNER)
-    private val stranger = User(id = UUID.randomUUID(), email = "stranger@example.in", googleId = "g-x", role = UserRole.OWNER)
+    private val owner = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-owner", role = UserRole.OWNER)
+    private val stranger = User(id = UUID.randomUUID(), email = "stranger@example.com", googleId = "g-x", role = UserRole.OWNER)
     private val transactions = InMemoryTransactionRepository()
     private val aliases = InMemoryMerchantAliasRepository()
     private val service = MerchantGroupingService(transactions, aliases, UserCalendar(InMemoryUserRepository()),

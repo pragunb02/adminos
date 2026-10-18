@@ -7,25 +7,31 @@ package dev.adminos.api.domain.ai
 enum class AiFeature(
     /** Stable id in configuration, the audit log, eval records and the API. Never renamed. */
     val key: String,
-    /** The model used on Anthropic when `AI_<FEATURE>_MODEL` is not set (D-67: Haiku for extraction, Sonnet for tool use). */
-    val defaultAnthropicModel: String,
     /**
-     * The provider used when `AI_<FEATURE>_PROVIDER` isn't set. Features that read documents, receipts or raw text
-     * default to the local model (D-67: local-first); the rest to Anthropic.
+     * The provider used when `AI_<FEATURE>_PROVIDER` is unset. Features that read raw message text default to a
+     * local model (D-67): cloud is then an explicit choice, never a default.
      */
-    val defaultProvider: AiProviderKind = AiProviderKind.ANTHROPIC
+    val defaultProvider: AiProviderKind,
+    /** The model used on Anthropic when `AI_<FEATURE>_MODEL` is not set (D-67: Haiku for extraction, Sonnet for tool use). */
+    val defaultAnthropicModel: String
 ) {
     /** The fallback categoriser for rows the rules left as Other (AOS-512, D-62). */
-    CATEGORIZATION("categorization", "claude-haiku-5-5"),
+    CATEGORIZATION("categorization", AiProviderKind.ANTHROPIC, "claude-haiku-5-5"),
 
     /** "Ask your money": the model picks read-only analytics tools and words a short answer (AOS-S7.3, D-67). */
-    ASK("ask", "claude-sonnet-5-5"),
+    ASK("ask", AiProviderKind.ANTHROPIC, "claude-sonnet-5-5"),
+
+    /** Reads bank messages the regex parsers don't recognise; answers go to Review (AOS-705, D-106). */
+    MESSAGES("messages", AiProviderKind.OLLAMA, "claude-haiku-5-5"),
+
+    /** The weekly briefing worded by a model from its computed facts, kept only if every number is a fact (AOS-716, D-140). */
+    BRIEFING("briefing", AiProviderKind.ANTHROPIC, "claude-haiku-5-5"),
 
     /**
      * Fields the rules couldn't find in a vault document's text (AOS-717): expiry date, issuer, amount. Local by
      * default; identity documents never go to any model, and document numbers are never sent.
      */
-    DOCUMENT_FIELDS("document_fields", "claude-haiku-5-5", AiProviderKind.OLLAMA);
+    DOCUMENT_FIELDS("document_fields", AiProviderKind.OLLAMA, "claude-haiku-5-5");
 
     /** Prefix of this feature's settings: `AI_CATEGORIZATION_ENABLED`, `…_PROVIDER`, `…_MODEL`. */
     val envPrefix: String get() = "AI_$name"

@@ -32,6 +32,31 @@
             }
         },
         {
+            "feature": "briefing",
+            "provider": "anthropic",
+            "model": "claude-haiku-5-5",
+            "promptVersion": "briefing-narration-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 47,
+            "metrics": {
+                "faithfulAccepted": 1.0,
+                "injectionResisted": 1.0,
+                "inventedNameRejected": 0.8,
+                "inventedNumberRejected": 1.0,
+                "phishingRejected": 1.0,
+                "unsafeNamesWithheld": 1.0
+            },
+            "floor": {
+                "faithfulAccepted": 0.9,
+                "injectionResisted": 1.0,
+                "inventedNameRejected": 0.8,
+                "inventedNumberRejected": 1.0,
+                "phishingRejected": 1.0,
+                "unsafeNamesWithheld": 1.0
+            }
+        },
+        {
             "feature": "categorization",
             "provider": "anthropic",
             "model": "claude-haiku-5-5",
@@ -81,13 +106,13 @@
             "evaluatedOn": "2026-10-17",
             "goldenRows": 288,
             "metrics": {
-                "accuracy": 0.8958,
+                "accuracy": 0.8993,
                 "f1.EDUCATION": 0.8695,
-                "f1.EMI": 0.8,
+                "f1.EMI": 0.8333,
                 "f1.ENTERTAINMENT": 0.8,
                 "f1.FOOD": 0.9444,
                 "f1.HEALTH": 0.973,
-                "f1.OTHER": 0.7835,
+                "f1.OTHER": 0.7959,
                 "f1.SHOPPING": 0.9398,
                 "f1.SUBSCRIPTION": 0.8667,
                 "f1.TRANSFER": 0.9565,
@@ -156,6 +181,68 @@
                 "ruleDecidedUnchanged": 1.0,
                 "subcategoryAccuracy": 0.7331,
                 "validAnswerRate": 0.9
+            }
+        },
+        {
+            "feature": "messages",
+            "provider": "anthropic",
+            "model": "claude-haiku-5-5",
+            "promptVersion": "read-message-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 218,
+            "metrics": {
+                "amountExact": 0.9924,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.9924
+            },
+            "floor": {
+                "amountExact": 0.98,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.99
+            }
+        },
+        {
+            "feature": "messages",
+            "provider": "ollama",
+            "model": "qwen3:4b",
+            "promptVersion": "read-message-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 218,
+            "metrics": {
+                "amountExact": 0.9924,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.9924
+            },
+            "floor": {
+                "amountExact": 0.98,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.99
             }
         }
     ]

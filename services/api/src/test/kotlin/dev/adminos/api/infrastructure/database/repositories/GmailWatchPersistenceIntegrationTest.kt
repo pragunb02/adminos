@@ -34,7 +34,7 @@ class GmailWatchPersistenceIntegrationTest {
 
     private suspend fun gmail(watch: GmailWatch = GmailWatch.NONE) = connections.save(UserConnection(
         userId = PostgresTestDatabase.newUser(), sourceType = SourceType.GMAIL, status = ConnectionStatus.CONNECTED,
-        gmailAddress = "w-${UUID.randomUUID()}@gmail.com", historyId = "1000", accessToken = "v2:sealed-a", tokenExpiresAt = t0, watch = watch
+        gmailAddress = "w-${UUID.randomUUID()}@example.com", historyId = "1000", accessToken = "v2:sealed-a", tokenExpiresAt = t0, watch = watch
     ))
 
     /** What the Go worker does after a sync: moves the history ID and records success (D-59). */

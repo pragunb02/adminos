@@ -118,6 +118,73 @@ export interface DueItem {
   trial: boolean;
 }
 
+// ── Trips (AOS-910, GET /api/v1/trips) ──
+
+export interface TripLeg {
+  date: string;
+  brand: string;
+  mode: "flight" | "train" | "bus" | null;
+  transactionId: string | null;
+}
+
+export interface TripSummary {
+  id: string;
+  name: string;
+  /** The user named it (otherwise the name is made from the dates). */
+  named: boolean;
+  start: string;
+  end: string;
+  total: string;
+  transactionCount: number;
+  modes: ("flight" | "train" | "bus")[];
+  legs: TripLeg[];
+}
+
+export interface TripYear {
+  year: number;
+  total: string;
+  currency: string;
+  trips: TripSummary[];
+}
+
+export interface TripMember {
+  role: "booking" | "spend" | "added";
+  refunded: string;
+  transaction: Transaction;
+}
+
+export interface TripDetail {
+  trip: TripSummary;
+  members: TripMember[];
+}
+
+/** A pay-later bill next to the purchases recorded for it (AOS-909). */
+export interface PayLaterGap {
+  billId: string;
+  billAmount: string;
+  dueDate: string;
+  status: string;
+  recorded: string;
+  unrecorded: string;
+}
+
+/** Pay-later debt per provider (AOS-909, GET /api/v1/pay-later). */
+export interface PayLaterProvider {
+  provider: string;
+  outstanding: string;
+  nextDue: string | null;
+  purchasesLast30Days: string;
+  unpaidBills: { id: string; amount: string; minimumDue: string | null; dueDate: string; status: string }[];
+  unbilledPurchases: { amount: string; count: number; transactionIds: string[] };
+  gaps: PayLaterGap[];
+}
+
+export interface PayLaterSummary {
+  outstanding: string;
+  currency: string;
+  providers: PayLaterProvider[];
+}
+
 /** A UPI AutoPay / e-NACH / card standing instruction, learnt from bank SMS (AOS-502, GET /api/v1/mandates). */
 export interface Mandate {
   id: string;
@@ -219,6 +286,10 @@ export interface Briefing {
   status: string;
   insights: Insight[] | null;
   createdAt: string;
+  /** The AI wording (AOS-716), only when it passed the number check; `content` is always the plain briefing. */
+  narration: string | null;
+  narrationModel: string | null;
+  narrationStatus: "none" | "narrated" | "rejected" | "unavailable";
 }
 
 export interface Insight {

@@ -6,8 +6,9 @@ import { defineConfig, devices } from "@playwright/test";
  * - the production Next build, proxying /api/* to that API.
  * Mocked projects answer /api/* in the browser from shared fixtures, so every branch is reachable.
  */
-// A throwaway secret for the test API only. The whole secret is the HMAC key (AOS-607).
-export const E2E_JWT_SECRET = "e2e-only-secret-not-for-production-0123456789";
+// A throwaway secret for the test API only. The whole secret is the HMAC key (AOS-607). CI makes a random one
+// per run (E2E_JWT_SECRET, AOS-640); the fixed fallback keeps local runs and a reused local API working.
+export const E2E_JWT_SECRET = process.env.E2E_JWT_SECRET || "e2e-only-secret-not-for-production-0123456789";
 const WEB = "http://127.0.0.1:3100";
 const API = "http://127.0.0.1:18080";
 const CI = !!process.env.CI;
@@ -17,7 +18,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
-  reporter: [["list"], ["html", { open: "never" }]],
+  // In CI the github reporter also annotates failures and flaky tests (passed only on the retry) on the PR.
+  reporter: CI ? [["list"], ["github"], ["html", { open: "never" }]] : [["list"], ["html", { open: "never" }]],
   use: { baseURL: WEB, trace: "retain-on-failure", screenshot: "only-on-failure" },
   projects: [
     { name: "desktop-chrome", use: { ...devices["Desktop Chrome"] }, testIgnore: /full-stack/ },

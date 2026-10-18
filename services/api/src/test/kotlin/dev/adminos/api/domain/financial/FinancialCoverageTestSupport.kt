@@ -24,7 +24,7 @@ internal object FinancialCoverageSupport {
     val IST: ZoneId = ZoneId.of("Asia/Kolkata")
     val jwtService = JwtService(AppConfig.load().auth)
 
-    fun newUser(email: String = "pragun@example.in", timezone: String = "Asia/Kolkata"): User =
+    fun newUser(email: String = "owner@example.com", timezone: String = "Asia/Kolkata"): User =
         User(id = UUID.randomUUID(), email = email, googleId = "g-${UUID.randomUUID()}", role = UserRole.OWNER, timezone = timezone)
 
     fun tokenFor(user: User): String = jwtService.generateAccessToken(user)
