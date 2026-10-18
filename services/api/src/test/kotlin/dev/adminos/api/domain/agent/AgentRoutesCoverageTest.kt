@@ -44,6 +44,7 @@ class AgentRoutesCoverageTest {
     private val jwt = jwtService.generateAccessToken(user)
 
     private val anomalies = InMemoryAnomalyRepository()
+    private val tolerances = InMemoryAnomalyToleranceRepository()
     private val briefings = InMemoryBriefingRepository()
     private val insights = InMemoryInsightRepository()
     private val subscriptions = InMemorySubscriptionRepository()
@@ -62,7 +63,7 @@ class AgentRoutesCoverageTest {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)
             routing {
                 route("/api/v1") {
-                    anomalyRoutes(anomalies, auditService)
+                    anomalyRoutes(AnomalyReviewService(anomalies, dev.adminos.api.domain.financial.InMemoryTransactionRepository(), tolerances, auditService))
                     briefingRoutes(briefings, insights)
                     subscriptionAgentRoutes(SubscriptionReviewService(subscriptions, mandateService, auditService))
                 }
@@ -510,6 +511,7 @@ class AgentRoutesCoverageTest {
                     single<SubscriptionRepository> { subscriptions }
                     single { auditService }
                     single { SubscriptionReviewService(subscriptions, mandateService, auditService) }
+                    single { AnomalyReviewService(anomalies, dev.adminos.api.domain.financial.InMemoryTransactionRepository(), tolerances, auditService) }
                 })
             }
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwtService)

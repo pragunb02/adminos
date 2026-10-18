@@ -27,7 +27,7 @@ class AnomalyAlertsTest {
     private val transactions = InMemoryTransactionRepository()
     private val notifications = InMemoryNotificationRepository()
     private val alerts = AnomalyAlerts(
-        AnomalyDetectorService(anomalies, transactions, InMemoryUserRepository()),
+        AnomalyDetectorService(anomalies, transactions, dev.adminos.api.domain.identity.UserCalendar(InMemoryUserRepository()), InMemoryAnomalyToleranceRepository()),
         notificationService(InMemoryNotificationPreferencesRepository(), notifications, clock = clock),
         clock
     )

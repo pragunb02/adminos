@@ -6,13 +6,18 @@ package dev.adminos.api.domain.ai
  */
 enum class AiFeature(
     /** Stable id in configuration, the audit log, eval records and the API. Never renamed. */
-    val key: String
+    val key: String,
+    /** The model used on Anthropic when `AI_<FEATURE>_MODEL` is not set (D-67: Haiku for extraction, Sonnet for tool use). */
+    val defaultAnthropicModel: String
 ) {
     /** The fallback categoriser for rows the rules left as Other (AOS-512, D-62). */
-    CATEGORIZATION("categorization"),
+    CATEGORIZATION("categorization", "claude-haiku-5-5"),
+
+    /** "Ask your money": the model picks read-only analytics tools and words a short answer (AOS-S7.3, D-67). */
+    ASK("ask", "claude-sonnet-5-5"),
 
     /** The weekly briefing worded by a model from its computed facts, kept only if every number is a fact (AOS-716, D-140). */
-    BRIEFING("briefing");
+    BRIEFING("briefing", "claude-haiku-5-5");
 
     /** Prefix of this feature's settings: `AI_CATEGORIZATION_ENABLED`, `…_PROVIDER`, `…_MODEL`. */
     val envPrefix: String get() = "AI_$name"

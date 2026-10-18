@@ -142,6 +142,8 @@ tasks.register<JavaExec>("categorizationReport") {
     if (project.hasProperty("recordAi")) {
         args("--record-ai", file("src/test/resources/categorization/ai-recorded.csv").path)
     }
+    // AOS-708: -PlocalGolden=<csv> scores your own scrubbed local golden set (exported from Review); printed only.
+    project.findProperty("localGolden")?.let { args("--local-golden", file(it.toString()).path) }
 }
 
 // Local-model bake-off (AOS-703, D-69): ./gradlew -q aiBakeOff -Pmodels=qwen3:4b,gemma3:4b runs each Ollama model
@@ -157,6 +159,69 @@ tasks.register<JavaExec>("aiBakeOff") {
     args("--out", layout.buildDirectory.dir("reports/ai-bakeoff").get().asFile.path)
     if (project.hasProperty("writeEvalRecord")) {
         args("--write-eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+}
+
+// "Ask your money" eval (AOS-712, D-68): ./gradlew -q askEvalReport prints tool-choice, argument, abstention and
+// number-grounding scores on the synthetic eval set and seeded DB, and writes build/reports/ask/report.json.
+// -PwriteEvalRecord records them in src/main/resources/ai/evals.json (the start-up gate); -PdumpResults writes each
+// question's expected tool results to build/reports/ask/results.json (for writing recorded answers).
+tasks.register<JavaExec>("askEvalReport") {
+    group = "verification"
+    description = "Evaluate Ask your money on its eval set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.ask.eval.AskEvalReportKt")
+    args("--out", layout.buildDirectory.file("reports/ask/report.json").get().asFile.path)
+    if (project.hasProperty("writeEvalRecord")) {
+        args("--write-eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+    if (project.hasProperty("dumpResults")) {
+        args("--dump-results", layout.buildDirectory.file("reports/ask/results.json").get().asFile.path)
+    }
+}
+
+// Forecast backtest (AOS-714): ./gradlew -q forecastReport prints MAPE / relative MAE vs the naive pace / 80% range
+// coverage on synthetic histories and writes build/reports/forecast/report.json. -PwriteBaseline records the floor
+// (src/test/resources/forecast/baseline.json) that ForecastBacktestTest holds the shipped engine to.
+tasks.register<JavaExec>("forecastReport") {
+    group = "verification"
+    description = "Backtest the month-end forecast on synthetic histories"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.forecast.evaluation.ForecastReportKt")
+    args(layout.buildDirectory.file("reports/forecast/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/forecast").path)
+    }
+}
+
+// Merchant grouping evaluation (AOS-709): ./gradlew -q merchantGroupingReport prints pair precision/recall of each
+// matcher on the synthetic pairs (src/test/resources/merchants/pairs.csv); -PwriteBaseline records the floor.
+tasks.register<JavaExec>("merchantGroupingReport") {
+    group = "verification"
+    description = "Evaluate merchant grouping on the synthetic pairs"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.grouping.GroupingEvaluationKt")
+    args(layout.buildDirectory.file("reports/merchants/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/merchants/baseline.json").path)
+    }
+}
+
+// Anomaly alert evaluation (AOS-713): ./gradlew -q anomalyReport replays the synthetic spending streams
+// (src/test/resources/anomalies/streams.csv) through the detector and prints old vs new precision, recall and
+// false alerts per month. -PwriteBaseline records the numbers as the floor (anomalies/baseline.json);
+// -PregenerateStreams rewrites the streams from the seeded generator (then re-score and re-baseline).
+tasks.register<JavaExec>("anomalyReport") {
+    group = "verification"
+    description = "Evaluate unusual-charge alerts on the synthetic streams"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.agent.evaluation.AnomalyReportKt")
+    args(layout.buildDirectory.file("reports/anomalies/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/anomalies/baseline.json").path)
+    }
+    if (project.hasProperty("regenerateStreams")) {
+        args("--regenerate", file("src/test/resources/anomalies/streams.csv").path)
     }
 }
 
@@ -183,6 +248,20 @@ tasks.register<JavaExec>("briefingNarrationReport") {
     mainClass.set("dev.adminos.api.domain.agent.briefing.eval.BriefingNarrationEvalReportKt")
     if (project.hasProperty("writeEvalRecord")) {
         args("--write-eval-records", file("src/main/resources/ai/evals.json").path)
+    }
+}
+
+// Splitwise matching eval (AOS-911): ./gradlew -q splitwiseReport prints match precision/recall and spend correctness
+// on the synthetic eval set and writes build/reports/splitwise/report.json. -PwriteBaseline records the current
+// numbers as the new floor (src/test/resources/splits/baseline.json), which SplitEvalTest enforces.
+tasks.register<JavaExec>("splitwiseReport") {
+    group = "verification"
+    description = "Evaluate Splitwise matching on the synthetic eval set"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("dev.adminos.api.domain.financial.splits.eval.SplitEvalReportKt")
+    args(layout.buildDirectory.file("reports/splitwise/report.json").get().asFile.path)
+    if (project.hasProperty("writeBaseline")) {
+        args("--write-baseline", file("src/test/resources/splits").path)
     }
 }
 

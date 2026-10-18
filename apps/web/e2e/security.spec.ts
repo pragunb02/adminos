@@ -16,7 +16,7 @@ import { fx } from "../test/fixtures";
 /** Every page of the app. A new page must be added here. */
 export const PAGES = [
   "/", "/spending", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/bills", "/subscriptions",
-  "/documents", "/briefings", "/leaks", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
+  "/documents", "/briefings", "/leaks", "/ask", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
 ];
 
 /** Paths that only *look* like public pages (AUD-13: the guard used to prefix-match). */

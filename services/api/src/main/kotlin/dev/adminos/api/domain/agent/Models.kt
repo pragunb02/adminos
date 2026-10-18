@@ -32,9 +32,18 @@ data class Anomaly(
     val status: AnomalyStatus = AnomalyStatus.OPEN,
     val resolvedAt: Instant? = null,
     val resolvedBy: AnomalyResolver? = null,
+    /** The names of the rules that fired (AOS-713), so feedback knows what to relax; empty on rows from before V44. */
+    val rulesFired: Set<String> = emptySet(),
+    /** The merchant it was judged at ([dev.adminos.api.domain.financial.MerchantKey]), fixed when detected so a later rename can't move feedback. */
+    val merchantKey: String? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()
-)
+) {
+    init {
+        require(confidenceScore in 0.0..1.0) { "Anomaly confidence is between 0 and 1" }
+        require(merchantKey == null || merchantKey.isNotBlank()) { "A merchant key is absent or non-blank" }
+    }
+}
 
 data class Briefing(
     val id: UUID = UUID.randomUUID(),
