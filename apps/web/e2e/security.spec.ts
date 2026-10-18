@@ -282,7 +282,9 @@ test.describe("API hardening (real API)", () => {
       res = await start();
     }
     expect(res.status()).toBe(200);
-    await expect(page).toHaveURL(/accounts\.google\.com/);
+    // Anchored and host-checked: an unanchored pattern would also accept e.g. https://evil.example/?accounts.google.com (AOS-645).
+    await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
+    expect(new URL(page.url()).host).toBe("accounts.google.com");
     const q = new URL(page.url()).searchParams;
     expect(q.get("state")?.length).toBeGreaterThanOrEqual(43);
     expect(q.get("code_challenge_method")).toBe("S256");

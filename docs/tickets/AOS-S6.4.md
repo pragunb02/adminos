@@ -43,6 +43,7 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | [AOS-623](AOS-623.md) | Self pen-test before go-live: ZAP baseline + scripted probes + manual checklist (D-150, D-151) | Claude | ✅ | 4h | 4h |
 | [AOS-643](AOS-643.md) | Web: TRACE → 500 (accepted, D-151) | Claude | ✅ | — | — |
 | [AOS-644](AOS-644.md) | Web: 404 pages under /favicon.ico had no CSP (fixed) | Claude | ✅ | 0.25h | 0.25h |
+| [AOS-645](AOS-645.md) | SECURITY.md and anchored Google URL checks in e2e (CodeQL alert #1) | Claude | ✅ | 0.25h | 0.25h |
 | [AOS-638](AOS-638.md) | Bill dates follow the user's calendar on an injected clock; unused Redis config removed (D-123) | Claude (agent) | ✅ | 2h | 2h |
 | [AOS-637](AOS-637.md) | Worker logs the database as host:port/database only (no user info, no pgx error text) | Claude (agent) | ✅ | 1h | 1h |
 | [AOS-636](AOS-636.md) | Test fixtures use reserved, obviously fake personal data + guard test | Claude (agent) | ✅ | 1h | 1h |

@@ -122,6 +122,7 @@ Verified on 2026-10-16 on `main` (before branch changes):
   - Wrote these docs.
   - **Process incident (PR #43):** GitGuardian reported 4 "Generic Password" findings and the PR was merged anyway. My wait loop merged after a timeout instead of stopping. The findings were false positives: the fail-fast message text inside `${DB_PASSWORD:?…}` in `docker-compose.yml`, and no secret was committed. Hotfix PR uses a bare `${DB_PASSWORD:?}`. `scripts/merge-pr.sh` now merges only when every check is `success` (CLAUDE.md updated). **Pragun: mark GitGuardian incident 38276594 as a false positive in the dashboard.**
 - **2026-10-18:**
+  - AOS-645: `SECURITY.md` (latest `main` only, private vulnerability reporting); e2e Google redirect checks anchored and host-checked (CodeQL alert #1). Test and docs only.
   - AOS-717 (PR #158; awaiting review + merge): documents vault OCR and field proposals (D-173, D-174, D-175).
     - **Parser:** the PDF text layer, else Tesseract 5.5 OCR in an AOS-626 child; rule proposals with evidence; synthetic eval set (dev 48, held-out 24, fresh 36), expiry precision 1.0 on all three, gate ≥ 0.95.
     - **API:** `POST /documents/{id}/read`, owner-only and 10/min, re-grounded in the API; the optional `document_fields` AI step is local-first and needs consent, identity documents are never sent, and it is off until an eval is recorded. Confirmed fields are saved by PATCH (V80; the number as its last 4).

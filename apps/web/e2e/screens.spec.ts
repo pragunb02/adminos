@@ -151,7 +151,7 @@ test.describe("login and onboarding", () => {
     await page.route("https://accounts.google.com/**", (r) => r.fulfill({ status: 200, body: "google" }));
     await page.goto("/login");
     await page.getByRole("button", { name: "Continue with Google" }).click();
-    await expect(page).toHaveURL(/accounts\.google\.com\/o\/oauth2\/v2\/auth\?client_id=e2e-client-id/);
+    await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?client_id=e2e-client-id/);
     expect(new URL(page.url()).searchParams.get("redirect_uri")).toMatch(/\/auth\/callback$/);
     expect(new URL(page.url()).searchParams.get("state")).toBe("e2e-login-state");
     await expect.poll(() => api.callsTo("GET", "/api/v1/auth/google/start").length).toBe(1);
