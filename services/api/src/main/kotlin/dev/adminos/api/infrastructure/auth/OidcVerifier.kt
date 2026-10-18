@@ -46,8 +46,10 @@ class OidcVerifier(
         val claims = try {
             jwtProcessor.process(token, null)
         } catch (e: Exception) {
-            logger.warn("OIDC token verification failed: ${e.message}")
-            throw OidcVerificationException("Invalid OIDC token: ${e.message}", e)
+            // The library's message can quote the token's claims, which the caller chooses (log injection,
+            // AOS-628): only the exception type is logged, and the message passed on is fixed.
+            logger.warn("OIDC token verification failed: {}", e.javaClass.simpleName)
+            throw OidcVerificationException("Invalid OIDC token", e)
         }
         if (claims.issuer !in GOOGLE_ISSUERS) reject("issuer is not Google")
         val email = runCatching { claims.getStringClaim("email") }.getOrNull()

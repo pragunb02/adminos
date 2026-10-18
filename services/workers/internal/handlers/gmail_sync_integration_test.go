@@ -161,6 +161,36 @@ func TestGmailStoreRecordsFailuresAndRevocation_Integration(t *testing.T) {
 	}
 }
 
+// AOS-630: a started sync leaves the queued state, so the API stops folding pushes into it; a completed
+// session is never moved back.
+func TestGmailStoreMarksSessionsStarted_Integration(t *testing.T) {
+	pool := testPool(t)
+	defer pool.Close()
+	ctx := context.Background()
+	userID := createTestUser(t, ctx, pool)
+	defer cleanupTestUser(t, pool, userID)
+	store := &pgConnectionStore{db: pool}
+	connID := gmailConnection(t, ctx, pool, userID, "v2:a", "v2:r", "77", nil)
+	sessionID := gmailSession(t, ctx, pool, userID, connID)
+	done := gmailSession(t, ctx, pool, userID, connID)
+	if _, err := pool.Exec(ctx, `UPDATE sync_sessions SET status = 'completed' WHERE id = $1`, done); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []string{sessionID, done} {
+		if err := store.MarkStarted(ctx, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var status, doneStatus string
+	var started *time.Time
+	_ = pool.QueryRow(ctx, `SELECT status::text, started_at FROM sync_sessions WHERE id = $1`, sessionID).Scan(&status, &started)
+	_ = pool.QueryRow(ctx, `SELECT status::text FROM sync_sessions WHERE id = $1`, done).Scan(&doneStatus)
+	if status != "in_progress" || started == nil || doneStatus != "completed" {
+		t.Errorf("started session %s (%v), completed session %s", status, started, doneStatus)
+	}
+}
+
 // AOS-401: the store reads what the sync needs and writes only the tokens it is given.
 func TestGmailStoreLoadsAndSavesTokens_Integration(t *testing.T) {
 	pool := testPool(t)

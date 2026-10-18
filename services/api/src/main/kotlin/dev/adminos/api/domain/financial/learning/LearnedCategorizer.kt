@@ -130,6 +130,7 @@ class LearnedCategorizer(
         const val METADATA_KEY = "learned"
         const val STATUS_APPLIED = "applied"
         const val STATUS_SUGGESTED = "suggested"
+        private const val MAX_ALTERNATIVES = 2
         private val NATURES = setOf(TransactionNature.SPEND, TransactionNature.REFUND)
 
         /** Left as plain Other by the built-in rules: the only rows a model may label (D-67: never override a rule). */
@@ -143,29 +144,40 @@ class LearnedCategorizer(
          * numbers measure exactly this). The caller has checked eligibility.
          */
         fun decide(t: Transaction, loaded: LoadedModel.Ready, policy: LearnedPolicy, clock: Clock): LearnedDecision {
-            val guess = loaded.model.predict(CategoryInput.of(t))
+            val input = CategoryInput.of(t)
+            val guess = loaded.model.predict(input)
             val apply = loaded.mode == ModelMode.APPLY && guess.confidence >= policy.applyAt
-            return when {
-                guess.category == TransactionCategory.OTHER || guess.confidence < policy.suggestAt -> LearnedDecision(t, LearnedOutcome.UNSURE)
-                apply -> LearnedDecision(
-                    mark(t, guess, STATUS_APPLIED, loaded.modelId, clock)
-                        .copy(category = guess.category, subcategory = null, categorySource = SOURCE_LEARNED),
+            if (guess.category == TransactionCategory.OTHER || guess.confidence < policy.suggestAt) return LearnedDecision(t, LearnedOutcome.UNSURE)
+            val record = Record(guess, alternativesTo(guess, loaded.model.distribution(input)), loaded.modelId)
+            return if (apply) {
+                LearnedDecision(
+                    mark(t, record, STATUS_APPLIED, clock).copy(category = guess.category, subcategory = null, categorySource = SOURCE_LEARNED),
                     LearnedOutcome.APPLIED
                 )
-                else -> LearnedDecision(mark(t, guess, STATUS_SUGGESTED, loaded.modelId, clock), LearnedOutcome.SUGGESTED)
+            } else {
+                LearnedDecision(mark(t, record, STATUS_SUGGESTED, clock), LearnedOutcome.SUGGESTED)
             }
         }
+
+        /** The next most likely categories after the guess (for one-tap corrections in Review, AOS-708). */
+        private fun alternativesTo(guess: CategoryGuess, distribution: Map<TransactionCategory, Double>): List<TransactionCategory> =
+            distribution.entries.filter { it.key != guess.category && it.key != TransactionCategory.TRANSFER }
+                .sortedWith(compareByDescending<Map.Entry<TransactionCategory, Double>> { it.value }.thenBy { it.key })
+                .take(MAX_ALTERNATIVES).map { it.key }
 
         /** The model that last wrote this row's `metadata.learned`, if any. */
         fun learnedModelOf(t: Transaction): String? = (t.metadata?.get(METADATA_KEY) as? Map<*, *>)?.get("model") as? String
 
-        private fun mark(t: Transaction, guess: CategoryGuess, status: String, modelId: String, clock: Clock): Transaction {
+        private class Record(val guess: CategoryGuess, val alternatives: List<TransactionCategory>, val modelId: String)
+
+        private fun mark(t: Transaction, r: Record, status: String, clock: Clock): Transaction {
             val record = mapOf(
                 "status" to status,
-                "category" to guess.category.name.lowercase(),
-                "confidence" to Calibration.round4(guess.confidence),
-                "cues" to guess.cues,
-                "model" to modelId,
+                "category" to r.guess.category.name.lowercase(),
+                "confidence" to Calibration.round4(r.guess.confidence),
+                "cues" to r.guess.cues,
+                "alternatives" to r.alternatives.map { it.name.lowercase() },
+                "model" to r.modelId,
                 "at" to clock.instant().toString()
             )
             return t.copy(metadata = t.metadata.orEmpty() + (METADATA_KEY to record), updatedAt = clock.instant())

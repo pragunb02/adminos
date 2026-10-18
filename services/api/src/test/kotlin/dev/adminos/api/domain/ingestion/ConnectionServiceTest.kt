@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion
 
 import dev.adminos.api.domain.ingestion.connection.*
+import dev.adminos.api.domain.ingestion.connection.randomTokenEncryptor
 import dev.adminos.api.domain.ingestion.sync.InMemorySyncSessionRepository
 import dev.adminos.api.domain.ingestion.sync.SyncSessionStatus
 import dev.adminos.api.domain.ingestion.sync.SyncType
@@ -17,7 +18,7 @@ class ConnectionServiceTest {
     fun setup() {
         connRepo = InMemoryConnectionRepository()
         syncRepo = InMemorySyncSessionRepository()
-        service = ConnectionService(connRepo, syncRepo)
+        service = ConnectionService(connRepo, syncRepo, randomTokenEncryptor())
     }
 
     @Test

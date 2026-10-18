@@ -1,8 +1,13 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "./msw/server";
 import { nav } from "./next";
+
+// findBy*/waitFor give up after 1 s by default. On a loaded machine or CI runner (many agents, coverage on) a page
+// that renders correctly can take longer than that to settle, and unrelated tests failed at random (AOS-642).
+// 5 s still fails a really missing element quickly; vitest.config.mts raises the per-test timeout to match.
+configure({ asyncUtilTimeout: 5_000 });
 
 // Any request without a handler is a test bug, not a silent pass.
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
@@ -10,6 +15,8 @@ afterEach(() => {
   server.resetHandlers();
   cleanup();
   nav.reset();
+  // A test that forgot to restore fake timers would stall every later findBy in the file (AOS-642).
+  vi.useRealTimers();
 });
 afterAll(() => server.close());
 

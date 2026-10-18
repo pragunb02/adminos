@@ -12,6 +12,8 @@ export interface WhatsAppImportResult {
   mandates: number;
   ignored: Record<string, number>;
   unreadableLines: number;
+  /** Bank messages no parser recognised, queued for the AI reader; they wait in Review (AOS-705). Absent on older APIs. */
+  reading?: number;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -90,6 +92,11 @@ export default function WhatsAppImport() {
             <ul aria-label="Skipped messages" className="mt-2 text-sm text-gray-600 list-disc pl-5">
               {ignored.map(([reason, n]) => <li key={reason}>{plural(n, "message")} skipped: {reason}</li>)}
             </ul>
+          )}
+          {(result.reading ?? 0) > 0 && (
+            <p className="mt-2 text-sm text-gray-700">
+              {plural(result.reading ?? 0, "message")} will be read by AI and wait for you in <Link href="/review" className="text-blue-600 hover:underline">Review</Link>.
+            </p>
           )}
           {result.unreadableLines > 0 && (
             <p className="mt-2 text-sm text-amber-700">{plural(result.unreadableLines, "line")} had a date that couldn&apos;t be read.</p>

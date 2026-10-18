@@ -1,0 +1,50 @@
+[
+    {
+        "decider": "exact cleaned name only",
+        "pairs": 160,
+        "precision": 1.0,
+        "recall": 0.7209
+    },
+    {
+        "decider": "Jaro-Winkler >= 0.92 on cleaned names, no guards",
+        "pairs": 160,
+        "precision": 0.9506,
+        "recall": 0.8953
+    },
+    {
+        "decider": "token-set >= 0.92 on cleaned names, no guards",
+        "pairs": 160,
+        "precision": 0.8571,
+        "recall": 0.7674
+    },
+    {
+        "decider": "matcher: Jaro-Winkler, guarded (shipped)",
+        "pairs": 160,
+        "precision": 1.0,
+        "recall": 0.8837
+    },
+    {
+        "decider": "matcher: token-set, guarded",
+        "pairs": 160,
+        "precision": 1.0,
+        "recall": 0.8256
+    },
+    {
+        "decider": "matcher: Jaro-Winkler, prefix 2",
+        "pairs": 160,
+        "precision": 1.0,
+        "recall": 0.8837
+    },
+    {
+        "decider": "matcher: Jaro-Winkler, threshold 0.88",
+        "pairs": 160,
+        "precision": 0.9744,
+        "recall": 0.8837
+    },
+    {
+        "decider": "matcher: Jaro-Winkler, threshold 0.95",
+        "pairs": 160,
+        "precision": 1.0,
+        "recall": 0.8605
+    }
+]

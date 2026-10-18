@@ -23,6 +23,7 @@ const KINDS = [
   { value: "refund", label: "Refunds" },
   { value: "transfer", label: "Transfers" },
   { value: "reversal", label: "Reversals" },
+  { value: "settlement", label: "Settle-ups" },
 ] as const;
 
 interface Filters { q: string; category: string; nature: string; from: string; to: string; lens: string; merchant: string; late: string; weekday: string }
