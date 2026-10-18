@@ -374,7 +374,9 @@ internal fun buildAppModule(
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
     // Weekly briefing from real data (AOS-506)
     single { dev.adminos.api.domain.agent.briefing.BriefingSources(get(), get(), get(), get(), get()) }
-    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get(), sections = getAll<dev.adminos.api.domain.agent.briefing.BriefingSection>()) }
+    // The optional AI wording of the briefing (AOS-716): through the AI gateway only, off unless enabled and consented.
+    single { dev.adminos.api.domain.agent.briefing.BriefingNarrator(get()) }
+    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get(), get(), sections = getAll<dev.adminos.api.domain.agent.briefing.BriefingSection>()) }
     single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingJob(get(), get(), get()) } bind ScheduledJob::class
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
