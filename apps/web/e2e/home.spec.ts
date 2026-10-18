@@ -13,7 +13,7 @@ test.describe("console Home", () => {
     api.on("GET /api/v1/transactions/suggestions", () => ({ data: [{}, {}] }));
     await page.goto("/");
     await expect(label(page)).toHaveText(monthName(0));
-    await expect(page.getByText("₹48,250")).toBeVisible();
+    await expect(page.getByText("₹48,250").first()).toBeVisible();
     await expect(page.getByRole("link", { name: /2 to review — they change your totals/ })).toBeVisible();
     await expect(page.getByRole("region", { name: "Where it went" }).getByText("Shopping")).toBeVisible();
     await expect(page.getByRole("region", { name: "Top merchants" }).getByText("Amazon")).toBeVisible();
@@ -103,7 +103,7 @@ test.describe("console Home", () => {
     await page.goto("/");
     const where = page.getByRole("region", { name: "Where it went" });
     await expect(where.getByText(/Categories broke/)).toBeVisible();
-    await expect(page.getByText("₹48,250")).toBeVisible();
+    await expect(page.getByText("₹48,250").first()).toBeVisible();
     await where.getByRole("button", { name: "Try again" }).click();
     await expect(where.getByText("Nothing spent in this period.")).toBeVisible();
   });
