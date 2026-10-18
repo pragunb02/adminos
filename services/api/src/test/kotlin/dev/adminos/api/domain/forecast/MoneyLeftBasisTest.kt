@@ -81,4 +81,27 @@ class MoneyLeftBasisTest {
         assertEquals(MoneyLeftBasisPicker.MAX_BALANCE_AGE_DAYS, MonthEndForecaster.MAX_BALANCE_AGE_DAYS)
         assertFailsWith<IllegalArgumentException> { MoneyLeftBasisPicker(maxBalanceAgeDays = -1) }
     }
+
+    @Test
+    fun `several balances start from the oldest of their days, and a basis from tomorrow subtracts nothing`() {
+        val picked = picker.pick(today, salary, listOf(bal("1111", "100.00", "2026-10-19"), bal("2222", "200.00", "2026-10-15")))
+        val basis = assertIs<MoneyBasis.Balances>(picked.basis)
+        assertEquals(d("2026-10-15"), basis.asOf)
+        assertEquals(BigDecimal("300.00"), basis.start)
+        assertEquals(dev.adminos.api.domain.analytics.DateRange(d("2026-10-15"), today), basis.spentSince(today))
+        assertEquals(null, MoneyBasis.Balances(basis.accounts, d("2026-10-21")).spentSince(today))
+        assertFailsWith<IllegalArgumentException> { MoneyBasis.Balances(emptyList(), today) }
+        assertFailsWith<IllegalArgumentException> { MoneyLeftBasisPicker(maxBalanceAgeDays = -1) }
+    }
+
+    @Test
+    fun `a balance never prints its amount, with or without a bank`() {
+        val named = bal("1111", "98765.43", "2026-10-19")
+        for (b in listOf(named, named.copy(bankCode = null))) {
+            val s = b.toString()
+            assertEquals(false, "98765" in s, s)
+            assertEquals(true, "1111" in s, s)
+        }
+        assertEquals(true, "?" in named.copy(bankCode = null).toString())
+    }
 }
