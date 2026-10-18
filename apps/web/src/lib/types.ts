@@ -148,6 +148,32 @@ export interface VaultDocument {
   expiresOn: string | null;
   notes: string | null;
   createdAt: string;
+  /** Confirmed fields (AOS-717). The number is only ever its last 4. */
+  issuer?: string | null;
+  numberLast4?: string | null;
+  amount?: string | null;
+}
+
+export type DocumentField = "expiresOn" | "number" | "issuer" | "amount";
+
+/** One proposed field (AOS-717): nothing is saved until the owner confirms it. */
+export interface FieldProposal {
+  field: DocumentField;
+  /** ISO date, the issuer as printed, a decimal amount, or a number's last 4. */
+  value: string;
+  /** The line it was found on, masked by the server. Untrusted text: render as text only. */
+  context: string;
+  label: string;
+  from: "rules" | "ai";
+}
+
+export interface FieldProposals {
+  source: "text_layer" | "ocr" | "mixed";
+  pagesRead: number;
+  pagesTotal: number;
+  truncated: boolean;
+  proposals: FieldProposal[];
+  ai: "used" | "not_needed" | "identity" | "off" | "no_consent" | "withheld" | "rejected" | "unavailable";
 }
 
 export type DocumentCategory = "identity" | "tax" | "insurance" | "bank" | "property" | "vehicle" | "medical" | "warranty" | "other";

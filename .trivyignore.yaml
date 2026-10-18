@@ -4,7 +4,8 @@
 #     statement: "not reachable: …"
 #     expired_at: 2026-12-31
 vulnerabilities:
-  # AOS-717 (needs the owner's acceptance, D-100): libxml2 arrives in the pdf-parser image only as a dependency of
+  # PENDING OWNER SIGN-OFF (AOS-717, D-100): not accepted by Pragun yet; the PR must not merge until he does.
+  # libxml2 arrives in the pdf-parser image only as a dependency of
   # libarchive, which libtesseract links to read packed language data. The parser never parses XML: Tesseract gets a
   # PNG that Pillow re-encoded, on stdin, and its language data from the image's read-only files. Debian has no fixed
   # libxml2 yet ("affected"). Re-check when Debian ships a fix, or by the expiry.
