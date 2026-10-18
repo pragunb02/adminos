@@ -67,6 +67,7 @@ class RateLimiter(
 object RateLimiters {
     fun auth() = RateLimiter(maxRequests = 10, windowSeconds = 60)          // 10/min per client
     fun manualSync() = RateLimiter(maxRequests = 5, windowSeconds = 3600)   // 5/hour per user
+    fun forecast() = RateLimiter(maxRequests = 30, windowSeconds = 60)      // 30/min per user: month-end forecast (AOS-714)
     fun cashParse() = RateLimiter(maxRequests = 30, windowSeconds = 60)     // 30/min per user: cash text previews (AOS-718)
 }
 
