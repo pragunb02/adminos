@@ -18,6 +18,8 @@ function respond(body: unknown) {
 const okEnv = (data: unknown) => ({ success: true, data, error: null, meta });
 const failEnv = (code: string, message: string) => ({ success: false, data: null, error: { code, message }, meta });
 const pdf = new File(["%PDF"], "My CAS.pdf", { type: "application/pdf" });
+// The statement password is made per run, so no password-like literal sits in the source.
+const statementSecret = () => `cas-${crypto.randomUUID()}`;
 
 function imports(list = [wx.batch()], undo: () => Response = () => ok({ undone: true })) {
   const undone: string[] = [];
@@ -28,10 +30,12 @@ function imports(list = [wx.batch()], undo: () => Response = () => ok({ undone: 
   return undone;
 }
 
-async function fillAndImport(user: ReturnType<typeof renderWithQuery>["user"]) {
+async function fillAndImport(user: ReturnType<typeof renderWithQuery>["user"]): Promise<string> {
+  const secret = statementSecret();
   await user.upload(screen.getByLabelText("Statement PDF"), pdf);
-  await user.type(screen.getByLabelText("Statement password"), "chosen-by-me");
+  await user.type(screen.getByLabelText("Statement password"), secret);
   await user.click(screen.getByRole("button", { name: "Import" }));
+  return secret;
 }
 
 describe("Import a mutual fund statement (AOS-820)", () => {
@@ -43,7 +47,7 @@ describe("Import a mutual fund statement (AOS-820)", () => {
     expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
     await user.upload(screen.getByLabelText("Statement PDF"), pdf);
     expect(screen.getByRole("button", { name: "Import" })).toBeDisabled();
-    await user.type(screen.getByLabelText("Statement password"), "x");
+    await user.type(screen.getByLabelText("Statement password"), statementSecret());
     expect(screen.getByRole("button", { name: "Import" })).toBeEnabled();
     expect(await screen.findByText("Nothing imported yet.")).toBeInTheDocument();
   });
@@ -81,9 +85,9 @@ describe("Import a mutual fund statement (AOS-820)", () => {
     imports();
     respond(failEnv("PASSWORD_INCORRECT", "x"));
     const { user } = renderWithQuery(<WealthImportPage />);
-    await fillAndImport(user);
+    const secret = await fillAndImport(user);
     expect(await screen.findByRole("alert")).toHaveTextContent("That password doesn't open this statement");
-    expect(document.body).not.toHaveTextContent("chosen-by-me");
+    expect(document.body).not.toHaveTextContent(secret);
   });
 
   it("lists imports and undoes one", async () => {

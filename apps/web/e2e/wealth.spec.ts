@@ -2,6 +2,9 @@ import type { Page } from "@playwright/test";
 import { wx } from "../test/wealthFixtures";
 import { expect, expectAccessible, isMobile, test } from "./support/fixtures";
 
+// Statement passwords are made per run, so no password-like literal sits in the source.
+const statementSecret = () => `cas-${crypto.randomUUID()}`;
+
 const alertOf = (page: Page) => page.getByRole("alert").and(page.locator(":not(#__next-route-announcer__)"));
 
 /** Wealth in a real browser (AOS-820): More → Wealth, holdings with their working, CAS import and undo, Review. */
@@ -33,7 +36,7 @@ test.describe("Wealth", () => {
   test("a CAS imports, says what needs review, and an import is undone", async ({ signedIn: page, api }) => {
     await page.goto("/wealth/import");
     await page.getByLabel("Statement PDF").setInputFiles({ name: "cas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 synthetic") });
-    await page.getByLabel("Statement password").fill("chosen-by-me");
+    await page.getByLabel("Statement password").fill(statementSecret());
     await page.getByRole("button", { name: "Import", exact: true }).click();
     await expect(page.getByRole("status", { name: "Import result" })).toContainText("8 new transactions · 1 holding add up · 1 needs review");
     await expect.poll(() => api.callsTo("POST", "/api/v1/wealth/imports/cas").length).toBe(1);
@@ -46,7 +49,7 @@ test.describe("Wealth", () => {
     api.on("POST /api/v1/wealth/imports/cas", () => ({ status: 422, error: { code: "PASSWORD_INCORRECT", message: "That password doesn't open this statement" } }));
     await page.goto("/wealth/import");
     await page.getByLabel("Statement PDF").setInputFiles({ name: "cas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
-    await page.getByLabel("Statement password").fill("wrong");
+    await page.getByLabel("Statement password").fill(statementSecret());
     await page.getByRole("button", { name: "Import", exact: true }).click();
     await expect(alertOf(page)).toContainText("That password doesn't open this statement. Try again.");
   });
@@ -88,12 +91,13 @@ test.describe("Wealth: attacks (D-100)", () => {
   test("the statement password is never stored in the page or the URL", async ({ signedIn: page }) => {
     await page.goto("/wealth/import");
     await page.getByLabel("Statement PDF").setInputFiles({ name: "cas.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
-    await page.getByLabel("Statement password").fill("chosen-by-me");
+    const secret = statementSecret();
+    await page.getByLabel("Statement password").fill(secret);
     await page.getByRole("button", { name: "Import", exact: true }).click();
     await expect(page.getByRole("status", { name: "Import result" })).toBeVisible();
     await expect(page.getByLabel("Statement password")).toHaveValue("");
-    expect(page.url()).not.toContain("chosen-by-me");
+    expect(page.url()).not.toContain(secret);
     const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }) + document.cookie);
-    expect(stored).not.toContain("chosen-by-me");
+    expect(stored).not.toContain(secret);
   });
 });

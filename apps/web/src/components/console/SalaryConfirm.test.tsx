@@ -167,7 +167,10 @@ describe("SalaryConfirm", () => {
     salaryIs(sx.view({ detected: sx.detected({ payer: evil }) }));
     const { user } = renderWithQuery(<SalaryConfirm />);
     const r = await region();
-    expect(await within(r).findByText(new RegExp(`from ${evil.replace(/[()]/g, "\\$&")} around the 30th`))).toBeInTheDocument();
+    // Matched as plain text (the innermost element holding it), never through a RegExp built from the payer.
+    const line = `from ${evil} around the 30th`;
+    const holds = (el: Element | null) => (el?.textContent ?? "").includes(line);
+    expect(await within(r).findByText((_, el) => holds(el) && ![...(el?.children ?? [])].some(holds))).toBeInTheDocument();
     await user.click(within(r).getByRole("button", { name: "Correct it" }));
     expect(within(r).getByRole("textbox", { name: "Payer" })).toHaveValue(evil);
     expect(document.querySelector("img")).toBeNull();
