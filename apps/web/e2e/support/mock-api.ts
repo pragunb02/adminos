@@ -7,6 +7,32 @@ type Handler = (req: Request, url: URL) => Reply | Promise<Reply>;
 
 const meta = { requestId: "req-e2e", timestamp: "2026-10-16T06:30:00Z" };
 
+/** Bills that usually come but haven't yet this month (AOS-721), fake names only: ₹2,140 in all. */
+export const projectedBills = {
+  kind: "projected_bills" as const, amount: "2140.00",
+  items: [
+    { name: "Sample Power Co", date: "2026-10-24", amount: "1240.00", overdue: false, billType: "electricity", monthsSeen: 4, seenFrom: "2026-06" },
+    { name: "Example Mobile", date: "2026-10-27", amount: "900.00", overdue: false, billType: "mobile", monthsSeen: 3, seenFrom: "2026-07" },
+  ],
+  weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null,
+};
+
+/** The default mocked forecast: the shared fixture plus the projected bills, so its sums still add up (₹63,680.50; ₹35,278.75 left). */
+export function forecastWithProjectedBills(projected: typeof projectedBills = projectedBills) {
+  const f = fx.forecast();
+  const add = (a: string, b: string, sign = 1) => ((Math.round(Number(a) * 100) + sign * Math.round(Number(b) * 100)) / 100).toFixed(2);
+  const [bills, ...rest] = f.monthEnd!.parts;
+  const u = f.salary!.untilSalary!;
+  const [uBills, ...uRest] = u.parts;
+  return fx.forecast({
+    monthEnd: { ...f.monthEnd!, total: add(f.monthEnd!.total, projected.amount), parts: [bills, projected, ...rest] },
+    salary: {
+      ...f.salary!,
+      untilSalary: { ...u, expected: add(u.expected, projected.amount), left: add(u.left, projected.amount, -1), parts: [uBills, projected, ...uRest] },
+    },
+  });
+}
+
 /**
  * Answers the app's /api/v1 calls inside the browser (AOS-311 mocked mode). Defaults come from the
  * shared fixtures; a test overrides any endpoint with `api.on("GET /api/v1/x", handler)` and can read
@@ -90,7 +116,7 @@ export class MockApi {
         return { data: all.filter((d) => (!c || d.category === c) && (!q || d.title.toLowerCase().includes(q))) };
       })
       .on("GET /api/v1/mandates", () => ({ data: [fx.mandate(), fx.mandate({ id: "m-2", payee: "Cult.fit", rail: "upi_autopay", amount: "999.00", nextDebitOn: null, nextDebitAmount: null, dormant: true })] }))
-      .on("GET /api/v1/forecast", () => ({ data: fx.forecast() }))
+      .on("GET /api/v1/forecast", () => ({ data: forecastWithProjectedBills() }))
       .on("GET /api/v1/dues", (_r, u) => {
         const m = u.searchParams.get("month");
         return { data: m && m !== "2026-10" ? fx.duesMonth({ month: m, items: [], totals: { open: "0.00", paid: "0.00", renewals: "0.00" } }) : fx.duesMonth() };

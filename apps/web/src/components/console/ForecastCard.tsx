@@ -5,7 +5,7 @@ import Section, { Skeleton } from "@/components/console/Section";
 import { formatInr, toPaise } from "@/lib/money";
 import {
   dayAndDate, FORECAST_PATH, monthEndDate, NO_SALARY_TEXT, PART_LABEL, shortDate,
-  type ForecastData, type ForecastPart, type MonthEnd, type SalaryOutlook, type UntilSalary,
+  type ForecastData, type ForecastDue, type ForecastPart, type MonthEnd, type SalaryOutlook, type UntilSalary,
 } from "@/lib/forecast";
 import { errorMessage, getData } from "@/lib/query";
 
@@ -105,6 +105,16 @@ function PartLine({ part, prefix }: { part: ForecastPart; prefix: string }) {
     return <li>{prefix} {label}: {formatInr(part.amount)} ({how}{learnt})</li>;
   }
   if (part.items.length === 0) return <li className="text-ink-muted">{prefix} {label}: none known</li>;
+  if (part.kind === "projected_bills") {
+    return (
+      <li>
+        {prefix} {label}: {formatInr(part.amount)}
+        <ul className="mt-1 space-y-1 pl-4 text-ink-muted" aria-label={label}>
+          {part.items.map((i) => <li key={`${i.name}-${i.date}`}>{projectedText(i)}</li>)}
+        </ul>
+      </li>
+    );
+  }
   return (
     <li>
       {prefix} {label}: {formatInr(part.amount)} (
@@ -114,6 +124,15 @@ function PartLine({ part, prefix }: { part: ForecastPart; prefix: string }) {
       )
     </li>
   );
+}
+
+/**
+ * One bill that usually comes but hasn't yet (AOS-721), e.g. "Sample Power Co · expected 24 Oct · ₹1,240 ·
+ * usual amount, billed 4 months running". The name comes from email or SMS: it's only ever a text node.
+ */
+function projectedText(i: ForecastDue) {
+  const seen = i.monthsSeen ? ` · usual amount, billed ${i.monthsSeen} month${i.monthsSeen === 1 ? "" : "s"} running` : "";
+  return `${i.name} · expected ${shortDate(i.date)} · ${formatInr(i.amount)}${seen}`;
 }
 
 function SalaryView({ s }: { s: SalaryOutlook }) {

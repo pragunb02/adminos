@@ -47,7 +47,7 @@ class ForecastServiceTest {
     private val dues = DuesService(bills, subscriptions, MandateService(mandates, transactions))
     /** 20 Oct 2026, 10:00 in India. */
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
-    private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills), dues, subscriptions, clock = clock)
+    private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills), dues, subscriptions, bills, clock = clock)
 
     private fun d(s: String) = LocalDate.parse(s)
     private fun at(day: LocalDate, time: String = "12:00") = day.atTime(LocalTime.parse(time)).atZone(ist).toInstant()
@@ -161,6 +161,52 @@ class ForecastServiceTest {
             nextDebitOn = d("2026-10-26"), statusChangedAt = Instant.parse("2026-09-01T00:00:00Z")))
         val m = assertIs<Forecast.Ready>(service.forecast(user, ist)).monthEnd
         assertEquals(listOf("LIC"), m.parts.filterIsInstance<ComponentEstimate.Dues>().single { it.source == DueSource.MANDATE }.items.map { it.name })
+    }
+
+    // ── Projected monthly bills (AOS-721) ──
+
+    /** A paid electricity bill of [amount] due on the 25th of each of [months] (YYYY-MM), for [owner]. */
+    private suspend fun monthlyBills(months: List<String>, amount: String = "1200", owner: UUID = user, biller: String = "Sample Power") = months.forEach {
+        bills.save(Bill(userId = owner, billerName = biller, billType = BillType.ELECTRICITY, amount = BigDecimal(amount), dueDate = d("$it-25"), status = BillStatus.PAID))
+    }
+
+    private fun projectedOf(m: MonthEndForecast) = m.parts.filterIsInstance<ProjectedBillsEstimate>().single()
+
+    @Test
+    fun `a regular bill that hasn't arrived this month is projected from the user's own bills`() = runBlocking<Unit> {
+        everydayLife()
+        monthlyBills(listOf("2026-07", "2026-08", "2026-09"))
+        val item = projectedOf(assertIs<Forecast.Ready>(service.forecast(user, ist)).monthEnd).items.single()
+        assertEquals("Sample Power", item.name)
+        assertEquals(d("2026-10-25"), item.expectedOn)
+        assertEquals(BigDecimal("1200.00"), item.amount)
+    }
+
+    @Test
+    fun `another user's bills are never projected into my forecast`() = runBlocking<Unit> {
+        everydayLife()
+        monthlyBills(listOf("2026-07", "2026-08", "2026-09"), owner = UUID.randomUUID(), biller = "Their Power")
+        assertTrue(projectedOf(assertIs<Forecast.Ready>(service.forecast(user, ist)).monthEnd).items.isEmpty())
+    }
+
+    @Test
+    fun `once this month's bill arrives it is a known due and is not projected again`() = runBlocking<Unit> {
+        everydayLife()
+        monthlyBills(listOf("2026-07", "2026-08", "2026-09"))
+        bills.save(Bill(userId = user, billerName = "Sample Power", billType = BillType.ELECTRICITY, amount = BigDecimal("1300"), dueDate = d("2026-10-25")))
+        val m = assertIs<Forecast.Ready>(service.forecast(user, ist)).monthEnd
+        assertEquals(listOf("Sample Power"), m.parts.filterIsInstance<ComponentEstimate.Dues>().single { it.source == DueSource.BILL }.items.map { it.name })
+        assertTrue(projectedOf(m).items.isEmpty())
+        // 6,000 spent + the 1,300 bill once + 11 days × 300.
+        assertEquals(BigDecimal("10600.00"), m.total)
+    }
+
+    @Test
+    fun `too many bills to load whole projects nothing rather than double an arrived bill`() = runBlocking<Unit> {
+        everydayLife()
+        monthlyBills(listOf("2026-07", "2026-08", "2026-09"))
+        repeat(ForecastService.MAX_BILLS) { bills.save(Bill(userId = user, billerName = "Biller $it", billType = BillType.OTHER, amount = BigDecimal("10"), dueDate = d("2026-05-01"))) }
+        assertTrue(projectedOf(assertIs<Forecast.Ready>(service.forecast(user, ist)).monthEnd).items.isEmpty())
     }
 
     // ── Dues-calendar items → known payments ──

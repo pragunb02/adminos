@@ -319,7 +319,7 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
     // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
-    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get()) }
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get()) }
 
     // Agent Services
     // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)

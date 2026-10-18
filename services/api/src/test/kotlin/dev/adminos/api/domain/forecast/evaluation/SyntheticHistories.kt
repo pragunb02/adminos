@@ -78,6 +78,9 @@ class SyntheticHistory(
 
     fun incomesUpTo(today: LocalDate): List<IncomeCredit> = salaries.filter { !it.day.isAfter(today) }
 
+    /** The recurring payment called [name] (AOS-721's late-bills measurement). */
+    fun scheduled(name: String): Scheduled = schedule.single { it.name == name }
+
     private fun recurringOn(day: LocalDate): BigDecimal =
         schedule.filter { dateIn(it, YearMonth.from(day)) == day }.fold(BigDecimal.ZERO) { acc, s -> acc + s.amount(YearMonth.from(day)) }
 

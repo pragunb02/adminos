@@ -2,9 +2,19 @@
  * Month-end forecast API types (AOS-714). All money is an exact decimal string (D-30); every number
  * comes from the API's deterministic forecast, the page only formats and labels it (D-67).
  */
-export interface ForecastDue { name: string; date: string; amount: string; overdue: boolean }
+export interface ForecastDue {
+  name: string;
+  date: string;
+  amount: string;
+  overdue: boolean;
+  /** Projected bills only (AOS-721): the bill's type, how many months running it was billed, and since when ("YYYY-MM"). */
+  billType?: string | null;
+  monthsSeen?: number | null;
+  seenFrom?: string | null;
+}
 
-export type ForecastPartKind = "bills" | "renewals" | "mandates" | "everyday";
+/** `projected_bills` (AOS-721): regular monthly bills that haven't arrived yet this month, at their usual amount and day. */
+export type ForecastPartKind = "bills" | "projected_bills" | "renewals" | "mandates" | "everyday";
 
 export interface ForecastPart {
   kind: ForecastPartKind;
@@ -71,6 +81,7 @@ export const FORECAST_PATH = "/api/v1/forecast";
 /** What each part is called on the card. */
 export const PART_LABEL: Record<ForecastPartKind, string> = {
   bills: "Bills",
+  projected_bills: "Bills not arrived yet",
   renewals: "Renewals",
   mandates: "AutoPay & mandates",
   everyday: "Everyday spending",

@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-171 | Architecture / Product | Projected monthly bills: utility billers (electricity, mobile, internet, water, gas) billed each of the last 3 calendar months and not yet billed this month are projected at the median amount on the median due day (after today only); any same-type bill in the month or within ±10 days means arrived, never counted twice; under-counting is the accepted side | Proposed | AOS-721 |
 | D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
 | D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
 | D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
@@ -1619,3 +1620,16 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - Request bodies the API can't read get fixed answers: 415 `VALIDATION_005` when the request's Content-Type isn't JSON (including none or an unparseable one), 400 `VALIDATION_004` "Malformed request body" for JSON that doesn't parse or fit, 413 `VALIDATION_006` for Ktor's body limit.
 - No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
 - Never a 500 for a client's body; the Content-Type sent is never echoed.
+
+### D-171 — Projected monthly bills for the forecast, never counted twice
+2026-10-18 · Proposed · Type: Architecture / Product · Tasks: AOS-721 · Builds on D-39, D-55, D-67, D-76
+- **What it says:** a `ProjectedBillsComponent` adds the monthly bills that usually come later in the month but haven't arrived, so the month-end and money left until salary don't under-count in the first half of the month.
+  - **Which billers:** utility bills only (electricity, mobile, internet, water, gas). Rent and EMI are usually mandates or standing transfers too (already counted as mandate dues), insurance is yearly or quarterly, credit-card and pay-later bills are transfers whose purchases are already spending (D-39).
+  - **Regular:** a biller (type + name, case/punctuation/spacing ignored in any script + account ref) billed in each of the 3 calendar months right before the month. Quarterly, annual and skipped-month billers are never projected.
+  - **Amount and day:** the median of those 3 bills; the median due day, clamped to short months. Projected only when that day is after today; a day that has passed without a bill isn't guessed.
+  - **Never counted twice:** a month has arrived when any bill of the same type is due in it or within ±10 days of the expected day, whatever its name, account, amount or status (paid early, open or cancelled). The biller name, type and account ref the bill parser gives can change from month to month, so arrival is matched more loosely than the biller. Next month is projected only when this month's real bill is in.
+  - **Shown:** its own "How we got this" line, each bill with its expected day, amount and how many months it was seen. The range moves with it but isn't widened.
+  - **Bounded:** at most 500 bills are read; over that nothing is projected.
+- **Measured:** the D-76 backtest is unchanged (its dues are an oracle). A late-bills variant (the utility bill known only 7 days before its due date) improves MAPE from 10.91% to 9.67%; a test keeps "with" ≤ "without".
+- **Accepted limits (the under-counting side):** a bill paid outside AdminOS before its usual day with no bill row is still projected once; one arrived bill of a type hides the other projections of that type that month (two homes).
+- **Rejected:** projecting every bill type (double counts mandates, yearly insurance); matching arrival by the exact biller (name drift makes a second count); guessing a late bill after its usual day; a time-series model per biller (D-67, 3 points).

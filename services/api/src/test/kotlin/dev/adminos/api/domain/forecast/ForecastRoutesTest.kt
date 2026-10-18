@@ -45,7 +45,7 @@ class ForecastRoutesTest {
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
     private val limiter = dev.adminos.api.infrastructure.plugins.RateLimiter(maxRequests = 5, windowSeconds = 60)
     private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills),
-        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, clock = clock)
+        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, bills, clock = clock)
 
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
@@ -91,7 +91,7 @@ class ForecastRoutesTest {
         assertEquals("9300.00", month.str("total"))
         assertEquals(11, month["daysLeft"]!!.jsonPrimitive.int)
         val parts = month["parts"]!!.jsonArray.map { it.jsonObject }
-        assertEquals(listOf("bills", "renewals", "mandates", "everyday"), parts.map { it.str("kind") })
+        assertEquals(listOf("bills", "renewals", "mandates", "projected_bills", "everyday"), parts.map { it.str("kind") })
         val everyday = parts.last()
         assertEquals("300.00", everyday.str("weekdayRate"))
         assertEquals(8, everyday["weekdays"]!!.jsonPrimitive.int)
@@ -156,5 +156,32 @@ class ForecastRoutesTest {
         assertEquals("mandates", withDues.monthEnd?.parts?.single()?.kind)
         assertEquals("5000.00", withDues.monthEnd?.parts?.single()?.items?.single()?.amount)
         assertTrue(withDues.monthEnd?.daysLeft == 11)
+    }
+    @Test
+    fun `a projected bill is its own part with its type and how long it was seen`() = routeTest {
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("300"), merchantName = "Chai", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+            listOf(7, 8, 9).forEach { m ->
+                bills.save(dev.adminos.api.domain.financial.Bill(userId = user.id, billerName = "Sample Power", billType = dev.adminos.api.domain.financial.BillType.ELECTRICITY,
+                    amount = BigDecimal("1200"), dueDate = LocalDate.of(2026, m, 25), status = dev.adminos.api.domain.financial.BillStatus.PAID))
+            }
+        }
+        val month = data()["monthEnd"]!!.jsonObject
+        val part = month["parts"]!!.jsonArray.map { it.jsonObject }.single { it.str("kind") == "projected_bills" }
+        assertEquals("1200.00", part.str("amount"))
+        val item = part["items"]!!.jsonArray.single().jsonObject
+        assertEquals("Sample Power", item.str("name"))
+        assertEquals("2026-10-25", item.str("date"))
+        assertEquals("1200.00", item.str("amount"))
+        assertEquals(false, item["overdue"]!!.jsonPrimitive.boolean)
+        assertEquals("electricity", item.str("billType"))
+        assertEquals(3, item["monthsSeen"]!!.jsonPrimitive.int)
+        assertEquals("2026-07", item.str("seenFrom"))
+        assertEquals(JsonNull, part["weekdayRate"])
+        assertEquals("10500.00", month.str("total"))
     }
 }

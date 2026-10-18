@@ -62,6 +62,9 @@ fun main(args: Array<String>) {
     require(args.isNotEmpty()) { "usage: <report.json> [--write-baseline <dir>]" }
     val report = ForecastBacktest.run()
     println(report.table())
+    val late = LateBillsBacktest.run()
+    println("Late bills (AOS-721, the electricity bill known ${LateBillsBacktest.LEAD_DAYS} days ahead): month-end MAPE ${late.mapeWithout}% without projected bills, " +
+        "${late.mapeWith}% with (on the 10th ${late.mapeDay10Without}% vs ${late.mapeDay10With}%), ${late.forecasts} forecasts")
     val out = File(args[0]).also { it.parentFile?.mkdirs() }
     out.writeText(ForecastBaseline.json.encodeToString(BacktestReport.serializer(), report))
     println("JSON report: ${out.path}")

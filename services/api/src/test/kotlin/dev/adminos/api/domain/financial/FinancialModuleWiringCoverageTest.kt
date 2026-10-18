@@ -74,7 +74,7 @@ class FinancialModuleWiringCoverageTest {
             dev.adminos.api.domain.financial.review.CategoryReviewService(transactions, get(),
                 dev.adminos.api.domain.financial.review.InMemoryGoldenCandidateRepository(), get())
         }
-        single { dev.adminos.api.domain.forecast.ForecastService(dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills), get(), subscriptions) }
+        single { dev.adminos.api.domain.forecast.ForecastService(dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills), get(), subscriptions, bills) }
         single {
             dev.adminos.api.domain.financial.grouping.MerchantGroupingService(transactions, dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository(),
                 dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()), get())

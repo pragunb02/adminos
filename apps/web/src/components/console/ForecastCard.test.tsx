@@ -5,7 +5,7 @@ import { server } from "../../../test/msw/server";
 import { fail, ok } from "../../../test/msw/envelope";
 import { fx } from "../../../test/fixtures";
 import { renderWithQuery } from "../../../test/render";
-import { dayAndDate, monthEndDate, shortDate } from "@/lib/forecast";
+import { dayAndDate, monthEndDate, shortDate, type ForecastPart } from "@/lib/forecast";
 import ForecastCard from "./ForecastCard";
 
 const ready = fx.forecast();
@@ -127,6 +127,64 @@ describe("ForecastCard", () => {
     expect(screen.getAllByText(/<script>alert\(2\)<\/script>/).length).toBeGreaterThan(0);
     expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("script")).toBeNull();
+  });
+
+  describe("bills not arrived yet (AOS-721)", () => {
+    const projected: ForecastPart = {
+      ...monthEnd.parts[0], kind: "projected_bills", amount: "2140.00",
+      items: [
+        { name: "Sample Power Co", date: "2026-10-24", amount: "1240.00", overdue: false, billType: "electricity", monthsSeen: 4, seenFrom: "2026-06" },
+        { name: "Example Mobile", date: "2026-10-27", amount: "900.00", overdue: false, billType: "mobile", monthsSeen: 1, seenFrom: "2026-09" },
+      ],
+    };
+    const withProjected = (p: ForecastPart) => forecastWith({
+      monthEnd: { ...monthEnd, total: "63680.50", parts: [monthEnd.parts[0], p, ...monthEnd.parts.slice(1)] },
+      salary: { ...salary, untilSalary: { ...salary.untilSalary!, parts: [...salary.untilSalary!.parts, p] } },
+    });
+
+    it("shows them as their own part, a bar and a line with each bill's usual amount and day", async () => {
+      withProjected(projected);
+      const { user } = renderWithQuery(<ForecastCard />);
+      const card = await screen.findByRole("region", { name: "Month-end forecast" });
+      const bars = await within(card).findByRole("list", { name: "Parts of the forecast" });
+      expect(within(bars).getAllByRole("listitem").map((li) => li.textContent)).toContain("Bills not arrived yet₹2,140");
+      await user.click(within(card).getAllByText("How we got this")[0]);
+      expect(within(card).getByText("+ Bills not arrived yet: ₹2,140")).toBeInTheDocument();
+      const [monthItems, salaryItems] = within(card).getAllByRole("list", { name: "Bills not arrived yet" });
+      expect(within(monthItems).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+        "Sample Power Co · expected 24 Oct · ₹1,240 · usual amount, billed 4 months running",
+        "Example Mobile · expected 27 Oct · ₹900 · usual amount, billed 1 month running",
+      ]);
+      expect(within(salaryItems).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(card).getByText("of which Bills not arrived yet: ₹2,140")).toBeInTheDocument();
+      expect(within(card).getByText("= About ₹63,680.50 by 31 Oct")).toBeInTheDocument();
+    });
+
+    it("without a months count it shows only the name, day and amount; none known when empty", async () => {
+      withProjected({ ...projected, items: [{ ...projected.items[0], billType: null, monthsSeen: null, seenFrom: null }] });
+      const { user } = renderWithQuery(<ForecastCard />);
+      await user.click((await screen.findAllByText("How we got this"))[0]);
+      expect(screen.getAllByText("Sample Power Co · expected 24 Oct · ₹1,240")[0]).toBeInTheDocument();
+    });
+
+    it("an empty projection reads none known and is left out of money left", async () => {
+      withProjected({ ...projected, amount: "0.00", items: [] });
+      const { user } = renderWithQuery(<ForecastCard />);
+      await user.click((await screen.findAllByText("How we got this"))[0]);
+      expect(screen.getByText("+ Bills not arrived yet: none known")).toBeInTheDocument();
+      expect(screen.queryByText(/of which Bills not arrived yet/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("list", { name: "Bills not arrived yet" })).not.toBeInTheDocument();
+    });
+
+    it("a hostile biller name is shown as literal text, never as HTML", async () => {
+      const evil = "<img src=x onerror=alert(1)>";
+      withProjected({ ...projected, items: [{ ...projected.items[0], name: evil }] });
+      const { user } = renderWithQuery(<ForecastCard />);
+      await user.click((await screen.findAllByText("How we got this"))[0]);
+      const [monthItems] = screen.getAllByRole("list", { name: "Bills not arrived yet" });
+      expect(within(monthItems).getByRole("listitem")).toHaveTextContent(`${evil} · expected 24 Oct · ₹1,240 · usual amount, billed 4 months running`);
+      expect(document.querySelector("img")).toBeNull();
+    });
   });
 
   it("date helpers", () => {

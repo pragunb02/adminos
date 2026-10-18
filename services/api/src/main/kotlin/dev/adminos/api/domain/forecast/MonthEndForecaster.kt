@@ -12,7 +12,9 @@ data class ForecastInput(
     val history: SpendHistory,
     /** Known payments after today (bills, renewals, mandates), through at least the next salary. */
     val dues: List<KnownDue>,
-    val incomes: List<IncomeCredit>
+    val incomes: List<IncomeCredit>,
+    /** Monthly bills expected but not arrived yet (AOS-721), counted like known dues. */
+    val projectedBills: List<ProjectedBill> = emptyList()
 )
 
 /** The month-end forecast: what's spent, plus what each component expects for the rest of the month. */
@@ -88,7 +90,8 @@ class MonthEndForecaster(
             return Forecast.NotEnoughHistory(today, historyDays, minHistoryDays, readyOn = input.history.firstDay.plusDays(minHistoryDays - 1L).takeIf { historyDays > 0 })
         }
         val fit = model.fit(input.history, today) ?: error("history of $historyDays days must fit a rate")
-        val components = componentsFor(input.dues.filter { it.date.isAfter(today) }, fit)
+        val components = componentsFor(input.dues.filter { it.date.isAfter(today) }, fit,
+            projected = input.projectedBills.filter { it.expectedOn.isAfter(today) })
         val errors = interval.errors(input.history, today)
         return Forecast.Ready(monthEnd(input, components, errors), salaryOutlook(input, components, errors))
     }

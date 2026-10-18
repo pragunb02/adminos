@@ -18,10 +18,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class ForecastHistoryDto(val days: Long, val neededDays: Int, val readyOn: String?)
 @Serializable data class ForecastRangeDto(val low: String, val high: String, val level: Int, val months: Int)
-@Serializable data class DueDto(val name: String, val date: String, val amount: String, val overdue: Boolean)
+@Serializable data class DueDto(
+    val name: String, val date: String, val amount: String, val overdue: Boolean,
+    /** A projected bill's type (`electricity`, `mobile`…), how many months running it was seen, and since when (`YYYY-MM`). */
+    val billType: String? = null, val monthsSeen: Int? = null, val seenFrom: String? = null
+)
 
 /**
- * One line of "How we got this". `bills`, `renewals` and `mandates` list their [items]; `everyday` gives its
+ * One line of "How we got this". `bills`, `renewals`, `mandates` and `projected_bills` list their [items]; `everyday` gives its
  * daily rates, the number of each kind of day, and the days it learnt from.
  */
 @Serializable data class ForecastPartDto(
@@ -133,6 +137,11 @@ private fun ComponentEstimate.toDto(): ForecastPartDto = when (this) {
         kind = when (source) { DueSource.BILL -> "bills"; DueSource.RENEWAL -> "renewals"; DueSource.MANDATE -> "mandates" },
         amount = amount.toMoney(),
         items = items.map { DueDto(it.name, it.date.toString(), it.amount.toMoney(), it.overdue) },
+        weekdayRate = null, weekendRate = null, weekdays = null, weekendDays = null, split = null, method = null, learntFrom = null, learntTo = null
+    )
+    is ProjectedBillsEstimate -> ForecastPartDto(
+        kind = "projected_bills", amount = amount.toMoney(),
+        items = items.map { DueDto(it.name, it.expectedOn.toString(), it.amount.toMoney(), overdue = false, billType = it.type.name.lowercase(), monthsSeen = it.monthsSeen, seenFrom = it.seenFrom.toString()) },
         weekdayRate = null, weekendRate = null, weekdays = null, weekendDays = null, split = null, method = null, learntFrom = null, learntTo = null
     )
     is ComponentEstimate.RunRate -> ForecastPartDto(
