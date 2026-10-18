@@ -218,6 +218,11 @@ internal fun buildAppModule(
     }
     single<dev.adminos.api.domain.documents.DocumentSealer> { dev.adminos.api.infrastructure.documents.AesGcmDocumentSealer(get()) }
     single { dev.adminos.api.domain.documents.DocumentService(get(), get(), get()) }
+    // Reading vault documents (AOS-717): the parser service's local OCR, then the optional AI step through the gateway.
+    single<dev.adminos.api.domain.documents.reading.DocumentReader> {
+        dev.adminos.api.infrastructure.documents.HttpDocumentReader(get<AppConfig>().statementParser.url)
+    }
+    single { dev.adminos.api.domain.documents.reading.DocumentFieldService(get(), get(), getOrNull<dev.adminos.api.domain.ai.AiGateway>()) }
 
     single { IngestionService(get(), get(), getOrNull()) }
     // Ingest pipeline (D-34): pending intake events → transactions

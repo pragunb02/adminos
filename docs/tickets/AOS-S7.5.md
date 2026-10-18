@@ -18,10 +18,10 @@
 
 ## Acceptance criteria
 - [x] **Briefing (AOS-716):** the rewrite is optional. Any number or name that isn't in the facts rejects it, and the template is sent instead (🟨 awaiting review; D-140).
-- [ ] **Documents (AOS-717):**
-  - use the PDF's text layer, else local OCR in the Python service;
+- [x] **Documents (AOS-717):** (🟨 awaiting review; D-173, D-174, D-175)
+  - use the PDF's text layer, else local OCR in the Python service (Tesseract);
   - fields are proposed with their source snippet and saved only after I confirm;
-  - identity documents never go to a cloud model.
+  - identity documents never go to a cloud model (in fact to no model at all).
 - [x] **Cash (AOS-718):** from free text or keyboard dictation ("chai 40, auto 120 yesterday"), with a confirm sheet, through `CashIntake`.
 - [ ] **Receipts (AOS-719):** a receipt photo is matched to an existing card/UPI debit (amount ±1%, date ±2 days, similar merchant) and attached as evidence, not saved as a second spend.
 
@@ -32,7 +32,7 @@ See the research report §8, §13 and §14.
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-716](AOS-716.md) | Briefing narration with a number check (falls back to the template) | Claude | 🟨 | 4h | 5h |
-| AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h | |
+| [AOS-717](AOS-717.md) | Documents vault OCR + field proposals, local-first | Claude (agent) | 🟨 | 10h | 12h |
 | [AOS-718](AOS-718.md) | Cash quick-add from free text or dictation | Claude | ✅ | 5h | 6h |
 | AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h | |
 
@@ -44,4 +44,5 @@ Upload a PUC photo. The expiry date is proposed with its snippet, and confirming
 ## Activity log
 - 2026-10-18 — Claude (integration engineer): AOS-718 integrated onto main; D-77 recorded.
 - 2026-10-18 — Claude (agent): AOS-716 built (D-140, V90); PR open, awaiting review.
+- 2026-10-18 — Claude (agent): AOS-717 built (PR #158; D-173, D-174, D-175; V80). The Trivy exception for libxml2 was accepted by Pragun (D-174). Awaiting review.
 - 2026-10-17 — Claude: story created (AOS-701).

@@ -52,7 +52,8 @@ internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
     AiFeature.CATEGORIZATION to CategorizeMerchantTask,
     AiFeature.ASK to AskPlanTask,
     AiFeature.MESSAGES to ReadMessageTask,
-    AiFeature.BRIEFING to BriefingNarrationTask
+    AiFeature.BRIEFING to BriefingNarrationTask,
+    AiFeature.DOCUMENT_FIELDS to dev.adminos.api.domain.documents.reading.DocumentFieldsTask
 )
 
 /**

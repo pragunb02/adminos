@@ -1,4 +1,5 @@
-"""AdminOS statement parser (D-37). Stateless: files and passwords are used in memory only, never stored or logged."""
+"""AdminOS statement parser (D-37) and vault document reader (AOS-717). Stateless: files, passwords and the text read
+from them are used in memory only, never stored or logged."""
 
 import asyncio
 import logging
@@ -8,6 +9,8 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from app import limits
+from app.documents import read_document
 from app.cas import read_cas
 from app.isolation import ParseCrashed, ParseFailed, ParseTimeout, run_isolated
 from app.models import ParseError
@@ -59,6 +62,32 @@ async def parse(file: UploadFile = File(...), password: Optional[str] = Form(def
         return _error(422, "UNREADABLE", "The statement couldn't be read")
     logger.info("statement parsed: bank=%s rows=%d skipped=%d", result.bank_code, len(result.rows), result.skipped_rows)
     return result.model_dump(by_alias=True, mode="json")
+
+
+@app.post("/v1/documents:read")
+async def read_vault_document(file: UploadFile = File(...)):
+    """A vault document's text and field proposals (AOS-717). The API sends the decrypted bytes; nothing is kept."""
+    data = await file.read(limits.MAX_DOC_BYTES + 1)
+    if len(data) > limits.MAX_DOC_BYTES:
+        return _error(413, "FILE_TOO_LARGE", "A document can be at most 20 MB")
+    try:
+        async with _parse_slots:  # the same two slots as statements: OCR is the heaviest work here
+            result = await run_in_threadpool(run_isolated, read_document, (data,), limits.DOC_TIMEOUT_SECONDS)
+    except ParseError as e:
+        logger.info("document rejected: %s", e.code)  # code only: never the file, its name or its text
+        return _error(422, e.code, e.message)
+    except ParseTimeout:
+        logger.warning("document read timed out")
+        return _error(422, "READ_TIMEOUT", "The document took too long to read")
+    except (ParseCrashed, ParseFailed) as e:
+        logger.warning("document read failed: %s", getattr(e, "kind", "crashed"))
+        return _error(422, "UNREADABLE", "The document couldn't be read")
+    except Exception as e:  # never echo details: they can contain document content
+        logger.warning("document read failed: %s", type(e).__name__)
+        return _error(422, "UNREADABLE", "The document couldn't be read")
+    logger.info("document read: kind=%s source=%s pages=%d/%d proposals=%d", result["kind"], result["source"],
+                result["pagesRead"], result["pagesTotal"], len(result["proposals"]))
+    return result
 
 
 @app.post("/v1/cas:parse")

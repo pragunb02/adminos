@@ -224,7 +224,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ [AOS-715](tickets/AOS-715.md) | Subscription price-rise alert | Claude (agent) | ✅ | 2h | 1.5h |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ [AOS-716](tickets/AOS-716.md) | Briefing narration with a number check (falls back to the template) | Claude (agent) | 🟨 | 4h | 5h |
-| └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
+| └ [AOS-717](tickets/AOS-717.md) | Documents vault OCR + field proposals, local-first: Tesseract, grounded rules, optional local AI (D-173, D-174, D-175) | Claude (agent) | 🟨 | 10h | 12h |
 | └ [AOS-718](tickets/AOS-718.md) | Cash quick-add from free text or dictation | Claude (agent) | ✅ | 5h | 6h |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
 
@@ -238,6 +238,7 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | └ [AOS-901](tickets/AOS-901.md) | Habit lenses as data, settle-ups excluded, per-merchant overrides; +37 catalogue brands (D-81) | Claude (agent) | ✅ | — | — |
 | └ [AOS-902](tickets/AOS-902.md) | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ✅ | 6h |  |
 | └ [AOS-903](tickets/AOS-903.md) | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees and item counts from Gmail, matched to the payment; hidden fees per app (D-88) | Claude (agent) | ✅ | 8h | 6h |
+| └ [AOS-914](tickets/AOS-914.md) | Leaks, limits, goals and savings count only the owner's share of a split bill; settlements count nowhere (D-139) | Claude (agent) | ✅ | 2h | 2h |
 | **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ✅ | 12h | |
 | └ [AOS-912](tickets/AOS-912.md) | Pay-later lens counts pay-later purchases (payment method), never provider repayments (D-81, D-89) | Claude (agent) | ✅ | 1h | 1h |
 | └ [AOS-904](tickets/AOS-904.md) | Limits per lens, merchant or category (monthly/weekly), pushes at 50/80/100%, once per threshold per period | Claude | ✅ | 5h |  |

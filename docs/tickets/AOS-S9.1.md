@@ -30,6 +30,7 @@ Per task ticket (≥2 options each).
 | [AOS-901](AOS-901.md) | Habit lenses as data, settle-ups excluded, per-merchant overrides; +37 catalogue brands (D-81) | Claude (agent) | ✅ | — | — |
 | [AOS-902](AOS-902.md) | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ✅ | 6h |  |
 | [AOS-903](AOS-903.md) | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees and item counts from Gmail, matched to the payment; hidden fees per app (D-88) | Claude (agent) | ✅ | 8h | 6h |
+| [AOS-914](AOS-914.md) | Leaks, limits, goals and savings count only the owner's share of a split bill; settlements count nowhere (D-139) | Claude (agent) | ✅ | 2h | 2h |
 | [AOS-912](AOS-912.md) | Pay-later lens counts pay-later purchases (payment method), never provider repayments (D-81, D-89) | Claude (agent) | ✅ | 1h | 1h |
 
 _Task tickets are created as files when this story is picked up._
@@ -40,4 +41,5 @@ On real data after go-live (AOS-111, AOS-211/212).
 ## Activity log
 - 2026-10-17 — Claude: story created (AOS-011 plan, D-80).
 - 2026-10-18 — Claude: AOS-903 done (order receipts, hidden fees; D-88). Story done (AOS-901, 902, 903 ✅).
+- 2026-10-18 — Claude (agent): AOS-914 done (PR #151): the coach counts the owner's share of split bills (D-139).
 - 2026-10-18 — Claude: AOS-912 added and done (the pay-later lens follows AOS-909's counting).
