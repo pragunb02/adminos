@@ -26,6 +26,9 @@ import dev.adminos.api.domain.financial.receipts.OrderReceiptRepository
 import dev.adminos.api.domain.financial.receipts.ReceiptFixtures
 import dev.adminos.api.domain.financial.review.GoldenCandidate
 import dev.adminos.api.domain.financial.review.GoldenCandidateRepository
+import dev.adminos.api.domain.forecast.SalaryChoice
+import dev.adminos.api.domain.forecast.SalaryChoiceKind
+import dev.adminos.api.domain.forecast.SalaryChoiceRepository
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
 import dev.adminos.api.domain.ingestion.fallback.templates.MessageShape
@@ -167,6 +170,8 @@ class IdorTest {
             period = LimitPeriod.WEEKLY, baseline = null, target = BigDecimal("5000"), startedOn = LocalDate.now(), createdAt = Instant.now()))
         // A mutual fund import of Alice's (AOS-805): a folio, a scheme and the batch, with its reconciliation.
         val wealthBatch = seedWealthImport(app)
+        // Alice's salary as she corrected it (AOS-722): one row per user, reached only through the session's user.
+        app.get<SalaryChoiceRepository>().put(alice.id, ALICE_SALARY)
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
             receipt, limit, tripId, flight, splitImportId, splitEntryIds, goal, wealthBatch)
     }
@@ -197,6 +202,10 @@ class IdorTest {
         cookie(ACCESS_TOKEN_COOKIE, tokenFor(bob))
         header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) // a real browser on our pages (CSRF check)
         if (body != null) { contentType(ContentType.Application.Json); setBody(body) }
+    }
+
+    private companion object {
+        val ALICE_SALARY = SalaryChoice("Alice Employer Pvt Ltd", 7, BigDecimal("123456.78"), SalaryChoiceKind.CORRECTED, Instant.parse("2026-10-18T05:00:00Z"))
     }
 
     private fun errorCode(text: String) = Json.parseToJsonElement(text).jsonObject["error"]?.jsonObject?.get("code")?.jsonPrimitive?.content
@@ -269,6 +278,10 @@ class IdorTest {
         client.asBob(HttpMethod.Patch, "/api/v1/coach/limits/${a.limit.id}", """{"amount":"1"}""")
         client.asBob(HttpMethod.Delete, "/api/v1/coach/limits/${a.limit.id}", null)
         client.asBob(HttpMethod.Delete, "/api/v1/coach/goals/${a.goal.id}", null)
+        val bobSalary = client.asBob(HttpMethod.Put, "/api/v1/forecast/salary", """{"action":"correct","payer":"Bob Employer","day":1,"amount":"1"}""")
+        assertEquals(HttpStatusCode.OK, bobSalary.status, "Bob may set his own salary")
+        assertFalse("Alice" in bobSalary.bodyAsText() || "123456" in bobSalary.bodyAsText(), "Bob's answer shows nothing of Alice's salary")
+        client.asBob(HttpMethod.Put, "/api/v1/forecast/salary", """{"action":"confirm"}""")
 
         assertEquals(TransactionCategory.SHOPPING, app.get<TransactionRepository>().findById(a.txn.id)?.category)
         assertEquals(true, app.get<SubscriptionRepository>().findById(a.subscription.id)?.isFlagged)
@@ -283,6 +296,8 @@ class IdorTest {
         assertEquals(dev.adminos.api.domain.wealth.ImportStatus.APPLIED,
             app.get<dev.adminos.api.domain.wealth.InvestmentLedger>().findBatch(alice.id, a.wealthBatch.id)?.status, "Alice's import is not undone")
         assertTrue(app.get<GoalRepository>().findByUser(alice.id).any { it.id == a.goal.id }, "Alice still has her goal")
+        assertEquals(ALICE_SALARY, app.get<SalaryChoiceRepository>().find(alice.id), "Alice's salary choice is unchanged")
+        assertEquals("Bob Employer", app.get<SalaryChoiceRepository>().find(bob.id)?.payer, "Bob's PUT wrote only his own row")
         val doc = client.get("/api/v1/documents/${a.documentId}") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
@@ -323,6 +338,7 @@ class IdorTest {
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/pay-later", "/api/v1/trips", "/api/v1/splitwise/entries", "/api/v1/splitwise/summary", "/api/v1/splitwise/imports",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings", "/api/v1/coach/goals", "/api/v1/coach/savings",
+            "/api/v1/forecast/salary",
             "/api/v1/wealth/imports", "/api/v1/wealth/reconciliation", "/api/v1/wealth/investment-flows", "/api/v1/wealth/holdings",
         )
         val leaks = lists.mapNotNull { path ->
@@ -339,6 +355,10 @@ class IdorTest {
         val mine = client.get("/api/v1/subscriptions") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
         assertTrue(a.subscription.id.toString() in mine)
         assertFalse(a.subscription.id.toString() in client.asBob(HttpMethod.Get, "/api/v1/subscriptions", null).bodyAsText())
+        // The salary choice (AOS-722): Alice sees hers; Bob's GET has no choice at all.
+        assertTrue("Alice Employer Pvt Ltd" in client.get("/api/v1/forecast/salary") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+        val bobSalary = Json.parseToJsonElement(client.asBob(HttpMethod.Get, "/api/v1/forecast/salary", null).bodyAsText()).jsonObject.getValue("data").jsonObject
+        assertEquals(kotlinx.serialization.json.JsonNull, bobSalary["choice"])
         // The coach's leaks (AOS-902): an online-shopping order of Alice's shows for her, and nothing of it for Bob.
         app.get<TransactionRepository>().save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("1299.00"),
             merchantName = "Alice Leak Shop", category = TransactionCategory.SHOPPING, subcategory = "ecommerce", transactedAt = Instant.now()))
@@ -403,6 +423,21 @@ class IdorTest {
         assertEquals(proposal, grouping.proposals(alice.id).single().id.toString(), "Alice's proposal is still open")
         val bobs = client.asBob(HttpMethod.Get, "/api/v1/merchants/merge-proposals", null).bodyAsText()
         assertFalse(proposal in bobs || "Kuku" in bobs, "Bob's list shows Alice's proposal")
+    }
+
+    @Test
+    fun `Bob's balances and forecast never show Alice's balance (AOS-720)`() = realApp { app ->
+        val balances = app.get<dev.adminos.api.domain.balances.BalanceService>()
+        val ref = java.security.MessageDigest.getInstance("SHA-256").digest("alice-balance".toByteArray()).joinToString("") { "%02x".format(it) }
+        assertEquals(dev.adminos.api.domain.balances.BalanceRecordResult.Saved, balances.record(dev.adminos.api.domain.balances.BalanceObservation(
+            alice.id, "hdfc", "4242", BigDecimal("77777.77"), Instant.now().minusSeconds(3600), dev.adminos.api.domain.balances.BalanceSource.SMS, ref)))
+        assertTrue("77777.77" in client.get("/api/v1/balances") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), "Alice sees her own")
+        for (path in listOf("/api/v1/balances", "/api/v1/forecast")) {
+            val res = client.asBob(HttpMethod.Get, path, null)
+            assertEquals(HttpStatusCode.OK, res.status, path)
+            val text = res.bodyAsText()
+            assertFalse("77777" in text || "4242" in text, "$path shows Alice's balance to Bob")
+        }
     }
 
     @Test

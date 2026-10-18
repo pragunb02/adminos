@@ -17,7 +17,7 @@ import { fx } from "../test/fixtures";
 export const PAGES = [
   "/", "/spending", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/bills", "/subscriptions",
   "/documents", "/briefings", "/leaks", "/wealth", "/wealth/import", "/ask", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
-  "/trips", "/trips/trip-1",
+  "/trips", "/trips/trip-1", "/balances",
 ];
 
 /** Paths that only *look* like public pages (AUD-13: the guard used to prefix-match). */

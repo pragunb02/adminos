@@ -64,8 +64,8 @@ class RunRateComponent(private val fit: RunRateFit) : ForecastComponent {
     }
 }
 
-/** The components for a forecast: one per due source, then everyday spending. */
-fun componentsFor(dues: List<KnownDue>, fit: RunRateFit): List<ForecastComponent> =
-    DueSource.entries.map { KnownDuesComponent(it, dues) } + RunRateComponent(fit)
+/** The components for a forecast: one per due source, then projected monthly bills (AOS-721), then everyday spending. */
+fun componentsFor(dues: List<KnownDue>, fit: RunRateFit, projected: List<ProjectedBill> = emptyList()): List<ForecastComponent> =
+    DueSource.entries.map { KnownDuesComponent(it, dues) } + ProjectedBillsComponent(projected) + RunRateComponent(fit)
 
 internal fun BigDecimal.money(): BigDecimal = setScale(2, java.math.RoundingMode.HALF_UP)

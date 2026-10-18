@@ -41,11 +41,13 @@ class ForecastRoutesTest {
     private val transactions = InMemoryTransactionRepository()
     private val bills = InMemoryBillRepository()
     private val subscriptions = InMemorySubscriptionRepository()
+    private val salaryChoices = InMemorySalaryChoiceRepository()
     private val ist = ZoneId.of("Asia/Kolkata")
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
     private val limiter = dev.adminos.api.infrastructure.plugins.RateLimiter(maxRequests = 5, windowSeconds = 60)
+    private val balances = dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository(), clock)
     private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills),
-        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, clock = clock)
+        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, bills, salaryChoices, balances, clock = clock)
 
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
@@ -91,7 +93,7 @@ class ForecastRoutesTest {
         assertEquals("9300.00", month.str("total"))
         assertEquals(11, month["daysLeft"]!!.jsonPrimitive.int)
         val parts = month["parts"]!!.jsonArray.map { it.jsonObject }
-        assertEquals(listOf("bills", "renewals", "mandates", "everyday"), parts.map { it.str("kind") })
+        assertEquals(listOf("bills", "renewals", "mandates", "projected_bills", "everyday"), parts.map { it.str("kind") })
         val everyday = parts.last()
         assertEquals("300.00", everyday.str("weekdayRate"))
         assertEquals(8, everyday["weekdays"]!!.jsonPrimitive.int)
@@ -104,6 +106,38 @@ class ForecastRoutesTest {
         assertEquals("2026-10-21", until.str("from"))
         assertEquals("2026-10-31", until.str("to"))
         assertEquals("75700.00", until.str("left"))
+        assertEquals("salary", until.str("basis"))
+        assertEquals("2026-10-01", until.str("spentFrom"))
+        assertEquals(JsonNull, until["balance"])
+    }
+
+    @Test
+    fun `money left starts from recent balances and says how, listing the stale ones (AOS-720)`() = routeTest {
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("300"), merchantName = "Chai", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                if (day.dayOfMonth == 1) transactions.save(Transaction(userId = user.id, type = TransactionType.CREDIT, amount = BigDecimal("85000"), merchantName = "ACME", transactedAt = day.atTime(9, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+            fun ref(s: String) = java.security.MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
+            balances.record(dev.adminos.api.domain.balances.BalanceObservation(user.id, "hdfc", "1234", BigDecimal("50000.00"),
+                Instant.parse("2026-10-18T06:00:00Z"), dev.adminos.api.domain.balances.BalanceSource.SMS, ref("a")))
+            balances.record(dev.adminos.api.domain.balances.BalanceObservation(user.id, "sbi", "5678", BigDecimal("700.00"),
+                Instant.parse("2026-10-01T06:00:00Z"), dev.adminos.api.domain.balances.BalanceSource.STATEMENT, ref("b")))
+        }
+        val until = data()["salary"]!!.jsonObject["untilSalary"]!!.jsonObject
+        assertEquals("balance", until.str("basis"))
+        assertEquals("50000.00", until.str("balance"))
+        assertEquals("2026-10-18", until.str("balanceAsOf"))
+        assertEquals("2026-10-18", until.str("spentFrom"))
+        assertEquals("900.00", until.str("spentSince"))
+        assertEquals("45800.00", until.str("left"))
+        assertEquals(7, until["balanceMaxAgeDays"]!!.jsonPrimitive.int)
+        val account = until["accounts"]!!.jsonArray.single().jsonObject
+        assertEquals(listOf("hdfc", "1234", "50000.00", "2026-10-18", "sms"), listOf("bank", "last4", "amount", "observedOn", "source").map { account.str(it) })
+        val stale = until["notCounted"]!!.jsonArray.single().jsonObject
+        assertEquals(listOf("5678", "stale", "statement"), listOf("last4", "reason", "source").map { stale.str(it) })
     }
 
     @Test
@@ -156,5 +190,62 @@ class ForecastRoutesTest {
         assertEquals("mandates", withDues.monthEnd?.parts?.single()?.kind)
         assertEquals("5000.00", withDues.monthEnd?.parts?.single()?.items?.single()?.amount)
         assertTrue(withDues.monthEnd?.daysLeft == 11)
+    }
+    @Test
+    fun `a projected bill is its own part with its type and how long it was seen`() = routeTest {
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("300"), merchantName = "Chai", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+            listOf(7, 8, 9).forEach { m ->
+                bills.save(dev.adminos.api.domain.financial.Bill(userId = user.id, billerName = "Sample Power", billType = dev.adminos.api.domain.financial.BillType.ELECTRICITY,
+                    amount = BigDecimal("1200"), dueDate = LocalDate.of(2026, m, 25), status = dev.adminos.api.domain.financial.BillStatus.PAID))
+            }
+        }
+        val month = data()["monthEnd"]!!.jsonObject
+        val part = month["parts"]!!.jsonArray.map { it.jsonObject }.single { it.str("kind") == "projected_bills" }
+        assertEquals("1200.00", part.str("amount"))
+        val item = part["items"]!!.jsonArray.single().jsonObject
+        assertEquals("Sample Power", item.str("name"))
+        assertEquals("2026-10-25", item.str("date"))
+        assertEquals("1200.00", item.str("amount"))
+        assertEquals(false, item["overdue"]!!.jsonPrimitive.boolean)
+        assertEquals("electricity", item.str("billType"))
+        assertEquals(3, item["monthsSeen"]!!.jsonPrimitive.int)
+        assertEquals("2026-07", item.str("seenFrom"))
+        assertEquals(JsonNull, part["weekdayRate"])
+        assertEquals("10500.00", month.str("total"))
+    }
+    @Test
+    fun `the salary says whether it was detected or confirmed and its usual day`() = routeTest {
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("300"), merchantName = "Chai", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                if (day.dayOfMonth == 1) transactions.save(Transaction(userId = user.id, type = TransactionType.CREDIT, amount = BigDecimal("85000"), merchantName = "ACME", transactedAt = day.atTime(9, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+        }
+        val detected = data()["salary"]!!.jsonObject
+        assertEquals("detected", detected.str("source"))
+        assertEquals(1, detected["usualDay"]!!.jsonPrimitive.int)
+        runBlocking { salaryChoices.put(user.id, SalaryChoice("ACME", 5, BigDecimal("85000.00"), SalaryChoiceKind.CORRECTED, Instant.parse("2026-10-18T05:00:00Z"))) }
+        val confirmed = data()["salary"]!!.jsonObject
+        assertEquals("confirmed", confirmed.str("source"))
+        assertEquals(5, confirmed["usualDay"]!!.jsonPrimitive.int)
+        assertEquals("2026-11-05", confirmed.str("expectedOn"))
+    }
+
+    @Test
+    fun `an unseen confirmed salary is unknown with reason not_seen and source confirmed`() {
+        val monthEnd = MonthEndForecast(java.time.YearMonth.of(2026, 10), LocalDate.of(2026, 10, 20), BigDecimal("100"), null, emptyList(), null, 3)
+        val salary = Forecast.Ready(monthEnd, SalaryOutlook.Unknown(NoSalaryReason.NOT_SEEN, "ACME", null, chosen = true)).toResponse().salary
+        assertEquals("unknown", salary?.status)
+        assertEquals("not_seen", salary?.reason)
+        assertEquals("confirmed", salary?.source)
+        assertNull(salary?.usualDay)
+        assertEquals("detected", Forecast.Ready(monthEnd, SalaryOutlook.Unknown(NoSalaryReason.STOPPED, "ACME", null)).toResponse().salary?.source)
     }
 }

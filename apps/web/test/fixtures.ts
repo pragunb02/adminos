@@ -215,9 +215,34 @@ export const fx = {
           { kind: "bills", amount: "2350.50", items: [{ name: "Tata Power", date: "2026-10-25", amount: "2350.50", overdue: false }], weekdayRate: null, weekendRate: null, weekdays: null, weekendDays: null, split: null, method: null, learntFrom: null, learntTo: null },
           { kind: "everyday", amount: "8130.75", items: [], weekdayRate: "550.00", weekendRate: "1060.25", weekdays: 9, weekendDays: 3, split: true, method: "weekly_median", learntFrom: "2026-08-22", learntTo: "2026-10-16" },
         ],
+        basis: "salary", spentFrom: "2026-09-30", balance: null, balanceAsOf: null, accounts: [], notCounted: [], balanceMaxAgeDays: 7,
       },
     },
     ...over,
+  }),
+  /** Latest balances (AOS-720): today 16 Oct 2026; two counted accounts and one too old to count. */
+  balances: (over: Partial<import("@/lib/balances").BalancesData> = {}): import("@/lib/balances").BalancesData => ({
+    today: "2026-10-16",
+    accounts: [
+      { bank: "hdfc", last4: "1234", amount: "42500.50", observedAt: "2026-10-16T04:30:00Z", observedOn: "2026-10-16", source: "sms", ageDays: 0, freshness: "fresh", counted: true },
+      { bank: "sbi", last4: "5678", amount: "-1200.00", observedAt: "2026-10-12T18:29:59Z", observedOn: "2026-10-12", source: "statement", ageDays: 4, freshness: "aging", counted: true },
+      { bank: null, last4: "9012", amount: "8000.00", observedAt: "2026-09-30T06:00:00Z", observedOn: "2026-09-30", source: "sms", ageDays: 16, freshness: "stale", counted: false },
+    ],
+    total: "41300.50",
+    countedAccounts: 2,
+    maxAgeDays: 7,
+    ...over,
+  }),
+  /** Money left from recent balances (AOS-720) on the ready forecast: ₹41,300.50 − ₹3,200 spent 12–16 Oct − ₹10,481.25. */
+  balanceUntilSalary: (): import("@/lib/forecast").UntilSalary => ({
+    ...fx.forecast().salary!.untilSalary!,
+    basis: "balance", spentFrom: "2026-10-12", spentSince: "3200.00", left: "27619.25", leftLow: "23200.50", leftHigh: "31300.50",
+    balance: "41300.50", balanceAsOf: "2026-10-12",
+    accounts: [
+      { bank: "hdfc", last4: "1234", amount: "42500.50", observedOn: "2026-10-16", source: "sms", reason: null },
+      { bank: "sbi", last4: "5678", amount: "-1200.00", observedOn: "2026-10-12", source: "statement", reason: null },
+    ],
+    notCounted: [{ bank: null, last4: "9012", amount: "8000.00", observedOn: "2026-09-30", source: "sms", reason: "stale" }],
   }),
   /** A cash text reading (AOS-718): "200 chai and kal 150 raju, samosa" on Sat 17 Oct 2026. */
   cashParse: (over: Partial<import("@/lib/cash").CashParse> = {}): import("@/lib/cash").CashParse => ({

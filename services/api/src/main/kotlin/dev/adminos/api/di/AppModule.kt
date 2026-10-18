@@ -141,6 +141,8 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { ExposedTravelBookingRepository() }
         single<dev.adminos.api.domain.financial.trips.TripEditRepository> { ExposedTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
+        single<dev.adminos.api.domain.forecast.SalaryChoiceRepository> { dev.adminos.api.infrastructure.database.repositories.ExposedSalaryChoiceRepository() }
+        single<dev.adminos.api.domain.balances.BalanceRepository> { dev.adminos.api.infrastructure.database.repositories.ExposedBalanceRepository(get()) }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -178,6 +180,8 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository() }
         single<dev.adminos.api.domain.financial.trips.TripEditRepository> { dev.adminos.api.domain.financial.trips.InMemoryTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
+        single<dev.adminos.api.domain.forecast.SalaryChoiceRepository> { dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository() }
+        single<dev.adminos.api.domain.balances.BalanceRepository> { dev.adminos.api.domain.balances.InMemoryBalanceRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -272,7 +276,9 @@ internal fun buildAppModule(
     single { TemplateLearning(get()) }
     single { TemplateReviewService(get()) }
     single<UnrecognisedMessageSink> { TemplateReader(get(), get(), getOrNull<MessageFallback>() ?: UnrecognisedMessageSink.NONE) }
-    single { SmsIntake(get(), get(), get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
+    // Latest balance per account (AOS-720, D-170): from trusted bank SMS and reconciled statement closings, encrypted at rest.
+    single { dev.adminos.api.domain.balances.BalanceService(get()) }
+    single { SmsIntake(get(), get(), get(), get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
     single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get(), fallback = get()) }
     // Review of AI-read messages: always present, so Review shows (and decides) what was read while it was on.
     single<MessageProposalRepository> { if (useDatabase) ExposedMessageProposalRepository() else InMemoryMessageProposalRepository() }
@@ -286,7 +292,7 @@ internal fun buildAppModule(
 
     // Statement import (AOS-202, D-37)
     single<StatementParser> { HttpStatementParser(get<AppConfig>().statementParser.url) }
-    single { StatementImportService(get(), get()) }
+    single { StatementImportService(get(), get(), get()) }
     // Gmail push (AOS-405, D-63): the API calls users.watch/stop itself; off without GOOGLE_GMAIL_PUBSUB_TOPIC.
     single<GmailPushApi> { HttpGmailPushApi() }
     single { GmailAccessTokens(get(), get<GoogleOAuthClient>(), get()) }
@@ -320,8 +326,10 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
+    // The owner's confirmed or corrected salary (AOS-722).
+    single { dev.adminos.api.domain.forecast.SalaryChoiceService(get(), get()) }
     // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
-    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get()) }
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get(), get(), get()) }
 
     // Agent Services
     // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)

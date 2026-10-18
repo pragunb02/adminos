@@ -33,7 +33,7 @@ class PayLaterFlowTest {
     private val billing = BillTrackingService(bills, txns, dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()))
     private val payLaterBills = PayLaterBills(bills, billing)
     private val intake = SmsIntake(SmsParserRegistry(), IngestEventService(events),
-        dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), txns), payLaterBills, dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()))
+        dev.adminos.api.domain.financial.mandates.MandateService(dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository(), txns), payLaterBills, dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()))
     private val processor = IngestProcessor(events,
         IngestPipeline(listOf(ToTransactionStep(), NormalizeMerchantStep(MerchantNormalizer()), CategorizeStep(CategorizationService(InMemoryCategoryRuleRepository())),
             TransferStep(RepositoryMatchCandidates(txns, links), TransferDetector()))),

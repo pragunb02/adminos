@@ -18,10 +18,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable data class ForecastHistoryDto(val days: Long, val neededDays: Int, val readyOn: String?)
 @Serializable data class ForecastRangeDto(val low: String, val high: String, val level: Int, val months: Int)
-@Serializable data class DueDto(val name: String, val date: String, val amount: String, val overdue: Boolean)
+@Serializable data class DueDto(
+    val name: String, val date: String, val amount: String, val overdue: Boolean,
+    /** A projected bill's type (`electricity`, `mobile`…), how many months running it was seen, and since when (`YYYY-MM`). */
+    val billType: String? = null, val monthsSeen: Int? = null, val seenFrom: String? = null
+)
 
 /**
- * One line of "How we got this". `bills`, `renewals` and `mandates` list their [items]; `everyday` gives its
+ * One line of "How we got this". `bills`, `renewals`, `mandates` and `projected_bills` list their [items]; `everyday` gives its
  * daily rates, the number of each kind of day, and the days it learnt from.
  */
 @Serializable data class ForecastPartDto(
@@ -48,6 +52,16 @@ import kotlinx.serialization.Serializable
     val rangeMonthsNeeded: Int
 )
 
+/** An account's balance in "money left" (AOS-720); [reason] says why one isn't counted (stale / before_salary). */
+@Serializable data class ForecastBalanceDto(
+    val bank: String?,
+    val last4: String,
+    val amount: String,
+    val observedOn: String,
+    val source: String,
+    val reason: String? = null
+)
+
 @Serializable data class UntilSalaryDto(
     val from: String?,
     val to: String?,
@@ -56,13 +70,23 @@ import kotlinx.serialization.Serializable
     val left: String,
     val leftLow: String?,
     val leftHigh: String?,
-    val parts: List<ForecastPartDto>
+    val parts: List<ForecastPartDto>,
+    /** What "left" starts from: balance (recent bank balances, AOS-720) or salary (the last salary, D-76). */
+    val basis: String = "salary",
+    /** The first day [spentSince] counts; null when nothing is subtracted (a balance from today). */
+    val spentFrom: String? = null,
+    /** The counted balances' sum, and the oldest of their days (basis balance only). */
+    val balance: String? = null,
+    val balanceAsOf: String? = null,
+    val accounts: List<ForecastBalanceDto> = emptyList(),
+    val notCounted: List<ForecastBalanceDto> = emptyList(),
+    val balanceMaxAgeDays: Long = MonthEndForecaster.MAX_BALANCE_AGE_DAYS
 )
 
 @Serializable data class SalaryDto(
     /** expected / late / unknown */
     val status: String,
-    /** Why it's unknown: no_regular_credit / amount_varies / date_varies / stopped. */
+    /** Why it's unknown: no_regular_credit / amount_varies / date_varies / stopped / not_seen (a confirmed payer's credits aren't seen). */
     val reason: String?,
     val payer: String?,
     val expectedOn: String?,
@@ -70,7 +94,11 @@ import kotlinx.serialization.Serializable
     val lastAmount: String?,
     val lastReceivedOn: String?,
     val credits: Int?,
-    val untilSalary: UntilSalaryDto?
+    val untilSalary: UntilSalaryDto?,
+    /** detected / confirmed: learnt from history alone, or from the owner's stored choice (AOS-722). */
+    val source: String = "detected",
+    /** The usual day of the month the salary comes; null when unknown. */
+    val usualDay: Int? = null
 )
 
 @Serializable data class ForecastResponse(
@@ -113,26 +141,42 @@ private fun MonthEndForecast.toDto() = MonthEndDto(
 
 private fun SalaryOutlook.toDto(): SalaryDto = when (this) {
     is SalaryOutlook.Unknown -> SalaryDto("unknown", reason = reason.name.lowercase(), payer = payer, expectedOn = null, typicalAmount = null,
-        lastAmount = null, lastReceivedOn = lastSeen?.toString(), credits = null, untilSalary = null)
+        lastAmount = null, lastReceivedOn = lastSeen?.toString(), credits = null, untilSalary = null, source = if (chosen) "confirmed" else "detected")
     is SalaryOutlook.Late -> salary.toDto("late", null)
     is SalaryOutlook.Expected -> untilSalary.salary.toDto("expected", untilSalary.toDto())
 }
 
 private fun DetectedSalary.toDto(status: String, until: UntilSalaryDto?) = SalaryDto(
     status = status, reason = null, payer = payer, expectedOn = expectedOn.toString(), typicalAmount = typicalAmount.toMoney(),
-    lastAmount = lastAmount.toMoney(), lastReceivedOn = lastReceivedOn.toString(), credits = credits, untilSalary = until
+    lastAmount = lastAmount.toMoney(), lastReceivedOn = lastReceivedOn.toString(), credits = credits, untilSalary = until,
+    source = source.name.lowercase(), usualDay = usualDay
 )
 
-private fun UntilSalary.toDto() = UntilSalaryDto(
-    from = window?.from?.toString(), to = window?.to?.toString(), spentSince = spentSince.toMoney(), expected = expected.toMoney(),
-    left = left.toMoney(), leftLow = leftRange?.first?.toMoney(), leftHigh = leftRange?.second?.toMoney(), parts = parts.map { it.toDto() }
-)
+private fun UntilSalary.toDto(): UntilSalaryDto {
+    val balances = basis as? MoneyBasis.Balances
+    return UntilSalaryDto(
+        from = window?.from?.toString(), to = window?.to?.toString(), spentSince = spentSince.toMoney(), expected = expected.toMoney(),
+        left = left.toMoney(), leftLow = leftRange?.first?.toMoney(), leftHigh = leftRange?.second?.toMoney(), parts = parts.map { it.toDto() },
+        basis = if (balances != null) "balance" else "salary",
+        spentFrom = spentFrom?.toString(),
+        balance = balances?.start?.toMoney(), balanceAsOf = balances?.asOf?.toString(),
+        accounts = balances?.accounts.orEmpty().map { it.toDto(null) },
+        notCounted = notCounted.map { it.balance.toDto(it.reason.name.lowercase()) }
+    )
+}
+
+private fun BankBalance.toDto(reason: String?) = ForecastBalanceDto(bankCode, last4, amount.toMoney(), observedOn.toString(), source, reason)
 
 private fun ComponentEstimate.toDto(): ForecastPartDto = when (this) {
     is ComponentEstimate.Dues -> ForecastPartDto(
         kind = when (source) { DueSource.BILL -> "bills"; DueSource.RENEWAL -> "renewals"; DueSource.MANDATE -> "mandates" },
         amount = amount.toMoney(),
         items = items.map { DueDto(it.name, it.date.toString(), it.amount.toMoney(), it.overdue) },
+        weekdayRate = null, weekendRate = null, weekdays = null, weekendDays = null, split = null, method = null, learntFrom = null, learntTo = null
+    )
+    is ProjectedBillsEstimate -> ForecastPartDto(
+        kind = "projected_bills", amount = amount.toMoney(),
+        items = items.map { DueDto(it.name, it.expectedOn.toString(), it.amount.toMoney(), overdue = false, billType = it.type.name.lowercase(), monthsSeen = it.monthsSeen, seenFrom = it.seenFrom.toString()) },
         weekdayRate = null, weekendRate = null, weekdays = null, weekendDays = null, split = null, method = null, learntFrom = null, learntTo = null
     )
     is ComponentEstimate.RunRate -> ForecastPartDto(

@@ -3,6 +3,7 @@ import { setupServer } from "msw/node";
 import { ok } from "./envelope";
 import { fx } from "../fixtures";
 import { cx } from "../coachFixtures";
+import { sx } from "../salaryFixtures";
 
 /**
  * One MSW server for all unit tests; each test adds its own handlers with `server.use(...)`.
@@ -44,6 +45,10 @@ export const server = setupServer(
   http.get("/api/v1/categories/golden", () => ok([])),
   // Home → Month-end forecast (AOS-714): too little history unless a test says otherwise.
   http.get("/api/v1/forecast", () => ok({ status: "not_enough_history", today: "2026-10-16", history: { days: 40, neededDays: 90, readyOn: "2026-11-25" }, monthEnd: null, salary: null })),
+  // Home → forecast → Your salary (AOS-722): detected, nothing chosen, unless a test says otherwise.
+  http.get("/api/v1/forecast/salary", () => ok(sx.view())),
+  // Bank balances (AOS-720): none known unless a test says otherwise.
+  http.get("/api/v1/balances", () => ok({ today: "2026-10-16", accounts: [], total: "0.00", countedAccounts: 0, maxAgeDays: 7 })),
   // Review → Same merchant? (AOS-709): nothing to ask unless a test says otherwise.
   http.get("/api/v1/merchants/merge-proposals", () => ok([])),
 );
