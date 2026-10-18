@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.ingestion.fallback
 
+import dev.adminos.api.hasToken
+import dev.adminos.api.withoutUuids
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.events.IngestDirection
 import dev.adminos.api.domain.ingestion.events.IngestEvent
@@ -139,8 +141,9 @@ class MessageReviewServiceTest {
         assertFailsWith<IllegalArgumentException> { proposal().copy(status = ProposalStatus.DISMISSED) }
         assertFailsWith<IllegalArgumentException> { proposal().copy(decidedAt = clock.instant()) }
         assertFailsWith<IllegalArgumentException> { proposal().copy(ingestEventId = UUID.randomUUID()) }
-        val s = proposal().toString()
-        assertTrue("ZEPTO" !in s && "249" !in s && "4321" !in s, s)
+        // Ids are random: their hex can hold the same digits, so they are taken out before the figures are looked for.
+        val s = proposal().toString().withoutUuids()
+        assertTrue("ZEPTO" !in s && !s.hasToken("249") && !s.hasToken("249.00") && !s.hasToken("4321"), s)
         assertEquals(MessageChannel.GMAIL, MessageChannel.fromKey("gmail"))
         assertNull(MessageChannel.fromKey("email"))
     }

@@ -1,5 +1,7 @@
 package dev.adminos.api.domain.ingestion.sms
 
+import dev.adminos.api.hasToken
+import dev.adminos.api.withoutUuids
 import dev.adminos.api.domain.ingestion.events.InMemoryIngestEventRepository
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import kotlinx.coroutines.runBlocking
@@ -50,7 +52,8 @@ class SmsIntakeTest {
         assertEquals(java.math.BigDecimal("12345.60"), r.amount)
         assertEquals(dev.adminos.api.domain.balances.BalanceAccount("hdfc", "4321"), r.account)
         assertEquals(Instant.parse("2026-10-16T05:00:00Z"), r.observedAt)
-        assertTrue("12345" !in r.toString() && "4321" !in out.toString())
+        // Ids are random hex and could hold these digits by chance, so they are taken out first.
+        assertTrue(!r.toString().withoutUuids().hasToken("12345") && !out.toString().withoutUuids().hasToken("4321"))
         assertFalse(intake.receive(userId, SmsMessage("VM-HDFCBK-S", sms, Instant.parse("2026-10-16T05:01:00Z"))).balanceNoted, "a resent SMS is the same reading")
     }
 
