@@ -54,7 +54,8 @@ export interface UntilSalary {
 }
 
 export type SalaryStatus = "expected" | "late" | "unknown";
-export type NoSalaryReason = "no_regular_credit" | "amount_varies" | "date_varies" | "stopped";
+/** `not_seen` (AOS-722): the payer the owner chose has sent no credit lately. */
+export type NoSalaryReason = "no_regular_credit" | "amount_varies" | "date_varies" | "stopped" | "not_seen";
 
 export interface SalaryOutlook {
   status: SalaryStatus;
@@ -66,6 +67,9 @@ export interface SalaryOutlook {
   lastReceivedOn: string | null;
   credits: number | null;
   untilSalary: UntilSalary | null;
+  /** AOS-722: "confirmed" when the owner's stored choice was used instead of detection; and its usual day. */
+  source?: "detected" | "confirmed";
+  usualDay?: number | null;
 }
 
 export interface ForecastData {
@@ -93,6 +97,7 @@ export const NO_SALARY_TEXT: Record<NoSalaryReason, string> = {
   amount_varies: "Your monthly credits vary too much to plan on.",
   date_varies: "Your monthly credits come on days too far apart to plan on.",
   stopped: "Your regular credit hasn't come for a while.",
+  not_seen: "We haven't seen a credit from your salary payer yet.",
 };
 
 const DAY = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });

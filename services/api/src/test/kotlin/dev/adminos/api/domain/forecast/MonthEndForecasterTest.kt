@@ -258,4 +258,46 @@ class MonthEndForecasterTest {
         assertEquals(without.low + inr("1200"), with.low)
         assertEquals(without.high + inr("1200"), with.high)
     }
+    // ── The owner's salary choice (AOS-722) ──
+
+    private fun choice(payer: String?, day: Int, amount: String = "85000") =
+        SalaryChoice(payer, day, inr(amount), SalaryChoiceKind.CORRECTED, java.time.Instant.parse("2026-10-18T05:00:00Z"))
+
+    private fun outlook(credits: List<IncomeCredit>, choice: SalaryChoice?) =
+        ready(ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), credits, salaryChoice = choice)).salary
+
+    @Test
+    fun `a corrected salary day moves the next payday and the until-salary window`() {
+        val u = assertIs<SalaryOutlook.Expected>(outlook(salaries, choice("ACME", 5))).untilSalary
+        assertEquals(d("2026-11-05"), u.salary.expectedOn)
+        assertEquals(5, u.salary.usualDay)
+        assertEquals(SalarySource.CONFIRMED, u.salary.source)
+        assertEquals(DateRange(d("2026-10-21"), d("2026-11-04")), u.window)
+    }
+
+    @Test
+    fun `a corrected payer picks that payer's credits over a larger salary from someone else`() {
+        val side = listOf("2026-06-10", "2026-07-10", "2026-08-10", "2026-09-10", "2026-10-09").map { IncomeCredit(d(it), "Side Studio", inr("30000")) }
+        assertEquals("ACME", assertIs<SalaryOutlook.Expected>(outlook(salaries + side, null)).untilSalary.salary.payer)
+        val s = assertIs<SalaryOutlook.Expected>(outlook(salaries + side, choice("Side Studio", 10, "30000"))).untilSalary.salary
+        assertEquals("Side Studio", s.payer)
+        assertEquals(d("2026-10-09"), s.lastReceivedOn)
+        assertEquals(d("2026-11-10"), s.expectedOn)
+        assertEquals(inr("30000.00"), s.lastAmount.setScale(2))
+    }
+
+    @Test
+    fun `a confirmed payer not seen in the credits is unknown and says it came from the choice`() {
+        val u = assertIs<SalaryOutlook.Unknown>(outlook(salaries, choice("Nobody Ltd", 1)))
+        assertEquals(NoSalaryReason.NOT_SEEN, u.reason)
+        assertTrue(u.chosen)
+    }
+
+    @Test
+    fun `without a choice the salary is detected as before`() {
+        val s = assertIs<SalaryOutlook.Expected>(outlook(salaries, null)).untilSalary.salary
+        assertEquals(SalarySource.DETECTED, s.source)
+        assertEquals(d("2026-11-01"), s.expectedOn)
+        assertEquals(false, assertIs<SalaryOutlook.Unknown>(outlook(emptyList(), null)).chosen)
+    }
 }

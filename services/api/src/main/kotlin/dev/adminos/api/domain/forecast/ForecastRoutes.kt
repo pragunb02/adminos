@@ -66,7 +66,7 @@ import kotlinx.serialization.Serializable
 @Serializable data class SalaryDto(
     /** expected / late / unknown */
     val status: String,
-    /** Why it's unknown: no_regular_credit / amount_varies / date_varies / stopped. */
+    /** Why it's unknown: no_regular_credit / amount_varies / date_varies / stopped / not_seen (a confirmed payer's credits aren't seen). */
     val reason: String?,
     val payer: String?,
     val expectedOn: String?,
@@ -74,7 +74,11 @@ import kotlinx.serialization.Serializable
     val lastAmount: String?,
     val lastReceivedOn: String?,
     val credits: Int?,
-    val untilSalary: UntilSalaryDto?
+    val untilSalary: UntilSalaryDto?,
+    /** detected / confirmed: learnt from history alone, or from the owner's stored choice (AOS-722). */
+    val source: String = "detected",
+    /** The usual day of the month the salary comes; null when unknown. */
+    val usualDay: Int? = null
 )
 
 @Serializable data class ForecastResponse(
@@ -117,14 +121,15 @@ private fun MonthEndForecast.toDto() = MonthEndDto(
 
 private fun SalaryOutlook.toDto(): SalaryDto = when (this) {
     is SalaryOutlook.Unknown -> SalaryDto("unknown", reason = reason.name.lowercase(), payer = payer, expectedOn = null, typicalAmount = null,
-        lastAmount = null, lastReceivedOn = lastSeen?.toString(), credits = null, untilSalary = null)
+        lastAmount = null, lastReceivedOn = lastSeen?.toString(), credits = null, untilSalary = null, source = if (chosen) "confirmed" else "detected")
     is SalaryOutlook.Late -> salary.toDto("late", null)
     is SalaryOutlook.Expected -> untilSalary.salary.toDto("expected", untilSalary.toDto())
 }
 
 private fun DetectedSalary.toDto(status: String, until: UntilSalaryDto?) = SalaryDto(
     status = status, reason = null, payer = payer, expectedOn = expectedOn.toString(), typicalAmount = typicalAmount.toMoney(),
-    lastAmount = lastAmount.toMoney(), lastReceivedOn = lastReceivedOn.toString(), credits = credits, untilSalary = until
+    lastAmount = lastAmount.toMoney(), lastReceivedOn = lastReceivedOn.toString(), credits = credits, untilSalary = until,
+    source = source.name.lowercase(), usualDay = usualDay
 )
 
 private fun UntilSalary.toDto() = UntilSalaryDto(

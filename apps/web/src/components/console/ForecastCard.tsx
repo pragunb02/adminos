@@ -8,6 +8,8 @@ import {
   type ForecastData, type ForecastDue, type ForecastPart, type MonthEnd, type SalaryOutlook, type UntilSalary,
 } from "@/lib/forecast";
 import { errorMessage, getData } from "@/lib/query";
+import { salarySourceBadge } from "@/lib/salary";
+import SalaryConfirm from "@/components/console/SalaryConfirm";
 
 /**
  * Month-end forecast and money left until salary (AOS-714) on Home. Self-contained: it loads its own data.
@@ -137,13 +139,24 @@ function projectedText(i: ForecastDue) {
 
 function SalaryView({ s }: { s: SalaryOutlook }) {
   if (s.status === "unknown") {
-    return <p className="border-t border-line pt-3 text-sm text-ink-muted">Money left until salary: {NO_SALARY_TEXT[s.reason ?? "no_regular_credit"]}</p>;
+    return (
+      <div className="border-t border-line pt-3">
+        <p className="text-sm text-ink-muted">Money left until salary: {NO_SALARY_TEXT[s.reason ?? "no_regular_credit"] ?? NO_SALARY_TEXT.no_regular_credit}<SourceBadge s={s} /></p>
+        <SalaryConfirm />
+      </div>
+    );
   }
   if (s.status === "late" || !s.untilSalary || !s.expectedOn) {
     return (
-      <p className="border-t border-line pt-3 text-sm text-ink-muted">
-        Your salary usually comes around {s.expectedOn ? shortDate(s.expectedOn) : "now"} and hasn&apos;t arrived yet. Money left will show once it does.
-      </p>
+      <div className="border-t border-line pt-3">
+        <p className="text-sm text-ink-muted">
+          Your salary usually comes around {s.expectedOn ? shortDate(s.expectedOn) : "now"} and hasn&apos;t arrived yet. Money left will show once it does.<SourceBadge s={s} />
+        </p>
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-accent">How we got this</summary>
+          <SalaryConfirm />
+        </details>
+      </div>
     );
   }
   return <UntilSalaryView s={s} u={s.untilSalary} expectedOn={s.expectedOn} />;
@@ -153,7 +166,7 @@ function UntilSalaryView({ s, u, expectedOn }: { s: SalaryOutlook; u: UntilSalar
   const short = u.left.startsWith("-");
   return (
     <div className="border-t border-line pt-3">
-      <p className="text-sm text-ink-muted">Salary expected {dayAndDate(expectedOn)}{s.payer ? ` (${s.payer})` : ""}</p>
+      <p className="text-sm text-ink-muted">Salary expected {dayAndDate(expectedOn)}{s.payer ? ` (${s.payer})` : ""}<SourceBadge s={s} /></p>
       <p className="tabular text-xl font-semibold text-ink">
         {short ? <>Short by {formatInr(u.left.slice(1))} before it comes</> : <>{formatInr(u.left)} left from this salary</>}
       </p>
@@ -170,7 +183,14 @@ function UntilSalaryView({ s, u, expectedOn }: { s: SalaryOutlook; u: UntilSalar
           <li className="font-medium">= {short ? `Short by ${formatInr(u.left.slice(1))}` : `${formatInr(u.left)} left`}</li>
         </ul>
         <p className="mt-1 text-xs text-ink-muted">Other income and savings aren&apos;t counted; the bank balance isn&apos;t known.</p>
+        <SalaryConfirm />
       </details>
     </div>
   );
+}
+
+/** "confirmed" beside the salary line when the owner's stored salary was used (AOS-722); nothing when detected. */
+function SourceBadge({ s }: { s: SalaryOutlook }) {
+  const badge = salarySourceBadge(s.source);
+  return badge ? <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-accent">{badge}</span> : null;
 }

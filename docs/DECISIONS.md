@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-172 | Architecture / Product | The owner confirms or corrects the salary (payer, usual day, amount; one per user, V93); confirm stores exactly what was detected, the client sends no values; with a choice, detection only reads the chosen payer's credits (loose whole-word match in any script, ≥ half the amount) for the last salary, the weekend habit and late/stopped; `not_seen` when none | Proposed | AOS-722 |
 | D-171 | Architecture / Product | Projected monthly bills: utility billers (electricity, mobile, internet, water, gas) billed each of the last 3 calendar months and not yet billed this month are projected at the median amount on the median due day (after today only); any same-type bill in the month or within ±10 days means arrived, never counted twice; under-counting is the accepted side | Proposed | AOS-721 |
 | D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
 | D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
@@ -1633,3 +1634,14 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Measured:** the D-76 backtest is unchanged (its dues are an oracle). A late-bills variant (the utility bill known only 7 days before its due date) improves MAPE from 10.91% to 9.67%; a test keeps "with" ≤ "without".
 - **Accepted limits (the under-counting side):** a bill paid outside AdminOS before its usual day with no bill row is still projected once; one arrived bill of a type hides the other projections of that type that month (two homes).
 - **Rejected:** projecting every bill type (double counts mandates, yearly insurance); matching arrival by the exact biller (name drift makes a second count); guessing a late bill after its usual day; a time-series model per biller (D-67, 3 points).
+
+### D-172 — The owner confirms or corrects the detected salary
+2026-10-18 · Proposed · Type: Architecture / Product · Tasks: AOS-722 · Builds on D-67, D-76, D-100, D-102, D-171
+- **What it says:** "money left until salary" depends on the right payer and day, so the owner can confirm or correct what detection found, and the forecast uses the answer.
+  - **Stored:** one choice per user (`salary_choices`, V93): payer (or none, for credits without a name), usual day 1–31 (clamped to short months), amount, confirmed or corrected. The latest wins.
+  - **Confirm** stores exactly what detection found (payer, the usual day before any weekend move, the typical amount); the client sends no values. **Correct** stores the owner's, validated on the server (strict amount pattern, bounds, printable payer up to 100 characters) and again in the database.
+  - **With a choice, detection reads only the chosen payer's credits** of at least half the chosen amount, matching payers loosely (whole words in order, any script; bank narrations add words like "SALARY OCT"). From them: the last salary (where money left starts, also for D-170's basis), the payer's weekend habit for the chosen day, and late / stopped as before. None in the last 200 days is said (`not_seen`), never guessed.
+  - **Shown:** the card marks a confirmed salary; "How we got this" shows what is used and offers "Yes, that's right" (while nothing is stored) and "Correct it". `GET /forecast` says `source` and `usualDay`.
+  - **Two salaries, a new employer, a raise:** the choice picks the payer; a correction applies at once. Several salaries stay out of scope.
+- **Security:** session-only routes, global Origin check, JSON only, user from the session only, 20 changes a minute; payer and amount never logged. Plaintext at rest, like the transactions they come from.
+- **Rejected:** taking confirm's values from the client (a stale or forged confirm); an exact payer match (narrations vary month to month); forgetting the choice when the payer stops (it is shown as stopped / not seen, so the owner corrects it); a DELETE route (a correction covers it; not needed for one owner).

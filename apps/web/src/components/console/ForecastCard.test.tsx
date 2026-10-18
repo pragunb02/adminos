@@ -187,6 +187,48 @@ describe("ForecastCard", () => {
     });
   });
 
+  describe("your salary (AOS-722)", () => {
+    it("an expected salary has Your salary inside its working; a confirmed one says so beside the salary line", async () => {
+      forecastWith({ salary: { ...salary, source: "confirmed", usualDay: 30 } });
+      const { user } = renderWithQuery(<ForecastCard />);
+      const line = await screen.findByText(/^Salary expected Fri, 30 Oct \(ACME TECHNOLOGIES\)/);
+      expect(within(line).getByText("confirmed")).toBeInTheDocument();
+      await user.click(screen.getAllByText("How we got this")[1]);
+      const yours = screen.getByRole("region", { name: "Your salary" });
+      expect(await within(yours).findByText(/around the 30th/)).toBeInTheDocument();
+    });
+
+    it("a detected salary has no badge", async () => {
+      forecastWith({ salary: { ...salary, source: "detected", usualDay: 30 } });
+      renderWithQuery(<ForecastCard />);
+      expect(await screen.findByText("Salary expected Fri, 30 Oct (ACME TECHNOLOGIES)")).toBeInTheDocument();
+      expect(screen.queryByText("confirmed")).not.toBeInTheDocument();
+    });
+
+    it("a late salary can be confirmed or corrected from its working", async () => {
+      forecastWith({ salary: { ...salary, status: "late", untilSalary: null, expectedOn: "2026-10-01", source: "confirmed" } });
+      const { user } = renderWithQuery(<ForecastCard />);
+      const line = await screen.findByText(/usually comes around 1 Oct and hasn't arrived yet/);
+      expect(within(line).getByText("confirmed")).toBeInTheDocument();
+      await user.click(screen.getAllByText("How we got this")[1]);
+      expect(await screen.findByRole("button", { name: "Correct it" })).toBeVisible();
+    });
+
+    it("an unknown salary shows Your salary in the card, and a chosen payer not seen lately says so", async () => {
+      forecastWith({ salary: { ...salary, status: "unknown", reason: "not_seen", untilSalary: null, expectedOn: null, source: "confirmed" } });
+      renderWithQuery(<ForecastCard />);
+      const line = await screen.findByText(/^Money left until salary: We haven't seen a credit from your salary payer yet\./);
+      expect(within(line).getByText("confirmed")).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Your salary" })).toBeVisible();
+    });
+
+    it("a reason it doesn't know yet still reads", async () => {
+      forecastWith({ salary: { ...salary, status: "unknown", reason: "brand_new" as never, untilSalary: null, expectedOn: null } });
+      renderWithQuery(<ForecastCard />);
+      expect(await screen.findByText("Money left until salary: No regular monthly salary found in your credits yet.")).toBeInTheDocument();
+    });
+  });
+
   it("date helpers", () => {
     expect(monthEndDate("2028-02")).toBe("2028-02-29");
     expect(monthEndDate("2026-12")).toBe("2026-12-31");

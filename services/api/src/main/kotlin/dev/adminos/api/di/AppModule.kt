@@ -139,6 +139,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { ExposedTravelBookingRepository() }
         single<dev.adminos.api.domain.financial.trips.TripEditRepository> { ExposedTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
+        single<dev.adminos.api.domain.forecast.SalaryChoiceRepository> { dev.adminos.api.infrastructure.database.repositories.ExposedSalaryChoiceRepository() }
     } else {
         // InMemory fallback for local dev / testing
         single<UserRepository> { InMemoryUserRepository() }
@@ -176,6 +177,7 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository() }
         single<dev.adminos.api.domain.financial.trips.TripEditRepository> { dev.adminos.api.domain.financial.trips.InMemoryTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
+        single<dev.adminos.api.domain.forecast.SalaryChoiceRepository> { dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository() }
     }
 
     // Services — depend on interfaces, unchanged
@@ -318,8 +320,10 @@ internal fun buildAppModule(
     single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.receipts.HiddenFeesService(get()) }
+    // The owner's confirmed or corrected salary (AOS-722).
+    single { dev.adminos.api.domain.forecast.SalaryChoiceService(get(), get()) }
     // Month-end forecast and money left until salary (AOS-714): deterministic, from the same history and dues.
-    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get()) }
+    single { dev.adminos.api.domain.forecast.ForecastService(get(), get(), get(), get(), get()) }
 
     // Agent Services
     // Robust per-merchant baselines + tolerance learnt from answers (AOS-713, D-73)

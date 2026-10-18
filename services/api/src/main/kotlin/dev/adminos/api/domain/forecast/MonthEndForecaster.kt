@@ -14,7 +14,9 @@ data class ForecastInput(
     val dues: List<KnownDue>,
     val incomes: List<IncomeCredit>,
     /** Monthly bills expected but not arrived yet (AOS-721), counted like known dues. */
-    val projectedBills: List<ProjectedBill> = emptyList()
+    val projectedBills: List<ProjectedBill> = emptyList(),
+    /** The owner's confirmed or corrected salary (AOS-722); detection uses it instead of guessing. */
+    val salaryChoice: SalaryChoice? = null
 )
 
 /** The month-end forecast: what's spent, plus what each component expects for the rest of the month. */
@@ -55,7 +57,9 @@ sealed interface SalaryOutlook {
     data class Expected(val untilSalary: UntilSalary) : SalaryOutlook
     /** The salary's day has passed without it, so "money left" isn't computed. */
     data class Late(val salary: DetectedSalary) : SalaryOutlook
-    data class Unknown(val reason: NoSalaryReason, val payer: String?, val lastSeen: LocalDate?) : SalaryOutlook
+    data class Unknown(val reason: NoSalaryReason, val payer: String?, val lastSeen: LocalDate?,
+        /** True when the owner's stored salary choice was used (AOS-722), e.g. it isn't seen in the credits. */
+        val chosen: Boolean = false) : SalaryOutlook
 }
 
 sealed interface Forecast {
@@ -111,8 +115,8 @@ class MonthEndForecaster(
     }
 
     private fun salaryOutlook(input: ForecastInput, components: List<ForecastComponent>, errors: RateErrors): SalaryOutlook =
-        when (val found = salaries.detect(input.incomes, input.today)) {
-            is SalaryFinding.NotFound -> SalaryOutlook.Unknown(found.reason, found.payer, found.lastSeen)
+        when (val found = salaries.detect(input.incomes, input.today, input.salaryChoice)) {
+            is SalaryFinding.NotFound -> SalaryOutlook.Unknown(found.reason, found.payer, found.lastSeen, chosen = input.salaryChoice != null)
             is SalaryFinding.Found -> if (found.late) SalaryOutlook.Late(found.salary) else SalaryOutlook.Expected(untilSalary(input, found.salary, components, errors))
         }
 

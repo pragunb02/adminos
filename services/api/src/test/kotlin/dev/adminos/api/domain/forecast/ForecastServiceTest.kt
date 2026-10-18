@@ -44,10 +44,11 @@ class ForecastServiceTest {
     private val bills = InMemoryBillRepository()
     private val subscriptions = InMemorySubscriptionRepository()
     private val mandates = InMemoryMandateRepository()
+    private val salaryChoices = InMemorySalaryChoiceRepository()
     private val dues = DuesService(bills, subscriptions, MandateService(mandates, transactions))
     /** 20 Oct 2026, 10:00 in India. */
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
-    private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills), dues, subscriptions, bills, clock = clock)
+    private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills), dues, subscriptions, bills, salaryChoices, clock = clock)
 
     private fun d(s: String) = LocalDate.parse(s)
     private fun at(day: LocalDate, time: String = "12:00") = day.atTime(LocalTime.parse(time)).atZone(ist).toInstant()
@@ -207,6 +208,28 @@ class ForecastServiceTest {
         monthlyBills(listOf("2026-07", "2026-08", "2026-09"))
         repeat(ForecastService.MAX_BILLS) { bills.save(Bill(userId = user, billerName = "Biller $it", billType = BillType.OTHER, amount = BigDecimal("10"), dueDate = d("2026-05-01"))) }
         assertTrue(projectedOf(assertIs<Forecast.Ready>(service.forecast(user, ist)).monthEnd).items.isEmpty())
+    }
+
+    // ── The owner's salary choice (AOS-722) ──
+
+    private fun choice(day: Int) = SalaryChoice("ACME TECHNOLOGIES", day, BigDecimal("85000.00"), SalaryChoiceKind.CORRECTED, Instant.parse("2026-10-18T05:00:00Z"))
+
+    @Test
+    fun `the user's stored salary choice drives the salary outlook`() = runBlocking<Unit> {
+        everydayLife()
+        salaryChoices.put(user, choice(5))
+        val s = assertIs<SalaryOutlook.Expected>(assertIs<Forecast.Ready>(service.forecast(user, ist)).salary).untilSalary.salary
+        assertEquals(SalarySource.CONFIRMED, s.source)
+        assertEquals(d("2026-11-05"), s.expectedOn)
+    }
+
+    @Test
+    fun `another user's salary choice is never used for mine`() = runBlocking<Unit> {
+        everydayLife()
+        salaryChoices.put(UUID.randomUUID(), choice(5))
+        val s = assertIs<SalaryOutlook.Expected>(assertIs<Forecast.Ready>(service.forecast(user, ist)).salary).untilSalary.salary
+        assertEquals(SalarySource.DETECTED, s.source)
+        assertEquals(d("2026-11-01"), s.expectedOn)
     }
 
     // ── Dues-calendar items → known payments ──

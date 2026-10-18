@@ -41,11 +41,12 @@ class ForecastRoutesTest {
     private val transactions = InMemoryTransactionRepository()
     private val bills = InMemoryBillRepository()
     private val subscriptions = InMemorySubscriptionRepository()
+    private val salaryChoices = InMemorySalaryChoiceRepository()
     private val ist = ZoneId.of("Asia/Kolkata")
     private val clock = Clock.fixed(Instant.parse("2026-10-20T04:30:00Z"), ZoneOffset.UTC)
     private val limiter = dev.adminos.api.infrastructure.plugins.RateLimiter(maxRequests = 5, windowSeconds = 60)
     private val service = ForecastService(InMemoryForecastHistoryRepository(transactions, bills),
-        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, bills, clock = clock)
+        DuesService(bills, subscriptions, MandateService(InMemoryMandateRepository(), transactions)), subscriptions, bills, salaryChoices, clock = clock)
 
     private fun routeTest(block: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         environment { config = MapApplicationConfig() }
@@ -183,5 +184,35 @@ class ForecastRoutesTest {
         assertEquals("2026-07", item.str("seenFrom"))
         assertEquals(JsonNull, part["weekdayRate"])
         assertEquals("10500.00", month.str("total"))
+    }
+    @Test
+    fun `the salary says whether it was detected or confirmed and its usual day`() = routeTest {
+        runBlocking {
+            var day = LocalDate.of(2026, 6, 1)
+            while (!day.isAfter(LocalDate.of(2026, 10, 20))) {
+                transactions.save(Transaction(userId = user.id, type = TransactionType.DEBIT, amount = BigDecimal("300"), merchantName = "Chai", transactedAt = day.atTime(12, 0).atZone(ist).toInstant()))
+                if (day.dayOfMonth == 1) transactions.save(Transaction(userId = user.id, type = TransactionType.CREDIT, amount = BigDecimal("85000"), merchantName = "ACME", transactedAt = day.atTime(9, 0).atZone(ist).toInstant()))
+                day = day.plusDays(1)
+            }
+        }
+        val detected = data()["salary"]!!.jsonObject
+        assertEquals("detected", detected.str("source"))
+        assertEquals(1, detected["usualDay"]!!.jsonPrimitive.int)
+        runBlocking { salaryChoices.put(user.id, SalaryChoice("ACME", 5, BigDecimal("85000.00"), SalaryChoiceKind.CORRECTED, Instant.parse("2026-10-18T05:00:00Z"))) }
+        val confirmed = data()["salary"]!!.jsonObject
+        assertEquals("confirmed", confirmed.str("source"))
+        assertEquals(5, confirmed["usualDay"]!!.jsonPrimitive.int)
+        assertEquals("2026-11-05", confirmed.str("expectedOn"))
+    }
+
+    @Test
+    fun `an unseen confirmed salary is unknown with reason not_seen and source confirmed`() {
+        val monthEnd = MonthEndForecast(java.time.YearMonth.of(2026, 10), LocalDate.of(2026, 10, 20), BigDecimal("100"), null, emptyList(), null, 3)
+        val salary = Forecast.Ready(monthEnd, SalaryOutlook.Unknown(NoSalaryReason.NOT_SEEN, "ACME", null, chosen = true)).toResponse().salary
+        assertEquals("unknown", salary?.status)
+        assertEquals("not_seen", salary?.reason)
+        assertEquals("confirmed", salary?.source)
+        assertNull(salary?.usualDay)
+        assertEquals("detected", Forecast.Ready(monthEnd, SalaryOutlook.Unknown(NoSalaryReason.STOPPED, "ACME", null)).toResponse().salary?.source)
     }
 }

@@ -15,9 +15,23 @@ data class DetectedSalary(
     val lastReceivedOn: LocalDate,
     val lastAmount: BigDecimal,
     val expectedOn: LocalDate,
-    /** How many monthly credits in a row it was learnt from. */
-    val credits: Int
-)
+    /** How many monthly credits in a row it was learnt from (for a confirmed salary: the payer's main credits seen). */
+    val credits: Int,
+    /**
+     * The usual payday in [expectedOn]'s month before any weekend move (AOS-722): what "confirm" stores. For a
+     * month-end pattern it is that month's nominal date (the 31st, or the 30th in a 30-day month).
+     */
+    val usualDay: Int = expectedOn.dayOfMonth,
+    /** Learnt from history alone, or from the owner's confirmed or corrected choice (AOS-722). */
+    val source: SalarySource = SalarySource.DETECTED
+) {
+    init {
+        require(usualDay in 1..31) { "usualDay is a day of the month" }
+    }
+}
+
+/** Where a [DetectedSalary] came from (AOS-722). */
+enum class SalarySource { DETECTED, CONFIRMED }
 
 /** Why no salary could be used. */
 enum class NoSalaryReason {
@@ -28,7 +42,9 @@ enum class NoSalaryReason {
     /** One payer credits every month, but on days too far apart to forecast. */
     DATE_VARIES,
     /** The regular credit was expected more than [SalaryDetector.LATE_DAYS] days ago and hasn't come. */
-    STOPPED
+    STOPPED,
+    /** The owner's chosen payer (AOS-722) has no salary-sized credit in the loaded window. */
+    NOT_SEEN
 }
 
 sealed interface SalaryFinding {
@@ -49,10 +65,14 @@ sealed interface SalaryFinding {
  *    as days before the month's end (the last working day), whichever is tighter;
  * 5. the next salary is that day in the next month, moved off a weekend the way this payer did before (Friday
  *    before or Monday after; not moved when there's no sign). Among several payers, the largest salary wins.
+ *
+ * With the owner's [SalaryChoice] (AOS-722) the payer, day and amount are theirs: only the weekend habit, the last
+ * credit and whether it is late or stopped are read from the credits (see [detectChosen]).
  */
 class SalaryDetector {
 
-    fun detect(credits: List<IncomeCredit>, today: LocalDate): SalaryFinding {
+    fun detect(credits: List<IncomeCredit>, today: LocalDate, choice: SalaryChoice? = null): SalaryFinding {
+        if (choice != null) return detectChosen(credits, today, choice)
         val findings = credits.filter { !it.day.isAfter(today) }.groupBy { payerKey(it.payer) }.values.map { assess(it, today) }
         val found = findings.filterIsInstance<SalaryFinding.Found>()
         if (found.isNotEmpty()) return found.maxWith(compareBy<SalaryFinding.Found> { it.salary.typicalAmount }.thenBy { it.salary.lastReceivedOn })
@@ -74,10 +94,40 @@ class SalaryDetector {
             return SalaryFinding.NotFound(NoSalaryReason.AMOUNT_VARIES, payer, last.day)
         }
         val pattern = DayPattern.of(last3.map { it.day }, run.map { it.day }) ?: return SalaryFinding.NotFound(NoSalaryReason.DATE_VARIES, payer, last.day)
-        val expected = pattern.nextAfter(last.day)
+        val month = pattern.nextMonthAfter(last.day)
+        val expected = pattern.paydayIn(month)
         val lateBy = ChronoUnit.DAYS.between(expected, today)
         if (lateBy > LATE_DAYS) return SalaryFinding.NotFound(NoSalaryReason.STOPPED, payer, last.day)
-        val salary = DetectedSalary(payer, typical, last.day, last.amount, expected, run.size)
+        val salary = DetectedSalary(payer, typical, last.day, last.amount, expected, run.size, usualDay = pattern.dateIn(month).dayOfMonth)
+        return SalaryFinding.Found(salary, late = lateBy > 0)
+    }
+
+    /**
+     * The salary as the owner confirmed or corrected it (AOS-722):
+     * - its credits are the chosen payer's of at least half the chosen amount, so an employer's small refund isn't the
+     *   salary; none → [NoSalaryReason.NOT_SEEN]. Payers match loosely, in any script ([sameChosenPayer]): the bank's
+     *   narration may add words ("ACME SALARY OCT"); no payer matches only credits without a name;
+     * - of credits within [CLUSTER_DAYS] days only the largest counts; the newest is the last salary;
+     * - the weekend habit is the one under which the chosen day explains most of them (ties: no move);
+     * - the next payday, late and stopped follow as for a detected salary; the amount is the chosen one.
+     */
+    private fun detectChosen(credits: List<IncomeCredit>, today: LocalDate, choice: SalaryChoice): SalaryFinding {
+        val chosen = choiceWords(choice.payer)
+        val half = choice.amount.divide(BigDecimal(2))
+        val matching = credits.filter { !it.day.isAfter(today) && sameChosenPayer(chosen, choiceWords(it.payer)) && it.amount >= half }
+        if (matching.isEmpty()) return SalaryFinding.NotFound(NoSalaryReason.NOT_SEEN, choice.payer)
+        val main = mainCredits(matching)
+        val last = main.last()
+        val payer = choice.payer ?: last.payer
+        val pattern = WeekendShift.entries.map { DayPattern(choice.day, fromEnd = false, shift = it) }
+            .maxWith(compareBy<DayPattern> { p -> main.count { p.paydayNear(it.day) == it.day } }
+                .thenBy { it.shift == WeekendShift.NONE }.thenBy { it.shift == WeekendShift.AFTER })
+        val month = pattern.nextMonthAfter(last.day)
+        val expected = pattern.paydayIn(month)
+        val lateBy = ChronoUnit.DAYS.between(expected, today)
+        if (lateBy > LATE_DAYS) return SalaryFinding.NotFound(NoSalaryReason.STOPPED, payer, last.day)
+        val salary = DetectedSalary(payer, choice.amount.setScale(2), last.day, last.amount, expected, main.size,
+            usualDay = pattern.dateIn(month).dayOfMonth, source = SalarySource.CONFIRMED)
         return SalaryFinding.Found(salary, late = lateBy > 0)
     }
 
@@ -141,10 +191,15 @@ class SalaryDetector {
         fun paydayNear(credit: LocalDate): LocalDate =
             (-1L..1L).map { shift.apply(dateIn(YearMonth.from(credit).plusMonths(it))) }.minBy { kotlin.math.abs(ChronoUnit.DAYS.between(it, credit)) }
 
-        /** The first payday of this pattern at least [MIN_GAP_DAYS] − 5 days after [last]. */
-        fun nextAfter(last: LocalDate): LocalDate =
-            generateSequence(YearMonth.from(last)) { it.plusMonths(1) }.map { shift.apply(dateIn(it)) }
-                .first { ChronoUnit.DAYS.between(last, it) >= MIN_GAP_DAYS - 5 }
+        /** The payday in [month]: its nominal day, moved off a weekend by [shift]. */
+        fun paydayIn(month: YearMonth): LocalDate = shift.apply(dateIn(month))
+
+        /**
+         * The month of this pattern's first payday at least [MIN_GAP_DAYS] − 5 days after [last] (the month of its nominal
+         * date: a weekend move may put the payday itself in the month before or after).
+         */
+        fun nextMonthAfter(last: LocalDate): YearMonth =
+            generateSequence(YearMonth.from(last)) { it.plusMonths(1) }.first { ChronoUnit.DAYS.between(last, paydayIn(it)) >= MIN_GAP_DAYS - 5 }
 
         companion object {
             /**
@@ -197,5 +252,24 @@ class SalaryDetector {
         val MIN_SALARY = BigDecimal("5000")
 
         fun payerKey(payer: String?): String = payer.orEmpty().lowercase().replace(Regex("[^a-z0-9]+"), " ").trim()
+
+        private val NOT_A_WORD = Regex("[^\\p{L}\\p{M}\\p{N}]+")
+
+        /** A payer's words for matching a choice (AOS-722): letters (with their marks, so Devanagari stays whole) and digits, lower case. */
+        internal fun choiceWords(payer: String?): List<String> =
+            payer.orEmpty().lowercase(java.util.Locale.ROOT).split(NOT_A_WORD).filter { it.isNotEmpty() }
+
+        /**
+         * Whether a credit's payer ([credit] words) is the chosen one ([chosen] words): the same words, or one's words
+         * appear in the other's in order as whole words ("acme" ~ "acme salary oct", not "acmecorp"). No words (no payer,
+         * or only punctuation) matches only no words.
+         */
+        internal fun sameChosenPayer(chosen: List<String>, credit: List<String>): Boolean = when {
+            chosen.isEmpty() || credit.isEmpty() -> chosen.isEmpty() && credit.isEmpty()
+            else -> containsRun(credit, chosen) || containsRun(chosen, credit)
+        }
+
+        private fun containsRun(words: List<String>, run: List<String>): Boolean =
+            run.size <= words.size && (0..words.size - run.size).any { i -> words.subList(i, i + run.size) == run }
     }
 }

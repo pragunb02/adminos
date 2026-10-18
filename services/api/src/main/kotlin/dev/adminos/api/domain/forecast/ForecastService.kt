@@ -23,6 +23,7 @@ class ForecastService(
     private val dues: DuesService,
     private val subscriptions: SubscriptionRepository,
     private val bills: BillRepository,
+    private val salaryChoices: SalaryChoiceRepository,
     private val forecaster: MonthEndForecaster = MonthEndForecaster(),
     private val clock: Clock = Clock.systemUTC()
 ) {
@@ -40,7 +41,8 @@ class ForecastService(
             history = spendHistory(userId, DateRange(from, today), zone, first),
             dues = knownDues(userId, today),
             incomes = history.incomes(userId, DateRange(maxOf(first, today.minusDays(INCOME_DAYS)), today), zone),
-            projectedBills = projectedBills(userId, today)
+            projectedBills = projectedBills(userId, today),
+            salaryChoice = salaryChoices.find(userId)
         )
         return forecaster.forecast(input)
     }

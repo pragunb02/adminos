@@ -50,6 +50,7 @@ class RequestBodyErrorsRoutesTest {
         JsonRoute(HttpMethod.Patch, "/api/v1/users/me/notification-preferences", signedIn = true),
         JsonRoute(HttpMethod.Post, "/api/v1/push/subscriptions", signedIn = true),
         JsonRoute(HttpMethod.Post, "/api/v1/ingest/events", signedIn = true),
+        JsonRoute(HttpMethod.Put, "/api/v1/forecast/salary", signedIn = true), // confirm/correct the salary (AOS-722)
         JsonRoute(HttpMethod.Post, "/api/v1/auth/google", signedIn = false), // public: the sign-in call itself
     )
 

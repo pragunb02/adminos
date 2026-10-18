@@ -17,6 +17,7 @@ import dev.adminos.api.domain.financial.trips.tripRoutes
 import dev.adminos.api.domain.financial.splits.splitRoutes
 import dev.adminos.api.domain.financial.review.categoryReviewRoutes
 import dev.adminos.api.domain.forecast.forecastRoutes
+import dev.adminos.api.domain.forecast.salaryChoiceRoutes
 import org.koin.ktor.ext.inject
 
 /**
@@ -46,6 +47,7 @@ fun Application.financialModule() {
     val categoryReview: dev.adminos.api.domain.financial.review.CategoryReviewService by inject()
     val forecastService: dev.adminos.api.domain.forecast.ForecastService by inject()
     val merchantGrouping: dev.adminos.api.domain.financial.grouping.MerchantGroupingService by inject()
+    val salaryChoices: dev.adminos.api.domain.forecast.SalaryChoiceService by inject()
 
     routing {
         route("/api/v1") {
@@ -65,6 +67,7 @@ fun Application.financialModule() {
             categoryReviewRoutes(categoryReview)
             forecastRoutes(forecastService)
             merchantGroupingRoutes(merchantGrouping)
+            salaryChoiceRoutes(salaryChoices)
             dashboardRoutes(
                 transactionRepository,
                 subscriptionRepository,

@@ -1,6 +1,8 @@
 import type { Page, Request, Route } from "@playwright/test";
 import { fx } from "../../test/fixtures";
 import { cx } from "../../test/coachFixtures";
+import { sx } from "../../test/salaryFixtures";
+import type { SalaryView } from "@/lib/salary";
 
 type Reply = { status?: number; data?: unknown; error?: { code: string; message: string }; pagination?: unknown; delayMs?: number };
 type Handler = (req: Request, url: URL) => Reply | Promise<Reply>;
@@ -43,6 +45,7 @@ export class MockApi {
   private readonly handlers = new Map<string, Handler>();
 
   constructor(private readonly page: Page) {
+    let salary: SalaryView = sx.view(); // Your salary (AOS-722): a PUT is what later GETs see
     const opens = [fx.anomaly(), fx.anomaly({ id: "an-2", type: "odd_hours", reason: "Paid at 3am", agentExplanation: null })];
     this.on("GET /api/v1/dashboard/home", () => ({ data: fx.home() }))
       .on("GET /api/v1/bills/upcoming", () => ({ data: [fx.bill(), fx.bill({ id: "b-2", billerName: "BESCOM", amount: "1840", billType: "electricity", dueDate: "2026-10-28" })] }))
@@ -128,7 +131,21 @@ export class MockApi {
       // Ask your money (AOS-711): on, with a fixed answer unless a test says otherwise.
       .on("GET /api/v1/ask", () => ({ data: { enabled: true, maxQuestionLength: 300 } }))
       .on("POST /api/v1/ask", () => ({ data: fx.askAnswer() }))
-      .on("POST /api/v1/ask/feedback", () => ({ data: { saved: true } }));
+      .on("POST /api/v1/ask/feedback", () => ({ data: { saved: true } }))
+      // Your salary (AOS-722): detected and not yet chosen; confirm keeps it, correct echoes the typed choice back.
+      .on("GET /api/v1/forecast/salary", () => ({ data: salary }))
+      .on("PUT /api/v1/forecast/salary", (req) => {
+        const b = (req.postDataJSON() ?? {}) as { action?: string; payer?: string | null; day?: number; amount?: string };
+        const at = "2026-10-18T05:00:00Z";
+        if (b.action === "confirm") {
+          if (!salary.detected) return { status: 409, error: { code: "SALARY_001", message: "No salary was detected to confirm: correct it instead" } };
+          const d = salary.detected;
+          salary = { ...salary, choice: { payer: d.payer, day: d.usualDay, amount: d.typicalAmount, kind: "confirmed", updatedAt: at } };
+        } else {
+          salary = { ...salary, choice: { payer: b.payer ?? null, day: b.day ?? 1, amount: b.amount ?? "0", kind: "corrected", updatedAt: at } };
+        }
+        return { data: salary };
+      });
   }
 
   on(key: string, handler: Handler): this {

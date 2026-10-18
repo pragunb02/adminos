@@ -213,7 +213,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
 | └ [AOS-720](tickets/AOS-720.md) | Latest balance per account, for money left until salary | Claude | ⬜ | 4h |  |
 | └ [AOS-721](tickets/AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ✅ | 3h | 3h |
-| └ [AOS-722](tickets/AOS-722.md) | Confirm or correct the detected salary | Claude | ⬜ | 3h |  |
+| └ [AOS-722](tickets/AOS-722.md) | Confirm or correct the detected salary | Claude | ✅ | 3h | 4h |
 | └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
 | └ [AOS-713](tickets/AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | ✅ | 6h | 5h |
 | └ [AOS-709](tickets/AOS-709.md) | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | ✅ | 5h | 5h |
