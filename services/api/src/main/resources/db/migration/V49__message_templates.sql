@@ -1,4 +1,4 @@
--- Template learning (AOS-706, D-107; tentative number, the integrator renumbers).
+-- Template learning (AOS-706, D-107; V49).
 -- Masked message shapes only: every value (amount, balance, last 4, date, payee, any other number) is a slot,
 -- so no digit, amount, payee or message text is ever stored (D-33). The CHECKs hold that at the database too.
 

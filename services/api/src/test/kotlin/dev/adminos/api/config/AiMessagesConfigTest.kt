@@ -1,6 +1,8 @@
 package dev.adminos.api.config
 
 import dev.adminos.api.di.buildAppModule
+import dev.adminos.api.domain.ai.AiConsent
+import dev.adminos.api.domain.ai.AiConsentRepository
 import dev.adminos.api.domain.ai.AiFeature
 import dev.adminos.api.domain.ai.AiGateway
 import dev.adminos.api.domain.ai.AiProviderKind
@@ -75,7 +77,11 @@ class AiMessagesConfigTest {
     fun `on - unrecognised messages go to the fallback and a job reads them`() {
         val on = koin(local)
         on.get<MessageFallback>()
-        assertEquals(FallbackOffer.Queued, runBlocking { on.get<UnrecognisedMessageSink>().offer(message()) }, "templates first, then the AI reader")
+        val sink = on.get<UnrecognisedMessageSink>()
+        val consenting = message()
+        runBlocking { on.get<AiConsentRepository>().save(AiConsent(consenting.userId, AiFeature.MESSAGES, true, java.time.Instant.now())) }
+        assertEquals(FallbackOffer.Queued, runBlocking { sink.offer(consenting) }, "templates first, then the AI reader")
+        assertEquals(FallbackOffer.Off, runBlocking { sink.offer(message()) }, "never for a user who hasn't turned it on (AOS-704)")
         assertIs<ExposedMessageTemplateRepository>(koin(local, useDatabase = true).get<MessageTemplateRepository>())
         assertIs<MessageFallbackJob>(on.getAll<ScheduledJob>().single { it.name.value == "ai-message-reading" })
         assertIs<OllamaProvider>(on.get<AiGateway>().route(AiFeature.MESSAGES)?.provider)

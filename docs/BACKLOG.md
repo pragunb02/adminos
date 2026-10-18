@@ -196,7 +196,7 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ [AOS-704](tickets/AOS-704.md) | Per-feature AI consent (off by default, enforced in the gateway); Settings → AI features notice; same-origin guard (D-70) | Claude (agent) | ✅ | 3h | 3h |
 | **[AOS-S7.2](tickets/AOS-S7.2.md)** | **Smarter data in** | | 🟦 | 30h | |
 | └ [AOS-705](tickets/AOS-705.md) | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ✅ | 8h | 7h |
-| └ AOS-706 | Template learning from repeated message shapes, human-approved | Claude | ⬜ | 8h |  |
+| └ [AOS-706](tickets/AOS-706.md) | Template learning from repeated message shapes, human-approved | Claude | ✅ | 8h | 4h |
 | └ [AOS-707](tickets/AOS-707.md) | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | ✅ | 8h | 7h |
 | └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | 🟦 | 6h |  |
 | **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ⬜ | 18h | |

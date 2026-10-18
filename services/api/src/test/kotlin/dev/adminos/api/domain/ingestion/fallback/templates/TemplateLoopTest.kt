@@ -1,6 +1,7 @@
 package dev.adminos.api.domain.ingestion.fallback.templates
 
 import dev.adminos.api.config.AppConfig
+import dev.adminos.api.domain.ai.ALLOW_ALL_CONSENT
 import dev.adminos.api.domain.ai.AiCompletion
 import dev.adminos.api.domain.ai.AiCostGuard
 import dev.adminos.api.domain.ai.AiFeature
@@ -68,7 +69,7 @@ class TemplateLoopTest {
     private val me = UUID(0, 5)
     private var reply: String = ""
     private val provider = FakeAiProvider(AiProviderKind.OLLAMA, mapOf("qwen3:4b" to AiPrice.FREE)) { AiCompletion.Completed(reply, AiUsage(1, 1)) }
-    private val gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, provider, "qwen3:4b")), AiCostGuard(InMemoryAiSpendLedger(), 0, clock), InMemoryAiCallLogRepository(), clock = clock)
+    private val gateway = AiGateway(listOf(AiRoute.of(AiFeature.MESSAGES, provider, "qwen3:4b")), AiCostGuard(InMemoryAiSpendLedger(), 0, clock), InMemoryAiCallLogRepository(), ALLOW_ALL_CONSENT, clock = clock)
     private val proposals = InMemoryMessageProposalRepository()
     private val templates = InMemoryMessageTemplateRepository()
     private val events = InMemoryIngestEventRepository()

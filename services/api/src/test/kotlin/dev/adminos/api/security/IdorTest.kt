@@ -21,6 +21,10 @@ import dev.adminos.api.domain.financial.receipts.OrderReceiptRepository
 import dev.adminos.api.domain.financial.receipts.ReceiptFixtures
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageShape
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplate
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateStatus
 import dev.adminos.api.domain.ingestion.events.IngestDirection
 import dev.adminos.api.domain.ingestion.fallback.MessageChannel
 import dev.adminos.api.domain.ingestion.fallback.MessageProposal
@@ -281,5 +285,22 @@ class IdorTest {
         assertEquals(ProposalStatus.PENDING, proposals.pending(alice.id, 10).single { it.id == proposal.id }.status, "Alice's reading is untouched")
         val bobs = client.asBob(HttpMethod.Get, "/api/v1/review/messages", null).bodyAsText()
         assertFalse(proposal.id.toString() in bobs || "ALICE" in bobs, "Bob's list shows Alice's reading")
+    }
+
+    @Test
+    fun `Bob can't approve or reject the message formats learnt for Alice`() = realApp { app ->
+        val templates = app.get<MessageTemplateRepository>()
+        val template = MessageTemplate(userId = alice.id, channel = MessageChannel.SMS, bankCode = null, direction = IngestDirection.DEBIT,
+            shape = MessageShape("Alice card XX${MessageShape.ACCT} charged Rs ${MessageShape.AMT} at ${MessageShape.M}"), status = TemplateStatus.PROPOSED, seen = 3, createdAt = Instant.now())
+        templates.save(template)
+        for (action in listOf("approve", "reject")) {
+            val real = client.asBob(HttpMethod.Post, "/api/v1/review/templates/${template.id}/$action", null)
+            val fake = client.asBob(HttpMethod.Post, "/api/v1/review/templates/${UUID.randomUUID()}/$action", null)
+            assertEquals(HttpStatusCode.NotFound, real.status, action)
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "$action answers differently for a real ID")
+        }
+        assertEquals(listOf(template.id), templates.proposed(alice.id, 10).map { it.id }, "Alice's format is still waiting for her")
+        val bobs = client.asBob(HttpMethod.Get, "/api/v1/review/templates", null).bodyAsText()
+        assertFalse(template.id.toString() in bobs || "Alice" in bobs, "Bob's list shows Alice's format")
     }
 }

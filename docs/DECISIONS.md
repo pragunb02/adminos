@@ -5,6 +5,7 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
 | D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
 | D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
@@ -1323,3 +1324,22 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - `MessageRoutingTest` runs the same rows through the shipped SMS and WhatsApp intake against today's rules: a message the rules read or drop is never offered to the AI, and a bank message they can't read is offered once, as written.
 - **Rejected:** relabelling the rows the rules now read (the eval shrinks with every parser change and loses its PII and hostile rows); rewriting them into formats the rules can't read (stale again at the next parser change).
 - **Consequence:** parser improvements move rows between the routing test's two halves without touching the eval or its records.
+
+### D-107 — Confirmed AI readings teach message formats; approved formats are read by code before any model
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-706 · Builds on D-33, D-67, D-106
+- **What is kept:** only masked shapes. Every value is a slot (amount, balance, last 4, date, payee, other numbers, a greeting's name), and a shape with a digit is refused in code and by a database CHECK. No message text, amount or payee is stored in a shape.
+- **Learning:**
+  - only from readings the user **confirmed**;
+  - one sender (channel + bank) and direction per format;
+  - Drain-style merge (same length, ≤ 25% plain words differ, never a slot) turns differing words into `<ANY>`;
+  - proposed after 3 confirmations.
+- **Approval:** only the user approves a format. A rejected format is never proposed again. A decided format's shape never changes.
+- **Reading:**
+  - approved formats are tried before the AI reader, even with AI off;
+  - a template's reading must pass the same grounding validator as a model's;
+  - it goes straight into the intake with `parsedBy = template:<id>` (exact, like a regex parser), and anything else goes on to the AI reader;
+  - regexes are compiled from shapes with quoted literals and bounded slots (no ReDoS).
+- **Rejected:**
+  - Review for template reads (keeps the click it removes);
+  - generated parser code;
+  - LLM-written regexes (more data sent, unverified patterns).
