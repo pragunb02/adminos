@@ -70,6 +70,8 @@ fun Route.rawSmsRoutes(intake: SmsIntake) {
                     is SmsIntakeResult.Ignored -> RawSmsResult(i, "ignored", r.reason)
                     SmsIntakeResult.Mandate -> RawSmsResult(i, "mandate")
                     SmsIntakeResult.Reading -> RawSmsResult(i, "reading")
+                    SmsIntakeResult.Bill -> RawSmsResult(i, "bill")
+                    SmsIntakeResult.Booking -> RawSmsResult(i, "booking")
                 }
             }
             call.respond(HttpStatusCode.Accepted, ApiResponse.success(

@@ -139,7 +139,7 @@ object MessageEvaluation {
         val sink = UnrecognisedMessageSink { m -> fallback.offer(m).also { offer = it } }
         val mandates = MandateService(InMemoryMandateRepository(), InMemoryTransactionRepository())
         val intake = IngestEventService(InMemoryIngestEventRepository(), CLOCK)
-        val sms = SmsIntake(SmsParserRegistry(), intake, mandates, sink) { ZONE }
+        val sms = SmsIntake(SmsParserRegistry(), intake, mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(), dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), sink) { ZONE }
         val whatsapp = WhatsAppImportService(SmsParserRegistry(), intake, mandates, UserCalendar(InMemoryUserRepository()), CLOCK, sink)
         val userId = UUID.randomUUID()
 

@@ -1,0 +1,162 @@
+# SYNTHETIC merchant-name pairs for AOS-709 (D-61 style). Names are as AdminOS stores them after the normalizer (catalogue brands appear as the brand). No real people or payments; UPI IDs are made up.
+id,name_a,name_b,upi_a,upi_b,same,tag
+p001,NETFLIX.COM,Netflix Ent,,,1,suffix
+p002,NETFLIX.COM,NETFLIX INDIA,,,1,suffix
+p003,Netflix Ent,Netflix Entertainment Services India Pvt Ltd,,,1,legal
+p004,Netflixcom,Netflix,,,1,brand-glued
+p005,Spotifyindia,Spotify,,,1,brand-glued
+p006,Paypal Spotify,Spotifyindia,,,1,gateway
+p007,Spotify Ab,Spotifyindia,,,1,legal
+p008,Zee 5,ZEE5,,,1,brand-spacing
+p009,Sony Liv,SonyLIV,,,1,brand-spacing
+p010,Jio Hotstar,JioHotstar,,,1,brand-spacing
+p011,Toonverse,Toonverse Online,,,1,suffix
+p012,Razorpay Toonverse,Toonverse,,,1,gateway
+p013,Toonverse Media Pvt Ltd,TOONVERSE.IN,,,1,legal
+p014,Kukufm,Kuku Fm,,,1,spacing
+p015,Kuku FM,KUKU FM INDIA,,,1,suffix
+p016,Pratilipi,Pratilipi Online,,,1,suffix
+p017,Shemaroome,Shemaroo Me,,,1,spacing
+p018,Hoichoi,Hoichoi Technologies,,,1,legal
+p019,Aha Media,Aha,,,1,suffix
+p020,Eros Now,Erosnow,,,1,spacing
+p021,Lionsgate Play,Lionsgateplay,,,1,spacing
+p022,Discovery Plus,Discoveryplus India,,,1,glued
+p023,Curiositystream,Curiosity Stream,,,1,spacing
+p024,Mubi,MUBI.COM,,,1,suffix
+p025,Docubay,Docubay Online Services,,,1,legal
+p026,Hungama,Hungama Digital Media,,,1,legal
+p027,Gaana,Gaana Com,,,1,suffix
+p028,Wynk,Wynk Music,,,1,extra-word
+p029,Scribd,Scribd Inc,,,1,legal
+p030,Payu Scribd,Scribd,,,1,gateway
+p031,Readly,Readly Ab,,,1,legal
+p032,Duolingo,Duolingo Inc,,,1,legal
+p033,Headspace,Headspace Inc,,,1,legal
+p034,Calm,Calm.com,,,1,suffix
+p035,Healthifyme,Healthify Me,,,1,spacing
+p036,Fittr,Fittr App,,,1,suffix
+p037,Notion,Notion Labs,,,1,extra-word
+p038,Canva,Canva Pty,,,1,extra-word
+p039,Grammarly,Grammarly Inc,,,1,legal
+p040,Dropbox,Dropbox Inc,,,1,legal
+p041,Nordvpn,Nord Vpn,,,1,spacing
+p042,Expressvpn,EXPRESSVPN.COM,,,1,suffix
+p043,Proton,Proton Ag,,,1,extra-word
+p044,Zoho,Zoho Corporation,,,1,legal
+p045,Medium,Medium.com,,,1,suffix
+p046,Substack,Substack Inc,,,1,legal
+p047,The Hindu,Hindu,,,1,suffix
+p048,Times Prime,Timesprime,,,1,spacing
+p049,Inshorts,In Shorts,,,1,spacing
+p050,Testbook,Testbook Edu,,,1,extra-word
+p051,Vedantu,Vedantu Innovations,,,1,extra-word
+p052,Toppr,Toppr Technologies,,,1,legal
+p053,Byjus,Byju S,,,1,spacing
+p054,Udemy,Udemy Inc,,,1,brand-legal
+p055,Coursera,Coursera Inc,,,1,brand-legal
+p056,Practo,Practo Technologies,,,1,brand-legal
+p057,Pharm Easy,PharmEasy,,,1,brand-spacing
+p058,Swigy,Swiggy,,,1,brand-spelling
+p059,Zomatoonline,Zomato,,,1,brand-glued
+p060,Shree Krishna Dairy,Shri Krishna Dairy,,,1,spelling
+p061,Annapoorna Mess,Annapurna Mess,,,1,spelling
+p062,Raju Tea Stall,Raju Tea Stall Pvt,,,1,legal
+p063,Ganesh Medicals,Ganesh Medical,,,1,spelling
+p064,Sai Krupa Stores,Sai Kripa Stores,,,1,spelling
+p065,Balaji Fuels,Balaji Fuel,,,1,spelling
+p066,Mahalaxmi Jewellers,Mahalakshmi Jewellers,,,1,spelling
+p067,New Bombay Bakery,New Bombay Bakery & Cafe,,,1,extra-word
+p068,Hotel Saravana,Hotel Saravanaa,,,1,spelling
+p069,Ravi Fruits,Ravi Fruit Mart,ravifruits@ybl,ravifruits@ybl,1,vpa
+p070,Anand Kirana,Sri Anand Stores,anandkirana@oksbi,anandkirana@oksbi,1,vpa
+p071,Lakshmi Tiffins,Laxmi Tiffin Centre,lakshmitiffins@paytm,lakshmitiffins@paytm,1,vpa
+p072,Gupta Electricals,Gupta Electric Works,guptaelec@okhdfcbank,guptaelec@okhdfcbank,1,vpa
+p073,Dr Mehta Clinic,Mehta Clinic,drmehta@okicici,drmehta@okicici,1,vpa
+p074,Ramesh Kumar,Ramesh Kumar S,,,1,person
+p075,Priya Sharma,Priya Sharma K,,,1,person
+p076,Suresh Babu,Suresh B,9800000101@ybl,9800000101@ybl,1,vpa-person
+p077,Lenskart,Mamaearth,razorpay.payments@axisbank,razorpay.payments@axisbank,0,gateway-vpa
+p078,Bewakoof,The Souled Store,payu.merchant@hdfcbank,payu.merchant@hdfcbank,0,gateway-vpa
+p079,Tata Sky,Tata Play,,,1,rename
+p080,Freecharge,Freecharge Payment Technologies,,,1,legal
+p081,Amazon Prime,Amazon,,,0,brand-veto
+p082,Google Play,Google One,,,0,brand-veto
+p083,Jio,Jio Fiber,,,0,brand-veto
+p084,Airtel,Airtel Xstream Fiber,,,0,brand-veto
+p085,Apollo,Apollo Tyres,,,0,distinct-word
+p086,Amazon Pay Later,Amazon Pantry,,,0,distinct-word
+p087,Jio Cinema,Jio Saavn,,,0,distinct-word
+p088,Zee News,Zee Business,,,0,distinct-word
+p089,Sony Pictures,Sony Centre,,,0,distinct-word
+p090,Hotstar Sports,Hoichoi,,,0,lookalike
+p091,Times Prime,Times Of India,,,0,distinct-word
+p092,Discovery Plus,Disney Plus,,,0,lookalike
+p093,Eros Now,Eros Cinema,,,0,distinct-word
+p094,Kuku FM,Kuku Kitchen,,,0,distinct-word
+p095,Medium,Medplus,,,0,lookalike
+p096,Calm,Cult,,,0,lookalike
+p097,Notion,Nation Pharmacy,,,0,lookalike
+p098,Canva,Canara Bank,,,0,lookalike
+p099,Udaan,Udemy,,,0,lookalike
+p100,Academy Sports,Unacademy,,,0,lookalike
+p101,Byjus,Bajaj Finserv,,,0,lookalike
+p102,Dropbox,Dropship Store,,,0,lookalike
+p103,Proton,Protein Hub,,,0,lookalike
+p104,Sharma Stores,Verma Stores,,,0,lookalike
+p105,Shree Ganesh Dairy,Shree Ganesh Medical,,,0,distinct-word
+p106,Krishna Sweets,Krishna Bakery,,,0,distinct-word
+p107,Ramesh Kumar,Rajesh Kumar,,,0,person
+p108,Priya Sharma,Priya Verma,,,0,person
+p109,Anil Gupta,Sunil Gupta,,,0,person
+p110,Mohan Lal,Sohan Lal,,,0,person
+p111,Pooja Reddy,Pooja Rao,,,0,person
+p112,Rahul Jain,Rahul Joshi,,,0,person
+p113,Neha Singh,Sneha Singh,,,0,person
+p114,Amit Patel,Amita Patel,,,0,person
+p115,Kiran Kumar,Kiran Kumari,,,0,person
+p116,Gaana,Ganesh Medicals,,,0,lookalike
+p117,Wynk,Winkies,,,0,lookalike
+p118,Readly,Ready Meals,,,0,lookalike
+p119,Duolingo,Dunlop,,,0,lookalike
+p120,Headspace,Head Start Kids,,,0,lookalike
+p121,Fittr,Fitter Gym,,,0,lookalike
+p122,Grammarly,Gramin Bank,,,0,lookalike
+p123,Nordvpn,Nord Store,,,0,distinct-word
+p124,Zoho,Zomato,,,0,lookalike
+p125,Substack,Subway,,,0,brand-lookalike
+p126,Hindu,Hindustan Petroleum,,,0,lookalike
+p127,Toppr,Topper Coaching,,,0,lookalike
+p128,Mubi,Mumbai Metro,,,0,brand-lookalike
+p129,Aha,Aha Taxis,,,0,distinct-word
+p130,Scribd,Scribe Stationery,,,0,lookalike
+p131,Balaji Fuels,Balaji Medicals,,,0,distinct-word
+p132,Sai Krupa Stores,Sai Krupa Hospital,,,0,distinct-word
+p133,Hotel Saravana,Hotel Sagar,,,0,lookalike
+p134,Raju Tea Stall,Raju Pan Shop,,,0,distinct-word
+p135,Ganesh Medicals,Ganesh Motors,,,0,distinct-word
+p136,Mahalaxmi Jewellers,Mahalaxmi Sweets,,,0,distinct-word
+p137,Annapoorna Mess,Annapoorna Textiles,,,0,distinct-word
+p138,New Bombay Bakery,New Delhi Bakery,,,0,distinct-word
+p139,Gupta Electricals,Gupta Sweets,,,0,distinct-word
+p140,Dr Mehta Clinic,Dr Mehra Clinic,,,0,lookalike
+p141,Ravi Fruits,Ravi Furniture,,,0,lookalike
+p142,Lakshmi Tiffins,Lakshmi Tailors,,,0,lookalike
+p143,Anand Kirana,Ananda Spa,,,0,lookalike
+p144,Shri Krishna Dairy,Shri Krishna Digital,,,0,distinct-word
+p145,Freecharge,Free Kick Sports,,,0,lookalike
+p146,Swiggy,Swiggy Instamart,,,0,brand-veto
+p147,Uber,Uber Eats,,,0,brand-veto
+p148,Netflix,Netmeds,,,0,brand-veto
+p149,Spotify,Spotlight Salon,,,0,lookalike
+p150,ZEE5,Zeel Stores,,,0,lookalike
+p151,Cult,Cultfit Gym,,,1,brand-glued
+p152,Tata 1mg,Tata 1 Mg,,,1,brand-spacing
+p153,Bigbazaar,Big Bazaar,,,1,spacing
+p154,Big Bazaar,BigBasket,,,0,brand-lookalike
+p155,Reliance Trends,Reliance Smart,,,0,brand-lookalike
+p156,Domino's,Dominos Pizza,,,1,brand-suffix
+p157,Mcdonalds,McDonald's,,,1,brand-punctuation
+p158,Haldirams,Haldiram's,,,1,brand-punctuation
+p159,Third Wave,Third Wave Coffee,,,1,brand-suffix
+p160,Blue Tokai Coffee Roasters,Blue Tokai,,,1,brand-suffix

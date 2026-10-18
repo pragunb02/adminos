@@ -1,0 +1,10 @@
+scenario,id,brand,mode,booked_at,journey_date,amount,cancelled
+# Booking emails and SMS for the eval set (AOS-910). Synthetic.
+A,ba1,IndiGo,flight,2026-09-20T10:01+05:30,2026-10-24,5432.00,false
+A,ba2,Air India,flight,2026-09-20T10:21+05:30,2026-10-30,4100.00,false
+B,bb1,IRCTC,train,2026-08-01T09:00+05:30,2026-08-15,845.00,false
+B,bb2,IRCTC,train,2026-08-02T20:00+05:30,2026-08-18,845.00,false
+D,bd1,IndiGo,flight,2026-06-01T10:01+05:30,2026-06-20,6000.00,true
+F,bf1,Akasa Air,flight,2026-04-10T12:01+05:30,2026-04-12,4999.00,false
+G,bg5,IndiGo,flight,2026-03-25T06:01+05:30,2026-03-25,5100.00,false
+H,bh1,IndiGo,flight,2026-02-10T21:00+05:30,2026-02-20,7000.00,false

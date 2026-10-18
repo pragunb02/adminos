@@ -23,6 +23,10 @@ sealed interface SmsParseResult {
     data class Transaction(val parsed: ParsedSmsTransaction) : SmsParseResult
     /** About a mandate (set up, pre-debit, paused, resumed, revoked), not a transaction (AOS-502). */
     data class Mandate(val notice: dev.adminos.api.domain.financial.mandates.MandateNotice) : SmsParseResult
+    /** A pay-later provider's bill (AOS-909): a due in the dues calendar, not a transaction. */
+    data class PayLaterBill(val notice: PayLaterBillNotice) : SmsParseResult
+    /** A train booking or cancellation (AOS-910): its journey date places a trip, not a transaction. */
+    data class TravelBooking(val notice: TravelBookingNotice) : SmsParseResult
     /** Valid SMS that must not become a transaction. [reason] never quotes the text. */
     data class Ignored(val reason: String) : SmsParseResult
 

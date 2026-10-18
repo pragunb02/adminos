@@ -78,6 +78,9 @@ class WhatsAppImportService(
                 }
                 is SmsParseResult.Ignored -> ignored.merge(result.reason, 1, Int::plus)
                 is SmsParseResult.Mandate -> { mandates.record(userId, result.notice, at, ref); mandateCount++ }
+                // Only banks are read from a chat export (D-66); providers' bills come by SMS or email.
+                is SmsParseResult.PayLaterBill -> ignored.merge("pay-later bill", 1, Int::plus)
+                is SmsParseResult.TravelBooking -> ignored.merge("travel booking", 1, Int::plus)
                 is SmsParseResult.Transaction -> events += toEvent(userId, result, at, ref)
             }
         }

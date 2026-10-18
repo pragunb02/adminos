@@ -96,6 +96,10 @@ class IngestionService(
         return session
     }
 
+    /** A Gmail sync of [connectionId] queued after [queuedAfter] that the worker hasn't started yet (AOS-630). */
+    suspend fun pendingGmailSync(connectionId: UUID, queuedAfter: Instant): SyncSession? =
+        syncSessionRepository.findQueued(connectionId, queuedAfter)
+
     suspend fun getUserSyncSessions(userId: UUID, limit: Int = 20): List<SyncSession> {
         return syncSessionRepository.findByUserId(userId, limit)
     }
