@@ -113,9 +113,9 @@ class WasteScoreServiceTest {
     @Test
     fun `the job runs daily at 05-00 after detection, for active users, isolating a failing user`() = runBlocking<Unit> {
         val users = InMemoryUserRepository()
-        val good = users.save(User(email = "pragun@example.in", googleId = "g-waste-1"))
-        val broken = users.save(User(email = "other@example.in", googleId = "g-waste-2"))
-        users.save(User(email = "off@example.in", googleId = "g-waste-3", isActive = false))
+        val good = users.save(User(email = "owner@example.com", googleId = "g-waste-1"))
+        val broken = users.save(User(email = "other@example.com", googleId = "g-waste-2"))
+        users.save(User(email = "off@example.com", googleId = "g-waste-3", isActive = false))
         sub("Netflix", user = good.id, priceChanged = true, pct = "25")
         sub("JioHotstar", user = good.id)
         val failingSpend = object : TransactionRepository by transactions {

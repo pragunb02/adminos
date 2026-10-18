@@ -35,7 +35,7 @@ class ConnectionServiceGmailWatchTest {
 
     @Test
     fun `connecting gmail queues the first sync and then registers push`() = runBlocking<Unit> {
-        val conn = service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val conn = service.connectGmail(userId, "owner@example.com", grant())
 
         assertEquals(listOf(SyncType.HISTORICAL), syncSessions.findByUserId(userId).map { it.syncType })
         assertEquals(listOf(access), api.watchTokens.toList(), "the token Google just granted, decrypted")
@@ -48,7 +48,7 @@ class ConnectionServiceGmailWatchTest {
     fun `a failed push registration never fails the connect`() = runBlocking<Unit> {
         api.watchFailures += GmailPushException.Rejected(403)
 
-        val conn = service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val conn = service.connectGmail(userId, "owner@example.com", grant())
 
         assertEquals(ConnectionStatus.CONNECTED, conn.status)
         assertEquals(1, syncSessions.findByUserId(userId).size)
@@ -58,16 +58,16 @@ class ConnectionServiceGmailWatchTest {
 
     @Test
     fun `connecting an already connected gmail does not register again`() = runBlocking<Unit> {
-        service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        service.connectGmail(userId, "owner@example.com", grant())
 
-        service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        service.connectGmail(userId, "owner@example.com", grant())
 
         assertEquals(1, api.watchTokens.size)
     }
 
     @Test
     fun `disconnecting stops push with the stored token before wiping it, and forgets the watch`() = runBlocking<Unit> {
-        val conn = service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val conn = service.connectGmail(userId, "owner@example.com", grant())
 
         val disconnected = service.disconnect(userId, conn.id)
 
@@ -80,7 +80,7 @@ class ConnectionServiceGmailWatchTest {
 
     @Test
     fun `a failed stop never blocks the disconnect`() = runBlocking<Unit> {
-        val conn = service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val conn = service.connectGmail(userId, "owner@example.com", grant())
         api.stopFailure = GmailPushException.Unavailable(java.io.IOException("reset"))
 
         val disconnected = service.disconnect(userId, conn.id)
@@ -91,11 +91,11 @@ class ConnectionServiceGmailWatchTest {
 
     @Test
     fun `reconnecting starts a fresh watch`() = runBlocking<Unit> {
-        val first = service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val first = service.connectGmail(userId, "owner@example.com", grant())
         service.disconnect(userId, first.id)
         api.expiresAt = now.plus(Duration.ofDays(6))
 
-        val again = service.connectGmail(userId, "pragun.b@gmail.com", grant())
+        val again = service.connectGmail(userId, "owner@example.com", grant())
 
         assertEquals(first.id, again.id)
         assertEquals(2, api.watchTokens.size)

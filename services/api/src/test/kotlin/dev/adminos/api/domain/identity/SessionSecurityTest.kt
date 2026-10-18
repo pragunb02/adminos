@@ -33,7 +33,7 @@ import kotlin.test.*
 class SessionSecurityTest {
 
     private val google = FakeGoogleServer()
-    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "pragun.b@gmail.com", googleClientId = "test-client-id")) }
+    private val config = AppConfig.load().let { it.copy(auth = it.auth.copy(ownerEmail = "owner@example.com", googleClientId = "test-client-id")) }
     private val users = InMemoryUserRepository()
     private val sessions = InMemorySessionRepository()
     private val jwt = JwtService(config.auth)
@@ -150,7 +150,7 @@ class SessionSecurityTest {
         val racing = object : SessionRepository by sessions {
             override suspend fun rotate(sessionId: UUID, oldHash: String, newHash: String, at: Instant) = false
         }
-        val user = users.save(User(email = "pragun.b@gmail.com", googleId = "g-1"))
+        val user = users.save(User(email = "owner@example.com", googleId = "g-1"))
         val token = jwt.newRefreshToken()
         racing.save(Session(userId = user.id, tokenHash = JwtService.hashToken(token), expiresAt = Instant.now().plus(1, ChronoUnit.DAYS)))
         val result = AuthService(users, racing, jwt, google.client(config.auth), config.auth).refreshToken(token)
@@ -165,7 +165,7 @@ class SessionSecurityTest {
 
     @Test
     fun `a rotated token of a revoked session is revoked, not reuse`() = runBlocking<Unit> {
-        val user = users.save(User(email = "pragun.b@gmail.com", googleId = "g-2"))
+        val user = users.save(User(email = "owner@example.com", googleId = "g-2"))
         val token = jwt.newRefreshToken()
         val s = sessions.save(Session(userId = user.id, tokenHash = JwtService.hashToken(token), expiresAt = Instant.now().plus(1, ChronoUnit.DAYS)))
         sessions.rotate(s.id, s.tokenHash, JwtService.hashToken(jwt.newRefreshToken()), Instant.now().minusSeconds(600))
@@ -186,7 +186,7 @@ class SessionSecurityTest {
 
     @Test
     fun `with real data a token without a session is refused, even if correctly signed`() = app(requireSession = true) {
-        val user = users.save(User(email = "pragun.b@gmail.com", googleId = "g-3"))
+        val user = users.save(User(email = "owner@example.com", googleId = "g-3"))
         assertEquals(HttpStatusCode.Unauthorized, me(jwt.generateAccessToken(user)).status)
         assertEquals(HttpStatusCode.Unauthorized, me(jwt.generateAccessToken(user, UUID.randomUUID())).status, "an unknown session")
     }
@@ -195,13 +195,13 @@ class SessionSecurityTest {
     fun `a token naming someone else's session is refused`() = app {
         val s = signIn()
         val sid = assertNotNull(jwt.verifyAccessToken(s.access)?.sessionId)
-        val stranger = User(email = "x@example.in", googleId = "g-x")
+        val stranger = User(email = "x@example.com", googleId = "g-x")
         assertEquals(HttpStatusCode.Unauthorized, me(jwt.generateAccessToken(stranger, sid)).status)
     }
 
     @Test
     fun `in dev mode a token without a session still works (tokens minted for tests)`() = app(requireSession = false) {
-        val user = users.save(User(email = "pragun.b@gmail.com", googleId = "g-4"))
+        val user = users.save(User(email = "owner@example.com", googleId = "g-4"))
         assertEquals(HttpStatusCode.OK, me(jwt.generateAccessToken(user)).status)
     }
 
@@ -284,10 +284,10 @@ class SessionSecurityTest {
         val got = CopyOnWriteArrayList<SecurityAlert>()
         val a = SignInAlerts({ _, alert -> got += alert }, clock)
         val owner = UUID.randomUUID()
-        repeat(20) { a.refused(owner, "x@example.in") }
+        repeat(20) { a.refused(owner, "x@example.com") }
         assertEquals(1, got.size)
         clock.advance(java.time.Duration.ofMinutes(16))
-        a.refused(owner, "x@example.in")
+        a.refused(owner, "x@example.com")
         val second = assertIs<SecurityAlert.RefusedSignIn>(got.last())
         assertEquals(20, second.attempts, "the 19 held back plus this one")
         assertTrue("20 sign-ins were refused since" in second.body)
@@ -296,7 +296,7 @@ class SessionSecurityTest {
     @Test
     fun `no owner yet means nobody to alert, and a failing channel never breaks sign-in`() = runBlocking<Unit> {
         val got = CopyOnWriteArrayList<SecurityAlert>()
-        SignInAlerts({ _, alert -> got += alert }).refused(null, "x@example.in")
+        SignInAlerts({ _, alert -> got += alert }).refused(null, "x@example.com")
         assertTrue(got.isEmpty())
         SignInAlerts({ _, _ -> error("push service down") }).newSignIn(UUID.randomUUID(), "Chrome on Mac") // no throw
         SignInAlerts(null).newSignIn(UUID.randomUUID(), "Chrome on Mac") // no notifier: logged, no throw
@@ -304,7 +304,7 @@ class SessionSecurityTest {
 
     @Test
     fun `masked accounts keep only letters and digits`() {
-        assertEquals("p•••@g•••.com", SignInAlerts.maskEmail("Pragun.B@gmail.com"))
+        assertEquals("o•••@e•••.com", SignInAlerts.maskEmail("Owner@Example.com"))
         assertEquals("c•••@s•••.example", SignInAlerts.maskEmail("call+18005550100@scam-help.example"))
         assertNull(SignInAlerts.maskEmail("<script>@x"))
         assertNull(SignInAlerts.maskEmail("no-at-sign"))

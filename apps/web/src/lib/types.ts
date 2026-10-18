@@ -48,7 +48,7 @@ export interface BriefingSummary {
 export interface Transaction {
   id: string;
   type: string;
-  /** spend / income / transfer / refund / reversal: what it counts as (D-39). */
+  /** spend / income / transfer / refund / reversal / settlement: what it counts as (D-39, D-111). */
   nature: string;
   amount: string; // exact decimal (D-30)
   currency: string;
@@ -62,6 +62,8 @@ export interface Transaction {
   isRecurring: boolean;
   isAnomaly: boolean;
   transactedAt: string;
+  /** Your share when the bill was split on Splitwise (AOS-911): what the totals count. */
+  ownShare?: string | null;
 }
 
 // ── Subscriptions ──
@@ -114,6 +116,73 @@ export interface DueItem {
   /** Bill type (credit_card…) or billing cycle (monthly…). */
   detail: string;
   trial: boolean;
+}
+
+// ── Trips (AOS-910, GET /api/v1/trips) ──
+
+export interface TripLeg {
+  date: string;
+  brand: string;
+  mode: "flight" | "train" | "bus" | null;
+  transactionId: string | null;
+}
+
+export interface TripSummary {
+  id: string;
+  name: string;
+  /** The user named it (otherwise the name is made from the dates). */
+  named: boolean;
+  start: string;
+  end: string;
+  total: string;
+  transactionCount: number;
+  modes: ("flight" | "train" | "bus")[];
+  legs: TripLeg[];
+}
+
+export interface TripYear {
+  year: number;
+  total: string;
+  currency: string;
+  trips: TripSummary[];
+}
+
+export interface TripMember {
+  role: "booking" | "spend" | "added";
+  refunded: string;
+  transaction: Transaction;
+}
+
+export interface TripDetail {
+  trip: TripSummary;
+  members: TripMember[];
+}
+
+/** A pay-later bill next to the purchases recorded for it (AOS-909). */
+export interface PayLaterGap {
+  billId: string;
+  billAmount: string;
+  dueDate: string;
+  status: string;
+  recorded: string;
+  unrecorded: string;
+}
+
+/** Pay-later debt per provider (AOS-909, GET /api/v1/pay-later). */
+export interface PayLaterProvider {
+  provider: string;
+  outstanding: string;
+  nextDue: string | null;
+  purchasesLast30Days: string;
+  unpaidBills: { id: string; amount: string; minimumDue: string | null; dueDate: string; status: string }[];
+  unbilledPurchases: { amount: string; count: number; transactionIds: string[] };
+  gaps: PayLaterGap[];
+}
+
+export interface PayLaterSummary {
+  outstanding: string;
+  currency: string;
+  providers: PayLaterProvider[];
 }
 
 /** A UPI AutoPay / e-NACH / card standing instruction, learnt from bank SMS (AOS-502, GET /api/v1/mandates). */
@@ -191,6 +260,10 @@ export interface Briefing {
   status: string;
   insights: Insight[] | null;
   createdAt: string;
+  /** The AI wording (AOS-716), only when it passed the number check; `content` is always the plain briefing. */
+  narration: string | null;
+  narrationModel: string | null;
+  narrationStatus: "none" | "narrated" | "rejected" | "unavailable";
 }
 
 export interface Insight {
@@ -289,4 +362,67 @@ export interface AuthResponse {
   };
   /** The passkey step this new session must take (AOS-617). */
   secondFactor?: "enrol" | "verify" | "done";
+}
+
+// ── Category review (AOS-707/708) ──
+
+/** A model's guess to confirm or correct: by the local learned categoriser or the AI fallback. */
+export interface CategoryGuess {
+  category: string;
+  /** 0–1, calibrated. */
+  confidence: number;
+  by: "learned" | "ai";
+  /** true: it set the category; false: only a suggestion (the row is still Other). */
+  applied: boolean;
+  cues: string[];
+  reason?: string | null;
+  /** The next most likely categories, for one-tap corrections. */
+  alternatives: string[];
+}
+
+/** "Check this category": ordered by the API by uncertainty × amount. */
+export interface CategoryQuestion {
+  transaction: Transaction;
+  guess: CategoryGuess;
+  priority: number;
+}
+
+export interface CategoryAnswer {
+  transaction: Transaction;
+  remembered: boolean;
+  relabelled: number;
+  golden?: { outcome: "added" | "already_there" | "refused"; reason?: string | null } | null;
+}
+
+/** The learned categoriser's status (counts only). */
+export interface CategoryModelStatus {
+  enabled: boolean;
+  state: "off" | "cold_start" | "ready" | "corrupt";
+  mode?: "apply" | "suggest" | null;
+  trainedAt?: string | null;
+  corrections: number;
+  correctionsNeeded: number;
+}
+
+/** One scrubbed row of the user's local golden set. */
+export interface GoldenRow {
+  id: string;
+  goldenId: string;
+  merchantRaw: string;
+  paymentMethod?: string | null;
+  direction: string;
+  category: string;
+  createdAt: string;
+}
+
+// ── Merchant grouping (AOS-709) ──
+
+/** "Are these one merchant?": the name a merge keeps and every name in the group, the kept one first. */
+export interface MergeProposal {
+  id: string;
+  name: string;
+  names: { name: string; payments: number }[];
+  /** Why they look like one merchant, in plain words. */
+  reasons: string[];
+  score: number;
 }

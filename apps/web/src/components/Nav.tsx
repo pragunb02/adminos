@@ -20,11 +20,13 @@ export const MORE_LINKS = [
   { href: "/leaks", label: "Where it leaks" },
   // Wealth sits under More for now (AOS-820; D-49 keeps 5 tabs). Pragun hasn't chosen its final place.
   { href: "/wealth", label: "Wealth" },
+  { href: "/ask", label: "Ask your money" },
   { href: "/import", label: "Import statement" },
   { href: "/bills", label: "Bills" },
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/documents", label: "Documents" },
   { href: "/briefings", label: "Briefings" },
+  { href: "/trips", label: "Trips" },
   { href: "/settings", label: "Settings" },
 ] as const;
 

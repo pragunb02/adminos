@@ -3,8 +3,10 @@ package config
 import "os"
 
 type Config struct {
-	DatabaseURL        string
-	RedisURL           string
+	DatabaseURL string
+	RedisURL    string
+	// RedisPassword is REDIS_PASSWORD: Redis requires it (AOS-634). It may instead be in RedisURL.
+	RedisPassword      string
 	WorkerType         string
 	GoogleClientID     string
 	GoogleClientSecret string
@@ -16,7 +18,8 @@ type Config struct {
 func Load() *Config {
 	return &Config{
 		DatabaseURL:        getEnv("DATABASE_URL", "postgresql://adminos:adminos_dev@localhost:5432/adminos"),
-		RedisURL:           getEnv("REDIS_URL", "redis://localhost:6379"),
+		RedisURL:           getEnv("REDIS_URL", ""), // required (AOS-634)
+		RedisPassword:      getEnv("REDIS_PASSWORD", ""),
 		WorkerType:         getEnv("WORKER_TYPE", "all"),
 		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),

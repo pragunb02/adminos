@@ -14,11 +14,13 @@ const MAIN: { tab: "Home" | "Spending" | "Activity" | "Review" | "More"; path: s
 const SECONDARY = [
   { label: "Where it leaks", path: "/leaks", heading: "Where it leaks" },
   { label: "Wealth", path: "/wealth", heading: "Wealth" },
+  { label: "Ask your money", path: "/ask", heading: "Ask your money" },
   { label: "Import statement", path: "/import", heading: "Import a bank statement" },
   { label: "Bills", path: "/bills", heading: "Dues & renewals" },
   { label: "Subscriptions", path: "/subscriptions", heading: "Subscriptions" },
   { label: "Documents", path: "/documents", heading: "Documents" },
   { label: "Briefings", path: "/briefings", heading: "Briefings" },
+  { label: "Trips", path: "/trips", heading: "Trips" },
   { label: "Settings", path: "/settings", heading: "Settings" },
 ] as const;
 type Tab = (typeof MAIN)[number]["tab"];

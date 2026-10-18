@@ -162,7 +162,7 @@ class HardeningTest {
     private fun forged(alg: JWSAlgorithm, claims: JWTClaimsSet.Builder.() -> Unit, crit: Boolean = false): String {
         val key = SecurityTestKit.config.auth.jwtSecret.toByteArray()
         val header = JWSHeader.Builder(alg).type(JOSEObjectType.JWT).apply { if (crit) criticalParams(setOf("x-adminos")).customParam("x-adminos", 1) }.build()
-        val c = JWTClaimsSet.Builder().subject(UUID.randomUUID().toString()).claim("typ", "access").claim("email", "x@example.in").claim("role", "owner")
+        val c = JWTClaimsSet.Builder().subject(UUID.randomUUID().toString()).claim("typ", "access").claim("email", "x@example.com").claim("role", "owner")
             .issuer(SecurityTestKit.config.auth.jwtIssuer).issueTime(Date()).expirationTime(Date(System.currentTimeMillis() + 600_000)).apply(claims).build()
         return SignedJWT(header, c).apply { sign(MACSigner(key)) }.serialize()
     }

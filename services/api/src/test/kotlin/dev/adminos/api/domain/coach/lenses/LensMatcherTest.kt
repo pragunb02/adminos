@@ -3,6 +3,7 @@ package dev.adminos.api.domain.coach.lenses
 import dev.adminos.api.domain.coach.CoachFixture.USER
 import dev.adminos.api.domain.coach.CoachFixture.txn
 import dev.adminos.api.domain.financial.CategorizationService
+import dev.adminos.api.domain.financial.PaymentMethod
 import dev.adminos.api.domain.financial.TransactionCategory
 import dev.adminos.api.domain.financial.TransactionNature
 import dev.adminos.api.domain.ingestion.pipeline.MerchantNormalizer
@@ -68,11 +69,24 @@ class LensMatcherTest {
     }
 
     @Test
-    fun `pay-later repayments land in pay later`() {
+    fun `purchases paid with pay-later land in pay later, at any merchant, alongside their own lens`() {
+        val zepto = txn("Zepto").copy(paymentMethod = PaymentMethod.PAY_LATER)
+        assertEquals(setOf(LensId("quick_commerce"), LensId("pay_later")), matcher.lensesOf(zepto, LensOverrides.NONE))
+        val chemist = txn("Apollo Pharmacy", category = TransactionCategory.HEALTH).copy(paymentMethod = PaymentMethod.PAY_LATER)
+        assertEquals(setOf(LensId("pay_later")), matcher.lensesOf(chemist, LensOverrides.NONE))
+        assertEquals(setOf(LensId("quick_commerce")), matcher.lensesOf(txn("Zepto"), LensOverrides.NONE), "a card purchase isn't pay-later")
+    }
+
+    @Test
+    fun `a pay-later refund nets off the lens and a repayment to the provider is never counted`() {
+        val refund = txn("Myntra", nature = TransactionNature.REFUND).copy(paymentMethod = PaymentMethod.PAY_LATER)
+        assertEquals(setOf(LensId("shopping"), LensId("pay_later")), matcher.lensesOf(refund, LensOverrides.NONE))
         for (raw in listOf("LAZYPAY PVT LTD", "UPI-SIMPL-getsimpl@icici-ICIC0000001-428911100009-REPAY", "AMAZON PAY LATER", "FLIPKART PAY LATER",
                            "PAYTM POSTPAID", "ZESTMONEY", "SNAPMINT")) {
-            assertEquals(setOf("pay_later"), lensesOf(raw), raw)
+            assertEquals(emptySet(), lensesOf(raw), "$raw is a repayment, even before it's recognised as a transfer")
         }
+        val repaid = txn("LazyPay", nature = TransactionNature.TRANSFER, subcategory = "pay_later_bill").copy(paymentMethod = PaymentMethod.PAY_LATER)
+        assertEquals(emptySet(), matcher.lensesOf(repaid, LensOverrides.NONE), "a transfer never counts, whatever its method")
         assertEquals(setOf("shopping"), lensesOf("AMAZON PAY INDIA"), "Amazon Pay alone is Amazon")
     }
 

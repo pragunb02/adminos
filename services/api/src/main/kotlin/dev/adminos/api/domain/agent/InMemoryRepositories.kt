@@ -81,6 +81,10 @@ class InMemoryBriefingRepository : BriefingRepository {
 
     override suspend fun countByUserId(userId: UUID): Long =
         store.values.count { it.userId == userId }.toLong()
+
+    override suspend fun updateNarration(id: UUID, narration: BriefingNarration, at: Instant) {
+        store.computeIfPresent(id) { _, b -> b.copy(narration = narration, updatedAt = at) }
+    }
 }
 
 // ── In-Memory Insight Repository ──

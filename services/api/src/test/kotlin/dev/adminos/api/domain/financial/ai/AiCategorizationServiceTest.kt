@@ -214,8 +214,8 @@ class AiCategorizationServiceTest {
     @Test
     fun `the job runs every 15 minutes over active users' recent Other rows and counts outcomes`() = runBlocking<Unit> {
         val users = InMemoryUserRepository()
-        val pragun = users.save(User(id = user, email = "pragun@example.in", googleId = "g-ai-1"))
-        users.save(User(email = "off@example.in", googleId = "g-ai-2", isActive = false))
+        val owner = users.save(User(id = user, email = "owner@example.com", googleId = "g-ai-1"))
+        users.save(User(email = "off@example.com", googleId = "g-ai-2", isActive = false))
         val applied = saved("Steam")
         saved("Sapna Book House", PaymentMethod.UPI)
         saved("Rohit Sharma", PaymentMethod.UPI, vpa = "rohit.sharma92@oksbi")
@@ -231,7 +231,7 @@ class AiCategorizationServiceTest {
         assertEquals(1, counts["applied"]); assertEquals(1, counts["suggested"]); assertEquals(1, counts["private"])
         assertEquals(0, counts["unavailable"])
         assertEquals(TransactionCategory.OTHER, txns.findById(old.id)!!.category, "older than 30 days")
-        assertTrue(pragun.isActive)
+        assertTrue(owner.isActive)
 
         val again = job.run().counts
         assertEquals(0, again["applied"]); assertEquals(0, again["suggested"]); assertEquals(1, again["private"])
@@ -241,9 +241,9 @@ class AiCategorizationServiceTest {
     @Test
     fun `one user's failure is isolated and counted`() = runBlocking<Unit> {
         val users = InMemoryUserRepository()
-        val broken = users.save(User(email = "broken@example.in", googleId = "g-ai-3"))
+        val broken = users.save(User(email = "broken@example.com", googleId = "g-ai-3"))
         consentRepo.save(AiConsent(broken.id, AiFeature.CATEGORIZATION, true, now))
-        users.save(User(id = user, email = "pragun@example.in", googleId = "g-ai-4"))
+        users.save(User(id = user, email = "owner@example.com", googleId = "g-ai-4"))
         saved("Steam")
         val failing = object : TransactionRepository by txns {
             override suspend fun findByUserId(
@@ -273,7 +273,7 @@ class AiCategorizationServiceTest {
     @Test
     fun `the job skips users who haven't turned it on without reading their transactions`() = runBlocking<Unit> {
         val users = InMemoryUserRepository()
-        val stranger = users.save(User(email = "other@example.in", googleId = "g-ai-5"))
+        val stranger = users.save(User(email = "other@example.com", googleId = "g-ai-5"))
         val read = mutableListOf<UUID>()
         val watching = object : TransactionRepository by txns {
             override suspend fun findByUserId(

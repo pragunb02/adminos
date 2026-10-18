@@ -4,6 +4,8 @@ import dev.adminos.api.config.AppConfig
 import dev.adminos.api.domain.audit.AuditService
 import dev.adminos.api.domain.identity.GoogleOAuthClient
 import dev.adminos.api.domain.ingestion.cash.CashIntake
+import dev.adminos.api.domain.ingestion.cash.CashPhraseParser
+import dev.adminos.api.domain.ingestion.cash.cashPhraseRoutes
 import dev.adminos.api.domain.ingestion.cash.cashRoutes
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
 import dev.adminos.api.domain.ingestion.connection.GmailOAuth
@@ -11,6 +13,10 @@ import dev.adminos.api.domain.ingestion.connection.OAuthStateService
 import dev.adminos.api.domain.ingestion.connection.connectionRoutes
 import dev.adminos.api.domain.ingestion.events.IngestEventService
 import dev.adminos.api.domain.ingestion.events.ingestEventRoutes
+import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
+import dev.adminos.api.domain.ingestion.fallback.messageReviewRoutes
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReviewService
+import dev.adminos.api.domain.ingestion.fallback.templates.templateReviewRoutes
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
 import dev.adminos.api.domain.ingestion.sms.rawSmsRoutes
 import dev.adminos.api.domain.ingestion.sync.IngestionService
@@ -41,7 +47,10 @@ fun Application.ingestionModule(config: AppConfig) {
     val ingestEventService: IngestEventService by inject()
     val smsIntake: SmsIntake by inject()
     val cashIntake: CashIntake by inject()
+    val cashPhrases: CashPhraseParser by inject()
     val whatsAppImportService: WhatsAppImportService by inject()
+    val messageReviewService: MessageReviewService by inject()
+    val templateReviewService: TemplateReviewService by inject()
 
     routing {
         route("/api/v1") {
@@ -49,10 +58,13 @@ fun Application.ingestionModule(config: AppConfig) {
             ingestEventRoutes(ingestEventService)
             rawSmsRoutes(smsIntake)
             cashRoutes(cashIntake)
+            cashPhraseRoutes(cashPhrases)
             connectionRoutes(connectionService, auditService, GmailOAuth(googleOAuthClient, oauthStates, gmailCallbackUrl(config.app.appUrl)))
             webhookRoutes(connectionService, ingestionService, config.auth.googlePubsubAudience, config.auth.googlePubsubServiceAccount)
             statementRoutes(statementImportService)
             whatsAppImportRoutes(whatsAppImportService)
+            messageReviewRoutes(messageReviewService)
+            templateReviewRoutes(templateReviewService)
         }
     }
 }

@@ -35,7 +35,7 @@ The full report with options, evidence and links is [`docs/research/AI-ML-RESEAR
 | [AOS-S7.2](AOS-S7.2.md) | Smarter data in (message fallback, template learning, learned categoriser, Review queue) | ⬜ | 30h |
 | [AOS-S7.3](AOS-S7.3.md) | Ask your money | ⬜ | 18h |
 | [AOS-S7.4](AOS-S7.4.md) | Smarter alerts and planning (robust anomalies, forecasting, subscriptions) | ⬜ | 21h |
-| [AOS-S7.5](AOS-S7.5.md) | Convenience (briefing narration, documents OCR, cash from text, receipts) | ⬜ | 27h |
+| [AOS-S7.5](AOS-S7.5.md) | Convenience (briefing narration, documents OCR, cash from text, receipts) | 🟦 | 27h |
 
 ## Plan (AOS-701 recommendation; order by value for effort)
 1. **Wave 1, no LLM:** AOS-707 → AOS-713 → AOS-708 → AOS-714.
@@ -58,3 +58,4 @@ The full report with options, evidence and links is [`docs/research/AI-ML-RESEAR
 
 ## Activity log
 - 2026-10-17 — Claude: epic created from the AOS-701 research; D-67 proposed (awaiting Pragun).
+- 2026-10-18 — Claude (agent): AOS-716 briefing narration built (D-140); PR open, awaiting review.

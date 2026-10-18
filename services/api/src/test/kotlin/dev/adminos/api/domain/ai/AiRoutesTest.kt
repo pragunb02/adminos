@@ -48,8 +48,8 @@ import kotlin.test.assertTrue
 /** `/api/v1/ai/features` (AOS-704): auth, per-user scope, consent changes, and the D-100 attack cases. */
 class AiRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val pragun = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-704")
-    private val other = User(id = UUID.randomUUID(), email = "someone@example.in", googleId = "g-705")
+    private val owner = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-704")
+    private val other = User(id = UUID.randomUUID(), email = "someone@example.com", googleId = "g-705")
     private val consents = InMemoryAiConsentRepository()
     private val calls = InMemoryAiCallLogRepository()
     private val costs = AiCostGuard(InMemoryAiSpendLedger(), 2_000_000)
@@ -58,7 +58,9 @@ class AiRoutesTest {
 
     private fun service(on: Boolean) = AiFeaturesService(
         AiGateway(if (on) listOf(AiRoute.of(AiFeature.CATEGORIZATION, FakeAiProvider(), FakeAiProvider.MODEL)) else emptyList(), costs, calls, AiConsents(consents)),
-        mapOf(AiFeature.CATEGORIZATION to EchoTask), consents, calls, AiEvalRecords(listOf(record)), costs,
+        mapOf(AiFeature.CATEGORIZATION to EchoTask, AiFeature.ASK to dev.adminos.api.domain.ask.AskPlanTask,
+            AiFeature.MESSAGES to dev.adminos.api.domain.ingestion.fallback.ReadMessageTask,
+            AiFeature.BRIEFING to dev.adminos.api.domain.agent.briefing.BriefingNarrationTask), consents, calls, AiEvalRecords(listOf(record)), costs,
         AuditService(InMemoryAuditRepository(), CoroutineScope(Dispatchers.Unconfined))
     )
 
@@ -75,7 +77,7 @@ class AiRoutesTest {
     private data class Reply(val status: HttpStatusCode, val body: JsonObject?, val text: String)
 
     private suspend fun ApplicationTestBuilder.call(
-        method: HttpMethod, path: String, json: String? = null, token: String? = jwtService.generateAccessToken(pragun),
+        method: HttpMethod, path: String, json: String? = null, token: String? = jwtService.generateAccessToken(owner),
         site: String? = "same-origin", origin: String? = null
     ): Reply {
         val res = client.request("/api/v1$path") {
@@ -100,7 +102,7 @@ class AiRoutesTest {
         assertEquals(HttpStatusCode.OK, r.status)
         val data = r.body!!.getValue("data").jsonObject
         assertEquals("2.00", data["monthlyCapUsd"]?.jsonPrimitive?.content)
-        val f = data.getValue("features").jsonArray.single().jsonObject
+        val f = data.getValue("features").jsonArray.map { it.jsonObject }.single { it["key"]?.jsonPrimitive?.content == "categorization" }
         assertEquals("categorization", f["key"]?.jsonPrimitive?.content)
         assertEquals(false, f["enabled"]?.jsonPrimitive?.boolean)
         assertEquals(true, f["available"]?.jsonPrimitive?.boolean)
@@ -117,10 +119,10 @@ class AiRoutesTest {
         val turnedOn = call(HttpMethod.Patch, "/ai/features/categorization", on)
         assertEquals(HttpStatusCode.OK, turnedOn.status)
         assertEquals(true, turnedOn.feature()["enabled"]?.jsonPrimitive?.boolean)
-        assertTrue(runBlocking { AiConsents(consents).allows(pragun.id, AiFeature.CATEGORIZATION) })
+        assertTrue(runBlocking { AiConsents(consents).allows(owner.id, AiFeature.CATEGORIZATION) })
 
         val othersView = call(HttpMethod.Get, "/ai/features", token = jwtService.generateAccessToken(other))
-        assertEquals(false, othersView.body!!.getValue("data").jsonObject.getValue("features").jsonArray.single().jsonObject["enabled"]?.jsonPrimitive?.boolean,
+        assertEquals(false, othersView.body!!.getValue("data").jsonObject.getValue("features").jsonArray.map { it.jsonObject }.single { it["key"]?.jsonPrimitive?.content == "categorization" }["enabled"]?.jsonPrimitive?.boolean,
             "another user's consent is never shown or applied")
 
         val off = call(HttpMethod.Patch, "/ai/features/categorization", """{"enabled":false}""")
@@ -141,10 +143,10 @@ class AiRoutesTest {
     fun `signed out, or with a forged or expired token, nothing is read or changed`() = routeTest {
         assertEquals(HttpStatusCode.Unauthorized, call(HttpMethod.Get, "/ai/features", token = null).status)
         assertEquals(HttpStatusCode.Unauthorized, call(HttpMethod.Patch, "/ai/features/categorization", on, token = null).status)
-        val forged = jwtService.generateAccessToken(pragun).dropLast(4) + "AAAA"
+        val forged = jwtService.generateAccessToken(owner).dropLast(4) + "AAAA"
         assertEquals(HttpStatusCode.Unauthorized, call(HttpMethod.Patch, "/ai/features/categorization", on, token = forged).status)
         assertEquals(HttpStatusCode.Unauthorized, call(HttpMethod.Get, "/ai/features", token = "not.a.jwt").status)
-        assertFalse(runBlocking { AiConsents(consents).allows(pragun.id, AiFeature.CATEGORIZATION) })
+        assertFalse(runBlocking { AiConsents(consents).allows(owner.id, AiFeature.CATEGORIZATION) })
     }
 
     @Test
@@ -154,7 +156,7 @@ class AiRoutesTest {
             assertEquals(HttpStatusCode.Forbidden, r.status, "$site / $origin")
             assertEquals(CROSS_SITE_REFUSED.code, r.code())
         }
-        assertFalse(runBlocking { AiConsents(consents).allows(pragun.id, AiFeature.CATEGORIZATION) })
+        assertFalse(runBlocking { AiConsents(consents).allows(owner.id, AiFeature.CATEGORIZATION) })
         assertEquals(HttpStatusCode.OK, call(HttpMethod.Patch, "/ai/features/categorization", on, site = null, origin = "http://localhost:3000").status)
     }
 
@@ -173,6 +175,6 @@ class AiRoutesTest {
             val r = call(HttpMethod.Patch, "/ai/features/categorization", body)
             assertEquals(HttpStatusCode.BadRequest, r.status, body)
         }
-        assertFalse(runBlocking { AiConsents(consents).allows(pragun.id, AiFeature.CATEGORIZATION) })
+        assertFalse(runBlocking { AiConsents(consents).allows(owner.id, AiFeature.CATEGORIZATION) })
     }
 }

@@ -3,9 +3,7 @@ package dev.adminos.api.domain.ingestion.webhook
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
-import dev.adminos.api.domain.ingestion.connection.ConnectionStatus
 import dev.adminos.api.domain.ingestion.sync.IngestionService
-import dev.adminos.api.domain.ingestion.sync.SyncType
 import dev.adminos.api.infrastructure.auth.OidcVerifier
 import dev.adminos.api.infrastructure.auth.PushTokenVerifier
 import dev.adminos.api.infrastructure.plugins.ApiException
@@ -33,11 +31,13 @@ fun Route.webhookRoutes(
 /**
  * POST /api/v1/webhooks/gmail — Gmail push via Pub/Sub. Fails closed (AOS-609): with no [verifier]
  * configured it answers 503 and accepts nothing; every call must carry a verified push token.
+ * What a push does is [GmailPushService]'s: at most one waiting sync per connection (AOS-630).
  */
 fun Route.webhookRoutes(
     connectionService: ConnectionService,
     ingestionService: IngestionService,
-    verifier: PushTokenVerifier?
+    verifier: PushTokenVerifier?,
+    pushes: GmailPushService = GmailPushService(connectionService, ingestionService)
 ) {
     route("/webhooks") {
         post("/gmail") {
@@ -56,7 +56,7 @@ fun Route.webhookRoutes(
             try {
                 verifier.verify(bearerToken)
             } catch (e: Exception) {
-                logger.warn("Gmail webhook: OIDC verification failed: ${e.message}")
+                logger.warn("Gmail webhook: push token refused ({})", e.javaClass.simpleName) // never the message (AOS-628)
                 throw ApiException(HttpStatusCode.Unauthorized, ApiError("WEBHOOK_006", "Invalid Pub/Sub OIDC token"))
             }
 
@@ -84,34 +84,16 @@ fun Route.webhookRoutes(
                 throw ApiException(HttpStatusCode.BadRequest, ApiError("WEBHOOK_004", "Missing email address in notification"))
             }
 
-            val connection = connectionService.findByGmailAddress(notification.emailAddress)
-            if (connection == null) {
-                call.respond(HttpStatusCode.OK, ApiResponse.success(
-                    WebhookAckResponse(acknowledged = true, message = "No matching connection"), call.requestId
-                ))
-                return@post
+            // Every outcome is a 200: Pub/Sub retries anything else, which would only add pushes.
+            val ack = when (val outcome = pushes.onPush(notification.emailAddress, notification.historyId)) {
+                GmailPushOutcome.NoConnection -> WebhookAckResponse(acknowledged = true, message = "No matching connection")
+                GmailPushOutcome.NotActive -> WebhookAckResponse(acknowledged = true, message = "Connection not active")
+                GmailPushOutcome.AlreadySynced -> WebhookAckResponse(acknowledged = true, message = "Already synced")
+                is GmailPushOutcome.Coalesced ->
+                    WebhookAckResponse(acknowledged = true, message = "Sync already queued", syncSessionId = outcome.pendingSessionId.toString())
+                is GmailPushOutcome.Queued -> WebhookAckResponse(acknowledged = true, syncSessionId = outcome.session.id.toString())
             }
-
-            if (connection.status != ConnectionStatus.CONNECTED) {
-                call.respond(HttpStatusCode.OK, ApiResponse.success(
-                    WebhookAckResponse(acknowledged = true, message = "Connection not active"), call.requestId
-                ))
-                return@post
-            }
-
-            // A push is always an incremental sync (AOS-405): the worker starts from the history ID stored
-            // on the connection; the notification's own ID is passed along for information only (D-59).
-            // Its completion is what lets the daily fallback skip the connection (24 h rule).
-            val session = ingestionService.enqueueGmailIngest(
-                userId = connection.userId,
-                connectionId = connection.id,
-                historyId = notification.historyId?.toString(),
-                syncType = SyncType.INCREMENTAL
-            )
-
-            call.respond(HttpStatusCode.OK, ApiResponse.success(
-                WebhookAckResponse(acknowledged = true, syncSessionId = session.id.toString()), call.requestId
-            ))
+            call.respond(HttpStatusCode.OK, ApiResponse.success(ack, call.requestId))
         }
     }
 }

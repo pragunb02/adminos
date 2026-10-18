@@ -29,7 +29,7 @@ class NotificationDeliveryTest {
     private val clock = TestClock(Instant.parse("2026-10-16T09:30:00Z"))
     private val users = InMemoryUserRepository()
     private val repo = InMemoryNotificationRepository()
-    private val user = runBlocking { users.save(User(email = "pragun@example.com", googleId = "g-1")) }
+    private val user = runBlocking { users.save(User(email = "owner@example.com", googleId = "g-1")) }
     private val push = RecordingChannel(NotificationChannel.PUSH)
     private val dispatcher = NotificationDispatcher(listOf(InAppChannel(), push), users, repo, clock)
 
@@ -135,9 +135,9 @@ class NotificationDeliveryTest {
 
     @Test
     fun `an email has the title as subject, the body, and links back to the app and to settings`() = runBlocking<Unit> {
-        assertEquals(DeliveryResult.Delivered("<msg-1@example.com>"), emailChannel.deliver(notification(), Recipient(user.id, " pragun@example.com ")))
+        assertEquals(DeliveryResult.Delivered("<msg-1@example.com>"), emailChannel.deliver(notification(), Recipient(user.id, " owner@example.com ")))
         val mail = sender.sent.single()
-        assertEquals("pragun@example.com", mail.to)
+        assertEquals("owner@example.com", mail.to)
         assertEquals("Bill due in 3 days", mail.subject)
         assertTrue(mail.text.startsWith("HDFC bill of ₹4560.00 is due on 2026-10-19\n"))
         assertTrue("Open AdminOS: https://adminos.example" in mail.text)
@@ -146,7 +146,7 @@ class NotificationDeliveryTest {
 
     @Test
     fun `newlines in a title can't become mail headers`() = runBlocking<Unit> {
-        emailChannel.deliver(notification("Bill due\r\nBcc: someone@evil.example"), Recipient(user.id, "pragun@example.com"))
+        emailChannel.deliver(notification("Bill due\r\nBcc: someone@evil.example"), Recipient(user.id, "owner@example.com"))
         assertEquals("Bill due Bcc: someone@evil.example", sender.sent.single().subject)
     }
 
@@ -155,15 +155,15 @@ class NotificationDeliveryTest {
         assertEquals(DeliveryResult.Permanent("The user has no email address"), emailChannel.deliver(notification(), Recipient(user.id, null)))
         assertEquals(DeliveryResult.Permanent("The user has no email address"), emailChannel.deliver(notification(), Recipient(user.id, "  ")))
         assertTrue(emailChannel.deliver(notification(), Recipient(user.id, "not-an-address")) is DeliveryResult.Permanent)
-        assertTrue(emailChannel.deliver(notification(title = " "), Recipient(user.id, "pragun@example.com")) is DeliveryResult.Permanent)
+        assertTrue(emailChannel.deliver(notification(title = " "), Recipient(user.id, "owner@example.com")) is DeliveryResult.Permanent)
     }
 
     @Test
     fun `sender failures map to retryable or permanent`() = runBlocking<Unit> {
         sender.failure = EmailSendException("SMTP send failed: timeout", retryable = true)
-        assertEquals(DeliveryResult.Retryable("SMTP send failed: timeout"), emailChannel.deliver(notification(), Recipient(user.id, "pragun@example.com")))
+        assertEquals(DeliveryResult.Retryable("SMTP send failed: timeout"), emailChannel.deliver(notification(), Recipient(user.id, "owner@example.com")))
         sender.failure = EmailSendException("The SMTP server refused the recipient", retryable = false)
-        assertEquals(DeliveryResult.Permanent("The SMTP server refused the recipient"), emailChannel.deliver(notification(), Recipient(user.id, "pragun@example.com")))
+        assertEquals(DeliveryResult.Permanent("The SMTP server refused the recipient"), emailChannel.deliver(notification(), Recipient(user.id, "owner@example.com")))
     }
 
     @Test

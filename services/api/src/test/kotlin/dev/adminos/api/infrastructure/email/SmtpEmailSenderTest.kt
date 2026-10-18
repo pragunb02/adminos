@@ -28,7 +28,7 @@ class SmtpEmailSenderTest {
     /** A throwaway login for the in-process test server, made up per run. */
     private val testLogin = java.util.UUID.randomUUID().toString()
     private val mail = GreenMail(smtps).withConfiguration(GreenMailConfiguration.aConfig().withUser("bot@adminos.test", "bot", testLogin))
-    private val message = EmailMessage("pragun@example.com", "Bill due in 3 days", "HDFC bill of ₹4560.00 is due on 2026-10-19\n\nOpen AdminOS: https://adminos.example")
+    private val message = EmailMessage("owner@example.com", "Bill due in 3 days", "HDFC bill of ₹4560.00 is due on 2026-10-19\n\nOpen AdminOS: https://adminos.example")
 
     /** The test server's certificate is self-signed for "localhost": trust it here only. */
     private val trustTestServer = Properties().apply {
@@ -49,7 +49,7 @@ class SmtpEmailSenderTest {
         val received = mail.receivedMessages.single()
         assertEquals("Bill due in 3 days", received.subject)
         assertEquals("bot@adminos.test", (received.from.single() as InternetAddress).address)
-        assertEquals("pragun@example.com", received.allRecipients.single().toString())
+        assertEquals("owner@example.com", received.allRecipients.single().toString())
         assertTrue("₹4560.00" in GreenMailUtil.getBody(received).let { String(jakarta.mail.internet.MimeUtility.decode(it.byteInputStream(), "quoted-printable").readAllBytes(), Charsets.UTF_8) })
         assertEquals(received.messageID, id)
     }

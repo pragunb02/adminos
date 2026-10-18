@@ -1,0 +1,76 @@
+# CodeQL code scanning (free for public repositories): every PR, main, and weekly. AOS-622, proposed D-99.
+# Results appear under Security → Code scanning; the "codeql (<language>)" jobs are required checks, and
+# GitHub's "Code scanning results" check blocks a PR that adds high or critical alerts (see SUPPLY-CHAIN.md).
+name: CodeQL
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 4 * * 1"    # Mondays 04:41 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: codeql (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write     # upload results; nothing else
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+          - language: go
+            build-mode: manual
+          - language: python
+            build-mode: none
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "25"
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.x"
+          check-latest: true
+          cache: false
+      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+      - if: matrix.language == 'java-kotlin'
+        name: Compile the API (main and test sources)
+        working-directory: services/api
+        # The CodeQL extractor runs inside the Kotlin compiler, which needs far more than the repo's 1 GB default.
+        run: >-
+          ./gradlew --no-daemon --no-build-cache
+          -Dorg.gradle.jvmargs=-Xmx6g -Pkotlin.compiler.execution.strategy=in-process
+          compileKotlin compileTestKotlin
+      - if: matrix.language == 'go'
+        name: Build both Go modules
+        run: |
+          (cd services/workers && go build ./...)
+          (cd tools/sms-reader && go build ./...)
+      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          category: /language:${{ matrix.language }}

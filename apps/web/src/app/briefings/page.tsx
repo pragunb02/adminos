@@ -8,6 +8,7 @@ import { formatInr } from "@/lib/money";
 import AppShell from "@/components/AppShell";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorMessage from "@/components/ErrorMessage";
+import BriefingText from "@/components/BriefingText";
 
 export default function BriefingsPage() {
   const router = useRouter();
@@ -95,10 +96,8 @@ export default function BriefingsPage() {
               )}
             </div>
 
-            {/* Content */}
-            <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-line mb-4">
-              {latest.content}
-            </div>
+            {/* Content: the AI wording when it passed the check, else the plain briefing (AOS-716) */}
+            <BriefingText briefing={latest} />
 
             {/* Top categories */}
             {latest.topCategories && latest.topCategories.length > 0 && (
