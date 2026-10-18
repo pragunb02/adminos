@@ -4,7 +4,7 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E9](AOS-E9.md) |
-| **Status** | ⬜ Todo |
+| **Status** | ✅ Done (AOS-904, AOS-905, AOS-906) |
 | **Priority** | P0 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 12h |
@@ -28,8 +28,8 @@ Per task ticket (≥2 options each).
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
 | [AOS-904](AOS-904.md) | Limits per lens, merchant or category (monthly/weekly), pushes at 50/80/100%, once per threshold per period | Claude | ✅ | 5h |  |
-| AOS-905 | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ⬜ | 3h |  |
-| AOS-906 | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ⬜ | 4h |  |
+| [AOS-905](AOS-905.md) | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ✅ | 3h |  |
+| [AOS-906](AOS-906.md) | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ✅ | 4h |  |
 
 _Task tickets are created as files when this story is picked up._
 

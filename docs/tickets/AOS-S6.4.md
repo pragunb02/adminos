@@ -41,14 +41,17 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | [AOS-621](AOS-621.md) | Encrypted backups + restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | [AOS-622](AOS-622.md) | Supply chain and runtime: CI on every PR, OSV/npm audit/govulncheck/Trivy/CodeQL, Dependabot, pinned and locked-down containers (D-99) | Claude (agent) | ✅ | 4h | 6h |
 | AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
-| AOS-624 | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) | Claude | ⬜ | 3h |  |
-| AOS-625 | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude | ⬜ | 1h |  |
-| AOS-626 | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) | Claude | ⬜ | 2h |  |
-| AOS-627 | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude | ⬜ | 0.5h |  |
-| AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
-| AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
-| AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
 | [AOS-640](AOS-640.md) | Playwright in GitHub CI as the required `e2e` check (all projects, cached browsers, per-run secret, report on failure) | Claude (agent) | 🟨 | 1h | 1h |
+| [AOS-630](AOS-630.md) | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) (D-114) | Claude (agent) | ✅ | 1h | 1.5h |
+| [AOS-629](AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
+| [AOS-628](AOS-628.md) | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude (agent) | ✅ | 1h | 1h |
+| [AOS-627](AOS-627.md) | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude (agent) | ✅ | 0.5h | 0.5h |
+| [AOS-626](AOS-626.md) | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) (D-113) | Claude (agent) | ✅ | 2h | 1.5h |
+| [AOS-625](AOS-625.md) | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude (agent) | ✅ | 1h | 0.75h |
+| [AOS-624](AOS-624.md) | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) (D-112) | Claude (agent) | ✅ | 3h | 2h |
+| [AOS-634](AOS-634.md) | Redis requires a password; API and worker get it and refuse to start without it (D-103) | Claude (agent) | ✅ | 2h | 2h |
+| [AOS-633](AOS-633.md) | Non-JSON bodies are 415, malformed JSON 400, fixed messages (never 500, never echoed) (D-102) | Claude (agent) | ✅ | 1.5h | 1.5h |
+| [AOS-632](AOS-632.md) | Web image ships public/ (service worker, icons) + image check | Claude (agent) | ✅ | 1h | 1h |
 
 ## Demo / verification
 From a device outside the private network the site doesn't answer; a second Google account is refused; the audit report lists no open findings.

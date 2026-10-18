@@ -7,12 +7,13 @@ import java.util.concurrent.ConcurrentHashMap
 class InMemoryPushSubscriptionRepository : PushSubscriptionRepository {
     private val byEndpoint = ConcurrentHashMap<PushEndpoint, PushSubscription>()
 
-    override suspend fun upsert(subscription: PushSubscription): PushSubscription = synchronized(this) {
-        // Same endpoint = same device: keep the row's id, take the new owner, keys and label.
+    override suspend fun save(subscription: PushSubscription): PushSaveResult = synchronized(this) {
+        // Same endpoint = same device: keep the row's id and creation time, take the new keys and label.
         val existing = byEndpoint[subscription.endpoint]
-        val saved = existing?.let { subscription.copy(id = it.id) } ?: subscription
+        if (existing != null && existing.userId != subscription.userId) return PushSaveResult.OwnedByAnotherUser
+        val saved = existing?.let { subscription.copy(id = it.id, createdAt = it.createdAt) } ?: subscription
         byEndpoint[subscription.endpoint] = saved
-        saved
+        PushSaveResult.Saved(saved)
     }
 
     override suspend fun findByUserId(userId: UUID) = byEndpoint.values.filter { it.userId == userId }.sortedBy { it.createdAt }

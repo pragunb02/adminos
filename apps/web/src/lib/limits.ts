@@ -10,7 +10,7 @@ export interface WeekSpend { from: string; to: string; spent: string }
 export interface LimitSuggestion { lens: string; label: string; period: LimitPeriod; amount: string; weeks: WeekSpend[]; median: string; stepPercent: number; roundTo: string }
 export interface Learning { daysOfData: number; daysNeeded: number; ready: boolean; label: string }
 export interface LimitsData { today: string; learning: Learning; limits: Limit[]; suggestions: LimitSuggestion[] }
-export interface CoachSettings { limitAlerts: boolean }
+export interface CoachSettings { limitAlerts: boolean; eveningDigest: boolean; digestTime: string; digestSkipZeroDay: boolean }
 export interface NewLimit { scope: { kind: ScopeKind; value: string }; period: LimitPeriod; amount: string }
 
 export const LIMITS_PATH = "/api/v1/coach/limits";

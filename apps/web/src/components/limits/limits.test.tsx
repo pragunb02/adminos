@@ -98,6 +98,20 @@ describe("Settings → Spending coach (AOS-904)", () => {
     await waitFor(() => expect(sent).toEqual([{ method: "PATCH", path: "/api/v1/coach/settings", body: { limitAlerts: false } }]));
   });
 
+  it("the evening digest: off, a new time on leaving the field, and skip zero days (AOS-905)", async () => {
+    const sent = record();
+    const { user } = renderWithQuery(<CoachSettingsSection />);
+    const time = await screen.findByLabelText("Digest time");
+    expect(time).toHaveValue("21:30");
+    await user.clear(time);
+    await user.type(time, "20:15");
+    await user.tab();
+    await user.click(screen.getByRole("checkbox", { name: "Skip on a day with no spending" }));
+    await user.click(screen.getByRole("checkbox", { name: "Evening digest" }));
+    await waitFor(() => expect(sent.map((x) => x.body)).toEqual([{ digestTime: "20:15" }, { digestSkipZeroDay: true }, { eveningDigest: false }]));
+    expect(screen.getByText("During quiet hours the digest waits until they end.")).toBeInTheDocument();
+  });
+
   it("changes and deletes a limit", async () => {
     const sent = record();
     const { user } = renderWithQuery(<CoachSettingsSection />);

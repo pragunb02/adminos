@@ -31,6 +31,14 @@ class ExposedSyncSessionRepository : SyncSessionRepository {
         }.singleOrNull()?.get(latest)
     }
 
+    override suspend fun findQueued(connectionId: UUID, createdAfter: Instant): SyncSession? = dbQuery {
+        SyncSessionsTable.selectAll().where {
+            (SyncSessionsTable.connectionId eq connectionId) and
+                (SyncSessionsTable.status eq SyncSessionStatus.QUEUED.name.lowercase()) and
+                (SyncSessionsTable.createdAt greater createdAfter)
+        }.orderBy(SyncSessionsTable.createdAt, SortOrder.DESC).limit(1).singleOrNull()?.toSyncSession()
+    }
+
     override suspend fun save(session: SyncSession): SyncSession = dbQuery {
         SyncSessionsTable.insert {
             it[id] = session.id

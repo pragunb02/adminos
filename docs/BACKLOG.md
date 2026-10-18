@@ -164,14 +164,18 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-621](tickets/AOS-621.md) | Encrypted backups: age-encrypted pg_dump to a locked R2 bucket, restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | └ [AOS-622](tickets/AOS-622.md) | Supply chain and runtime: CI on every PR, OSV/npm audit/govulncheck/Trivy/CodeQL, Dependabot, pinned and locked-down containers (D-99) | Claude (agent) | ✅ | 4h | 6h |
 | └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
-| └ AOS-624 | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) | Claude | ⬜ | 3h |  |
-| └ AOS-625 | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude | ⬜ | 1h |  |
-| └ AOS-626 | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) | Claude | ⬜ | 2h |  |
-| └ AOS-627 | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude | ⬜ | 0.5h |  |
-| └ AOS-628 | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude | ⬜ | 1h |  |
-| └ AOS-629 | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude | ⬜ | 0.5h |  |
-| └ AOS-630 | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) | Claude | ⬜ | 1h |  |
 | └ [AOS-640](tickets/AOS-640.md) | Playwright in GitHub CI as the required `e2e` check (all projects, cached browsers, per-run secret, report on failure) | Claude (agent) | 🟨 | 1h | 1h |
+| └ [AOS-630](tickets/AOS-630.md) | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) (D-114) | Claude (agent) | ✅ | 1h | 1.5h |
+| └ [AOS-629](tickets/AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
+| └ [AOS-628](tickets/AOS-628.md) | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-627](tickets/AOS-627.md) | Push: registering an endpoint owned by another user is refused, not moved (AUD-23) | Claude (agent) | ✅ | 0.5h | 0.5h |
+| └ [AOS-626](tickets/AOS-626.md) | Statement parser: per-file time, page and row caps; hostile-file tests (AUD-22) (D-113) | Claude (agent) | ✅ | 2h | 1.5h |
+| └ [AOS-625](tickets/AOS-625.md) | WhatsApp zip: cap total decompressed bytes and time across entries (AUD-20) | Claude (agent) | ✅ | 1h | 0.75h |
+| └ [AOS-624](tickets/AOS-624.md) | Authenticate bank mail: qualify by sender only, require DMARC/aligned DKIM pass (AUD-11) (D-112) | Claude (agent) | ✅ | 3h | 2h |
+| └ [AOS-634](tickets/AOS-634.md) | Redis requires a password; API and worker get it and refuse to start without it (D-103) | Claude (agent) | ✅ | 2h | 2h |
+| └ [AOS-633](tickets/AOS-633.md) | Non-JSON bodies are 415, malformed JSON 400, fixed messages (never 500, never echoed) (D-102) | Claude (agent) | ✅ | 1.5h | 1.5h |
+| └ [AOS-632](tickets/AOS-632.md) | Web image ships public/ (service worker, icons) + image check | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-641](tickets/AOS-641.md) | Merge script: required checks must pass; others may be neutral/skipped, never failing | Claude | ✅ | 0.5h | 0.5h |
 | └ [AOS-635](tickets/AOS-635.md) | AI replies: size and depth checked before parsing; a validator exception or stack overflow rejects the answer (audited), other JVM errors propagate | Claude (agent) | ✅ | 1h | 1h |
 | **[AOS-S6.2](tickets/AOS-S6.2.md)** | **Public ingestion paths** (parked, D-78) | | ⏸ | 26h | |
 | └ AOS-603 | Gmail forwarding-address inbound | Claude | ⏸ | 6h |  |
@@ -199,16 +203,16 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ AOS-705 | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ⬜ | 8h |  |
 | └ AOS-706 | Template learning from repeated message shapes, human-approved | Claude | ⬜ | 8h |  |
 | └ [AOS-707](tickets/AOS-707.md) | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | ✅ | 8h | 7h |
-| └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | 🟦 | 6h |  |
-| **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ⬜ | 18h | |
-| └ AOS-712 | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ⬜ | 4h |  |
-| └ AOS-710 | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ⬜ | 10h |  |
-| └ AOS-711 | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ⬜ | 4h |  |
+| **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ✅ | 18h | 13h |
+| └ [AOS-708](tickets/AOS-708.md) | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | ✅ | 6h | 5.5h |
+| └ [AOS-712](tickets/AOS-712.md) | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ✅ | 4h | 4h |
+| └ [AOS-710](tickets/AOS-710.md) | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ✅ | 10h | 5h |
+| └ [AOS-711](tickets/AOS-711.md) | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ✅ | 4h | 4h |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
-| └ AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | 🟦 | 6h |  |
-| └ AOS-714 | Month-end forecast + money left until salary | Claude (agent) | 🟦 | 8h |  |
-| └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | 🟦 | 5h |  |
-| └ AOS-715 | Subscription price-rise alert | Claude (agent) | 🟦 | 2h |  |
+| └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
+| └ [AOS-713](tickets/AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | ✅ | 6h | 5h |
+| └ [AOS-709](tickets/AOS-709.md) | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | ✅ | 5h | 5h |
+| └ [AOS-715](tickets/AOS-715.md) | Subscription price-rise alert | Claude (agent) | ✅ | 2h | 1.5h |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
@@ -225,16 +229,17 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | └ [AOS-901](tickets/AOS-901.md) | Habit lenses as data, settle-ups excluded, per-merchant overrides; +37 catalogue brands (D-81) | Claude (agent) | ✅ | — | — |
 | └ [AOS-902](tickets/AOS-902.md) | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ✅ | 6h |  |
 | └ [AOS-903](tickets/AOS-903.md) | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees and item counts from Gmail, matched to the payment; hidden fees per app (D-88) | Claude (agent) | ✅ | 8h | 6h |
-| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ⬜ | 12h | |
+| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ✅ | 12h | |
 | └ [AOS-904](tickets/AOS-904.md) | Limits per lens, merchant or category (monthly/weekly), pushes at 50/80/100%, once per threshold per period | Claude | ✅ | 5h |  |
-| └ AOS-905 | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ⬜ | 3h |  |
-| └ AOS-906 | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ⬜ | 4h |  |
-| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ⬜ | 9h | |
-| └ AOS-907 | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ⬜ | 5h |  |
-| └ AOS-908 | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ⬜ | 4h |  |
-| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
-| └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
-| └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+| └ [AOS-905](tickets/AOS-905.md) | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ✅ | 3h |  |
+| └ [AOS-906](tickets/AOS-906.md) | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ✅ | 4h |  |
+| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ✅ | 9h | |
+| └ [AOS-907](tickets/AOS-907.md) | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ✅ | 5h |  |
+| └ [AOS-908](tickets/AOS-908.md) | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ✅ | 4h |  |
+| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | 🟦 | 8h | |
+| └ [AOS-909](tickets/AOS-909.md) | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders; repayments are transfers that pay the bill; gaps in Review (D-89) | Claude (agent) | ✅ | 3h | — |
+| └ [AOS-910](tickets/AOS-910.md) | Trips: group travel bookings and the spends around them into one trip, with its total cost; editable; measured rule with a baseline (D-90) | Claude (agent) | ✅ | 5h | — |
+| └ [AOS-911](tickets/AOS-911.md) | Splitwise import: count only my share of shared bills; settle-ups are neither spending nor income (D-111) | Claude (agent) | ✅ | 8h | 8h |
 
 ## 🟦 [AOS-E8](tickets/AOS-E8.md) — Wealth · P1 · ETA 128h
 
