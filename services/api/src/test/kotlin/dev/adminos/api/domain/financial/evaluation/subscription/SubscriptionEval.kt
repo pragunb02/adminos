@@ -148,7 +148,8 @@ object SubscriptionEval {
 
     /** The shipped detector, as wired in the app. */
     fun shipped(transactions: InMemoryTransactionRepository, subscriptions: InMemorySubscriptionRepository, clock: Clock) =
-        dev.adminos.api.di.subscriptionDetector(transactions, subscriptions, UserCalendar(InMemoryUserRepository(), clock), LensMatcher())
+        dev.adminos.api.di.subscriptionDetector(transactions, subscriptions, UserCalendar(InMemoryUserRepository(), clock),
+            dev.adminos.api.domain.financial.InMemoryPriceRiseRepository(), dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository(), LensMatcher())
 
     fun evaluate(outcomes: List<SubscriptionOutcome>): SubscriptionEvalReport {
         val tp = outcomes.count { it.predicted && it.case.expectedSubscription }

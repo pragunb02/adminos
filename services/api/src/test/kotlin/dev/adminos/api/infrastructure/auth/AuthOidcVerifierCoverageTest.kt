@@ -103,7 +103,8 @@ class AuthOidcVerifierCoverageTest {
             verifier.verify(sign(claims(aud = "https://evil.example.com/push")))
         }
 
-        assertTrue(e.message!!.startsWith("Invalid OIDC token:"))
+        assertEquals("Invalid OIDC token", e.message, "the library's message (it quotes caller-chosen claims) is never passed on (AOS-628)")
+        assertTrue("evil.example.com" !in e.message.orEmpty())
         assertNotNull(e.cause)
     }
 

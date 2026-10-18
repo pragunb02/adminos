@@ -1,0 +1,94 @@
+# Supply-chain and image security on every PR, on main, and weekly (new CVEs appear without code changes).
+# AOS-622, proposed D-99. Job names are required checks (.github/required-checks.txt).
+#
+# Policies (docs/security/SUPPLY-CHAIN.md):
+#   dependencies  OSV-Scanner over every lock file: fail on CVSS >= 7 or unscored; report the rest
+#                 npm audit (production dependencies): fail on high/critical
+#                 govulncheck: fail on any vulnerability in code we actually call
+#   images        Trivy: fail on any CRITICAL or embedded secret; report HIGH
+#                 compose/Dockerfile hardening checks and a hardened-stack smoke test
+# No secrets are used; the token is read-only; actions are pinned by commit SHA.
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1"    # Mondays 03:17 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  osv-scanner:
+    name: osv-scanner
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/security/osv-scan.sh
+
+  npm-audit:
+    name: npm-audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: npm audit (production dependencies)
+        working-directory: apps/web
+        run: npm audit --omit=dev --audit-level=high
+
+  govulncheck:
+    name: govulncheck (${{ matrix.module }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [services/workers, tools/sms-reader]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # The latest 1.27 patch, like the pinned golang:1.27 builder image (go.mod's "go 1.27.0" would install 1.27.0,
+          # which has standard-library vulnerabilities fixed in later patches).
+          go-version: "1.27.x"
+          check-latest: true
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: govulncheck
+        working-directory: ${{ matrix.module }}
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  images:
+    name: images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build every image
+        run: |
+          docker build -q -t ci/api:scan services/api
+          docker build -q -t ci/web:scan apps/web
+          docker build -q -t ci/workers:scan services/workers
+          docker build -q -t ci/pdf-parser:scan services/pdf-parser
+          docker build -q -t ci/backup:scan services/backup
+      - name: Trivy (fail on CRITICAL or secrets, report HIGH)
+        run: scripts/security/trivy-scan.sh ci/api:scan ci/web:scan ci/workers:scan ci/pdf-parser:scan ci/backup:scan
+      - name: Hardened stack starts; segmentation holds
+        run: SMOKE_IMAGE_PREFIX=ci scripts/tests/hardened-stack.smoke.sh

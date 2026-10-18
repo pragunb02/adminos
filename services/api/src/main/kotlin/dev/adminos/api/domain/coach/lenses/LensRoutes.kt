@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class LensDto(
     val id: String, val label: String, val description: String,
     val brands: List<String>, val categories: List<String>, val subcategories: List<String>, val keywords: List<String>,
+    /** How it was paid, in lowercase, e.g. `pay_later` (AOS-912). */
+    val paymentMethods: List<String>,
     /** Merchants the owner added to / removed from this lens. */
     val added: List<String>, val removed: List<String>
 )
@@ -35,6 +37,7 @@ internal fun LensView.toDto(): LensDto {
         categories = rule { (it as? LensRule.Categories)?.categories }.map { it.name.lowercase() }.sorted(),
         subcategories = rule { (it as? LensRule.Subcategories)?.subcategories }.sorted(),
         keywords = rule { (it as? LensRule.Keywords)?.keywords }.sorted(),
+        paymentMethods = rule { (it as? LensRule.PaymentMethods)?.methods }.map { it.name.lowercase() }.sorted(),
         added = added.map { it.merchant }, removed = removed.map { it.merchant }
     )
 }

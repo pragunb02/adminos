@@ -45,6 +45,8 @@ class SubscriptionDetectorService(
     private val transactionRepository: TransactionRepository,
     private val subscriptionRepository: SubscriptionRepository,
     private val calendar: dev.adminos.api.domain.identity.UserCalendar,
+    private val priceRises: PriceRiseRepository,
+    private val aliases: dev.adminos.api.domain.financial.grouping.MerchantAliasRepository,
     private val catalogue: MerchantCatalogue = MerchantCatalogue.DEFAULT,
     /** Groceries, food and quick commerce repeat without being subscriptions (AOS-516); the app adds the habit lenses. */
     private val everyday: EverydaySpending = CatalogueEverydaySpending(catalogue)
@@ -56,9 +58,13 @@ class SubscriptionDetectorService(
         val zone = calendar.zoneOf(userId)
         val today = calendar.today(userId)
         val since = today.minusDays(LOOKBACK_DAYS).atStartOfDay(zone).toInstant()
+        // A friend's bill share from Splitwise isn't a charge from a merchant (AOS-911).
         val debits = transactionRepository.findDebitsByUserIdSince(userId, since)
+            .filter { it.sourceType != dev.adminos.api.domain.financial.splits.SplitMatcher.SPLITWISE_SOURCE }
 
-        val groups = debits.mapNotNull { t -> t.merchantName?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }?.let { it to t } }
+        // Merchants the user merged in Review count as one (AOS-709).
+        val resolver = dev.adminos.api.domain.financial.grouping.AliasResolver(aliases.aliases(userId))
+        val groups = debits.mapNotNull { t -> resolver.key(t.merchantName)?.let { it to t } }
             .groupBy({ it.first }, { it.second })
 
         val detected = mutableListOf<Subscription>()
@@ -74,31 +80,34 @@ class SubscriptionDetectorService(
                 continue
             }
 
-            // A plan switch isn't a price change: compare only charges on the current plan.
-            val amounts = reading.current.map { it.amount }
-            val latest = amounts.last()
-            val previous = amounts.getOrNull(amounts.size - 2)
-            val priceChanged = previous != null && previous > BigDecimal.ZERO &&
-                (latest - previous).abs().divide(previous, 6, RoundingMode.HALF_UP) > BigDecimal("0.05")
-            val priceChangePct = if (priceChanged && previous != null) (latest - previous).multiply(BigDecimal(100)).divide(previous, 2, RoundingMode.HALF_UP) else null
+            val latest = sorted.last().amount
+            // One rule for the alert, the page's arrow and the waste score (AOS-715, D-74). A free month is not a charge.
+            // A plan switch isn't a price change (AOS-516): compare only charges on the current plan.
+            val change = PriceChangeRule.evaluate(reading.current.filter { it.amount.signum() > 0 }.map { Charge(it.id, it.amount, it.currency, it.transactedAt.atZone(zone).toLocalDate()) }, cycle)
+            val priceChanged = change != null
+            val priceChangePct = change?.pct
 
             val firstDate = sorted.first().transactedAt.atZone(zone).toLocalDate()
             val lastDate = sorted.last().transactedAt.atZone(zone).toLocalDate()
             val nextDate = nextCharge(lastDate, cycle)
-            val displayName = sorted.last().merchantName?.trim()?.takeIf { it.isNotEmpty() } ?: merchant
+            val displayName = resolver.canonicalNameOf(merchant) ?: sorted.last().merchantName?.trim()?.takeIf { it.isNotEmpty() } ?: merchant
             val category = categoryFor(displayName, sorted)
             val switchedMetadata = reading.switch?.let {
                 mapOf(PLAN_SWITCHED_FROM to reading.previousCycle?.name?.lowercase(),
                       PLAN_SWITCHED_ON to reading.current.first().transactedAt.atZone(zone).toLocalDate().toString())
             }.orEmpty()
 
-            // After a plan switch the subscription is the same one on a new cycle: move it, don't start another.
+            val members = resolver.membersOf(merchant)
+            // After a merge, the subscription found under a merged name carries on under the kept one (AOS-709).
+            // After a plan switch the subscription is the same one on a new cycle: move it, don't start another (AOS-516).
             val existing = subscriptionRepository.findByUserAndMerchantAndCycle(userId, merchant, cycle)
+                ?: members.sorted().firstNotNullOfOrNull { subscriptionRepository.findByUserAndMerchantAndCycle(userId, it, cycle) }
                 ?: reading.previousCycle?.let { subscriptionRepository.findByUserAndMerchantAndCycle(userId, merchant, it) }
             val subscription = if (existing != null) {
                 if (existing.billingCycle != cycle) logger.info("Subscription {} switched plan: {} → {}", existing.id, existing.billingCycle, cycle)
                 subscriptionRepository.update(existing.copy(
                     billingCycle = cycle,
+                    merchantName = merchant, name = if (existing.merchantName == merchant) existing.name else displayName,
                     amount = latest, lastBilledDate = lastDate, nextBillingDate = nextDate,
                     priceChanged = priceChanged, priceChangePct = priceChangePct, transactionIds = sorted.map { it.id },
                     // A new charge after it looked ended (or a user cancel) means it's charging again.
@@ -114,6 +123,8 @@ class SubscriptionDetectorService(
                     transactionIds = sorted.map { it.id }, metadata = switchedMetadata.takeIf { it.isNotEmpty() }
                 ))
             }
+            endMerged(userId, subscription, members, displayName)
+            change?.takeIf { it.isRise }?.let { recordRise(subscription, it) }
             detected += subscription
             logger.info("Detected subscription {} for user {} ({})", subscription.id, userId, cycle)
         }
@@ -139,6 +150,29 @@ class SubscriptionDetectorService(
         if (earlier.size >= 2 && earlierCycle != switch.impliedPrevious) return whole()
         val cycle = if (current.size >= 2) cycleOf(current) ?: return null else switch.impliedCycle
         return CycleReading(cycle, current, earlier, switch, earlierCycle ?: switch.impliedPrevious)
+    }
+
+    /**
+     * A merged name's own subscription (same cycle) is now part of [kept]: it ends, saying so, so the waste
+     * score no longer sees a duplicate (AOS-709). Its history stays.
+     */
+    private suspend fun endMerged(userId: UUID, kept: Subscription, members: Set<String>, keptName: String) {
+        for (key in members.sorted()) {
+            val old = subscriptionRepository.findByUserAndMerchantAndCycle(userId, key, kept.billingCycle) ?: continue
+            if (old.id == kept.id || old.status == SubscriptionStatus.CANCELLED) continue
+            subscriptionRepository.update(old.copy(
+                status = SubscriptionStatus.CANCELLED, nextBillingDate = null, isFlagged = false, flaggedReason = null,
+                metadata = (old.metadata ?: emptyMap()) + mapOf(ENDED_BY to "merge", ENDED_REASON to "Merged into $keptName", MERGED_INTO to kept.id.toString())
+            ))
+            logger.info("Subscription {} merged into {}", old.id, kept.id)
+        }
+    }
+
+    /** Records a rise once per (subscription, new price); [dev.adminos.api.domain.notifications.PriceRiseAlerts] tells the user. */
+    private suspend fun recordRise(subscription: Subscription, change: PriceChange) {
+        if (priceRises.recordIfNew(PriceRise.of(subscription.userId, subscription.id, change))) {
+            logger.info("Subscription {} price rose {}% at transaction {}", subscription.id, change.pct, change.transactionId)
+        }
     }
 
     /** Active subscriptions not charged for two cycles (+ a week) are marked ended, with the reason. */
@@ -175,7 +209,8 @@ class SubscriptionDetectorService(
         const val GRACE_DAYS = 7L
         private const val ENDED_BY = "endedBy"
         private const val ENDED_REASON = "endedReason"
-        private val ENDED_KEYS = setOf(ENDED_BY, ENDED_REASON)
+        private const val MERGED_INTO = "mergedInto"
+        private val ENDED_KEYS = setOf(ENDED_BY, ENDED_REASON, MERGED_INTO)
         const val PLAN_SWITCHED_FROM = "planSwitchedFrom"
         const val PLAN_SWITCHED_ON = "planSwitchedOn"
 
