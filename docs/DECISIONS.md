@@ -5,6 +5,8 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-150 | Process | Self pen-test: a local-only ZAP baseline plus scripted black-box probes against a throwaway stack with no published ports, and a manual checklist for the signed-in stack; run by hand before go-live, after security changes and monthly; not in CI yet | Accepted | AOS-623 |
+| D-151 | Process | Accepted pen-test results: CSP `style-src 'unsafe-inline'`, no COEP, no Content-Type on body-less redirects, and TRACE → 500 on the web until the edge filters methods (AOS-643) | Accepted | AOS-623, AOS-643 |
 | D-140 | Architecture / Product | The briefing's AI wording is an optional rewrite of its own facts through the AI gateway (feature `briefing`, off by default, consent, cap, audit): the model sees only formatted totals, counts, days, category labels and names that pass SafeName + a 40-char/6-word/no-markup/no-phishing filter; every number (money only as an amount), every mid-sentence capitalised name, and the total spent must come from those facts, with no links, markup or phishing words; else the template stays with a notice. Asked once per briefing, after the template is saved and sent; stored beside it (V90) | Accepted | AOS-716 |
 | D-123 | Architecture | Repositories never read the clock or a zone: callers pass dates from UserCalendar (today(userId) for one user, serverToday() for cross-user pre-filters refined per user) | Accepted | AOS-638 |
 | D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
@@ -1624,6 +1626,29 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
 - Never a 500 for a client's body; the Content-Type sent is never echoed.
 
+### D-150 — How we pen-test ourselves
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-623 · Builds on D-91, D-99, D-100
+- `scripts/security/zap-baseline.sh` starts a throwaway copy of the stack: random secrets, an empty database, **no published host port** (the rendered config is checked, fail closed).
+  - It runs the OWASP ZAP baseline (passive) and `pentest-probes.sh` (black-box probes) from containers on the stack's internal network.
+  - It then removes everything. ZAP and curl are pinned by digest.
+- The manual checklist in `docs/security/PENTEST.md` covers what needs the real signed-in stack. Each item is **auto** (covered by probes or attack suites) or **owner**.
+- Every finding gets a ticket, and is fixed or explicitly accepted in a decision.
+- **When:** run by hand before go-live, after any security change, and monthly with the restore drill.
+- **Not in CI yet:** it builds the whole stack and takes minutes; revisit once CI has a cache for the images.
+- **Rejected:**
+  - scanning a published or remote stack (exposure; D-91);
+  - an active ZAP scan by default (noisy, and the attack suites already cover injection and authorisation);
+  - minting tokens to scan signed-in pages (the attack suites test those paths with the real auth code).
+
+### D-151 — Accepted pen-test results (2026-10-18)
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-623, AOS-643 · Builds on D-94, D-97
+- **CSP `style-src 'unsafe-inline'`:** accepted. Scripts never get it (nonce + `strict-dynamic`); inline styles come from React/Next and Recharts.
+- **No Cross-Origin-Embedder-Policy:** accepted. No cross-origin isolation is needed; COOP and CORP are `same-origin`.
+- **No Content-Type on body-less 307 redirects:** accepted (`nosniff` is set).
+- **TRACE and other unsupported methods → 500 on the web (AOS-643):** accepted.
+  - Next.js fails before our code runs; no data is disclosed; only tailnet devices can reach it (D-97).
+  - The edge (AOS-605) will allow only the methods we use.
+- **Revisit** on any change to the CSP or the edge.
 ### D-140 — The briefing's AI wording: an optional rewrite of its own facts, kept only if every number and name is a fact
 2026-10-18 · Accepted (built by a background agent under D-67/D-68/D-70/D-100; for review) · Type: Architecture / Product · Tasks: AOS-716 · Builds on D-67, D-68, D-70, D-100
 - **Feature:** `AiFeature.BRIEFING` (`AI_BRIEFING_ENABLED/PROVIDER/MODEL`, off by default, Haiku by default), one task `BriefingNarrationTask` (prompt `briefing-narration-v1`) with its notice, only through `AiGateway` (flag, consent, redaction, breaker, cap, audit).
@@ -1634,4 +1659,3 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Web:** a "Worded by AI" marker with "Show the plain numbers"; a notice when the wording was rejected or unavailable; text only, never HTML. Push notifications keep the template.
 - **Eval:** 47 synthetic cases through the gateway (`recorded-synthetic`): faithful kept 1.0, invented numbers, followed injections, phishing rejected 1.0, hostile names withheld 1.0, invented names rejected 0.8 (a sentence-initial invented name is not caught; floor 0.8).
 - **Rejected:** placeholders filled by code (the model can still write a number or name, so the same check is needed and the wording is stilted); narrating on read (a call per page view, cost abuse); masking hostile names (withheld instead, as D-68); reusing Ask's `AnswerGrounding` now (built in parallel; sharing one checker is a follow-up).
-
