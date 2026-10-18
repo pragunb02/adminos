@@ -16,9 +16,12 @@ import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.mandates.Mandate
 import dev.adminos.api.domain.financial.mandates.MandateRail
 import dev.adminos.api.domain.financial.mandates.MandateRepository
+import dev.adminos.api.domain.financial.grouping.MerchantGroupingService
 import dev.adminos.api.domain.financial.receipts.OrderReceipt
 import dev.adminos.api.domain.financial.receipts.OrderReceiptRepository
 import dev.adminos.api.domain.financial.receipts.ReceiptFixtures
+import dev.adminos.api.domain.financial.review.GoldenCandidate
+import dev.adminos.api.domain.financial.review.GoldenCandidateRepository
 import dev.adminos.api.domain.identity.*
 import dev.adminos.api.domain.ingestion.connection.ConnectionRepository
 import dev.adminos.api.domain.ingestion.connection.ConnectionService
@@ -47,6 +50,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.koin.ktor.ext.get
@@ -77,10 +81,10 @@ class IdorTest {
         val txn: Transaction, val otherTxn: Transaction, val subscription: Subscription, val bill: Bill, val anomaly: Anomaly,
         val link: TransactionLink, val connectionId: UUID, val syncId: UUID, val deviceTokenId: UUID, val deviceToken: String,
         val sessionId: UUID, val push: PushSubscription, val mandate: Mandate, val notification: Notification, val documentId: String,
-        val receipt: OrderReceipt, val limit: SpendingLimit
+        val receipt: OrderReceipt, val limit: SpendingLimit, val splitImportId: String, val splitEntryIds: List<String>
     ) {
         fun ids() = listOf(txn.id, otherTxn.id, subscription.id, bill.id, anomaly.id, link.id, connectionId, syncId, deviceTokenId, sessionId,
-            push.id, mandate.id, notification.id, receipt.id, limit.id).map { it.toString() } + documentId
+            push.id, mandate.id, notification.id, receipt.id, limit.id).map { it.toString() } + documentId + splitImportId + splitEntryIds
     }
 
     private fun random(n: Int) = ByteArray(n).also(SecureRandom()::nextBytes)
@@ -126,8 +130,21 @@ class IdorTest {
         val receipt = app.get<OrderReceiptRepository>().save(ReceiptFixtures.receipt(alice.id, at = Instant.now()))
         val limit = app.get<SpendingLimitRepository>().save(SpendingLimit(userId = alice.id, scope = LimitScope.Merchant("Alice Secret Merchant"),
             label = "Alice Secret Merchant", period = LimitPeriod.MONTHLY, amount = BigDecimal("3000"), createdAt = Instant.now(), updatedAt = Instant.now()))
+        // A Splitwise import of Alice's (AOS-911), through its route like the owner would: a dinner she paid and a cab a friend paid.
+        val csv = "Date,Description,Category,Cost,Currency,Alice Q.,Asha R.\n" +
+            "${LocalDate.now()},Alice dinner,Dining out,4000.00,INR,2000.00,-2000.00\n${LocalDate.now()},Alice cab,Taxi,900.00,INR,-450.00,450.00\n"
+        val split = client.submitFormWithBinaryData("/api/v1/imports/splitwise", formData {
+            append("file", csv.toByteArray(), Headers.build { append(HttpHeaders.ContentDisposition, "filename=\"export.csv\"") })
+            append("me", "Alice Q.")
+        }) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)); header(HttpHeaders.Origin, SecurityTestKit.config.app.appUrl) }
+        assertEquals(HttpStatusCode.OK, split.status, split.bodyAsText())
+        val splitImportId = Json.parseToJsonElement(split.bodyAsText()).jsonObject["data"]?.jsonObject?.get("importId")?.jsonPrimitive?.content
+            ?: error("no import id in ${split.bodyAsText()}")
+        val entries = client.get("/api/v1/splitwise/entries") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText()
+        val splitEntryIds = Json.parseToJsonElement(entries).jsonObject["data"]?.jsonArray?.map { it.jsonObject.getValue("id").jsonPrimitive.content }
+            ?.takeIf { it.size == 2 } ?: error("expected Alice's two Splitwise entries in $entries")
         return AliceData(txn, other, sub, bill, anomaly, link, connection.id, sync.id, device.record.id, device.token, session.id, push, mandate, notification, documentId,
-            receipt, limit)
+            receipt, limit, splitImportId, splitEntryIds)
     }
 
     /** One attack: Bob calls [path] (with A's ID) and the same path with an ID that doesn't exist. */
@@ -168,7 +185,10 @@ class IdorTest {
             Attack(HttpMethod.Delete, { "/api/v1/receipts/$it/match" }, a.receipt.id.toString()),
             Attack(HttpMethod.Patch, { "/api/v1/coach/limits/$it" }, a.limit.id.toString(), """{"amount":"1"}"""),
             Attack(HttpMethod.Delete, { "/api/v1/coach/limits/$it" }, a.limit.id.toString()),
-        )
+            Attack(HttpMethod.Delete, { "/api/v1/splitwise/imports/$it" }, a.splitImportId),
+        ) + a.splitEntryIds.flatMap { entry -> // Splitwise Review actions (AOS-911) on each of Alice's entries
+            listOf("confirm", "reject", "ignore", "undo").map { action -> Attack(HttpMethod.Post, { "/api/v1/splitwise/entries/$it/$action" }, entry) }
+        }
         val leaks = attacks.mapNotNull { atk ->
             val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
             val fake = client.asBob(atk.method, atk.path(UUID.randomUUID().toString()), atk.body)
@@ -212,6 +232,14 @@ class IdorTest {
         assertEquals(HttpStatusCode.OK, doc.status)
         assertTrue("Alice passport" in doc.bodyAsText(), "the title wasn't changed")
         assertEquals(HttpStatusCode.OK, client.get("/api/v1/documents/${a.documentId}/file") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.status)
+        // Alice's Splitwise import and entries (AOS-911) keep their states when Bob undoes, ignores or rejects them.
+        suspend fun splitStates() = Json.parseToJsonElement(client.get("/api/v1/splitwise/entries") { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText())
+            .jsonObject.getValue("data").jsonArray.associate { it.jsonObject.getValue("id").jsonPrimitive.content to it.jsonObject.getValue("state").jsonPrimitive.content }
+        val before = splitStates()
+        client.asBob(HttpMethod.Delete, "/api/v1/splitwise/imports/${a.splitImportId}", null)
+        a.splitEntryIds.forEach { id -> listOf("undo", "ignore", "reject").forEach { client.asBob(HttpMethod.Post, "/api/v1/splitwise/entries/$id/$it", null) } }
+        assertEquals(before, splitStates(), "Alice's Splitwise entries are unchanged")
+        assertEquals(a.splitEntryIds.toSet(), before.keys)
     }
 
     @Test
@@ -231,7 +259,7 @@ class IdorTest {
             "/api/v1/push", "/api/v1/dues", "/api/v1/accounts", "/api/v1/dashboard/home", "/api/v1/briefings",
             "/api/v1/analytics/summary", "/api/v1/analytics/merchants", "/api/v1/analytics/categories",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses",
-            "/api/v1/leaks/fees", "/api/v1/receipts",
+            "/api/v1/leaks/fees", "/api/v1/receipts", "/api/v1/splitwise/entries", "/api/v1/splitwise/summary", "/api/v1/splitwise/imports",
             "/api/v1/coach/leaks", "/api/v1/coach/leaks/transactions", "/api/v1/coach/lenses", "/api/v1/coach/limits", "/api/v1/coach/settings",
         )
         val leaks = lists.mapNotNull { path ->
@@ -259,5 +287,49 @@ class IdorTest {
         for (path in listOf("/api/v1/receipts", "/api/v1/leaks/fees")) {
             assertTrue(a.receipt.id.toString() in client.get(path) { cookie(ACCESS_TOKEN_COOKIE, tokenFor(alice)) }.bodyAsText(), path)
         }
+    }
+
+    @Test
+    fun `Bob can't answer Alice's category questions or remove rows from her local golden set`() = realApp { app ->
+        val a = seed(app, client)
+        val golden = GoldenCandidate(userId = alice.id, merchantRaw = "UPI ALICE CAFE", paymentMethod = PaymentMethod.UPI,
+            direction = TransactionType.DEBIT, category = TransactionCategory.FOOD, createdAt = Instant.now())
+        app.get<GoldenCandidateRepository>().add(golden)
+        val attacks = listOf(
+            Attack(HttpMethod.Post, { "/api/v1/categories/review/$it" }, a.txn.id.toString(), """{"category":"food","addToGolden":true}"""),
+            Attack(HttpMethod.Delete, { "/api/v1/categories/golden/$it" }, golden.id.toString()),
+        )
+        for (atk in attacks) {
+            val real = client.asBob(atk.method, atk.path(atk.id), atk.body)
+            val fake = client.asBob(atk.method, atk.path(UUID.randomUUID().toString()), atk.body)
+            assertEquals(HttpStatusCode.NotFound, real.status, "${atk.method.value} ${atk.path("{alice}")}")
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "${atk.method.value} ${atk.path("{alice}")} answers differently for a real ID")
+        }
+        assertEquals(TransactionCategory.SHOPPING, app.get<TransactionRepository>().findById(a.txn.id)?.category)
+        assertTrue(app.get<GoldenCandidateRepository>().list(alice.id).any { it.id == golden.id }, "Alice's golden row is still there")
+        listOf("/api/v1/categories/golden", "/api/v1/categories/golden.csv", "/api/v1/categories/review").forEach { path ->
+            val text = client.asBob(HttpMethod.Get, path, null).bodyAsText()
+            assertFalse(golden.id.toString() in text || "ALICE" in text || a.txn.id.toString() in text, "$path shows Alice's data")
+        }
+    }
+
+    @Test
+    fun `Bob can't confirm or reject Alice's merchant merge proposals`() = realApp { app ->
+        val txns = app.get<TransactionRepository>()
+        for (name in listOf("Kukufm", "Kuku Fm")) {
+            txns.save(Transaction(userId = alice.id, sourceType = "sms", type = TransactionType.DEBIT, amount = BigDecimal("199.00"),
+                merchantName = name, paymentMethod = PaymentMethod.CARD_CREDIT, transactedAt = Instant.now().minusSeconds(86_400)))
+        }
+        val grouping = app.get<MerchantGroupingService>()
+        val proposal = grouping.proposals(alice.id).single().id.toString()
+        for (action in listOf("confirm", "reject")) {
+            val real = client.asBob(HttpMethod.Post, "/api/v1/merchants/merge-proposals/$proposal/$action", null)
+            val fake = client.asBob(HttpMethod.Post, "/api/v1/merchants/merge-proposals/${UUID.randomUUID()}/$action", null)
+            assertEquals(HttpStatusCode.NotFound, real.status, action)
+            assertEquals(errorCode(fake.bodyAsText()), errorCode(real.bodyAsText()), "$action answers differently for a real ID")
+        }
+        assertEquals(proposal, grouping.proposals(alice.id).single().id.toString(), "Alice's proposal is still open")
+        val bobs = client.asBob(HttpMethod.Get, "/api/v1/merchants/merge-proposals", null).bodyAsText()
+        assertFalse(proposal in bobs || "Kuku" in bobs, "Bob's list shows Alice's proposal")
     }
 }

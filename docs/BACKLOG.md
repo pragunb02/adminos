@@ -202,16 +202,16 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ AOS-705 | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ⬜ | 8h |  |
 | └ AOS-706 | Template learning from repeated message shapes, human-approved | Claude | ⬜ | 8h |  |
 | └ [AOS-707](tickets/AOS-707.md) | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | ✅ | 8h | 7h |
-| └ AOS-708 | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | 🟦 | 6h |  |
-| **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ⬜ | 18h | |
-| └ AOS-712 | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ⬜ | 4h |  |
-| └ AOS-710 | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ⬜ | 10h |  |
-| └ AOS-711 | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ⬜ | 4h |  |
+| **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ✅ | 18h | 13h |
+| └ [AOS-708](tickets/AOS-708.md) | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | ✅ | 6h | 5.5h |
+| └ [AOS-712](tickets/AOS-712.md) | Ask eval set: questions, expected tool calls, seeded synthetic DB | Claude | ✅ | 4h | 4h |
+| └ [AOS-710](tickets/AOS-710.md) | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ✅ | 10h | 5h |
+| └ [AOS-711](tickets/AOS-711.md) | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ✅ | 4h | 4h |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
-| └ AOS-713 | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | 🟦 | 6h |  |
-| └ AOS-714 | Month-end forecast + money left until salary | Claude (agent) | 🟦 | 8h |  |
-| └ AOS-709 | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | 🟦 | 5h |  |
-| └ AOS-715 | Subscription price-rise alert | Claude (agent) | 🟦 | 2h |  |
+| └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
+| └ [AOS-713](tickets/AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | ✅ | 6h | 5h |
+| └ [AOS-709](tickets/AOS-709.md) | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | ✅ | 5h | 5h |
+| └ [AOS-715](tickets/AOS-715.md) | Subscription price-rise alert | Claude (agent) | ✅ | 2h | 1.5h |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
 | └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
@@ -238,6 +238,7 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
 | └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
 | └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+| └ [AOS-911](tickets/AOS-911.md) | Splitwise import: count only my share of shared bills; settle-ups are neither spending nor income (D-111) | Claude (agent) | ✅ | 8h | 8h |
 
 ## 🟦 [AOS-E8](tickets/AOS-E8.md) — Wealth · P1 · ETA 128h
 
