@@ -42,7 +42,7 @@ class NotificationRepositoriesIntegrationTest {
     }
 
     @Test
-    fun `push subscriptions keep one row per device, owned by the last user to register it (AOS-510)`() = runBlocking<Unit> {
+    fun `push subscriptions keep one row per device, and another user can't take it over (AOS-510, AOS-627)`() = runBlocking<Unit> {
         val pushRepo = ExposedPushSubscriptionRepository()
         val (alice, bob) = PostgresTestDatabase.newUser() to PostgresTestDatabase.newUser()
         val device = "https://web.push.apple.com/QG" + java.util.UUID.randomUUID()
@@ -50,19 +50,22 @@ class NotificationRepositoriesIntegrationTest {
         fun sub(owner: java.util.UUID, label: String?) = dev.adminos.api.domain.notifications.push.PushSubscription(
             userId = owner, endpoint = dev.adminos.api.domain.notifications.push.PushEndpoint(device), keys = keys, label = label)
 
-        val first = pushRepo.upsert(sub(alice, "iPhone"))
+        val first = (pushRepo.save(sub(alice, "iPhone")) as dev.adminos.api.domain.notifications.push.PushSaveResult.Saved).subscription
         assertEquals(listOf("iPhone"), pushRepo.findByUserId(alice).map { it.label })
-        val moved = pushRepo.upsert(sub(bob, null))
-        assertEquals(first.id, moved.id, "same device keeps its row")
-        assertEquals(emptyList(), pushRepo.findByUserId(alice))
-        assertEquals(bob, pushRepo.findByUserId(bob).single().userId)
+        val renamed = (pushRepo.save(sub(alice, "iPhone 17")) as dev.adminos.api.domain.notifications.push.PushSaveResult.Saved).subscription
+        assertEquals(first.id, renamed.id, "same device keeps its row")
+        assertEquals(listOf("iPhone 17"), pushRepo.findByUserId(alice).map { it.label })
+
+        assertEquals(dev.adminos.api.domain.notifications.push.PushSaveResult.OwnedByAnotherUser, pushRepo.save(sub(bob, "stolen")))
+        assertEquals(listOf("iPhone 17"), pushRepo.findByUserId(alice).map { it.label }, "the owner's row is untouched")
+        assertEquals(emptyList(), pushRepo.findByUserId(bob))
 
         val at = java.time.Instant.parse("2026-10-16T09:30:00Z")
-        pushRepo.markSucceeded(moved.id, at)
-        assertEquals(at, pushRepo.findByUserId(bob).single().lastSuccessAt)
-        assertEquals(false, pushRepo.delete(alice, moved.endpoint))
-        assertEquals(true, pushRepo.delete(bob, moved.endpoint))
-        pushRepo.upsert(sub(bob, "again"))
+        pushRepo.markSucceeded(first.id, at)
+        assertEquals(at, pushRepo.findByUserId(alice).single().lastSuccessAt)
+        assertEquals(false, pushRepo.delete(bob, first.endpoint))
+        assertEquals(true, pushRepo.delete(alice, first.endpoint))
+        pushRepo.save(sub(bob, "again"))
         pushRepo.deleteById(pushRepo.findByUserId(bob).single().id)
         assertEquals(emptyList(), pushRepo.findByUserId(bob))
     }

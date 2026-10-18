@@ -47,6 +47,14 @@ class TransferDetector(private val zone: ZoneId = ZoneId.of("Asia/Kolkata")) {
         return CARD_BILL.any { it.containsMatchIn(text) }
     }
 
+    /**
+     * A bank debit repaying a pay-later provider (AOS-909): like a card bill (D-39), the purchases were
+     * the spending, so the repayment is a transfer. A pay-later purchase itself is never one.
+     */
+    fun isPayLaterRepayment(t: Transaction): Boolean =
+        t.type == TransactionType.DEBIT && t.paymentMethod != PaymentMethod.PAY_LATER &&
+            dev.adminos.api.domain.financial.paylater.PayLaterProviders.paidTo(t) != null
+
     /** A debit taking cash out of your account (D-42). Cash entered by hand is the spending, so this is a transfer. */
     fun isCashWithdrawal(t: Transaction): Boolean =
         t.type == TransactionType.DEBIT && t.sourceType != "manual" && CASH_WITHDRAWAL.containsMatchIn(text(t))

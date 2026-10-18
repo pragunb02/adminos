@@ -21,6 +21,10 @@ internal object PushFixtures {
         PushSubscription(userId = userId, endpoint = endpoint(device), keys = keys, label = label)
 }
 
+/** Saves a subscription the test expects to be stored (AOS-627: saving can refuse). */
+internal suspend fun PushSubscriptionRepository.saved(subscription: PushSubscription): PushSubscription =
+    (save(subscription) as? PushSaveResult.Saved)?.subscription ?: error("expected the subscription to be saved")
+
 /** A push sender that answers from a script per device and records what it sent. */
 internal class ScriptedPushSender(private val answer: (PushSubscription) -> PushSendResult = { PushSendResult.Accepted }) : PushSender {
     val sent = mutableListOf<Pair<PushSubscription, PushMessage>>()

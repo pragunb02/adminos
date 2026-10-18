@@ -89,7 +89,7 @@ class CoachLimitsIntegrationTest {
         assertNull(s.find(user))
         s.save(CoachSettings(user, limitAlerts = false, updatedAt = at))
         s.save(CoachSettings(user, limitAlerts = true, updatedAt = at.plusSeconds(1)))
-        assertEquals(CoachSettings(user, true, at.plusSeconds(1)), s.find(user))
+        assertEquals(CoachSettings(user, limitAlerts = true, updatedAt = at.plusSeconds(1)), s.find(user))
     }
 
     @Test fun `dismissals and settings on Postgres`() = dismissalsAndSettings(ExposedSuggestionDismissals(), ExposedCoachSettingsRepository())

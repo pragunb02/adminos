@@ -34,12 +34,12 @@ class AiFeaturesServiceTest {
 
     private fun service(on: Boolean) = AiFeaturesService(
         AiGateway(if (on) listOf(AiRoute.of(AiFeature.CATEGORIZATION, FakeAiProvider(), FakeAiProvider.MODEL)) else emptyList(), costs, calls, AiConsents(consents)),
-        mapOf(AiFeature.CATEGORIZATION to EchoTask), consents, calls, AiEvalRecords(listOf(record)), costs, audit, clock
+        mapOf(AiFeature.CATEGORIZATION to EchoTask, AiFeature.ASK to dev.adminos.api.domain.ask.AskPlanTask), consents, calls, AiEvalRecords(listOf(record)), costs, audit, clock
     )
 
     @Test
     fun `every feature is listed off by default with its notice`() = runBlocking<Unit> {
-        val f = service(on = true).list(user).single()
+        val f = service(on = true).list(user).single { it.feature == AiFeature.CATEGORIZATION }
         assertEquals(AiFeature.CATEGORIZATION, f.feature)
         assertFalse(f.enabled)
         assertEquals(EchoTask.notice, f.notice)
@@ -52,7 +52,7 @@ class AiFeaturesServiceTest {
     @Test
     fun `a feature the server doesn't run is unavailable and can't be turned on, but can be turned off`() = runBlocking<Unit> {
         val s = service(on = false)
-        val f = s.list(user).single()
+        val f = s.list(user).single { it.feature == AiFeature.CATEGORIZATION }
         assertFalse(f.available)
         assertNull(f.serving)
         assertNull(f.evaluation)
@@ -65,8 +65,8 @@ class AiFeaturesServiceTest {
     fun `turning it on stores the choice for that user only and writes consent evidence`() = runBlocking<Unit> {
         val s = service(on = true)
         assertTrue(s.setEnabled(user, AiFeature.CATEGORIZATION, true).enabled)
-        assertTrue(s.list(user).single().enabled)
-        assertFalse(s.list(UUID(0, 1)).single().enabled, "another user's setting is separate")
+        assertTrue(s.list(user).single { it.feature == AiFeature.CATEGORIZATION }.enabled)
+        assertFalse(s.list(UUID(0, 1)).single { it.feature == AiFeature.CATEGORIZATION }.enabled, "another user's setting is separate")
         val entry = auditLog.findByUserId(user, 10).single()
         assertEquals(AiFeaturesService.CONSENT_ACTION, entry.action)
         assertEquals("false", entry.beforeState?.get("enabled").toString())
@@ -80,8 +80,8 @@ class AiFeaturesServiceTest {
     fun `this month's spend is the user's own calls for the feature`() = runBlocking<Unit> {
         calls.record(AiCallRecord(userId = user, feature = AiFeature.CATEGORIZATION, provider = AiProviderKind.ANTHROPIC, model = FakeAiProvider.MODEL,
             promptVersion = "echo-v1", usage = AiUsage(100, 10), costMicros = 37, outcome = AiCallOutcome.ACCEPTED, code = null, latencyMs = 5, at = now))
-        assertEquals(37, service(on = true).list(user).single().spentThisMonthMicros)
-        assertEquals(0, service(on = true).list(UUID(0, 1)).single().spentThisMonthMicros)
+        assertEquals(37, service(on = true).list(user).single { it.feature == AiFeature.CATEGORIZATION }.spentThisMonthMicros)
+        assertEquals(0, service(on = true).list(UUID(0, 1)).single { it.feature == AiFeature.CATEGORIZATION }.spentThisMonthMicros)
     }
 
     @Test
