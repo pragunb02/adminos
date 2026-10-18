@@ -89,6 +89,6 @@ test.describe("full stack", () => {
     const { token } = signAccessToken();
     await signIn(context, baseURL!, token);
     expect((await (await page.request.get("/api/v1/review/templates")).json()).data).toEqual([]);
-    expect((await page.request.post(`/api/v1/review/templates/${crypto.randomUUID()}/approve`, { data: {} })).status()).toBe(404);
+    expect((await page.request.post(`/api/v1/review/templates/${crypto.randomUUID()}/approve`, { data: {}, headers: { origin: baseURL! } })).status()).toBe(404);
   });
 });
