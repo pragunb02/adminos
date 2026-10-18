@@ -5,6 +5,8 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-150 | Process | Self pen-test: a local-only ZAP baseline plus scripted black-box probes against a throwaway stack with no published ports, and a manual checklist for the signed-in stack; run by hand before go-live, after security changes and monthly; not in CI yet | Accepted | AOS-623 |
+| D-151 | Process | Accepted pen-test results: CSP `style-src 'unsafe-inline'`, no COEP, no Content-Type on body-less redirects, and TRACE → 500 on the web until the edge filters methods (AOS-643) | Accepted | AOS-623, AOS-643 |
 | D-110 | Product / Architecture | Ask is a page at /ask (from Home and More) whose answers you can trace ("How I got this": each tool, dates, numbers, a link to the same payments); thumbs up/down by answer id (recent answers kept 1 h, another user's id is 404), stored masked and encrypted | Accepted | AOS-711 |
 | D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
 | D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
@@ -1491,3 +1493,27 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - Request bodies the API can't read get fixed answers: 415 `VALIDATION_005` when the request's Content-Type isn't JSON (including none or an unparseable one), 400 `VALIDATION_004` "Malformed request body" for JSON that doesn't parse or fit, 413 `VALIDATION_006` for Ktor's body limit.
 - No decoder or library text reaches the client: supersedes the decoder-text suffix of `VALIDATION_004`; the field-naming messages from our own `require(...)` checks are unchanged.
 - Never a 500 for a client's body; the Content-Type sent is never echoed.
+
+### D-150 — How we pen-test ourselves
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-623 · Builds on D-91, D-99, D-100
+- `scripts/security/zap-baseline.sh` starts a throwaway copy of the stack: random secrets, an empty database, **no published host port** (the rendered config is checked, fail closed).
+  - It runs the OWASP ZAP baseline (passive) and `pentest-probes.sh` (black-box probes) from containers on the stack's internal network.
+  - It then removes everything. ZAP and curl are pinned by digest.
+- The manual checklist in `docs/security/PENTEST.md` covers what needs the real signed-in stack. Each item is **auto** (covered by probes or attack suites) or **owner**.
+- Every finding gets a ticket, and is fixed or explicitly accepted in a decision.
+- **When:** run by hand before go-live, after any security change, and monthly with the restore drill.
+- **Not in CI yet:** it builds the whole stack and takes minutes; revisit once CI has a cache for the images.
+- **Rejected:**
+  - scanning a published or remote stack (exposure; D-91);
+  - an active ZAP scan by default (noisy, and the attack suites already cover injection and authorisation);
+  - minting tokens to scan signed-in pages (the attack suites test those paths with the real auth code).
+
+### D-151 — Accepted pen-test results (2026-10-18)
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-623, AOS-643 · Builds on D-94, D-97
+- **CSP `style-src 'unsafe-inline'`:** accepted. Scripts never get it (nonce + `strict-dynamic`); inline styles come from React/Next and Recharts.
+- **No Cross-Origin-Embedder-Policy:** accepted. No cross-origin isolation is needed; COOP and CORP are `same-origin`.
+- **No Content-Type on body-less 307 redirects:** accepted (`nosniff` is set).
+- **TRACE and other unsupported methods → 500 on the web (AOS-643):** accepted.
+  - Next.js fails before our code runs; no data is disclosed; only tailnet devices can reach it (D-97).
+  - The edge (AOS-605) will allow only the methods we use.
+- **Revisit** on any change to the CSP or the edge.

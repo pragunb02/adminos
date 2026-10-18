@@ -163,7 +163,9 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-620](tickets/AOS-620.md) | Sign-in alerts, Security page, sign out everywhere; refresh rotation with reuse detection (also AOS-121) (D-95) | Claude (agent) | ✅ | — | — |
 | └ [AOS-621](tickets/AOS-621.md) | Encrypted backups: age-encrypted pg_dump to a locked R2 bucket, restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | └ [AOS-622](tickets/AOS-622.md) | Supply chain and runtime: CI on every PR, OSV/npm audit/govulncheck/Trivy/CodeQL, Dependabot, pinned and locked-down containers (D-99) | Claude (agent) | ✅ | 4h | 6h |
-| └ AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
+| └ [AOS-623](tickets/AOS-623.md) | Self pen-test before go-live: ZAP baseline + scripted probes + manual checklist; findings fixed or accepted (D-150, D-151) | Claude | ✅ | 4h | 4h |
+| └ [AOS-643](tickets/AOS-643.md) | Web: TRACE and other unsupported methods → 500 (accepted until the edge filters methods, D-151) | Claude | ✅ | — | — |
+| └ [AOS-644](tickets/AOS-644.md) | Web: 404 pages under /favicon.ico had no CSP (fixed) | Claude | ✅ | 0.25h | 0.25h |
 | └ [AOS-630](tickets/AOS-630.md) | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) (D-114) | Claude (agent) | ✅ | 1h | 1.5h |
 | └ [AOS-629](tickets/AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
 | └ [AOS-628](tickets/AOS-628.md) | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude (agent) | ✅ | 1h | 1h |

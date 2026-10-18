@@ -40,7 +40,9 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 | [AOS-620](AOS-620.md) | Sign-in alerts, Security page, sign out everywhere; refresh rotation with reuse detection (also AOS-121) (D-95) | Claude (agent) | ✅ | — | — |
 | [AOS-621](AOS-621.md) | Encrypted backups + restore drill (D-98) | Claude (agent) | ✅ | 5h | 4h |
 | [AOS-622](AOS-622.md) | Supply chain and runtime: CI on every PR, OSV/npm audit/govulncheck/Trivy/CodeQL, Dependabot, pinned and locked-down containers (D-99) | Claude (agent) | ✅ | 4h | 6h |
-| AOS-623 | Self pen-test before go-live: ZAP baseline + manual checklist; fix or accept each finding | Claude | ⬜ | 4h |  |
+| [AOS-623](AOS-623.md) | Self pen-test before go-live: ZAP baseline + scripted probes + manual checklist (D-150, D-151) | Claude | ✅ | 4h | 4h |
+| [AOS-643](AOS-643.md) | Web: TRACE → 500 (accepted, D-151) | Claude | ✅ | — | — |
+| [AOS-644](AOS-644.md) | Web: 404 pages under /favicon.ico had no CSP (fixed) | Claude | ✅ | 0.25h | 0.25h |
 | [AOS-630](AOS-630.md) | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) (D-114) | Claude (agent) | ✅ | 1h | 1.5h |
 | [AOS-629](AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
 | [AOS-628](AOS-628.md) | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude (agent) | ✅ | 1h | 1h |
@@ -56,5 +58,6 @@ Defence in depth, per D-91: network (private only) → identity (owner-only Goog
 From a device outside the private network the site doesn't answer; a second Google account is refused; the audit report lists no open findings.
 
 ## Activity log
+- 2026-10-18 — Claude (integration engineer): AOS-623 done (owner checklist items remain for go-live); AOS-643 accepted, AOS-644 fixed.
 - 2026-10-18 — Claude: AOS-615 merged; audit follow-ups AOS-624…630 added.
 - 2026-10-17 — Claude: story created after the critical sign-in finding (Pragun: "security is always a P0").
