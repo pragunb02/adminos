@@ -64,7 +64,7 @@ class DiAppModuleCoverageTest {
             channels(smtp::get)
         )
         val jobs = koinOf(buildAppModule(useDatabase = false, env = smtp::get)).getAll<dev.adminos.api.domain.scheduling.ScheduledJob>()
-        assertEquals(11, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry, gmail fallback sync, gmail watch renewal, receipt matching, coach limit alerts")
+        assertEquals(12, jobs.size, "reminders, nudges, detection, waste score, pending notifications, weekly briefing, document expiry, gmail fallback sync, gmail watch renewal, receipt matching, coach limit alerts, coach evening digest")
         assertTrue(jobs.any { it.name.value == "subscription-waste-score" }, "AOS-509")
         assertTrue(jobs.any { it.name.value == "document-expiry" }, "AOS-507")
         assertTrue(jobs.any { it.name.value == "gmail-fallback-sync" }, "AOS-401")
@@ -78,7 +78,7 @@ class DiAppModuleCoverageTest {
         val vapid = mapOf(
             "VAPID_PUBLIC_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.public as java.security.interfaces.ECPublicKey)),
             "VAPID_PRIVATE_KEY" to dev.adminos.api.infrastructure.push.B64.encode(dev.adminos.api.infrastructure.push.P256.encode(pair.private as java.security.interfaces.ECPrivateKey)),
-            "VAPID_SUBJECT" to "mailto:pragun@example.com"
+            "VAPID_SUBJECT" to "mailto:owner@example.com"
         )
         val koin = koinOf(buildAppModule(useDatabase = false, env = vapid::get))
         assertTrue(dev.adminos.api.domain.notifications.NotificationChannel.PUSH in
@@ -99,7 +99,8 @@ class DiAppModuleCoverageTest {
         val koin = koinOf(buildAppModule(useDatabase = false, env = noEnv))
         assertIs<InMemoryUserRepository>(koin.get<UserRepository>())
         assertIs<InMemoryTransactionRepository>(koin.get<TransactionRepository>())
-        assertIs<InMemoryAnalyticsRepository>(koin.get<AnalyticsRepository>())
+        assertIs<dev.adminos.api.domain.analytics.AliasedAnalyticsRepository>(koin.get<AnalyticsRepository>()) // over the in-memory facts (AOS-709)
+        assertIs<dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository>(koin.get<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository>())
         assertIs<InMemoryAuditRepository>(koin.get<AuditRepository>())
     }
 
@@ -114,7 +115,8 @@ class DiAppModuleCoverageTest {
         val koin = koinOf(buildAppModule(useDatabase = true, env = noEnv))
         assertIs<ExposedUserRepository>(koin.get<UserRepository>())
         assertIs<ExposedTransactionRepository>(koin.get<TransactionRepository>())
-        assertIs<ExposedAnalyticsRepository>(koin.get<AnalyticsRepository>())
+        assertIs<dev.adminos.api.domain.analytics.AliasedAnalyticsRepository>(koin.get<AnalyticsRepository>()) // over the SQL facts (AOS-709)
+        assertIs<dev.adminos.api.infrastructure.database.repositories.ExposedMerchantAliasRepository>(koin.get<dev.adminos.api.domain.financial.grouping.MerchantAliasRepository>())
         assertIs<ExposedAuditRepository>(koin.get<AuditRepository>())
     }
 
@@ -124,6 +126,22 @@ class DiAppModuleCoverageTest {
         assertNull(koin.getOrNull<RedisClient>())
         assertNull(koin.getOrNull<AsynqPublisher>())
         assertNotNull(koin.get<IngestionService>())
+    }
+
+    @Test
+    fun `a REDIS_URL without the Redis password stops the start-up without echoing it`() {
+        val e = kotlin.test.assertFailsWith<IllegalStateException> {
+            buildAppModule(useDatabase = false, env = mapOf("REDIS_URL" to "redis://redis:6379")::get)
+        }
+        kotlin.test.assertTrue("requires a password" in e.message!!, e.message)
+        kotlin.test.assertFalse("redis:6379" in e.message!!)
+    }
+
+    @Test
+    fun `REDIS_PASSWORD next to a bare REDIS_URL is enough to wire the publisher config`() {
+        val pw = java.util.UUID.randomUUID().toString()
+        // No Redis here: the module builds (the URL and password are accepted); nothing connects until asked.
+        buildAppModule(useDatabase = false, env = mapOf("REDIS_URL" to "redis://127.0.0.1:1", "REDIS_PASSWORD" to pw)::get)
     }
 
     @Test

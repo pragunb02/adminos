@@ -87,8 +87,16 @@ class InMemoryTransactionRepository : TransactionRepository {
     }
 
     override suspend fun update(transaction: Transaction): Transaction {
-        store[transaction.id] = transaction.copy(updatedAt = Instant.now())
-        return store[transaction.id]!!
+        // Like the SQL update, the share is never written here (only setOwnShare changes it).
+        val updated = transaction.copy(updatedAt = Instant.now(), ownShare = store[transaction.id]?.ownShare)
+        store[transaction.id] = updated
+        return updated
+    }
+
+    override suspend fun setOwnShare(id: UUID, share: BigDecimal?): Boolean {
+        val current = store[id] ?: return false
+        store[id] = current.copy(ownShare = share, updatedAt = Instant.now())
+        return true
     }
 
     override suspend fun findDebitsByUserIdSince(userId: UUID, since: Instant): List<Transaction> =
@@ -102,7 +110,7 @@ class InMemoryTransactionRepository : TransactionRepository {
         fun sumBy(nature: TransactionNature) = store.values
             .filter { it.userId == userId && it.nature == nature && it.transactedAt in from..to }
             .groupBy { it.category }
-            .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount } }
+            .mapValues { (_, txns) -> txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.countedAmount } }
         return netOfRefunds(sumBy(TransactionNature.SPEND), sumBy(TransactionNature.REFUND))
     }
 
@@ -118,7 +126,7 @@ class InMemoryTransactionRepository : TransactionRepository {
                 (cat == null || it.category == cat)
         }
         if (txns.isEmpty()) return BigDecimal.ZERO
-        val total = txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.amount }
+        val total = txns.fold(BigDecimal.ZERO) { acc, t -> acc + t.countedAmount }
         return total.divide(BigDecimal(txns.size), 2, java.math.RoundingMode.HALF_UP)
     }
 

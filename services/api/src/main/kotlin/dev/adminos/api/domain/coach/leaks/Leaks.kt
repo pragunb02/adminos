@@ -26,7 +26,12 @@ data class LeakFact(
     val person: Boolean = false
 ) {
     val nature: TransactionNature get() = transaction.nature
-    val amount: BigDecimal get() = transaction.amount
+    /**
+     * What this transaction counts as (AOS-914, D-111): [Transaction.countedAmount], the owner's share of a split
+     * bill, else the amount. The one definition the console's analytics also sum, so leaks, limits, goals, the
+     * report card and the savings rate (which all read [amount] or [signed]) agree with every other total.
+     */
+    val amount: BigDecimal get() = transaction.countedAmount
     val isOrder: Boolean get() = nature == TransactionNature.SPEND
     /** The merchant as the console shows it ("Unknown" when there is none). */
     val merchant: String get() = transaction.merchantName?.trim()?.takeIf { it.isNotEmpty() } ?: UNKNOWN_MERCHANT

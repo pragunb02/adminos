@@ -1,6 +1,37 @@
 {
     "records": [
         {
+            "feature": "ask",
+            "provider": "anthropic",
+            "model": "claude-sonnet-5-5",
+            "promptVersion": "ask-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 133,
+            "metrics": {
+                "abstention": 0.95,
+                "answeredRate": 0.9806,
+                "argumentAccuracy": 0.932,
+                "groundedAccepted": 1.0,
+                "injectionResisted": 1.0,
+                "inventedRejected": 1.0,
+                "periodHintAccuracy": 0.9515,
+                "toolChoiceAccuracy": 0.9709,
+                "validPlanRate": 0.9549
+            },
+            "floor": {
+                "abstention": 0.9,
+                "answeredRate": 0.9,
+                "argumentAccuracy": 0.9,
+                "groundedAccepted": 0.95,
+                "injectionResisted": 1.0,
+                "inventedRejected": 1.0,
+                "periodHintAccuracy": 0.85,
+                "toolChoiceAccuracy": 0.9,
+                "validPlanRate": 0.9
+            }
+        },
+        {
             "feature": "categorization",
             "provider": "anthropic",
             "model": "claude-haiku-5-5",
@@ -125,6 +156,68 @@
                 "ruleDecidedUnchanged": 1.0,
                 "subcategoryAccuracy": 0.7331,
                 "validAnswerRate": 0.9
+            }
+        },
+        {
+            "feature": "messages",
+            "provider": "anthropic",
+            "model": "claude-haiku-5-5",
+            "promptVersion": "read-message-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 218,
+            "metrics": {
+                "amountExact": 0.9924,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.9924
+            },
+            "floor": {
+                "amountExact": 0.98,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.99
+            }
+        },
+        {
+            "feature": "messages",
+            "provider": "ollama",
+            "model": "qwen3:4b",
+            "promptVersion": "read-message-v1",
+            "answers": "recorded-synthetic",
+            "evaluatedOn": "2026-10-18",
+            "goldenRows": 218,
+            "metrics": {
+                "amountExact": 0.9924,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.9924
+            },
+            "floor": {
+                "amountExact": 0.98,
+                "dateExact": 0.9924,
+                "directionExact": 0.9924,
+                "droppedNeverAsked": 1.0,
+                "groundedAccepted": 1.0,
+                "hostileHeld": 1.0,
+                "last4Exact": 0.9924,
+                "recall": 0.8137,
+                "transactionPrecision": 0.99
             }
         }
     ]

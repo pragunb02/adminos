@@ -45,6 +45,9 @@ class InfraPluginsCoverageTest {
                 get("/bad-body-chain") { throw BadRequestException("outer", RuntimeException("mid", RuntimeException("field 'amount' expected string\nat line 2"))) }
                 get("/bad-body-no-message") { throw BadRequestException("outer", RuntimeException()) }
                 get("/bad-body-self-cause") { throw BadRequestException("outer", SelfCaused()) }
+                post("/cannot-transform") { throw io.ktor.server.plugins.CannotTransformContentToTypeException(kotlin.reflect.typeOf<String>()) }
+                get("/payload-too-large") { throw io.ktor.server.plugins.PayloadTooLargeException(1024) }
+                get("/unsupported") { throw io.ktor.server.plugins.UnsupportedMediaTypeException(ContentType.parse("text/zq-canary")) }
                 get("/request-id") { call.respondText(call.requestId) }
                 get("/zone-anon") { call.respondText(call.userZone.id) }
                 get("/principal-anon") { call.respondText(call.userPrincipal.userId.toString()) }
@@ -118,20 +121,55 @@ class InfraPluginsCoverageTest {
     }
 
     @Test
-    fun `malformed body reports only the first line of the innermost cause`() = pluginTest {
+    fun `a malformed body gets a fixed message, never the decoder's text`() = pluginTest {
         val (status, err) = error("/bad-body-chain")
         assertEquals(HttpStatusCode.BadRequest, status)
-        assertEquals("Malformed request body: field 'amount' expected string", err.str("message"))
+        assertEquals("VALIDATION_004", err.str("code"))
+        assertEquals("Malformed request body", err.str("message"))
     }
 
     @Test
-    fun `malformed body with a message-less cause says invalid`() = pluginTest {
-        assertEquals("Malformed request body: invalid", error("/bad-body-no-message").second.str("message"))
+    fun `a malformed body with a message-less cause gets the same fixed message`() = pluginTest {
+        assertEquals("Malformed request body", error("/bad-body-no-message").second.str("message"))
     }
 
     @Test
-    fun `a self-referencing cause chain terminates`() = pluginTest {
-        assertEquals("Malformed request body: self", error("/bad-body-self-cause").second.str("message"))
+    fun `a self-referencing cause chain is answered without walking it`() = pluginTest {
+        assertEquals("Malformed request body", error("/bad-body-self-cause").second.str("message"))
+    }
+
+    @Test
+    fun `a JSON body Ktor can't transform is a 400, not the 500 of other input-output errors`() = pluginTest {
+        val res = client.post("/cannot-transform") { contentType(ContentType.parse("application/vnd.adminos+json")); setBody("{}") }
+        assertEquals(HttpStatusCode.BadRequest, res.status)
+        assertEquals("Malformed request body", Json.parseToJsonElement(res.bodyAsText()).jsonObject["error"]!!.jsonObject.str("message"))
+    }
+
+    @Test
+    fun `a body that isn't JSON which Ktor can't transform is a 415`() = pluginTest {
+        val res = client.post("/cannot-transform") { contentType(ContentType.Text.CSV); setBody("a,b") }
+        assertEquals(HttpStatusCode.UnsupportedMediaType, res.status)
+    }
+
+    @Test
+    fun `an unparseable Content-Type on a body Ktor can't transform is a 415`() = pluginTest {
+        val res = client.post("/cannot-transform") { setBody(io.ktor.http.content.TextContent("x", ContentType("zq", "a b;;=\"x"))) }
+        assertEquals(HttpStatusCode.UnsupportedMediaType, res.status)
+    }
+
+    @Test
+    fun `a body over Ktor's limit is a 413`() = pluginTest {
+        val (status, err) = error("/payload-too-large")
+        assertEquals(HttpStatusCode.PayloadTooLarge, status)
+        assertEquals("VALIDATION_006", err.str("code"))
+    }
+
+    @Test
+    fun `an unsupported media type is a 415 that doesn't name the type sent`() = pluginTest {
+        val res = client.get("/unsupported")
+        assertEquals(HttpStatusCode.UnsupportedMediaType, res.status)
+        assertEquals("Unsupported request body type", Json.parseToJsonElement(res.bodyAsText()).jsonObject["error"]!!.jsonObject.str("message"))
+        assertFalse("zq-canary" in res.bodyAsText())
     }
 
     // ── Request id ──
@@ -255,17 +293,44 @@ class InfraPluginsCoverageTest {
 
     @Test
     fun `an expired window starts over`() {
-        val limiter = RateLimiter(maxRequests = 1, windowSeconds = -1) // every window is already expired
+        val clock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.parse("2026-10-18T06:30:00Z"))
+        val limiter = RateLimiter(maxRequests = 1, windowSeconds = 60, clock = clock)
         assertTrue(limiter.isAllowed("203.0.113.9"))
+        clock.advance(java.time.Duration.ofSeconds(61))
         assertTrue(limiter.isAllowed("203.0.113.9"))
     }
 
     @Test
     fun `more than 1000 tracked keys evicts the expired windows`() {
-        val limiter = RateLimiter(maxRequests = 1, windowSeconds = -1)
+        val clock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.parse("2026-10-18T06:30:00Z"))
+        val limiter = RateLimiter(maxRequests = 1, windowSeconds = 60, clock = clock)
         repeat(1001) { limiter.isAllowed("10.0.${it / 256}.${it % 256}") }
+        clock.advance(java.time.Duration.ofSeconds(121))
         limiter.isAllowed("203.0.113.9")
         assertEquals(1, limiter.remainingRequests("10.0.0.0"), "evicted, so a fresh allowance")
+    }
+
+    @Test
+    fun `the rate limit plugin lets a client back in once its window has passed`() = testApplication {
+        val clock = dev.adminos.api.domain.scheduling.TestClock(java.time.Instant.parse("2026-10-18T06:30:00Z"))
+        val limiter = RateLimiter(maxRequests = 1, windowSeconds = 60, clock = clock)
+        environment { config = MapApplicationConfig() }
+        application {
+            configureSerialization(); configureRequestId()
+            routing {
+                route("/limited") {
+                    install(RateLimitPlugin) { this.limiter = limiter }
+                    get { call.respondText("ok") }
+                }
+            }
+        }
+        assertEquals(HttpStatusCode.OK, client.get("/limited").status)
+        clock.advance(java.time.Duration.ofSeconds(15))
+        val refused = client.get("/limited")
+        assertEquals(HttpStatusCode.TooManyRequests, refused.status)
+        assertEquals("45", refused.headers[HttpHeaders.RetryAfter], "the wait follows the injected clock")
+        clock.advance(java.time.Duration.ofSeconds(46))
+        assertEquals(HttpStatusCode.OK, client.get("/limited").status)
     }
 
     @Test

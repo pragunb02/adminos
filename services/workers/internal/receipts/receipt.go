@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -208,3 +209,26 @@ func sortedFees(sums map[FeeKind]Paise) []Fee {
 	}
 	return fees
 }
+
+// The label-line engine, for other document parsers (travel bookings, AOS-910): one engine, no copies.
+
+// Lines returns a body's non-empty lines, without invisible characters, at most maxLines.
+func Lines(body string) []string { return splitLines(body) }
+
+// Labels compiles label phrases anchored at the start of a line.
+func Labels(phrases ...string) []*regexp.Regexp { return labels(phrases...) }
+
+// AmountAfter is the positive amount on the first line starting with one of labels (or the next line).
+func AmountAfter(lines []string, res []*regexp.Regexp) (Paise, bool) {
+	a, ok := labelledAmount(lines, res)
+	if !ok || a.free || a.value <= 0 {
+		return 0, false
+	}
+	return a.value, true
+}
+
+// SenderDomain is the lower-case domain of a From header's address ("" when there is none).
+func SenderDomain(from string) string { return senderDomain(from) }
+
+// Clean removes invisible characters from a header such as the subject.
+func Clean(s string) string { return invisible.Replace(s) }
