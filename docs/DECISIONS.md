@@ -8,6 +8,10 @@
 | D-172 | Architecture / Product | The owner confirms or corrects the salary (payer, usual day, amount; one per user, V93); confirm stores exactly what was detected, the client sends no values; with a choice, detection only reads the chosen payer's credits (loose whole-word match in any script, ≥ half the amount) for the last salary, the weekend habit and late/stopped; `not_seen` when none | Proposed | AOS-722 |
 | D-171 | Architecture / Product | Projected monthly bills: utility billers (electricity, mobile, internet, water, gas) billed each of the last 3 calendar months and not yet billed this month are projected at the median amount on the median due day (after today only); any same-type bill in the month or within ±10 days means arrived, never counted twice; under-counting is the accepted side | Proposed | AOS-721 |
 | D-170 | Architecture | Latest balance per account: append-only readings (V92, figure AES-GCM encrypted) from trusted bank SMS (headers our parsers own; never OTP, failed, promise, notice or mandate; not cards, wallets, loans; names after at/to/from aren't figures) and reconciled statement closings; latest = newest observed time, never arrival; fresh / aging (≤ 7 days, counted) / stale; money left until salary starts from recent post-salary balances, else the last salary (D-76), and says which | Proposed | AOS-720 |
+| D-175 | Process | The documents AI step (`document_fields`) can't be turned on until a real model eval on the documents eval set is recorded: no hand-written record is committed, so the D-68 start-up gate refuses it | Accepted | AOS-717 |
+| D-174 | Product / Architecture | Document field proposals are not stored (the owner confirms through PATCH; the number is kept as its last 4); identity documents never go to any model, by category or by their text; the libxml2 CVE-2026-6653 Trivy exception in the parser image is accepted (unreachable; expires 2026-12-31) | Accepted | AOS-717 |
+| D-173 | Architecture | Vault documents are read in the parser service: the PDF text layer first, else Tesseract 5.5 (Debian) OCR as a process with time, memory and pixel limits; deterministic field rules with evidence, re-grounded in the API | Accepted | AOS-717 |
+| D-139 | Architecture / Product | Every coach number (leaks, limits, goals, report card, savings) counts `Transaction.countedAmount` through `LeakFact.amount`, the definition analytics sum (D-111); detectors that judge the bank's charge (anomalies, subscriptions, bill matching) keep `amount` | Accepted | AOS-914 |
 | D-150 | Process | Self pen-test: a local-only ZAP baseline plus scripted black-box probes against a throwaway stack with no published ports, and a manual checklist for the signed-in stack; run by hand before go-live, after security changes and monthly; not in CI yet | Accepted | AOS-623 |
 | D-151 | Process | Accepted pen-test results: CSP `style-src 'unsafe-inline'`, no COEP, no Content-Type on body-less redirects, and TRACE → 500 on the web until the edge filters methods (AOS-643) | Accepted | AOS-623, AOS-643 |
 | D-140 | Architecture / Product | The briefing's AI wording is an optional rewrite of its own facts through the AI gateway (feature `briefing`, off by default, consent, cap, audit): the model sees only formatted totals, counts, days, category labels and names that pass SafeName + a 40-char/6-word/no-markup/no-phishing filter; every number (money only as an amount), every mid-sentence capitalised name, and the total spent must come from those facts, with no links, markup or phishing words; else the template stays with a notice. Asked once per briefing, after the template is saved and sent; stored beside it (V90) | Accepted | AOS-716 |
@@ -1714,3 +1718,59 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Web:** a "Worded by AI" marker with "Show the plain numbers"; a notice when the wording was rejected or unavailable; text only, never HTML. Push notifications keep the template.
 - **Eval:** 47 synthetic cases through the gateway (`recorded-synthetic`): faithful kept 1.0, invented numbers, followed injections, phishing rejected 1.0, hostile names withheld 1.0, invented names rejected 0.8 (a sentence-initial invented name is not caught; floor 0.8).
 - **Rejected:** placeholders filled by code (the model can still write a number or name, so the same check is needed and the wording is stilted); narrating on read (a call per page view, cost abuse); masking hostile names (withheld instead, as D-68); reusing Ask's `AnswerGrounding` now (built in parallel; sharing one checker is a follow-up).
+
+### D-139 — Coach numbers count the owner's share
+2026-10-18 · Accepted (merged in PR #151) · Type: Architecture / Product · Tasks: AOS-914 · Builds on D-39, D-45, D-46, D-111
+- **Rule:** `LeakFact.amount` is `Transaction.countedAmount`: the owner's share of a split bill, else the amount. This is the same definition analytics sum.
+  - Leaks, limits (status, pushes, suggestions), goals, the report card and the savings projection all read `LeakFact`, so they follow without copies.
+  - Settlements were already outside every coach number; the tests now pin that down.
+- **Not changed:** detectors that judge what the bank charged keep `amount`: anomalies, subscriptions and bill payment matching.
+- **Rejected:**
+  - changing each calculator (five copies of one rule);
+  - rewriting `amount` in `LeakService.facts` (the drill-down would show a made-up bank amount).
+
+### D-173 — Reading vault documents: text layer first, then Tesseract OCR in the parser service
+2026-10-18 · Accepted (Pragun accepted the PR's security exception; built by a background agent, for review) · Type: Architecture · Tasks: AOS-717 · Builds on D-37, D-60, D-67, D-91, AOS-626
+- **Where:** the Python parser service, on its internal network with no internet.
+  - It gets the decrypted bytes from the API, reads them in an AOS-626 child process (60 s, 1 GiB) and keeps nothing.
+- **How:**
+  - a PDF's own text layer when a page has one;
+  - otherwise the page is rendered and read by OCR, and so are PNG, JPEG and WebP photos (HEIC is refused with a code);
+  - pixels are checked before decoding (40 MP), and at most 5 of at most 300 pages are read.
+- **Engine: Tesseract 5.5 from Debian,** run as its own process: no shell, a fixed argument list and environment, stdin to stdout, killed after 20 s.
+  - An `Ocr` protocol lets another engine plug in.
+- **Evidence (the documents eval set, in the parser's base image):**
+  - PaddlePaddle has no wheel for Python 3.14;
+  - docTR (OnnxTR) added 528 MB of packages plus 105 MB of models fetched from the internet, took about 10 times as long, and had lower number recall (0.68–0.80 against 0.90–0.97);
+  - Tesseract added 148 MB to the image.
+- **Fields:** deterministic rules in the parser (expiry cues and periods, labelled number shapes, known issuers, premium or fee cues). Each value carries its evidence, an exact substring of the text.
+  - The API checks again that the evidence is in the text and the value is in the evidence (`FieldGrounding`).
+- **Eval gate:** synthetic documents only (12 kinds, 4 renderings, sets dev, held-out and fresh), with a committed baseline.
+  - The gate requires expiry precision ≥ 0.95. All three sets meet it: precision is 1.0 on each.
+- **Rejected:**
+  - a vision LLM on the whole document (the whole file would leave AdminOS);
+  - docTR or PaddleOCR for now (the evidence above);
+  - correcting OCR confusions such as O for 0 (a corrected value would no longer be in the text).
+
+### D-174 — Document proposals aren't stored, identity documents never go to a model, and the Tesseract image's libxml2 exception is accepted
+2026-10-18 · Accepted (Pragun, 2026-10-18: "1. Accept the exception") · Type: Product / Architecture · Tasks: AOS-717 · Builds on D-33, D-60, D-67, D-70, D-100
+- **Proposals are stateless:** `POST /documents/{id}/read` returns them and stores nothing. The owner confirms through the existing `PATCH /documents/{id}`.
+  - V80 adds `issuer`, `number_last4` (exactly 4 capital letters or digits) and `amount`. A confirmed expiry resets and feeds the AOS-507 reminders.
+  - The full number is never stored and never returned: the proposal holds its last 4, and the context line has it masked.
+- **Identity documents never go to any model,** which is stricter than D-67's "never to the cloud".
+  - Passport, Aadhaar, PAN, voter ID and driving licence count as identity by category **or** by their text, so one filed under Other is still withheld.
+- **Trivy exception:** CVE-2026-6653 (libxml2, CRITICAL, no Debian fix yet) comes into the parser image only through libarchive, which Tesseract links to load its language data.
+  - It isn't reachable: the parser parses no XML, Tesseract gets a PNG that Pillow re-encoded on stdin, its language data is read-only from the package, and the network has no egress.
+  - It is recorded in `.trivyignore.yaml` and expires 2026-12-31. Re-check when Debian ships a fix.
+- **Rejected:**
+  - a proposals table (OCR-derived data at rest for no gain);
+  - only the category deciding what counts as an identity document.
+
+### D-175 — The documents AI step stays off until a real eval is recorded
+2026-10-18 · Accepted · Type: Process · Tasks: AOS-717 · Builds on D-67, D-68, D-70
+- **Feature `document_fields`:** asks only for the fields the rules missed (expiry, issuer, amount; never the number).
+  - It is off by default, uses Ollama by default (`AiFeature.defaultProvider`) and needs consent.
+  - It sends only masked candidate lines; lines about people are dropped.
+  - Each answer must be grounded in what was sent and in the document, and an issuer must pass `SafeName`. Any failure rejects the whole answer.
+- **Gate:** no eval record is committed for it, so the D-68 start-up gate refuses `AI_DOCUMENT_FIELDS_ENABLED=true` until a live bake-off of a local model on the documents eval set is recorded.
+- **Rejected:** a hand-written `recorded-synthetic` record, which would let the feature be turned on without the model ever being measured.

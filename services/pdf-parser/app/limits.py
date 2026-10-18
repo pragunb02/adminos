@@ -49,3 +49,23 @@ def too_many_pages():
 
 def too_many_sheets():
     return ParseError("TOO_MANY_SHEETS", f"The workbook has more than {MAX_SHEETS} sheets")
+
+
+# ── Documents vault reading (AOS-717) ──
+# A vault document is at most 20 MB (D-60). Fields sit on the first pages (schedule, certificate, card), so only the
+# first pages are read; a longer file is still read, with `truncated` set. A PDF over MAX_PAGES is refused, as for
+# statements.
+MAX_DOC_BYTES = 20 * 1024 * 1024
+MAX_DOC_PAGES_READ = 5  # pages read (text layer or OCR) from a PDF
+MAX_IMAGE_PIXELS = 40_000_000  # a photo or rendered page larger than this (about 7700 × 5200) is refused before decoding
+OCR_MAX_SIDE = 2500  # the longer side an image is scaled down to before OCR (time and memory)
+OCR_MIN_SIDE = 1400  # a small image is scaled up to this (Tesseract reads small text badly)
+OCR_DPI = 200  # PDF pages without a text layer are rendered at this resolution
+OCR_PAGE_TIMEOUT_SECONDS = 20.0  # one Tesseract run; the process is killed after it
+DOC_TIMEOUT_SECONDS = 60.0  # wall clock per document, in its child process; the API waits 90 s
+MIN_TEXT_LAYER_CHARS = 30  # a page with fewer non-space characters in its text layer is treated as a scan
+MAX_TEXT_CHARS = 20_000  # text returned to the API at most (held in memory there, never stored)
+
+
+def image_too_large():
+    return ParseError("IMAGE_TOO_LARGE", "The image is too large to read. Use a photo under 40 megapixels")

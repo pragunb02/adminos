@@ -40,4 +40,28 @@ class DocumentRepositoryIntegrationTest {
         repo.delete(d.id)
         assertNull(repo.findById(d.id))
     }
+
+    @Test
+    fun `confirmed fields round-trip and the database refuses a full number or a bad amount`() = runBlocking<Unit> {
+        val user = PostgresTestDatabase.newUser()
+        val d = repo.save(Document(userId = user, title = "Motor policy", category = DocumentCategory.INSURANCE, fileType = DocumentFileType.PDF,
+            sizeBytes = 10, sha256 = "b".repeat(64), wrappedKey = "v2:wrapped", storageKey = "documents/${java.util.UUID.randomUUID()}",
+            createdAt = Instant.parse("2026-10-16T06:00:00Z"), updatedAt = Instant.parse("2026-10-16T06:00:00Z")))
+        repo.update(d.copy(issuer = "Example Mutual General Insurance Company Limited", numberLast4 = "AB12", amount = java.math.BigDecimal("12500.00")))
+        val back = repo.findById(d.id)!!
+        assertEquals("AB12", back.numberLast4)
+        assertEquals(java.math.BigDecimal("12500.00"), back.amount)
+        assertEquals("Example Mutual General Insurance Company Limited", back.issuer)
+        // V80's checks hold even if the domain's were bypassed: no full number, no zero or negative amount.
+        dev.adminos.api.infrastructure.database.dbQuery {
+            for (sql in listOf("UPDATE documents SET number_last4 = '98765' WHERE id = '${d.id}'", "UPDATE documents SET number_last4 = 'ab12' WHERE id = '${d.id}'",
+                    "UPDATE documents SET amount = 0 WHERE id = '${d.id}'")) {
+                kotlin.test.assertFails(sql) {
+                    org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager.current().exec("SAVEPOINT s"); try {
+                        org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager.current().exec(sql)
+                    } finally { org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager.current().exec("ROLLBACK TO SAVEPOINT s") }
+                }
+            }
+        }
+    }
 }

@@ -1,0 +1,80 @@
+{
+  "feature": "documents-ocr-v1",
+  "engine": "tesseract 5.5.0",
+  "evaluatedOn": "2026-10-18",
+  "sets": {
+    "dev": {
+      "documents": 48,
+      "metrics": {
+        "expiresOn.recall": 1.0,
+        "expiresOn.precision": 1.0,
+        "expiresOn.false": 0,
+        "number.recall": 0.95,
+        "number.precision": 0.9744,
+        "number.false": 1,
+        "issuer.recall": 1.0,
+        "issuer.precision": 1.0,
+        "issuer.false": 0,
+        "amount.recall": 1.0,
+        "amount.precision": 1.0,
+        "amount.false": 0,
+        "ocrSurvival.text_pdf": 1.0,
+        "ocrSurvival.scan_pdf": 1.0,
+        "ocrSurvival.png": 1.0,
+        "ocrSurvival.photo_jpeg": 0.9259
+      }
+    },
+    "heldOut": {
+      "documents": 24,
+      "metrics": {
+        "expiresOn.recall": 0.9375,
+        "expiresOn.precision": 1.0,
+        "expiresOn.false": 0,
+        "number.recall": 0.9,
+        "number.precision": 1.0,
+        "number.false": 0,
+        "issuer.recall": 1.0,
+        "issuer.precision": 1.0,
+        "issuer.false": 0,
+        "amount.recall": 1.0,
+        "amount.precision": 1.0,
+        "amount.false": 0,
+        "ocrSurvival.text_pdf": 1.0,
+        "ocrSurvival.scan_pdf": 1.0,
+        "ocrSurvival.png": 0.9231,
+        "ocrSurvival.photo_jpeg": 0.9167
+      }
+    },
+    "fresh": {
+      "documents": 36,
+      "metrics": {
+        "expiresOn.recall": 1.0,
+        "expiresOn.precision": 1.0,
+        "expiresOn.false": 0,
+        "number.recall": 0.9667,
+        "number.precision": 0.9667,
+        "number.false": 1,
+        "issuer.recall": 1.0,
+        "issuer.precision": 1.0,
+        "issuer.false": 0,
+        "amount.recall": 1.0,
+        "amount.precision": 1.0,
+        "amount.false": 0,
+        "ocrSurvival.text_pdf": 1.0,
+        "ocrSurvival.scan_pdf": 1.0,
+        "ocrSurvival.png": 0.9524,
+        "ocrSurvival.photo_jpeg": 1.0
+      }
+    }
+  },
+  "floor": {
+    "expiresOn.precision": 0.95,
+    "expiresOn.recall": 0.85,
+    "number.precision": 0.9,
+    "number.recall": 0.8,
+    "issuer.precision": 0.95,
+    "issuer.recall": 0.9,
+    "amount.precision": 0.95,
+    "amount.recall": 0.9
+  }
+}

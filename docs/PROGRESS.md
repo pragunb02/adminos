@@ -133,6 +133,13 @@ Verified on 2026-10-16 on `main` (before branch changes):
       - the pdf-parser drops zero balances;
       - statement events imported before AOS-720 hold `metadata.balance` in plaintext (a scrub is Pragun's call).
     - **Next:** Pragun to decide Gmail balances, the plaintext scrub, more trusted banks and the 7-day limit (ticket "Decisions for Pragun").
+  - AOS-717 (PR #158; awaiting review + merge): documents vault OCR and field proposals (D-173, D-174, D-175).
+    - **Parser:** the PDF text layer, else Tesseract 5.5 OCR in an AOS-626 child; rule proposals with evidence; synthetic eval set (dev 48, held-out 24, fresh 36), expiry precision 1.0 on all three, gate ≥ 0.95.
+    - **API:** `POST /documents/{id}/read`, owner-only and 10/min, re-grounded in the API; the optional `document_fields` AI step is local-first and needs consent, identity documents are never sent, and it is off until an eval is recorded. Confirmed fields are saved by PATCH (V80; the number as its last 4).
+    - **Web:** a "Read fields" panel.
+    - **Security:** Trivy exception for libxml2 CVE-2026-6653 accepted by Pragun (D-174, expires 2026-12-31).
+    - **Verified:** API test, integrationTest and koverVerify; 129 parser tests; web typecheck, lint, vitest and build; the full Playwright suite (see the PR for counts).
+  - AOS-914 (merged, PR #151): the coach (leaks, limits, goals, report card, savings) counts the owner's share of split bills through `LeakFact.amount` = `countedAmount` (D-139); settlements count nowhere.
   - AOS-623 (awaiting review + merge): self pen-test (D-150). `scripts/security/zap-baseline.sh` runs a ZAP baseline and `pentest-probes.sh` against a throwaway local stack with no published ports. On main 827d7321: ZAP 0 FAIL; probes 34/35; exposure and hardening green. Findings: AOS-644 (404 without CSP) fixed; AOS-643 (TRACE → 500 on the web) and the ZAP warnings accepted (D-151). **Pragun:** do the **owner** items in `docs/security/PENTEST.md` before go-live.
   - AOS-638 (integrated by the integration agent): bill dates follow the user's calendar on an injected clock; repositories take the date from the caller (D-123); unused `AppConfig.redis` removed.
   - AOS-637 (integrated by the integration agent): the worker logs the database as host:port/database only, never user info, parameters or pgx's error text; `maskPassword` removed.

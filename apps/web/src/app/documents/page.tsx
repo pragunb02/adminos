@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AppShell from "@/components/AppShell";
 import { Skeleton } from "@/components/console/Section";
 import UndoToast from "@/components/console/UndoToast";
+import ReadFields, { shownValue } from "@/components/documents/ReadFields";
 import { ApiError, deleteData, errorMessage, getData, patchData, uploadData } from "@/lib/query";
 import type { DocumentCategory, VaultDocument } from "@/lib/types";
 
@@ -41,7 +42,17 @@ export function expiry(on: string | null, today = new Date()): { text: string; l
   return { text: `Expires ${new Date(`${on}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`, late: false };
 }
 
-const uploadMessage = (e: unknown) =>
+/** The confirmed fields of a document in one line (AOS-717): issuer · number's last 4 · amount. */
+export function details(d: VaultDocument): string | null {
+  const parts = [
+    d.issuer ?? null,
+    d.numberLast4 ? `No. •••• ${d.numberLast4}` : null,
+    d.amount ? shownValue({ field: "amount", value: d.amount }) : null,
+  ].filter((p): p is string => !!p);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+const uploadMessage =(e: unknown) =>
   e instanceof ApiError && e.code === "DOC_005" ? "The documents vault isn't set up on the server yet (Cloudflare R2 settings in .env)." : errorMessage(e, "The file couldn't be uploaded");
 
 function Upload({ onDone }: { onDone: () => void }) {
@@ -233,6 +244,7 @@ function DocumentsContent() {
                     <p className="truncate font-medium">{d.title}</p>
                     <p className="text-xs text-ink-muted">{SHORT[d.category]} · {d.fileType.toUpperCase()} · {size(d.sizeBytes)}</p>
                     {exp && <p className={`text-xs ${exp.late ? "font-semibold text-negative" : "text-ink-muted"}`}>{exp.text}</p>}
+                    {details(d) && <p className="text-xs text-ink-muted">{details(d)}</p>}
                   </div>
                   <div className="flex shrink-0 gap-2 text-sm">
                     <a href={`/api/v1/documents/${d.id}/file`} download className="underline">Download</a>
@@ -241,6 +253,7 @@ function DocumentsContent() {
                   </div>
                 </div>
                 {editing === d.id && <Edit doc={d} onClose={(changed) => { setEditing(null); if (changed) refresh(); }} />}
+                <ReadFields doc={d} onSaved={refresh} />
               </li>
             );
           })}

@@ -167,6 +167,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
+      # The documents OCR tests and eval gate need Tesseract (AOS-717); Ubuntu's archive is signed, no third-party source.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends tesseract-ocr tesseract-ocr-eng
       - run: pip install --require-hashes -r requirements-dev.txt
       - run: python -m pytest -q
 

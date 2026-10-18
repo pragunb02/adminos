@@ -2,6 +2,7 @@ package dev.adminos.api.domain.documents
 
 import dev.adminos.api.domain.common.ApiError
 import dev.adminos.api.domain.common.ApiResponse
+import dev.adminos.api.domain.documents.reading.documentReadRoutes
 import dev.adminos.api.infrastructure.plugins.ApiException
 import dev.adminos.api.infrastructure.plugins.requestId
 import dev.adminos.api.infrastructure.plugins.userPrincipal
@@ -23,7 +24,9 @@ import java.util.UUID
 @Serializable
 data class DocumentResponse(
     val id: String, val title: String, val category: String, val fileType: String, val mime: String, val sizeBytes: Long,
-    val originalName: String?, val expiresOn: String?, val notes: String?, val createdAt: String
+    val originalName: String?, val expiresOn: String?, val notes: String?, val createdAt: String,
+    /** Confirmed fields (AOS-717): the issuer, the number's last 4 only, the amount as an exact decimal string. */
+    val issuer: String? = null, val numberLast4: String? = null, val amount: String? = null
 )
 
 @Serializable
@@ -32,7 +35,11 @@ data class DocumentPatchRequest(
     /** "YYYY-MM-DD", or "" to remove the expiry. */
     val expiresOn: String? = null,
     /** Text, or "" to remove the notes. */
-    val notes: String? = null
+    val notes: String? = null,
+    /** AOS-717, each "" to remove: the issuer; the last 4 letters or digits of the number; the amount, e.g. "12500.00". */
+    val issuer: String? = null,
+    val numberLast4: String? = null,
+    val amount: String? = null
 )
 
 @Serializable
@@ -41,7 +48,8 @@ data class DocumentDeletedResponse(val deleted: Boolean)
 /** Never the storage key, the wrapped key or the checksum. */
 private fun Document.toResponse() = DocumentResponse(
     id.toString(), title, category.name.lowercase(), fileType.name.lowercase(), fileType.mime, sizeBytes,
-    originalName, expiresOn?.toString(), notes, createdAt.toString()
+    originalName, expiresOn?.toString(), notes, createdAt.toString(),
+    issuer, numberLast4, amount?.setScale(2)?.toPlainString()
 )
 
 /**
@@ -109,7 +117,13 @@ fun Route.documentRoutes(service: DocumentService) {
                     category = r.category?.let { category(it) ?: throw IllegalArgumentException("category: one of ${categories()}") },
                     expiresOn = r.expiresOn?.takeIf { it.isNotEmpty() }?.let(::date), clearExpiry = r.expiresOn == "",
                     notes = r.notes?.takeIf { it.isNotEmpty() }?.also { require(it.length <= Document.MAX_NOTES) { "notes: at most ${Document.MAX_NOTES} characters" } },
-                    clearNotes = r.notes == ""
+                    clearNotes = r.notes == "",
+                    issuer = r.issuer?.takeIf { it.isNotEmpty() }?.also { require(it.length <= Document.MAX_ISSUER) { "issuer: at most ${Document.MAX_ISSUER} characters" } },
+                    clearIssuer = r.issuer == "",
+                    numberLast4 = r.numberLast4?.takeIf { it.isNotEmpty() }?.uppercase()?.also { require(it.matches(Document.LAST4)) { "numberLast4: exactly 4 letters or digits" } },
+                    clearNumber = r.numberLast4 == "",
+                    amount = r.amount?.takeIf { it.isNotEmpty() }?.let(::amountOf),
+                    clearAmount = r.amount == ""
                 )
                 val d = mapped { service.update(call.userPrincipal.userId, id(call.parameters["id"]), patch) }
                 call.respond(HttpStatusCode.OK, ApiResponse.success(d.toResponse(), call.requestId))
@@ -120,6 +134,13 @@ fun Route.documentRoutes(service: DocumentService) {
             }
         }
     }
+}
+
+private val AMOUNT = Regex("\\d{1,9}(\\.\\d{1,2})?")
+
+private fun amountOf(raw: String): java.math.BigDecimal {
+    require(raw.trim().matches(AMOUNT)) { "amount: a rupee amount like 12500 or 12500.50" }
+    return raw.trim().toBigDecimal().also { require(it.signum() > 0 && it <= Document.MAX_AMOUNT) { "amount: above 0, at most 10 crore" } }
 }
 
 private fun categories() = DocumentCategory.entries.joinToString { it.name.lowercase() }
@@ -157,5 +178,11 @@ private suspend fun <T> mapped(work: suspend () -> T): T = try {
 /** Registers the documents vault routes under /api/v1 (AOS-507). */
 fun io.ktor.server.application.Application.documentsModule() {
     val service: DocumentService by inject()
-    routing { route("/api/v1") { documentRoutes(service) } }
+    val fields: dev.adminos.api.domain.documents.reading.DocumentFieldService by inject()
+    routing {
+        route("/api/v1") {
+            documentRoutes(service)
+            documentReadRoutes(fields) // AOS-717: read a document and propose its fields
+        }
+    }
 }

@@ -55,11 +55,20 @@ data class Document(
     /** "Days before expiry" reminders sent for [expiresOn] (reset when the date changes). */
     val expiryRemindersSent: Set<Int> = emptySet(),
     val createdAt: Instant = Instant.now(),
-    val updatedAt: Instant = Instant.now()
+    val updatedAt: Instant = Instant.now(),
+    /** Who issued it ("HDFC ERGO General Insurance Company Limited"), as the owner confirmed it (AOS-717). */
+    val issuer: String? = null,
+    /** The last 4 letters or digits of its policy or document number; the full number is never stored (AOS-717). */
+    val numberLast4: String? = null,
+    /** The premium or fee paid, as the owner confirmed it (AOS-717). */
+    val amount: java.math.BigDecimal? = null
 ) {
     init {
         require(title.isNotBlank() && title.length <= MAX_TITLE) { "title: 1–$MAX_TITLE characters" }
         require(notes == null || notes.length <= MAX_NOTES) { "notes: at most $MAX_NOTES characters" }
+        require(issuer == null || (issuer.isNotBlank() && issuer.length <= MAX_ISSUER)) { "issuer: 1–$MAX_ISSUER characters" }
+        require(numberLast4 == null || numberLast4.matches(LAST4)) { "numberLast4: exactly 4 capital letters or digits" }
+        require(amount == null || (amount.signum() > 0 && amount.scale() <= 2 && amount <= MAX_AMOUNT)) { "amount: above 0, at most 2 decimals, at most ₹10 crore" }
         require(sizeBytes in 1..MAX_BYTES) { "A document is 1 byte to 20 MB" }
         require(sha256.matches(Regex("[0-9a-f]{64}"))) { "sha256 must be 64 hex characters" }
     }
@@ -68,6 +77,9 @@ data class Document(
         const val MAX_BYTES = 20L * 1024 * 1024
         const val MAX_TITLE = 120
         const val MAX_NOTES = 1000
+        const val MAX_ISSUER = 120
+        val MAX_AMOUNT = java.math.BigDecimal("100000000")
+        val LAST4 = Regex("[A-Z0-9]{4}")
     }
 }
 

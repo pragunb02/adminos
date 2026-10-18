@@ -3,4 +3,12 @@
 #   - id: CVE-0000-00000
 #     statement: "not reachable: …"
 #     expired_at: 2026-12-31
-vulnerabilities: []
+vulnerabilities:
+  # Accepted by owner 2026-10-18 (D-174), AOS-717.
+  # libxml2 arrives in the pdf-parser image only as a dependency of
+  # libarchive, which libtesseract links to read packed language data. The parser never parses XML: Tesseract gets a
+  # PNG that Pillow re-encoded, on stdin, and its language data from the image's read-only files. Debian has no fixed
+  # libxml2 yet ("affected"). Re-check when Debian ships a fix, or by the expiry.
+  - id: CVE-2026-6653
+    statement: "not reachable: no XML is parsed in pdf-parser; libxml2 is only linked through libarchive (Tesseract's language-data loader)"
+    expired_at: 2026-12-31
