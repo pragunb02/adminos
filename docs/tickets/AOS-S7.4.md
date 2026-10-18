@@ -4,13 +4,13 @@
 |---|---|
 | **Type** | Story |
 | **Parent** | [AOS-E7](AOS-E7.md) |
-| **Status** | ⬜ Todo |
+| **Status** | 🟦 In progress |
 | **Priority** | P2 |
 | **Owner** | Claude |
 | **ETA (rollup)** | 21h |
 | **Actual** | — |
 | **Created / Updated** | 2026-10-17 / 2026-10-17 |
-| **Decisions** | D-53, D-55, D-56, D-58, D-65, D-67 |
+| **Decisions** | D-53, D-55, D-56, D-58, D-65, D-67, D-171, D-172 |
 | **Depends on** | — (no LLM needed) |
 
 ## User story
@@ -34,10 +34,10 @@ See the research report §10–§12. Isolation Forest, Prophet and deep forecast
 ## Tasks
 | ID | Task | Owner | Status | ETA | Actual |
 |---|---|---|---|---|---|
-| [AOS-720](AOS-720.md) | Latest balance per account, for money left until salary | Claude | ⬜ | 4h | |
-| [AOS-721](AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ⬜ | 3h | |
-| [AOS-722](AOS-722.md) | Confirm or correct the detected salary | Claude | ⬜ | 3h | |
+| [AOS-721](AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ✅ | 3h | 3h |
+| [AOS-722](AOS-722.md) | Confirm or correct the detected salary | Claude | ✅ | 3h | 4h |
 | [AOS-714](AOS-714.md) | Month-end forecast + money left until salary (deterministic + empirical range) | Claude | ✅ | 8h | 9h |
+| [AOS-720](AOS-720.md) | Latest balance per account, for money left until salary | Claude | 🟦 | 4h | 7h |
 | [AOS-713](AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude | ✅ | 6h | 5h |
 | [AOS-709](AOS-709.md) | Fuzzy merchant grouping for subscriptions (normalise + Jaro-Winkler), merges via Review | Claude | ✅ | 5h | 5h |
 | [AOS-715](AOS-715.md) | Subscription price-rise alert | Claude | ✅ | 2h | 1.5h |
@@ -48,6 +48,9 @@ _Task tickets are created as files when this story is picked up._
 A synthetic spending stream with injected spikes alerts on the spikes, and otherwise at most twice a month. The backtest beats the naive pace.
 
 ## Activity log
+- 2026-10-18 — Claude (parent agent): AOS-722 integrated (PR, stacked on AOS-721); D-172 proposed.
+- 2026-10-18 — Claude (parent agent): AOS-721 integrated (PR); D-171 proposed.
+- 2026-10-18 — Claude (agent): AOS-720 built (latest balance per account, money left from recent balances; D-170 proposed); in review.
 - 2026-10-18 — Claude (integration engineer): AOS-720, AOS-721, AOS-722 created from AOS-714's follow-ups.
 - 2026-10-18 — Claude (integration engineer): AOS-714 integrated onto main; D-76 recorded.
 - 2026-10-18 — Claude (integration engineer): AOS-709 integrated onto main; D-75 recorded.

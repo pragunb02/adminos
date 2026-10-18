@@ -133,7 +133,7 @@ class TemplateLoopTest {
         templateReview.approve(me, waT.id)
         val mandates = MandateService(InMemoryMandateRepository(), InMemoryTransactionRepository())
         val sms = SmsIntake(SmsParserRegistry(), intake, mandates, dev.adminos.api.domain.financial.paylater.testPayLaterBills(),
-            dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), reader) { zone }
+            dev.adminos.api.domain.financial.trips.TravelBookings(dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()), reader) { zone }
         val text = "Card XX4321 charged Rs.249.00 at ZEPTO on 16-10-26."
         assertEquals(SmsIntakeResult.Accepted, sms.accept(me, SmsMessage("AD-FEDBNK-S", text, Instant.parse("2026-10-16T05:00:00Z"))))
         assertEquals(SmsIntakeResult.Duplicate, sms.accept(me, SmsMessage("VM-FEDBNK-S", text, Instant.parse("2026-10-16T05:01:00Z"))))

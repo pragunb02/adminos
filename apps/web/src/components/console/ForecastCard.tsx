@@ -5,12 +5,15 @@ import Section, { Skeleton } from "@/components/console/Section";
 import { formatInr, toPaise } from "@/lib/money";
 import {
   dayAndDate, FORECAST_PATH, monthEndDate, NO_SALARY_TEXT, PART_LABEL, shortDate,
-  type ForecastData, type ForecastPart, type MonthEnd, type SalaryOutlook, type UntilSalary,
+  type ForecastData, type ForecastDue, type ForecastPart, type MonthEnd, type SalaryOutlook, type UntilSalary,
 } from "@/lib/forecast";
 import { errorMessage, getData } from "@/lib/query";
+import { salarySourceBadge } from "@/lib/salary";
+import SalaryConfirm from "@/components/console/SalaryConfirm";
+import { accountLabel, SOURCE_LABEL } from "@/lib/balances";
 
 /**
- * Month-end forecast and money left until salary (AOS-714) on Home. Self-contained: it loads its own data.
+ * Month-end forecast and money left until salary (AOS-714; from recent bank balances when known, AOS-720) on Home. Self-contained: it loads its own data.
  * Every number is the API's (deterministic, D-67); "How we got this" shows the parts that add up to it.
  * Calm (D-49): one figure, plain bars for the parts, words and signs as well as colour.
  */
@@ -105,6 +108,16 @@ function PartLine({ part, prefix }: { part: ForecastPart; prefix: string }) {
     return <li>{prefix} {label}: {formatInr(part.amount)} ({how}{learnt})</li>;
   }
   if (part.items.length === 0) return <li className="text-ink-muted">{prefix} {label}: none known</li>;
+  if (part.kind === "projected_bills") {
+    return (
+      <li>
+        {prefix} {label}: {formatInr(part.amount)}
+        <ul className="mt-1 space-y-1 pl-4 text-ink-muted" aria-label={label}>
+          {part.items.map((i) => <li key={`${i.name}-${i.date}`}>{projectedText(i)}</li>)}
+        </ul>
+      </li>
+    );
+  }
   return (
     <li>
       {prefix} {label}: {formatInr(part.amount)} (
@@ -116,15 +129,35 @@ function PartLine({ part, prefix }: { part: ForecastPart; prefix: string }) {
   );
 }
 
+/**
+ * One bill that usually comes but hasn't yet (AOS-721), e.g. "Sample Power Co · expected 24 Oct · ₹1,240 ·
+ * usual amount, billed 4 months running". The name comes from email or SMS: it's only ever a text node.
+ */
+function projectedText(i: ForecastDue) {
+  const seen = i.monthsSeen ? ` · usual amount, billed ${i.monthsSeen} month${i.monthsSeen === 1 ? "" : "s"} running` : "";
+  return `${i.name} · expected ${shortDate(i.date)} · ${formatInr(i.amount)}${seen}`;
+}
+
 function SalaryView({ s }: { s: SalaryOutlook }) {
   if (s.status === "unknown") {
-    return <p className="border-t border-line pt-3 text-sm text-ink-muted">Money left until salary: {NO_SALARY_TEXT[s.reason ?? "no_regular_credit"]}</p>;
+    return (
+      <div className="border-t border-line pt-3">
+        <p className="text-sm text-ink-muted">Money left until salary: {NO_SALARY_TEXT[s.reason ?? "no_regular_credit"] ?? NO_SALARY_TEXT.no_regular_credit}<SourceBadge s={s} /></p>
+        <SalaryConfirm />
+      </div>
+    );
   }
   if (s.status === "late" || !s.untilSalary || !s.expectedOn) {
     return (
-      <p className="border-t border-line pt-3 text-sm text-ink-muted">
-        Your salary usually comes around {s.expectedOn ? shortDate(s.expectedOn) : "now"} and hasn&apos;t arrived yet. Money left will show once it does.
-      </p>
+      <div className="border-t border-line pt-3">
+        <p className="text-sm text-ink-muted">
+          Your salary usually comes around {s.expectedOn ? shortDate(s.expectedOn) : "now"} and hasn&apos;t arrived yet. Money left will show once it does.<SourceBadge s={s} />
+        </p>
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-accent">How we got this</summary>
+          <SalaryConfirm />
+        </details>
+      </div>
     );
   }
   return <UntilSalaryView s={s} u={s.untilSalary} expectedOn={s.expectedOn} />;
@@ -132,11 +165,12 @@ function SalaryView({ s }: { s: SalaryOutlook }) {
 
 function UntilSalaryView({ s, u, expectedOn }: { s: SalaryOutlook; u: UntilSalary; expectedOn: string }) {
   const short = u.left.startsWith("-");
+  const fromBalance = u.basis === "balance";
   return (
     <div className="border-t border-line pt-3">
-      <p className="text-sm text-ink-muted">Salary expected {dayAndDate(expectedOn)}{s.payer ? ` (${s.payer})` : ""}</p>
+      <p className="text-sm text-ink-muted">Salary expected {dayAndDate(expectedOn)}{s.payer ? ` (${s.payer})` : ""}<SourceBadge s={s} /></p>
       <p className="tabular text-xl font-semibold text-ink">
-        {short ? <>Short by {formatInr(u.left.slice(1))} before it comes</> : <>{formatInr(u.left)} left from this salary</>}
+        {short ? <>Short by {formatInr(u.left.slice(1))} before it comes</> : <>{formatInr(u.left)} {fromBalance ? "left before it comes" : "left from this salary"}</>}
       </p>
       {u.leftLow && u.leftHigh && (
         <p className="tabular text-sm text-ink-muted">Likely {formatInr(u.leftLow)} to {formatInr(u.leftHigh)}</p>
@@ -144,14 +178,46 @@ function UntilSalaryView({ s, u, expectedOn }: { s: SalaryOutlook; u: UntilSalar
       <details className="mt-2 text-sm">
         <summary className="cursor-pointer text-accent">How we got this</summary>
         <ul className="tabular mt-2 space-y-1 text-ink">
-          <li>Last salary: {formatInr(s.lastAmount ?? "0")}{s.lastReceivedOn ? ` on ${shortDate(s.lastReceivedOn)}` : ""}</li>
-          <li>− Spent since: {formatInr(u.spentSince)}</li>
+          {fromBalance ? (
+            <li>
+              In your accounts: {formatInr(u.balance ?? "0")} (
+              {u.accounts.map((a, n) => (
+                <span key={`${a.bank}-${a.last4}`}>{n > 0 ? ", " : ""}{accountLabel(a.bank, a.last4)} {formatInr(a.amount)} on {shortDate(a.observedOn)} from a {SOURCE_LABEL[a.source]}</span>
+              ))}
+              )
+            </li>
+          ) : (
+            <li>Last salary: {formatInr(s.lastAmount ?? "0")}{s.lastReceivedOn ? ` on ${shortDate(s.lastReceivedOn)}` : ""}</li>
+          )}
+          <li>− Spent since{u.spentFrom ? ` ${shortDate(u.spentFrom)}` : ""}: {formatInr(u.spentSince)}</li>
           <li>− Expected {u.from && u.to ? `${shortDate(u.from)}–${shortDate(u.to)}` : "before it (nothing: it's due now)"}: {formatInr(u.expected)}</li>
           {u.parts.filter((p) => toPaise(p.amount) !== 0n).map((p) => <PartLine key={p.kind} part={p} prefix="of which" />)}
           <li className="font-medium">= {short ? `Short by ${formatInr(u.left.slice(1))}` : `${formatInr(u.left)} left`}</li>
         </ul>
-        <p className="mt-1 text-xs text-ink-muted">Other income and savings aren&apos;t counted; the bank balance isn&apos;t known.</p>
+        {u.notCounted.length > 0 && (
+          <p className="mt-1 text-xs text-ink-muted">
+            Not counted:{" "}
+            {u.notCounted.map((a, n) => (
+              <span key={`${a.bank}-${a.last4}`}>
+                {n > 0 ? "; " : ""}{accountLabel(a.bank, a.last4)} {formatInr(a.amount)} on {shortDate(a.observedOn)} ({a.reason === "before_salary" ? "from before the salary came" : `older than ${u.balanceMaxAgeDays} days`})
+              </span>
+            ))}
+            .
+          </p>
+        )}
+        <p className="mt-1 text-xs text-ink-muted">
+          {fromBalance
+            ? "Starts from your latest bank balances; other income before payday isn't counted."
+            : `Other income and savings aren't counted. No bank balance from the last ${u.balanceMaxAgeDays} days is known: a bank SMS with "Avl Bal" or a statement adds one.`}
+        </p>
+        <SalaryConfirm />
       </details>
     </div>
   );
+}
+
+/** "confirmed" beside the salary line when the owner's stored salary was used (AOS-722); nothing when detected. */
+function SourceBadge({ s }: { s: SalaryOutlook }) {
+  const badge = salarySourceBadge(s.source);
+  return badge ? <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-accent">{badge}</span> : null;
 }

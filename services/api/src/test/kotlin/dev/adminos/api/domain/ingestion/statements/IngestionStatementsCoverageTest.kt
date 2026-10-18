@@ -40,7 +40,7 @@ class IngestionStatementsCoverageTest {
         }
     }
     private val events = InMemoryIngestEventRepository()
-    private val service = StatementImportService(parser, IngestEventService(events))
+    private val service = StatementImportService(parser, IngestEventService(events), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()))
     private val userId = UUID.randomUUID()
 
     private fun import(vararg rows: StatementRow, bank: String? = "hdfc"): StatementImportResult = runBlocking {
@@ -97,9 +97,9 @@ class IngestionStatementsCoverageTest {
     }
 
     @Test
-    fun `bank and balance are kept as metadata`() = runBlocking<Unit> {
+    fun `the bank is kept as metadata, the running balance is not (AOS-720)`() = runBlocking<Unit> {
         import(row("CHQ DEP", balance = "900.00"))
-        assertEquals(mapOf("bank" to "hdfc", "balance" to BigDecimal("900.00")), events.findByUser(userId).single().metadata)
+        assertEquals(mapOf("bank" to "hdfc"), events.findByUser(userId).single().metadata)
     }
 
     @Test

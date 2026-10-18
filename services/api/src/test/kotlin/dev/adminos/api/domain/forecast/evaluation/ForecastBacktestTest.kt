@@ -68,6 +68,14 @@ class ForecastBacktestTest {
     }
 
     @Test
+    fun `projected bills make the month-end no worse when a bill arrives a week before it is due`() {
+        val late = LateBillsBacktest.run()
+        println("Late bills (AOS-721): month-end MAPE ${late.mapeWithout}% without projection, ${late.mapeWith}% with (on the 10th ${late.mapeDay10Without}% vs ${late.mapeDay10With}%), ${late.forecasts} forecasts")
+        assertEquals(engine.forecasts, late.forecasts)
+        assertTrue(late.mapeWith <= late.mapeWithout, "MAPE ${late.mapeWith} with projected bills vs ${late.mapeWithout} without")
+    }
+
+    @Test
     fun `a missing baseline fails clearly`() {
         assertFailsWith<IllegalStateException> { ForecastBaseline.load("/forecast/missing.json") }
     }

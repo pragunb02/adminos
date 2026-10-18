@@ -41,7 +41,7 @@ class StatementRoutesTest {
         environment { config = MapApplicationConfig() }
         application {
             configureSerialization(); configureRequestId(); configureErrorHandling(); configureAuthentication(jwt)
-            routing { route("/api/v1") { statementRoutes(StatementImportService(parser, IngestEventService(InMemoryIngestEventRepository()))) } }
+            routing { route("/api/v1") { statementRoutes(StatementImportService(parser, IngestEventService(InMemoryIngestEventRepository()), dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()))) } }
         }
         block()
     }

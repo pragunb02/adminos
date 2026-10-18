@@ -33,7 +33,9 @@ data class RawSmsBatchResponse(
     val results: List<RawSmsResult>,
     val mandates: Int = 0,
     /** Unrecognised bank messages queued for the AI fallback; their answers wait in Review (AOS-705). */
-    val reading: Int = 0
+    val reading: Int = 0,
+    /** Messages that updated an account's latest balance (AOS-720); counted apart from their transaction status. */
+    val balances: Int = 0
 )
 
 private const val MAX_MESSAGES = 100
@@ -59,12 +61,15 @@ fun Route.rawSmsRoutes(intake: SmsIntake) {
             }
             if (request.messages.isEmpty() || request.messages.size > MAX_MESSAGES) bad("messages must contain 1..$MAX_MESSAGES items")
 
+            var balances = 0
             val results = request.messages.mapIndexed { i, m ->
                 if (m.text.length > MAX_TEXT || m.sender.length > 32) return@mapIndexed RawSmsResult(i, "ignored", "too long")
                 val receivedAt = runCatching { OffsetDateTime.parse(m.receivedAt).toInstant() }.getOrNull()
                     ?: runCatching { Instant.parse(m.receivedAt) }.getOrNull()
                     ?: return@mapIndexed RawSmsResult(i, "ignored", "receivedAt is not ISO-8601")
-                when (val r = intake.accept(userId, SmsMessage(m.sender, m.text, receivedAt))) {
+                val outcome = intake.receive(userId, SmsMessage(m.sender, m.text, receivedAt))
+                if (outcome.balanceNoted) balances++
+                when (val r = outcome.result) {
                     SmsIntakeResult.Accepted -> RawSmsResult(i, "accepted")
                     SmsIntakeResult.Duplicate -> RawSmsResult(i, "duplicate")
                     is SmsIntakeResult.Ignored -> RawSmsResult(i, "ignored", r.reason)
@@ -81,6 +86,7 @@ fun Route.rawSmsRoutes(intake: SmsIntake) {
                     mandates = results.count { it.status == "mandate" },
                     reading = results.count { it.status == "reading" },
                     ignored = results.count { it.status == "ignored" },
+                    balances = balances,
                     results = results
                 ), call.requestId))
         }

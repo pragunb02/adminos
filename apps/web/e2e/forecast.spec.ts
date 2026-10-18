@@ -9,11 +9,11 @@ const card = (page: Page) => page.getByRole("region", { name: "Month-end forecas
 test.describe("month-end forecast", () => {
   test("shows the forecast, its range and money left, and opens how it was worked out", async ({ signedIn: page }) => {
     await page.goto("/");
-    await expect(card(page).getByText("About ₹61,540.50", { exact: true })).toBeVisible();
+    await expect(card(page).getByText("About ₹63,680.50", { exact: true })).toBeVisible();
     await expect(card(page).getByText("Likely ₹57,200 to ₹66,900 (8 in 10, from your last 7 months)")).toBeVisible();
-    await expect(card(page).getByText("₹37,418.75 left from this salary")).toBeVisible();
+    await expect(card(page).getByText("₹35,278.75 left from this salary")).toBeVisible();
     await card(page).getByText("How we got this").first().click();
-    await expect(card(page).getByText("= About ₹61,540.50 by 31 Oct")).toBeVisible();
+    await expect(card(page).getByText("= About ₹63,680.50 by 31 Oct")).toBeVisible();
     await expectAccessible(page);
   });
 
@@ -60,7 +60,7 @@ test.describe("month-end forecast", () => {
 
   test("no token-like string reaches the DOM or storage", async ({ signedIn: page }) => {
     await page.goto("/");
-    await expect(card(page).getByText("About ₹61,540.50", { exact: true })).toBeVisible();
+    await expect(card(page).getByText("About ₹63,680.50", { exact: true })).toBeVisible();
     const seen = await page.evaluate(() => [document.documentElement.outerHTML, JSON.stringify(localStorage), JSON.stringify(sessionStorage)].join("\n"));
     expect(seen).not.toMatch(/eyJ[A-Za-z0-9_-]{10,}\./);
     expect(seen).not.toContain("e2e-session");

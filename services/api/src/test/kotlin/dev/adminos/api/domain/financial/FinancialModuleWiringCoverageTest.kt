@@ -74,7 +74,13 @@ class FinancialModuleWiringCoverageTest {
             dev.adminos.api.domain.financial.review.CategoryReviewService(transactions, get(),
                 dev.adminos.api.domain.financial.review.InMemoryGoldenCandidateRepository(), get())
         }
-        single { dev.adminos.api.domain.forecast.ForecastService(dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills), get(), subscriptions) }
+        single { dev.adminos.api.domain.balances.BalanceService(dev.adminos.api.domain.balances.InMemoryBalanceRepository()) }
+        single { dev.adminos.api.domain.forecast.ForecastService(dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills), get(), subscriptions, bills,
+            dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository(), get()) }
+        single {
+            dev.adminos.api.domain.forecast.SalaryChoiceService(dev.adminos.api.domain.forecast.InMemorySalaryChoiceRepository(),
+                dev.adminos.api.domain.forecast.InMemoryForecastHistoryRepository(transactions, bills))
+        }
         single {
             dev.adminos.api.domain.financial.grouping.MerchantGroupingService(transactions, dev.adminos.api.domain.financial.grouping.InMemoryMerchantAliasRepository(),
                 dev.adminos.api.domain.identity.UserCalendar(dev.adminos.api.domain.identity.InMemoryUserRepository()), get())
@@ -124,5 +130,6 @@ class FinancialModuleWiringCoverageTest {
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/splitwise/summary").first, "Splitwise (AOS-911)")
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/categories/review").first, "category questions (AOS-708)")
         assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/forecast").first)
+        assertEquals(HttpStatusCode.OK, getAs(token, "/api/v1/forecast/salary").first, "salary confirm/correct (AOS-722)")
     }
 }

@@ -200,4 +200,13 @@ class ForecastPartsTest {
         assertEquals(DayType.WEEKEND, DayType.of(d("2026-10-18")))
         assertEquals(DayType.WEEKDAY, DayType.of(d("2026-10-19")))
     }
+    @Test
+    fun `components without projected bills still list an empty projected part`() {
+        val fit = assertNotNullFit()
+        val parts = componentsFor(emptyList(), fit).map { it.estimate(DateRange(d("2026-10-21"), d("2026-10-31"))) }
+        assertEquals(DueSource.entries.size + 2, parts.size)
+        assertTrue(parts[DueSource.entries.size] is ProjectedBillsEstimate && parts[DueSource.entries.size].amount.signum() == 0)
+    }
+
+    private fun assertNotNullFit(): RunRateFit = kotlin.test.assertNotNull(RunRateModel.DEFAULT.fit(daily("2026-07-01", "2026-10-20", "300"), d("2026-10-20")))
 }

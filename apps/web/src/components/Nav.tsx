@@ -18,6 +18,9 @@ export const DESTINATIONS = [
 /** What lives under More (expanded in the desktop rail). */
 export const MORE_LINKS = [
   { href: "/leaks", label: "Where it leaks" },
+  // Wealth sits under More for now (AOS-820; D-49 keeps 5 tabs). Pragun hasn't chosen its final place.
+  { href: "/wealth", label: "Wealth" },
+  { href: "/balances", label: "Bank balances" },
   { href: "/ask", label: "Ask your money" },
   { href: "/import", label: "Import statement" },
   { href: "/bills", label: "Bills" },

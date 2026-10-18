@@ -186,4 +186,118 @@ class MonthEndForecasterTest {
         assertNull(EmpiricalInterval.remainingOf(d("2026-02-28")))
         assertNull(EmpiricalInterval.remainingOf(d("2028-02-29")))
     }
+    // ── Projected monthly bills (AOS-721) ──
+
+    private fun projected(on: String, amount: String = "1200", name: String = "Sample Power") =
+        ProjectedBill(dev.adminos.api.domain.financial.BillType.ELECTRICITY, name, java.time.YearMonth.from(d(on)), d(on), inr(amount),
+            monthsSeen = 3, seenFrom = java.time.YearMonth.of(2026, 7), seenTo = java.time.YearMonth.of(2026, 9))
+
+    private fun projectedPart(parts: List<ComponentEstimate>) = parts.filterIsInstance<ProjectedBillsEstimate>().single()
+
+    @Test
+    fun `a projected bill later this month adds to the month-end as its own part`() {
+        val bill = projected("2026-10-26")
+        val f = ready(ForecastInput(d("2026-10-20"), history("2026-05-01", "2026-10-20"), emptyList(), emptyList(), projectedBills = listOf(bill))).monthEnd
+        assertEquals(listOf(bill), projectedPart(f.parts).items)
+        // 25,800 spent + 1,200 projected + 4,200 everyday.
+        assertEquals(inr("31200.00"), f.total)
+    }
+
+    @Test
+    fun `projected bills come after the due sources and before everyday spending`() {
+        val f = ready(ForecastInput(d("2026-10-20"), history("2026-05-01", "2026-10-20"), emptyList(), emptyList(), projectedBills = listOf(projected("2026-10-26")))).monthEnd
+        assertTrue(f.parts.dropLast(2).all { it is ComponentEstimate.Dues })
+        assertIs<ProjectedBillsEstimate>(f.parts[f.parts.size - 2])
+        assertIs<ComponentEstimate.RunRate>(f.parts.last())
+    }
+
+    @Test
+    fun `a projected bill due today or earlier is not counted`() {
+        val f = ready(ForecastInput(d("2026-10-20"), history("2026-05-01", "2026-10-20"), emptyList(), emptyList(),
+            projectedBills = listOf(projected("2026-10-20"), projected("2026-10-12")))).monthEnd
+        assertTrue(projectedPart(f.parts).items.isEmpty())
+        assertEquals(inr("30000.00"), f.total)
+    }
+
+    @Test
+    fun `a projected bill next month is outside the month-end`() {
+        val f = ready(ForecastInput(d("2026-10-20"), history("2026-05-01", "2026-10-20"), emptyList(), emptyList(), projectedBills = listOf(projected("2026-11-03")))).monthEnd
+        assertEquals(0, projectedPart(f.parts).amount.signum())
+    }
+
+    @Test
+    fun `a projected bill before payday is taken from the money left`() {
+        val withBill = ready(ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), salaries, projectedBills = listOf(projected("2026-10-26"))))
+        val without = ready(ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), salaries))
+        val u = assertIs<SalaryOutlook.Expected>(withBill.salary).untilSalary
+        assertEquals(listOf("Sample Power"), projectedPart(u.parts).items.map { it.name })
+        assertEquals(assertIs<SalaryOutlook.Expected>(without.salary).untilSalary.left - inr("1200"), u.left)
+    }
+
+    @Test
+    fun `a projected bill after the month's end but before payday counts only until salary`() {
+        val onFifth = listOf("2026-06-05", "2026-07-05", "2026-08-05", "2026-09-05", "2026-10-05").map { IncomeCredit(d(it), "ACME", inr("85000")) }
+        val f = ready(ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), onFifth, projectedBills = listOf(projected("2026-11-03"))))
+        val u = assertIs<SalaryOutlook.Expected>(f.salary).untilSalary
+        assertEquals(DateRange(d("2026-10-21"), d("2026-11-04")), u.window)
+        assertEquals(inr("1200"), projectedPart(u.parts).amount)
+        assertEquals(0, projectedPart(f.monthEnd.parts).amount.signum())
+    }
+
+    @Test
+    fun `a projected bill after payday is not taken from the money left`() {
+        val f = ready(ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), salaries, projectedBills = listOf(projected("2026-11-03"))))
+        assertEquals(0, projectedPart(assertIs<SalaryOutlook.Expected>(f.salary).untilSalary.parts).amount.signum())
+    }
+
+    @Test
+    fun `a projected bill moves the range like a known due without widening it`() {
+        val base = ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), emptyList())
+        val without = assertNotNull(ready(base).monthEnd.range)
+        val with = assertNotNull(ready(base.copy(projectedBills = listOf(projected("2026-10-26")))).monthEnd.range)
+        assertEquals(without.low + inr("1200"), with.low)
+        assertEquals(without.high + inr("1200"), with.high)
+    }
+    // ── The owner's salary choice (AOS-722) ──
+
+    private fun choice(payer: String?, day: Int, amount: String = "85000") =
+        SalaryChoice(payer, day, inr(amount), SalaryChoiceKind.CORRECTED, java.time.Instant.parse("2026-10-18T05:00:00Z"))
+
+    private fun outlook(credits: List<IncomeCredit>, choice: SalaryChoice?) =
+        ready(ForecastInput(d("2026-10-20"), history("2026-01-01", "2026-10-20"), emptyList(), credits, salaryChoice = choice)).salary
+
+    @Test
+    fun `a corrected salary day moves the next payday and the until-salary window`() {
+        val u = assertIs<SalaryOutlook.Expected>(outlook(salaries, choice("ACME", 5))).untilSalary
+        assertEquals(d("2026-11-05"), u.salary.expectedOn)
+        assertEquals(5, u.salary.usualDay)
+        assertEquals(SalarySource.CONFIRMED, u.salary.source)
+        assertEquals(DateRange(d("2026-10-21"), d("2026-11-04")), u.window)
+    }
+
+    @Test
+    fun `a corrected payer picks that payer's credits over a larger salary from someone else`() {
+        val side = listOf("2026-06-10", "2026-07-10", "2026-08-10", "2026-09-10", "2026-10-09").map { IncomeCredit(d(it), "Side Studio", inr("30000")) }
+        assertEquals("ACME", assertIs<SalaryOutlook.Expected>(outlook(salaries + side, null)).untilSalary.salary.payer)
+        val s = assertIs<SalaryOutlook.Expected>(outlook(salaries + side, choice("Side Studio", 10, "30000"))).untilSalary.salary
+        assertEquals("Side Studio", s.payer)
+        assertEquals(d("2026-10-09"), s.lastReceivedOn)
+        assertEquals(d("2026-11-10"), s.expectedOn)
+        assertEquals(inr("30000.00"), s.lastAmount.setScale(2))
+    }
+
+    @Test
+    fun `a confirmed payer not seen in the credits is unknown and says it came from the choice`() {
+        val u = assertIs<SalaryOutlook.Unknown>(outlook(salaries, choice("Nobody Ltd", 1)))
+        assertEquals(NoSalaryReason.NOT_SEEN, u.reason)
+        assertTrue(u.chosen)
+    }
+
+    @Test
+    fun `without a choice the salary is detected as before`() {
+        val s = assertIs<SalaryOutlook.Expected>(outlook(salaries, null)).untilSalary.salary
+        assertEquals(SalarySource.DETECTED, s.source)
+        assertEquals(d("2026-11-01"), s.expectedOn)
+        assertEquals(false, assertIs<SalaryOutlook.Unknown>(outlook(emptyList(), null)).chosen)
+    }
 }
