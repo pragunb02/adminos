@@ -40,7 +40,8 @@ func main() {
 		log.Fatalf("Refusing to start: %v", err)
 	}
 	log.Printf("Redis: %s (password set)", redisConn.Addr())
-	log.Printf("Database: %s", maskPassword(cfg.DatabaseURL))
+	// Only host:port/database is logged, never the user name, password or parameters (AOS-637).
+	log.Printf("Database: %s", config.DatabaseTarget(cfg.DatabaseURL))
 
 	// Initialize pgx connection pool (nil if DATABASE_URL is empty)
 	var db *pgxpool.Pool
@@ -48,7 +49,9 @@ func main() {
 		var err error
 		db, err = pgxpool.New(context.Background(), cfg.DatabaseURL)
 		if err != nil {
-			log.Printf("WARNING: Failed to connect to database: %v — running in degraded mode", err)
+			// Not the error itself: pgx quotes the connection string in it, user name included (AOS-637).
+			log.Printf("WARNING: Could not set up the database pool for %s — running in degraded mode",
+				config.DatabaseTarget(cfg.DatabaseURL))
 		} else {
 			log.Printf("Database connection pool initialized")
 		}
@@ -217,11 +220,4 @@ func bridgeKotlinJobs(ctx context.Context, rdb *redis.Client, client *asynq.Clie
 
 		log.Printf("[bridge] Enqueued %s → asynq (id=%s, queue=%s)", msg.Type, info.ID, info.Queue)
 	}
-}
-
-func maskPassword(url string) string {
-	if len(url) > 20 {
-		return url[:20] + "***"
-	}
-	return "***"
 }

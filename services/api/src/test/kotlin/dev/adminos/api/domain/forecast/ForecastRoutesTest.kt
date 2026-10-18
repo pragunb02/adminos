@@ -36,7 +36,7 @@ import kotlin.test.assertTrue
 /** GET /api/v1/forecast (AOS-714). */
 class ForecastRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-714", timezone = "Asia/Kolkata")
+    private val user = User(id = UUID.randomUUID(), email = "pragun@example.com", googleId = "g-714", timezone = "Asia/Kolkata")
     private val jwt = jwtService.generateAccessToken(user)
     private val transactions = InMemoryTransactionRepository()
     private val bills = InMemoryBillRepository()
@@ -115,7 +115,7 @@ class ForecastRoutesTest {
 
     @Test
     fun `another user's money never reaches my forecast`() = routeTest {
-        val other = User(id = UUID.randomUUID(), email = "other@example.in", googleId = "g-715", timezone = "Asia/Kolkata")
+        val other = User(id = UUID.randomUUID(), email = "other@example.com", googleId = "g-715", timezone = "Asia/Kolkata")
         runBlocking {
             var day = LocalDate.of(2026, 6, 1)
             while (!day.isAfter(LocalDate.of(2026, 10, 20))) {

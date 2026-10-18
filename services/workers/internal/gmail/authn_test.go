@@ -73,7 +73,7 @@ func TestQualifyRejectsSpoofedBankSenders(t *testing.T) {
 
 func TestQualifyNeverAdmitsByDisplayNameSubjectOrMalformedFrom(t *testing.T) {
 	cases := map[string][]MessageHeader{
-		"a stranger with a bank-alert subject": {gmailAR("dmarc=pass header.from=gmail.com"), from("Ravi <ravi@gmail.com>"),
+		"a stranger with a bank-alert subject": {gmailAR("dmarc=pass header.from=example.com"), from("Ravi <ravi@example.com>"),
 			{Name: "Subject", Value: "Transaction alert: Rs 500 has been debited"}},
 		"bank name only in the display name": {gmailAR("dmarc=pass header.from=evil.example"), from(`"alerts@hdfcbank.net" <x@evil.example>`)},
 		"two From headers":                   {gmailAR(dmarcPassHDFC), from(hdfcFrom), from("x@evil.example")},
@@ -127,6 +127,30 @@ func TestQualifyReceiptSenders(t *testing.T) {
 		{"authenticated promotion", []MessageHeader{gmailAR("dmarc=pass header.from=swiggy.in"), swiggy, promo}, NotBankMail},
 		{"no subject", []MessageHeader{gmailAR("dmarc=pass header.from=swiggy.in"), swiggy}, NotBankMail},
 		{"order words from an unlisted sender", []MessageHeader{gmailAR("dmarc=pass header.from=evil.example"), from("x@evil.example"), order}, NotBankMail},
+	}
+	for _, c := range cases {
+		if got := Qualify(c.headers); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// AOS-910 with AOS-624: a travel booking is read only when Gmail authenticated the booking sender, and
+// a booking sender's promotion is not a candidate at all.
+func TestQualifyBookingSenders(t *testing.T) {
+	indigo := from("IndiGo <noreply@goindigo.in>")
+	booking := MessageHeader{Name: "Subject", Value: "Your IndiGo booking is confirmed. PNR AB12CD"}
+	promo := MessageHeader{Name: "Subject", Value: "Fly more this festive season"}
+	cases := []struct {
+		name    string
+		headers []MessageHeader
+		want    Verdict
+	}{
+		{"authenticated booking", []MessageHeader{gmailAR("dmarc=pass header.from=goindigo.in"), indigo, booking}, BankMail},
+		{"spoofed booking", []MessageHeader{gmailAR("dmarc=fail header.from=goindigo.in", "spf=pass smtp.mailfrom=x@evil.example"), indigo, booking}, Unauthenticated},
+		{"booking signed by another domain", []MessageHeader{gmailAR("dkim=pass header.d=evil.example"), indigo, booking}, Unauthenticated},
+		{"authenticated promotion", []MessageHeader{gmailAR("dmarc=pass header.from=goindigo.in"), indigo, promo}, NotBankMail},
+		{"look-alike domain", []MessageHeader{gmailAR("dmarc=pass header.from=goindigo.in.evil.example"), from("x@goindigo.in.evil.example"), booking}, NotBankMail},
 	}
 	for _, c := range cases {
 		if got := Qualify(c.headers); got != c.want {

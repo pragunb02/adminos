@@ -166,6 +166,11 @@ _Board generated 2026-10-16. When a ticket changes, update the ticket file **and
 | └ [AOS-623](tickets/AOS-623.md) | Self pen-test before go-live: ZAP baseline + scripted probes + manual checklist; findings fixed or accepted (D-150, D-151) | Claude | ✅ | 4h | 4h |
 | └ [AOS-643](tickets/AOS-643.md) | Web: TRACE and other unsupported methods → 500 (accepted until the edge filters methods, D-151) | Claude | ✅ | — | — |
 | └ [AOS-644](tickets/AOS-644.md) | Web: 404 pages under /favicon.ico had no CSP (fixed) | Claude | ✅ | 0.25h | 0.25h |
+| └ [AOS-638](tickets/AOS-638.md) | Bill dates follow the user's calendar on an injected clock; unused Redis config removed (D-123) | Claude (agent) | ✅ | 2h | 2h |
+| └ [AOS-637](tickets/AOS-637.md) | Worker logs the database as host:port/database only (no user info, no pgx error text) | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-636](tickets/AOS-636.md) | Test fixtures use reserved, obviously fake personal data + guard test | Claude (agent) | ✅ | 1h | 1h |
+| └ [AOS-642](tickets/AOS-642.md) | Web tests: 5 s async timeout and real timers after each test (findBy flake under load) | Claude | ✅ | 0.5h | 0.5h |
+| └ [AOS-640](tickets/AOS-640.md) | Playwright in GitHub CI as the required `e2e` check (all projects, cached browsers, per-run secret, report on failure) | Claude (agent) | 🟨 | 1h | 1h |
 | └ [AOS-630](tickets/AOS-630.md) | Gmail webhook: debounce pushes per connection; replay can't multiply syncs (AUD-27) (D-114) | Claude (agent) | ✅ | 1h | 1.5h |
 | └ [AOS-629](tickets/AOS-629.md) | `ConnectionService` requires a `TokenEncryptor` (no plaintext path) (AUD-25) | Claude (agent) | ✅ | 0.5h | 0.5h |
 | └ [AOS-628](tickets/AOS-628.md) | Logging hygiene: no query strings in request logs, placeholders, no SQL parameters in logs (AUD-24) | Claude (agent) | ✅ | 1h | 1h |
@@ -201,8 +206,8 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ [AOS-703](tickets/AOS-703.md) | Local models: opt-in Ollama profile (loopback), bake-off through the AI port; qwen3:4b recommended (D-69) | Claude (agent) | ✅ | 3h | 3h |
 | └ [AOS-704](tickets/AOS-704.md) | Per-feature AI consent (off by default, enforced in the gateway); Settings → AI features notice; same-origin guard (D-70) | Claude (agent) | ✅ | 3h | 3h |
 | **[AOS-S7.2](tickets/AOS-S7.2.md)** | **Smarter data in** | | 🟦 | 30h | |
-| └ AOS-705 | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ⬜ | 8h |  |
-| └ AOS-706 | Template learning from repeated message shapes, human-approved | Claude | ⬜ | 8h |  |
+| └ [AOS-705](tickets/AOS-705.md) | Message-reading fallback (SMS/Gmail/WhatsApp, Gmail bills) with grounding checks | Claude | ✅ | 8h | 7h |
+| └ [AOS-706](tickets/AOS-706.md) | Template learning from repeated message shapes, human-approved | Claude | ✅ | 8h | 4h |
 | └ [AOS-707](tickets/AOS-707.md) | Local learned categoriser (TF-IDF + logistic regression, calibrated), nightly retrain | Claude (agent) | ✅ | 8h | 7h |
 | **[AOS-S7.3](tickets/AOS-S7.3.md)** | **Ask your money** | | ✅ | 18h | 13h |
 | └ [AOS-708](tickets/AOS-708.md) | Review queue with active learning; golden set grows from scrubbed corrections | Claude (agent) | ✅ | 6h | 5.5h |
@@ -210,12 +215,15 @@ Research and roadmap: [`docs/research/AI-ML-RESEARCH.md`](research/AI-ML-RESEARC
 | └ [AOS-710](tickets/AOS-710.md) | Ask API: read-only analytics tools, period resolver, number check, cap | Claude | ✅ | 10h | 5h |
 | └ [AOS-711](tickets/AOS-711.md) | Ask web sheet: suggestions, answer, "How I got this", feedback | Claude | ✅ | 4h | 4h |
 | **[AOS-S7.4](tickets/AOS-S7.4.md)** | **Smarter alerts and planning** | | 🟦 | 21h | |
+| └ [AOS-720](tickets/AOS-720.md) | Latest balance per account, for money left until salary | Claude | ⬜ | 4h |  |
+| └ [AOS-721](tickets/AOS-721.md) | Forecast: ProjectedBillsComponent for monthly bills not yet arrived | Claude | ⬜ | 3h |  |
+| └ [AOS-722](tickets/AOS-722.md) | Confirm or correct the detected salary | Claude | ⬜ | 3h |  |
 | └ [AOS-714](tickets/AOS-714.md) | Month-end forecast + money left until salary | Claude (agent) | ✅ | 8h | 9h |
 | └ [AOS-713](tickets/AOS-713.md) | Robust anomaly baselines (median/MAD per merchant) + learning from dismissals | Claude (agent) | ✅ | 6h | 5h |
 | └ [AOS-709](tickets/AOS-709.md) | Fuzzy merchant grouping for subscriptions, merges via Review | Claude (agent) | ✅ | 5h | 5h |
 | └ [AOS-715](tickets/AOS-715.md) | Subscription price-rise alert | Claude (agent) | ✅ | 2h | 1.5h |
 | **[AOS-S7.5](tickets/AOS-S7.5.md)** | **Convenience** | | 🟦 | 27h | |
-| └ AOS-716 | Briefing narration with a number check (falls back to the template) | Claude | ⬜ | 4h |  |
+| └ [AOS-716](tickets/AOS-716.md) | Briefing narration with a number check (falls back to the template) | Claude (agent) | 🟨 | 4h | 5h |
 | └ AOS-717 | Documents vault OCR + field proposals, local-first | Claude | ⬜ | 10h |  |
 | └ [AOS-718](tickets/AOS-718.md) | Cash quick-add from free text or dictation | Claude (agent) | ✅ | 5h | 6h |
 | └ AOS-719 | Receipt photo → matched to the card/UPI debit | Claude | ⬜ | 8h |  |
@@ -230,16 +238,18 @@ Step one of the north star "spend less → save more → invest well" (D-80). Pr
 | └ [AOS-901](tickets/AOS-901.md) | Habit lenses as data, settle-ups excluded, per-merchant overrides; +37 catalogue brands (D-81) | Claude (agent) | ✅ | — | — |
 | └ [AOS-902](tickets/AOS-902.md) | Leaks API + "Where it leaks" page: spend, order count, average order, late-night share, trend vs last month, per lens and merchant | Claude | ✅ | 6h |  |
 | └ [AOS-903](tickets/AOS-903.md) | Order-receipt emails (quick-commerce, food delivery, e-commerce): fees and item counts from Gmail, matched to the payment; hidden fees per app (D-88) | Claude (agent) | ✅ | 8h | 6h |
-| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ⬜ | 12h | |
+| **[AOS-S9.2](tickets/AOS-S9.2.md)** | **Limits and nudges** | | ✅ | 12h | |
+| └ [AOS-912](tickets/AOS-912.md) | Pay-later lens counts pay-later purchases (payment method), never provider repayments (D-81, D-89) | Claude (agent) | ✅ | 1h | 1h |
 | └ [AOS-904](tickets/AOS-904.md) | Limits per lens, merchant or category (monthly/weekly), pushes at 50/80/100%, once per threshold per period | Claude | ✅ | 5h |  |
-| └ AOS-905 | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ⬜ | 3h |  |
-| └ AOS-906 | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ⬜ | 4h |  |
-| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ⬜ | 9h | |
-| └ AOS-907 | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ⬜ | 5h |  |
-| └ AOS-908 | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ⬜ | 4h |  |
-| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | ⬜ | 8h | |
-| └ AOS-909 | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders | Claude | ⬜ | 3h |  |
-| └ AOS-910 | Trips: group travel bookings and the spends around them into one trip, with its total cost | Claude | ⬜ | 5h |  |
+| └ [AOS-905](tickets/AOS-905.md) | Evening digest push: today's spend, top leaks, limit status (time configurable; silent on a zero day if wanted) | Claude | ✅ | 3h |  |
+| └ [AOS-906](tickets/AOS-906.md) | Sunday report card: week vs usual, best and worst lens, one concrete suggestion (deterministic, D-57) | Claude | ✅ | 4h |  |
+| **[AOS-S9.3](tickets/AOS-S9.3.md)** | **Goals and savings rate** | | ✅ | 9h | |
+| └ [AOS-907](tickets/AOS-907.md) | Goals (cut a lens by X%, or keep under ₹Y) with weekly progress and no-spend-day streaks | Claude | ✅ | 5h |  |
+| └ [AOS-908](tickets/AOS-908.md) | Savings rate as the headline metric (income − spend) / income, monthly trend; "what this could become": monthly leak as a future SIP value with explicit assumptions | Claude | ✅ | 4h |  |
+| └ [AOS-911](tickets/AOS-911.md) | Splitwise import: count only my share of shared bills; settle-ups are neither spending nor income (D-111) | Claude (agent) | 🟦 | 8h | 8h |
+| **[AOS-S9.4](tickets/AOS-S9.4.md)** | **Pay-later and trips** | | 🟦 | 8h | |
+| └ [AOS-909](tickets/AOS-909.md) | Pay-later (BNPL) bills and dues from SMS/email into the dues calendar and reminders; repayments are transfers that pay the bill; gaps in Review (D-89) | Claude (agent) | ✅ | 3h | — |
+| └ [AOS-910](tickets/AOS-910.md) | Trips: group travel bookings and the spends around them into one trip, with its total cost; editable; measured rule with a baseline (D-90) | Claude (agent) | ✅ | 5h | — |
 | └ [AOS-911](tickets/AOS-911.md) | Splitwise import: count only my share of shared bills; settle-ups are neither spending nor income (D-111) | Claude (agent) | ✅ | 8h | 8h |
 
 ## 🟦 [AOS-E8](tickets/AOS-E8.md) — Wealth · P1 · ETA 128h

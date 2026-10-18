@@ -3,6 +3,7 @@ import { test as base, type Page } from "@playwright/test";
 import { E2E_JWT_SECRET } from "../playwright.config";
 import { expect, test } from "./support/fixtures";
 import { signAccessToken, signIn, tamper } from "./support/session";
+import { fx } from "../test/fixtures";
 
 /**
  * Attack specs (AOS-619, D-91, D-100 §4a). The reviewer runs these before every merge.
@@ -16,6 +17,7 @@ import { signAccessToken, signIn, tamper } from "./support/session";
 export const PAGES = [
   "/", "/spending", "/spending/category/food", "/transactions", "/review", "/more", "/import", "/bills", "/subscriptions",
   "/documents", "/briefings", "/leaks", "/ask", "/settings", "/settings/security", "/auth/passkey", "/onboarding", "/anomalies/an-1", "/connections/gmail/callback?code=x&state=y",
+  "/trips", "/trips/trip-1",
 ];
 
 /** Paths that only *look* like public pages (AUD-13: the guard used to prefix-match). */
@@ -96,6 +98,21 @@ test.describe("Settings → Security (mocked)", () => {
     await page.getByRole("button", { name: "Sign out everywhere", exact: true }).click();
     await expect.poll(() => api.callsTo("POST", "/api/v1/auth/sessions/revoke-all").length).toBe(1);
     await expect(page).toHaveURL(/\/login$/);
+  });
+});
+
+test.describe("Briefings → AI wording (mocked, AOS-716)", () => {
+  mockedOnly();
+
+  test("an AI wording renders as text, is marked, and the plain numbers are one click away", async ({ signedIn: page, api }) => {
+    const hostile = "<img src=x onerror=alert(1)> You spent ₹18,000 this week.";
+    api.on("GET /api/v1/briefings/latest", () => ({ data: fx.briefing({ narration: hostile, narrationModel: "claude-haiku-5-5", narrationStatus: "narrated" }) }));
+    await page.goto("/briefings");
+    await expect(page.getByText(hostile)).toBeVisible();
+    await expect(page.getByText("Worded by AI")).toBeVisible();
+    expect(await page.getByTestId("briefing-text").locator("img").count()).toBe(0);
+    await page.getByRole("button", { name: "Show the plain numbers" }).click();
+    await expect(page.getByTestId("briefing-text")).toHaveText("You spent ₹18,000 this week.");
   });
 });
 
@@ -249,9 +266,22 @@ test.describe("API hardening (real API)", () => {
   });
 
   test("sign-in starts at the API with a state and PKCE, and a forged state never reaches Google", async ({ page }) => {
+    test.setTimeout(120_000);
     await page.route("https://accounts.google.com/**", (r) => r.fulfill({ status: 200, body: "google" }));
     await page.goto("/login");
-    await page.getByRole("button", { name: "Continue with Google" }).click();
+    // The API allows 10 calls a minute to /auth per client (AOS-618), and every full-stack test is the same client
+    // (127.0.0.1): the forged-session tests above each try a refresh. If they used this minute up, wait it out as a
+    // person would, then start again; any other refusal still fails here.
+    const start = async () => (await Promise.all([
+      page.waitForResponse((r) => r.url().includes("/api/v1/auth/google/start")),
+      page.getByRole("button", { name: "Continue with Google" }).click(),
+    ]))[0];
+    let res = await start();
+    if (res.status() === 429) {
+      await page.waitForTimeout((Number(res.headers()["retry-after"] ?? "60") + 1) * 1000);
+      res = await start();
+    }
+    expect(res.status()).toBe(200);
     await expect(page).toHaveURL(/accounts\.google\.com/);
     const q = new URL(page.url()).searchParams;
     expect(q.get("state")?.length).toBeGreaterThanOrEqual(43);

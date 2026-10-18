@@ -33,6 +33,8 @@ interface BriefingRepository {
         limit: Int = 20
     ): List<Briefing>
     suspend fun countByUserId(userId: UUID): Long
+    /** Stores [narration] on the briefing [id] (AOS-716). */
+    suspend fun updateNarration(id: UUID, narration: BriefingNarration, at: java.time.Instant)
 }
 
 // ── Insight Repository ──

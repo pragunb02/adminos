@@ -62,7 +62,14 @@ data class BriefingResponse(
     val billsUpcoming: Int,
     val status: String,
     val insights: List<InsightResponse>? = null,
-    val createdAt: String
+    val createdAt: String,
+    /**
+     * The AI wording (AOS-716), only when it passed the number check; [content] is always the template (the plain
+     * numbers). [narrationStatus] is `none`, `narrated`, `rejected` (it failed the check) or `unavailable`.
+     */
+    val narration: String?,
+    val narrationModel: String?,
+    val narrationStatus: String
 ) {
     companion object {
         fun from(b: Briefing, insights: List<Insight>? = null) = BriefingResponse(
@@ -79,7 +86,15 @@ data class BriefingResponse(
             billsUpcoming = b.billsUpcoming,
             status = b.status.name.lowercase(),
             insights = insights?.map { InsightResponse.from(it) },
-            createdAt = b.createdAt.toString()
+            createdAt = b.createdAt.toString(),
+            narration = (b.narration as? BriefingNarration.Narrated)?.text,
+            narrationModel = (b.narration as? BriefingNarration.Narrated)?.model,
+            narrationStatus = when (b.narration) {
+                BriefingNarration.None -> "none"
+                is BriefingNarration.Narrated -> "narrated"
+                is BriefingNarration.Rejected -> "rejected"
+                is BriefingNarration.Unavailable -> "unavailable"
+            }
         )
     }
 }

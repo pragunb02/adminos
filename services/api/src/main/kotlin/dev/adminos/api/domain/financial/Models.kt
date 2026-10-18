@@ -9,7 +9,8 @@ import java.util.UUID
 // ── Enums ──
 
 enum class TransactionType { DEBIT, CREDIT, TRANSFER, REFUND, REVERSAL }
-enum class PaymentMethod { UPI, CARD_DEBIT, CARD_CREDIT, NETBANKING, CASH, WALLET }
+/** How money left; PAY_LATER is a BNPL purchase, repaid later from the bank (AOS-909, V39). */
+enum class PaymentMethod { UPI, CARD_DEBIT, CARD_CREDIT, NETBANKING, CASH, WALLET, PAY_LATER }
 enum class TransactionCategory {
     FOOD, TRANSPORT, SHOPPING, UTILITIES, EMI, SUBSCRIPTION,
     ENTERTAINMENT, HEALTH, EDUCATION, TRANSFER, OTHER
@@ -17,8 +18,9 @@ enum class TransactionCategory {
 /**
  * What a transaction is for the totals (D-39), independent of debit/credit. A [SETTLEMENT] is money paid to or
  * received from a friend to settle a shared bill (AOS-911, D-111): like a transfer, it is neither spending nor income.
+ * `INVESTMENT` (AOS-815, D-79) is a kind of transfer too: money to or from the owner's investments, neither spent nor received.
  */
-enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL, SETTLEMENT;
+enum class TransactionNature { SPEND, INCOME, TRANSFER, REFUND, REVERSAL, SETTLEMENT, INVESTMENT;
     companion object {
         fun defaultFor(type: TransactionType) = when (type) {
             TransactionType.CREDIT -> INCOME
@@ -48,7 +50,9 @@ enum class SubscriptionCategory {
 }
 enum class UsageStatus { ACTIVE, UNUSED, UNKNOWN }
 enum class BillType {
-    CREDIT_CARD, ELECTRICITY, INTERNET, MOBILE, RENT, INSURANCE, EMI, WATER, GAS, OTHER
+    CREDIT_CARD, ELECTRICITY, INTERNET, MOBILE, RENT, INSURANCE, EMI, WATER, GAS, OTHER,
+    /** A pay-later provider's bill (AOS-909, V39). */
+    PAY_LATER
 }
 enum class BillStatus { UPCOMING, DUE, OVERDUE, PAID, CANCELLED }
 

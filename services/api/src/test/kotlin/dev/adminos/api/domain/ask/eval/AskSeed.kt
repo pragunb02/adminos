@@ -126,7 +126,7 @@ object AskSeed {
         Transaction(
             userId = user, nature = nature, category = category, merchantName = merchant, amount = BigDecimal(amount),
             type = when (nature) {
-                SPEND, TransactionNature.TRANSFER, TransactionNature.SETTLEMENT -> TransactionType.DEBIT
+                SPEND, TransactionNature.TRANSFER, TransactionNature.SETTLEMENT, TransactionNature.INVESTMENT -> TransactionType.DEBIT
                 INCOME, REFUND -> TransactionType.CREDIT
                 REVERSAL -> TransactionType.REVERSAL
             },

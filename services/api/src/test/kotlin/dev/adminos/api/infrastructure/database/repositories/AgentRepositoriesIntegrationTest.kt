@@ -4,7 +4,12 @@ import dev.adminos.api.domain.agent.*
 import dev.adminos.api.domain.financial.Transaction
 import dev.adminos.api.domain.financial.TransactionType
 import dev.adminos.api.infrastructure.database.PostgresTestDatabase
+import dev.adminos.api.infrastructure.database.dbQuery
+import dev.adminos.api.infrastructure.database.tables.BriefingsTable
 import kotlinx.coroutines.runBlocking
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -14,6 +19,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 @Tag("integration")
@@ -44,6 +50,45 @@ class AgentRepositoriesIntegrationTest {
         assertEquals("4100.50", found?.contentStructured?.get("spent"))
         assertEquals(null, repo.findByUserAndPeriod(userId, week.plusWeeks(1), BriefingType.WEEKLY))
         assertEquals(null, repo.findByUserAndPeriod(userId, week, BriefingType.MONTHLY))
+    }
+
+    @Test
+    fun `a briefing's narration round-trips every outcome, and the template stays (AOS-716)`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val week = java.time.LocalDate.of(2026, 10, 5)
+        val saved = briefings.save(Briefing(userId = userId, periodStart = week, periodEnd = week.plusDays(6), content = "Last week you spent ₹4,100.50.",
+            modelUsed = "deterministic", promptVersion = "weekly-v1", tokensUsed = 0))
+        assertEquals(BriefingNarration.None, briefings.findById(saved.id)?.narration)
+        val outcomes = listOf(
+            BriefingNarration.Narrated("You spent ₹4,100.50 last week.", "claude-haiku-5-5"),
+            BriefingNarration.Rejected(dev.adminos.api.domain.ai.AiReasonCode("ungrounded_number")),
+            BriefingNarration.Unavailable(dev.adminos.api.domain.ai.AiReasonCode("cap_reached")),
+            BriefingNarration.None
+        )
+        for (n in outcomes) {
+            val at = Instant.parse("2026-10-12T03:31:00Z")
+            briefings.updateNarration(saved.id, n, at)
+            val found = assertNotNull(briefings.findById(saved.id))
+            assertEquals(n, found.narration)
+            assertEquals("Last week you spent ₹4,100.50.", found.content)
+            assertEquals(at, found.updatedAt)
+        }
+        val narrated = briefings.save(Briefing(userId = userId, periodStart = week.plusWeeks(1), periodEnd = week.plusWeeks(1).plusDays(6), content = "t",
+            modelUsed = "deterministic", promptVersion = "weekly-v1", tokensUsed = 0, narration = outcomes.first()))
+        assertEquals(outcomes.first(), briefings.findById(narrated.id)?.narration, "saved with a narration too")
+    }
+
+    @Test
+    fun `the database refuses a narration that breaks its shape (V90)`() = runBlocking<Unit> {
+        val userId = PostgresTestDatabase.newUser()
+        val b = briefings.save(Briefing(userId = userId, periodStart = java.time.LocalDate.of(2026, 9, 7), periodEnd = java.time.LocalDate.of(2026, 9, 13),
+            content = "t", modelUsed = "deterministic", promptVersion = "weekly-v1", tokensUsed = 0))
+        val tooLong = BriefingNarration.Narrated("x".repeat(901), "claude-haiku-5-5")
+        assertFailsWith<ExposedSQLException> { briefings.updateNarration(b.id, tooLong, Instant.now()) }
+        assertFailsWith<ExposedSQLException> {
+            dbQuery { BriefingsTable.update({ BriefingsTable.id eq b.id }) { it[BriefingsTable.narrationStatus] = "narrated" } }
+        }
+        assertEquals(BriefingNarration.None, briefings.findById(b.id)?.narration)
     }
 
     @Test

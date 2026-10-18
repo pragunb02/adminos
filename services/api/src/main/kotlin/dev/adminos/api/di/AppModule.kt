@@ -34,7 +34,19 @@ import dev.adminos.api.domain.financial.links.TransactionLinkRepository
 import dev.adminos.api.domain.financial.links.TransactionMatcher
 import dev.adminos.api.domain.financial.links.SuggestionService
 import dev.adminos.api.infrastructure.database.repositories.ExposedTransactionLinkRepository
+import dev.adminos.api.domain.ingestion.fallback.InMemoryMessageProposalRepository
+import dev.adminos.api.domain.ingestion.fallback.MessageFallback
+import dev.adminos.api.domain.ingestion.fallback.MessageProposalRepository
+import dev.adminos.api.domain.ingestion.fallback.MessageReviewService
+import dev.adminos.api.domain.ingestion.fallback.UnrecognisedMessageSink
+import dev.adminos.api.domain.ingestion.fallback.templates.InMemoryMessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.MessageTemplateRepository
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateLearning
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReader
+import dev.adminos.api.domain.ingestion.fallback.templates.TemplateReviewService
+import dev.adminos.api.infrastructure.database.repositories.ExposedMessageTemplateRepository
 import dev.adminos.api.domain.ingestion.sms.SmsIntake
+import dev.adminos.api.infrastructure.database.repositories.ExposedMessageProposalRepository
 import dev.adminos.api.domain.ingestion.statements.StatementImportService
 import dev.adminos.api.domain.ingestion.statements.StatementParser
 import dev.adminos.api.infrastructure.statements.HttpStatementParser
@@ -77,6 +89,8 @@ internal fun buildAppModule(
 ): Module = module {
     // Spending coach (Epic E9): its own module, so its tasks don't edit this file.
     includes(coachKoinModule(useDatabase))
+    // Wealth (Epic E8, D-79): its own module too.
+    includes(wealthKoinModule(useDatabase))
     single { AppConfig.load() }
     single { TokenEncryptor(get<AppConfig>().security.tokenEncryptionKey) }
     single { JwtService(get<AppConfig>().auth) }
@@ -124,6 +138,8 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { ExposedMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { ExposedPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { ExposedOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { ExposedTravelBookingRepository() }
+        single<dev.adminos.api.domain.financial.trips.TripEditRepository> { ExposedTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { ExposedSplitRepository(get()) }
     } else {
         // InMemory fallback for local dev / testing
@@ -159,6 +175,8 @@ internal fun buildAppModule(
         single<dev.adminos.api.domain.financial.mandates.MandateRepository> { dev.adminos.api.domain.financial.mandates.InMemoryMandateRepository() }
         single<dev.adminos.api.domain.notifications.push.PushSubscriptionRepository> { dev.adminos.api.domain.notifications.push.InMemoryPushSubscriptionRepository() }
         single<dev.adminos.api.domain.financial.receipts.OrderReceiptRepository> { dev.adminos.api.domain.financial.receipts.InMemoryOrderReceiptRepository() }
+        single<dev.adminos.api.domain.financial.trips.TravelBookingRepository> { dev.adminos.api.domain.financial.trips.InMemoryTravelBookingRepository() }
+        single<dev.adminos.api.domain.financial.trips.TripEditRepository> { dev.adminos.api.domain.financial.trips.InMemoryTripEditRepository() }
         single<dev.adminos.api.domain.financial.splits.SplitRepository> { dev.adminos.api.domain.financial.splits.InMemorySplitRepository() }
     }
 
@@ -235,7 +253,7 @@ internal fun buildAppModule(
         val learnedStep = if (learning) listOf(LearnedCategoryStep(get())) else emptyList()
         IngestPipeline(listOf(
             ToTransactionStep(), NormalizeMerchantStep(get()), CrossSourceDedupStep(get(), get()), CategorizeStep(get()),
-            TransferStep(get(), get()), RefundReversalStep(get(), get(), get())
+            TransferStep(get(), get()), dev.adminos.api.domain.wealth.flows.InvestmentFlowStep(get()), RefundReversalStep(get(), get(), get())
         ) + learnedStep)
     }
     single<IngestOutcomeWriter> {
@@ -248,8 +266,17 @@ internal fun buildAppModule(
     // SMS intake (AOS-203): device tokens + parser registry
     single { DeviceTokenService(get(), get()) }
     single { SmsParserRegistry() }
-    single { SmsIntake(get(), get(), get()) }
-    single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get()) }
+    // Unrecognised bank messages: approved templates first (AOS-706, even with AI off), then the AI fallback only when
+    // AI_MESSAGES_ENABLED (AOS-705), otherwise nowhere.
+    single<MessageTemplateRepository> { if (useDatabase) ExposedMessageTemplateRepository() else InMemoryMessageTemplateRepository() }
+    single { TemplateLearning(get()) }
+    single { TemplateReviewService(get()) }
+    single<UnrecognisedMessageSink> { TemplateReader(get(), get(), getOrNull<MessageFallback>() ?: UnrecognisedMessageSink.NONE) }
+    single { SmsIntake(get(), get(), get(), get(), get(), get<UnrecognisedMessageSink>()) { userId -> get<dev.adminos.api.domain.identity.UserCalendar>().zoneOf(userId) } }
+    single { dev.adminos.api.domain.ingestion.whatsapp.WhatsAppImportService(get(), get(), get(), get(), fallback = get()) }
+    // Review of AI-read messages: always present, so Review shows (and decides) what was read while it was on.
+    single<MessageProposalRepository> { if (useDatabase) ExposedMessageProposalRepository() else InMemoryMessageProposalRepository() }
+    single { MessageReviewService(get(), get(), listeners = listOf(get<TemplateLearning>())) }
     single { dev.adminos.api.domain.ingestion.cash.CashIntake(get()) }
     // Cash from free text (AOS-718, D-77): the deterministic grammar. TODO(AOS-718 → AOS-702): once the AI layer's
     // AiProvider exists, an AI CashPhraseParser plugs in as FallbackCashPhraseParser(rules, ai), behind its consent toggle and eval gate.
@@ -276,13 +303,19 @@ internal fun buildAppModule(
         if (useDatabase) CategoryCorrectionService(get(), get()) { work -> dbQuery { work() } } else CategoryCorrectionService(get(), get())
     }
     single { AccountDiscoveryService(get(), get()) }
-    single { SubscriptionDetectorService(get(), get(), get(), get(), get()) }
+    single { subscriptionDetector(get(), get(), get(), get(), get(), get()) }
     // Look-alike merchants proposed as one, confirmed in Review (AOS-709, D-75)
     single { dev.adminos.api.domain.financial.grouping.MerchantGroupingService(get(), get(), get(), get()) }
     single { dev.adminos.api.domain.agent.SubscriptionReviewService(get(), get(), get()) }
-    single { BillTrackingService(get(), get()) }
+    single { BillTrackingService(get(), get(), get()) }
     single { dev.adminos.api.domain.financial.mandates.MandateService(get(), get()) }
     single { DuesService(get(), get(), get()) }
+    // Pay-later (AOS-909, D-89): provider bills into dues; repayments are transfers that pay them.
+    single { dev.adminos.api.domain.financial.paylater.PayLaterBills(get(), get()) }
+    single { dev.adminos.api.domain.financial.paylater.PayLaterService(get(), get()) }
+    // Trips (AOS-910, D-90): computed on read from transactions, refunds, bookings and the user's edits.
+    single { dev.adminos.api.domain.financial.trips.TravelBookings(get()) }
+    single { dev.adminos.api.domain.financial.trips.TripService(get(), get(), get(), get()) }
     // Order receipts and hidden fees (AOS-903, D-88): matched to payments in both directions.
     single { dev.adminos.api.domain.financial.matching.PaymentMatcher() }
     single { dev.adminos.api.domain.financial.receipts.ReceiptMatchingService(get(), get(), get()) }
@@ -341,7 +374,9 @@ internal fun buildAppModule(
     single { PendingNotificationsJob(get(), get()) } bind ScheduledJob::class
     // Weekly briefing from real data (AOS-506)
     single { dev.adminos.api.domain.agent.briefing.BriefingSources(get(), get(), get(), get(), get()) }
-    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get()) }
+    // The optional AI wording of the briefing (AOS-716): through the AI gateway only, off unless enabled and consented.
+    single { dev.adminos.api.domain.agent.briefing.BriefingNarrator(get()) }
+    single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingService(get(), get(), get(), get(), sections = getAll<dev.adminos.api.domain.agent.briefing.BriefingSection>()) }
     single { dev.adminos.api.domain.agent.briefing.WeeklyBriefingJob(get(), get(), get()) } bind ScheduledJob::class
     single { dev.adminos.api.domain.documents.DocumentExpiryJob(get(), get(), get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class
     single { dev.adminos.api.domain.ingestion.webhook.GmailFallbackSyncJob(get(), get<AppConfig>().scheduler.zone) } bind ScheduledJob::class

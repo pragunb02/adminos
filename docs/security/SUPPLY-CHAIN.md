@@ -10,6 +10,7 @@ What runs on every PR, what each check fails on, how containers are locked down,
 |---|---|---|---|
 | `api` | CI | `./gradlew test integrationTest koverVerify` (locked versions + SHA-256 verified artifacts) | any test, coverage below the D-48 gate, an unlisted or altered artifact |
 | `web` | CI | `npm ci --ignore-scripts`, typecheck, lint, `test:coverage`, `next build` | any error, coverage below the D-47 gate |
+| `e2e` | CI | Playwright, every project (desktop-chrome, iphone-safari/WebKit, android-chrome, full-stack incl. `security.spec.ts`) against the production Next build and the in-memory API on 127.0.0.1; browsers cached; a JWT secret made per run; report and traces uploaded on failure (AOS-640) | any failing spec (one retry in CI; a pass on the retry is annotated as flaky) |
 | `go (services/workers)`, `go (tools/sms-reader)` | CI | `go mod verify`, build, vet, test | any error, a module whose hash doesn't match go.sum |
 | `pdf-parser` | CI | `pip install --require-hashes`, pytest | any test, any package whose hash isn't in the lock |
 | `shell` | CI | shellcheck; exposure check (AOS-616); hardening check; tunnel ingress; backup setup; backups + restore drill end to end (AOS-621) | any failure |
@@ -80,7 +81,7 @@ GitHub → Settings → Branches → **Add branch ruleset** (or classic rule) fo
 
 1. **Require a pull request before merging:** on. Required approvals: 0 (single owner; the review statuses are the review). Dismiss stale approvals: on.
 2. **Require status checks to pass:** on, and **require branches to be up to date before merging**: on. Add exactly these (they appear after the workflows have run once on a PR):
-   - `api`, `web`, `go (services/workers)`, `go (tools/sms-reader)`, `pdf-parser`, `shell`
+   - `api`, `web`, `e2e`, `go (services/workers)`, `go (tools/sms-reader)`, `pdf-parser`, `shell`
    - `osv-scanner`, `npm-audit`, `govulncheck (services/workers)`, `govulncheck (tools/sms-reader)`, `images`
    - `codeql (java-kotlin)`, `codeql (javascript-typescript)`, `codeql (go)`, `codeql (python)`
    - `GitGuardian Security Checks`
@@ -102,7 +103,7 @@ gh api -X PUT repos/pragunb02/adminos/branches/main/protection --input - <<'JSON
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "api", "web", "go (services/workers)", "go (tools/sms-reader)", "pdf-parser", "shell",
+      "api", "web", "e2e", "go (services/workers)", "go (tools/sms-reader)", "pdf-parser", "shell",
       "osv-scanner", "npm-audit", "govulncheck (services/workers)", "govulncheck (tools/sms-reader)", "images",
       "codeql (java-kotlin)", "codeql (javascript-typescript)", "codeql (go)", "codeql (python)",
       "GitGuardian Security Checks", "review/code", "review/security"
