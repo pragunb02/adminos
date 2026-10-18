@@ -93,7 +93,20 @@ class PayLaterFlowTest {
     }
 
     @Test
-    fun `a repayment recorded before the bill arrives pays it at once`() = runBlocking<Unit> {
+    fun `the pay later lens counts the purchase once and never its repayment`() = runBlocking<Unit> {
+        sms("VM-LZYPAY", "Rs.450 spent at Swiggy using LazyPay", now.minus(Duration.ofDays(3)))
+        sms("JM-HDFCBK", "Rs 450.00 debited from A/c XX1234 to VPA lazypay@icici on ${today}. UPI Ref 123456789012")
+        val matcher = dev.adminos.api.domain.coach.lenses.LensMatcher()
+        val none = dev.adminos.api.domain.coach.lenses.LensOverrides.NONE
+        val payLater = dev.adminos.api.domain.coach.lenses.LensId("pay_later")
+        val (purchase, repayment) = txns.findByUserId(user).partition { it.paymentMethod == PaymentMethod.PAY_LATER }
+        assertTrue(payLater in matcher.lensesOf(purchase.single(), none))
+        assertEquals(emptySet(), matcher.lensesOf(repayment.single(), none))
+        assertEquals(1, txns.findByUserId(user).count { payLater in matcher.lensesOf(it, none) })
+    }
+
+    @Test
+    fun `a repayment recorded before the bill arrives pays it at once`()= runBlocking<Unit> {
         sms("JM-HDFCBK", "Rs 999.00 debited from A/c XX1234 to VPA getsimpl@axis on ${today}. UPI Ref 223456789012")
         sms("VM-SIMPL", "Your Simpl bill of Rs 999 is due on ${dueText(3)}.")
         assertEquals(BillStatus.PAID, bills.findByUserId(user).single().status)

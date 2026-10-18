@@ -63,4 +63,32 @@ test.describe("full stack", () => {
     expect(res.status()).toBe(400);
     expect((await res.json()).error.message).toMatch(/^to:/);
   });
+
+  test("messages read by AI (AOS-705) are owner-only: a forged token is refused and an unknown id is not found", async ({ page, context, baseURL }) => {
+    const forged = signAccessToken(undefined, { secret: "e2e-only-secret-not-for-production-attacker" });
+    await signIn(context, baseURL!, forged.token);
+    // Mutations carry our Origin like the browser's own fetch, so they reach the auth check (AOS-618 refuses them first otherwise).
+    expect((await page.request.get("/api/v1/review/messages")).status()).toBe(401);
+    expect((await page.request.post(`/api/v1/review/messages/${crypto.randomUUID()}/confirm`, { data: {}, headers: { origin: baseURL! } })).status()).toBe(401);
+
+    await context.clearCookies();
+    const { token } = signAccessToken();
+    await signIn(context, baseURL!, token);
+    const list = await page.request.get("/api/v1/review/messages");
+    expect(list.status()).toBe(200);
+    expect((await list.json()).data).toEqual([]);
+    expect((await page.request.post(`/api/v1/review/messages/${crypto.randomUUID()}/confirm`, { data: {}, headers: { origin: baseURL! } })).status()).toBe(404);
+    expect((await page.request.post("/api/v1/review/messages/not-an-id/dismiss", { data: {}, headers: { origin: baseURL! } })).status()).toBe(400);
+  });
+
+  test("formats to learn (AOS-706) are owner-only too", async ({ page, context, baseURL }) => {
+    const forged = signAccessToken(undefined, { secret: "e2e-only-secret-not-for-production-attacker" });
+    await signIn(context, baseURL!, forged.token);
+    expect((await page.request.get("/api/v1/review/templates")).status()).toBe(401);
+    await context.clearCookies();
+    const { token } = signAccessToken();
+    await signIn(context, baseURL!, token);
+    expect((await (await page.request.get("/api/v1/review/templates")).json()).data).toEqual([]);
+    expect((await page.request.post(`/api/v1/review/templates/${crypto.randomUUID()}/approve`, { data: {}, headers: { origin: baseURL! } })).status()).toBe(404);
+  });
 });

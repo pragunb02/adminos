@@ -237,7 +237,7 @@ class InfraRepositoryBranchesIntegrationTest {
         val user = PostgresTestDatabase.newUser()
         assertNull(connections.findById(UUID.randomUUID()))
         assertNull(connections.findByUserAndSource(user, SourceType.GMAIL))
-        assertNull(connections.findByGmailAddress("nobody-${UUID.randomUUID()}@gmail.com"))
+        assertNull(connections.findByGmailAddress("nobody-${UUID.randomUUID()}@example.com"))
         val c = connections.save(UserConnection(userId = user, sourceType = SourceType.GMAIL, oauthScope = listOf("email")))
         connections.update(c.copy(oauthScope = listOf("email", "gmail.readonly")))
         assertEquals(listOf("email", "gmail.readonly"), connections.findByUserAndSource(user, SourceType.GMAIL)!!.oauthScope)
@@ -281,13 +281,13 @@ class InfraRepositoryBranchesIntegrationTest {
 
     // ── Users ──
 
-    private fun newUserModel(email: String = "u-${UUID.randomUUID()}@example.in", googleId: String = "g-${UUID.randomUUID()}") =
+    private fun newUserModel(email: String = "u-${UUID.randomUUID()}@example.com", googleId: String = "g-${UUID.randomUUID()}") =
         User(email = email, googleId = googleId, name = "Ravi", role = UserRole.OWNER, onboardingStatus = OnboardingStatus.STARTED)
 
     @Test
     fun `unknown users are null`() = runBlocking<Unit> {
         assertNull(users.findByGoogleId("g-${UUID.randomUUID()}"))
-        assertNull(users.findByEmail("nobody-${UUID.randomUUID()}@example.in"))
+        assertNull(users.findByEmail("nobody-${UUID.randomUUID()}@example.com"))
     }
 
     @Test

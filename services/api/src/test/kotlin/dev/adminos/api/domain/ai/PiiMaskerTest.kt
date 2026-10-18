@@ -37,7 +37,7 @@ class PiiMaskerTest {
 
     @Test
     fun `emails and UPI IDs are masked, keeping only the UPI provider`() {
-        assertEquals("from <EMAIL>", mask("from rohit.sharma@example.co.in").text)
+        assertEquals("from <EMAIL>", mask("from rohit.sharma@example.com").text)
         assertEquals("paid <VPA:oksbi> for tea", mask("paid rohit.sharma92@oksbi for tea").text)
         assertEquals("UPI/<VPA:ybl>/Ref", mask("UPI/9800000012@ybl/Ref").text)
         assertEquals(setOf(PiiKind.EMAIL, PiiKind.VPA), mask("a.b@example.com and cd@paytm").found)

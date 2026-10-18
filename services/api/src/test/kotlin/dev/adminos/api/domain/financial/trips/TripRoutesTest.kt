@@ -31,7 +31,7 @@ private const val APP_ORIGIN = "http://localhost:3000"
 /** The trips API (AOS-910): list, detail, candidates and edits; auth, ownership, validation and the body cap. */
 class TripRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "owner@example.in", googleId = "g-910")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-910")
     private val jwt = jwtService.generateAccessToken(user)
     private val txns = InMemoryTransactionRepository()
     private val service = TripService(txns, InMemoryTransactionLinkRepository(), InMemoryTravelBookingRepository(), InMemoryTripEditRepository())

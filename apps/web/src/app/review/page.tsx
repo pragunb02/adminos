@@ -17,6 +17,8 @@ import { errorMessage, getData, postData } from "@/lib/query";
 import type { CategoryQuestion, Transaction } from "@/lib/types";
 import CategoryQuestions from "./CategoryQuestions";
 import { usePendingAction } from "./usePendingAction";
+import AiReadMessages from "./AiReadMessages";
+import LearnFormats from "./LearnFormats";
 
 export interface Suggestion {
   id: string;
@@ -92,6 +94,8 @@ function ReviewContent() {
       <CategoryQuestions hiddenId={hiddenQuestion} onAnswer={answer} />
       <p className="text-sm text-ink-muted">These pairs look related. Your answers make the totals final.</p>
       <PayLaterGaps />
+      <AiReadMessages />
+      <LearnFormats />
       <div role="group" aria-label="Kind" className="flex flex-wrap gap-1 rounded-lg bg-line p-0.5">
         {TABS.map((t) => (
           <button key={t.label} type="button" aria-pressed={tab.key === t.key} onClick={() => go(t.key)}

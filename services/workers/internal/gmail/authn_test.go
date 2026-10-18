@@ -73,7 +73,7 @@ func TestQualifyRejectsSpoofedBankSenders(t *testing.T) {
 
 func TestQualifyNeverAdmitsByDisplayNameSubjectOrMalformedFrom(t *testing.T) {
 	cases := map[string][]MessageHeader{
-		"a stranger with a bank-alert subject": {gmailAR("dmarc=pass header.from=gmail.com"), from("Ravi <ravi@gmail.com>"),
+		"a stranger with a bank-alert subject": {gmailAR("dmarc=pass header.from=example.com"), from("Ravi <ravi@example.com>"),
 			{Name: "Subject", Value: "Transaction alert: Rs 500 has been debited"}},
 		"bank name only in the display name": {gmailAR("dmarc=pass header.from=evil.example"), from(`"alerts@hdfcbank.net" <x@evil.example>`)},
 		"two From headers":                   {gmailAR(dmarcPassHDFC), from(hdfcFrom), from("x@evil.example")},

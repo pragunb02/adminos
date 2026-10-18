@@ -39,7 +39,7 @@ import kotlin.test.assertTrue
 class AnomalySecurityTest {
     private val config = AppConfig.load().auth
     private val jwt = JwtService(config)
-    private val user = User(id = UUID.randomUUID(), email = "owner@example.in", googleId = "g-owner", role = UserRole.OWNER)
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-owner", role = UserRole.OWNER)
     private val other = UUID.randomUUID()
     private val anomalies = InMemoryAnomalyRepository()
     private val tolerances = InMemoryAnomalyToleranceRepository()

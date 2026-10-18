@@ -132,11 +132,11 @@ describe("Settings", () => {
 
   it("a gmail in error shows its last error and reconnects through Google", async () => {
     const go = vi.spyOn(browser, "go").mockImplementation(() => {});
-    routes({ connections: [fx.connection({ status: "error", gmailAddress: "pragun.b@gmail.com", lastError: "gmail access revoked: reconnect Gmail" })] });
+    routes({ connections: [fx.connection({ status: "error", gmailAddress: "owner@example.com", lastError: "gmail access revoked: reconnect Gmail" })] });
     server.use(consentAt([]));
     const { user } = renderWithQuery(<SettingsPage />);
     const row = await screen.findByRole("listitem", { name: "gmail connection" });
-    expect(within(row).getByText("pragun.b@gmail.com")).toBeInTheDocument();
+    expect(within(row).getByText("owner@example.com")).toBeInTheDocument();
     expect(within(row).getByText("Last error: gmail access revoked: reconnect Gmail")).toBeInTheDocument();
     expect(within(row).queryByRole("button", { name: "Sync" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Connect Gmail" })).not.toBeInTheDocument();

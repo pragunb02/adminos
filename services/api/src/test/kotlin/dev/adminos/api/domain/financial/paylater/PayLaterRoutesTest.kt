@@ -23,7 +23,7 @@ import kotlin.test.assertEquals
 /** GET /api/v1/pay-later (AOS-909). */
 class PayLaterRoutesTest {
     private val jwtService = JwtService(AppConfig.load().auth)
-    private val user = User(id = UUID.randomUUID(), email = "owner@example.in", googleId = "g-909")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-909")
     private val jwt = jwtService.generateAccessToken(user)
     private val bills = InMemoryBillRepository()
     private val txns = InMemoryTransactionRepository()

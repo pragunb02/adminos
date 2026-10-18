@@ -33,7 +33,7 @@ class InfraAppDatabaseIntegrationTest {
             // The shared test database is used by other tests too: no scheduled jobs touching their data.
             scheduler = dev.adminos.api.config.SchedulerConfig(enabled = false))
         val user = runBlocking {
-            ExposedUserRepository().save(User(email = "db-${UUID.randomUUID()}@example.in", googleId = "g-${UUID.randomUUID()}",
+            ExposedUserRepository().save(User(email = "db-${UUID.randomUUID()}@example.com", googleId = "g-${UUID.randomUUID()}",
                 role = UserRole.OWNER, onboardingStatus = OnboardingStatus.STARTED))
         }
         // With a database every access token must name a live session (AOS-620).

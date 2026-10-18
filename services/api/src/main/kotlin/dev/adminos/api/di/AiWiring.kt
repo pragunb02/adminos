@@ -31,6 +31,10 @@ import dev.adminos.api.domain.financial.ai.AiCategoryClient
 import dev.adminos.api.domain.financial.ai.CategorizeMerchantTask
 import dev.adminos.api.domain.financial.ai.InMemoryAiCategoryCacheRepository
 import dev.adminos.api.domain.financial.ai.PortAiCategoryClient
+import dev.adminos.api.domain.ai.AiLocality
+import dev.adminos.api.domain.ingestion.fallback.MessageFallback
+import dev.adminos.api.domain.ingestion.fallback.MessageFallbackJob
+import dev.adminos.api.domain.ingestion.fallback.ReadMessageTask
 import dev.adminos.api.domain.scheduling.ScheduledJob
 import dev.adminos.api.infrastructure.ai.AnthropicProvider
 import dev.adminos.api.infrastructure.ai.OllamaProvider
@@ -45,7 +49,8 @@ import org.slf4j.LoggerFactory
 /** Each feature's task: its prompt version (an eval record must match it, D-68) and its notice (AOS-704). One line per feature. */
 internal val AI_TASKS: Map<AiFeature, AiTask<*, *>> = mapOf(
     AiFeature.CATEGORIZATION to CategorizeMerchantTask,
-    AiFeature.ASK to AskPlanTask
+    AiFeature.ASK to AskPlanTask,
+    AiFeature.MESSAGES to ReadMessageTask
 )
 
 /**
@@ -74,6 +79,7 @@ internal fun Module.aiDefinitions(useDatabase: Boolean, env: (String) -> String?
                 route.provider.kind.locality.name.lowercase(), Micros.toUsd(config.monthlyCapMicros))
     }
     routes.firstOrNull { it.feature == AiFeature.CATEGORIZATION }?.let { categorization(useDatabase, it) }
+    routes.firstOrNull { it.feature == AiFeature.MESSAGES }?.let { messages(it, env) }
 }
 
 private fun promptVersion(feature: AiFeature): String =
@@ -88,6 +94,27 @@ private fun routes(config: AiConfig): List<AiRoute> {
 private fun provider(kind: AiProviderKind, config: AiConfig): AiProvider = when (kind) {
     AiProviderKind.ANTHROPIC -> AnthropicProvider.create(config.anthropicApiKey ?: error("validated by AiConfig"))
     AiProviderKind.OLLAMA -> (config.ollama ?: error("validated by AiConfig")).let { OllamaProvider(it.baseUrl, it.timeout) }
+}
+
+/**
+ * The message-reading fallback (AOS-705, D-106): unrecognised bank messages are queued (redacted, in memory) and
+ * read by a job; answers wait in Review. `AI_MESSAGES_DAILY_LIMIT` (default 100) caps messages read per day.
+ * A cloud provider reads (redacted) message text, so it is said loudly at start-up (D-67: local by default).
+ */
+private fun Module.messages(route: AiRoute, env: (String) -> String?) {
+    val limit = env("AI_MESSAGES_DAILY_LIMIT")?.trim()?.takeIf { it.isNotEmpty() }?.let {
+        it.toIntOrNull()?.takeIf { n -> n in 0..MessageFallback.MAX_DAILY_LIMIT }
+            ?: throw IllegalArgumentException("AI_MESSAGES_DAILY_LIMIT is 0..${MessageFallback.MAX_DAILY_LIMIT}, was '$it'")
+    } ?: MessageFallback.DEFAULT_DAILY_LIMIT
+    if (route.provider.kind.locality == AiLocality.CLOUD) {
+        LoggerFactory.getLogger("AiLayer").warn("AI messages reads redacted bank messages with a cloud model ({}); a local model is recommended (D-67)", route.provider.kind.key)
+    }
+    single {
+        // Per-feature consent (AOS-704): a message is queued only if the user turned AI message reading on; the gateway checks again.
+        val consents = get<AiConsentCheck>()
+        MessageFallback(get(), get(), { user -> consents.allows(user, AiFeature.MESSAGES) }, dailyLimit = limit)
+    }
+    single { MessageFallbackJob(get()) } bind ScheduledJob::class
 }
 
 /** The AI fallback categoriser (AOS-512, D-62): a batch job, never inside ingestion; only business names are sent. */

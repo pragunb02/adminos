@@ -12,7 +12,7 @@ class SmtpConfigTest {
     private fun from(vararg env: Pair<String, String>) = SmtpConfig.from { env.toMap()[it] }
     /** Made up per run: never a literal credential in the repo. */
     private val login = java.util.UUID.randomUUID().toString()
-    private val base = arrayOf("SMTP_HOST" to "smtp.gmail.com", "SMTP_FROM" to "AdminOS <me@gmail.com>")
+    private val base = arrayOf("SMTP_HOST" to "smtp.gmail.com", "SMTP_FROM" to "AdminOS <me@example.com>")
 
     @Test
     fun `email is off when no SMTP host is set`() {
@@ -22,17 +22,17 @@ class SmtpConfigTest {
 
     @Test
     fun `defaults are STARTTLS on 587, or 465 for TLS`() {
-        val c = from(*base, "SMTP_USERNAME" to "me@gmail.com", "SMTP_PASSWORD" to login)!!
+        val c = from(*base, "SMTP_USERNAME" to "me@example.com", "SMTP_PASSWORD" to login)!!
         assertEquals(SmtpSecurity.STARTTLS, c.security)
         assertEquals(587, c.port)
-        assertEquals("me@gmail.com", c.from.address)
+        assertEquals("me@example.com", c.from.address)
         assertEquals(465, from(*base, "SMTP_SECURITY" to "TLS")!!.port)
         assertEquals(2525, from(*base, "SMTP_PORT" to "2525")!!.port)
     }
 
     @Test
     fun `the password never appears in logs`() {
-        val c = from(*base, "SMTP_USERNAME" to "me@gmail.com", "SMTP_PASSWORD" to login)!!
+        val c = from(*base, "SMTP_USERNAME" to "me@example.com", "SMTP_PASSWORD" to login)!!
         assertFalse(login in c.toString())
         assertTrue("smtp.gmail.com" in c.toString())
         assertTrue("username=-" in from(*base)!!.toString())

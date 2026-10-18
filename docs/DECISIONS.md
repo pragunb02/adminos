@@ -5,6 +5,10 @@
 
 | ID | Type | Title | Status | Tasks |
 |---|---|---|---|---|
+| D-107 | Architecture / Product | Confirmed AI readings teach masked message formats (every value a slot, never a digit); a format seen often enough is proposed in Review, and once approved it is read by code before any model | Accepted | AOS-706 |
+| D-106 | Architecture / Product | Bank messages the regexes can't read are read by a model (redacted, local model by default, off by default), accepted only when amount, last 4, date, direction and merchant are grounded in the text, and wait in Review as proposals; nothing AI-read counts until confirmed | Accepted | AOS-705, AOS-706 |
+| D-130 | Architecture | The message-reading eval measures the fallback itself (each golden row offered to it directly); which messages reach it is a separate routing test against the rules of the day (read → never sent; unreadable bank message → offered) | Accepted | AOS-705 |
+| D-111 | Architecture / Product | Splitwise: import the owner's CSV export (no credentials); every total counts the owner's share (`own_share`); settle-ups are the new nature `settlement` (neither spending nor income); `split-v1` matcher with Review and undo; names encrypted at rest | Accepted | AOS-911 |
 | D-110 | Product / Architecture | Ask is a page at /ask (from Home and More) whose answers you can trace ("How I got this": each tool, dates, numbers, a link to the same payments); thumbs up/down by answer id (recent answers kept 1 h, another user's id is 404), stored masked and encrypted | Accepted | AOS-711 |
 | D-109 | Architecture | Ask is two structured-output steps through the AI gateway (a strict plan in the D-108 vocabulary, then a short answer); tools run for the token's user and zone; every number checked, else a visible template answer; masked question, 300 characters, per-user quota; off by default | Accepted | AOS-710 |
 | D-108 | Architecture | "Ask your money" is measured before it is built: five typed read-only tools over the analytics (no user, zone or SQL), periods resolved in the user's zone, a number check on answers, and a 133-question synthetic eval set (EN + Hinglish, unanswerable, injection) whose record gates start-up | Accepted | AOS-712, AOS-710, AOS-711 |
@@ -15,7 +19,6 @@
 | D-73 | Architecture / Product | Unusual amounts are judged against the merchant's own robust baseline (median/MAD on log amounts, a measured fallback chain down to the AOS-505 rule); 'this is normal' / 'unexpected' tune a capped per-merchant tolerance; crisp rules never relaxed; synthetic eval set with a floor | Accepted | AOS-713 |
 | D-114 | Architecture | A verified Gmail push is folded into a queued, not-yet-started sync of the connection (or ignored when its history ID is already read); the worker marks a sync in_progress when it starts; at most one running and one waiting sync per connection (extends D-63) | Accepted | AOS-630 |
 | D-77 | Architecture / Product | Cash from words: a deterministic grammar (amounts, Hinglish number words, dates, quantities) and remembered → catalogue → keyword categories, previewed before saving and never stored or logged; a grounded fallback parser port for AI later that never changes rule-decided entries | Accepted | AOS-718 |
-| D-111 | Architecture / Product | Splitwise: import the owner's CSV export (no credentials); every total counts the owner's share (`own_share`); settle-ups are the new nature `settlement` (neither spending nor income); `split-v1` matcher with Review and undo; names encrypted at rest | Accepted | AOS-911 |
 | D-103 | Architecture | Redis always requires a password: REDIS_PASSWORD (hex) on the server's stdin, beside a credential-free REDIS_URL for clients (a host-run URL may carry it; both must agree); API and worker refuse to start without it and never log it | Accepted | AOS-634 |
 | D-113 | Architecture | Statement parser: each file parsed in its own spawned child, killed after 30 s, 1 GiB address space, at most 2 at once; per-file budgets (300 pages, 50 sheets, 100 000 rows, 2 000 000 cells); over a limit is 422 with a stable code | Accepted | AOS-626 |
 | D-112 | Architecture | Bank mail is admitted by sender only, and only when Gmail's topmost Authentication-Results show DMARC pass or aligned DKIM pass; SPF alone and subjects never admit; receipt senders (AOS-903) go through the same check, their order words only narrow candidates (amends D-59) | Accepted | AOS-624, AOS-903 |
@@ -1279,6 +1282,23 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Rejected:** OWASP dependency-check (needs an NVD key secret, slow); failing on HIGH images (blocks on unfixable
   base-image findings); Dependabot alerts as the only gate.
 
+### D-111 — Splitwise: import the CSV export; count the owner's share; settle-ups are settlements
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-911 · Builds on D-38, D-39, D-46, D-64, D-78, D-80
+- **Source:** the owner's Splitwise "Export as spreadsheet" CSV, uploaded with "which column is me". No credentials. The Splitwise API (OAuth 2, no read-only scope, full-access tokens) is a later adapter behind the same port (`SharedEntry`), only if manual exports prove tedious.
+- **Share rule:** from the owner's net change `n` on a row of cost `C`: `n > 0` → they paid it all, share `C − n`; `n < 0` → a friend paid, share `−n`; `n = 0` → no effect. Rows that don't balance are skipped.
+- **Effects:**
+  - a bill the owner paid sets `transactions.own_share` on its bank debit, and every total counts `COALESCE(own_share, amount)` (the bank amount is never changed);
+  - a friend-paid share becomes a `splitwise` spend with no personal data;
+  - a settle-up turns its UPI transfer into the new nature `settlement` (neither spending nor income).
+- **Matching `split-v1`:** exact amount; bills from 1 day before to 3 days after, settle-ups ±2 days; points with apply/suggest bands and an ambiguity margin of 3; a settle-up is applied only with the friend's name or UPI handle on the bank record; one transaction per entry; later bank records are offered to waiting entries.
+- **Review and undo:** confirm, pick another transaction, reject (remembered), ignore, undo one entry or a whole import.
+- **Privacy:** descriptions and counterparties are encrypted at rest (TokenEncryptor, row-bound), never logged, and never sent to a model. Splitwise rows are never deduplicated, refunded, bill-matched, detected as subscriptions, or AI-categorised.
+- **Measured:** a seeded synthetic eval set with a committed floor (`splits/baseline.json`, enforced by `SplitEvalTest`). On it: 1.00 precision for automatic matches, 0.73 automatic and 0.93 with-Review recall, spend error from ₹30,470 to ₹1,523.
+- **Rejected:**
+  - the API first (full-access token for a read need);
+  - a pasted personal API key;
+  - a synthetic "owed by friends" refund row;
+  - reusing `transfer` for settle-ups (D-39 means own accounts).
 ### D-84 — The evening digest: polled, once per local day, at the owner's time
 2026-10-18 · Accepted (built by a background agent; reviewed and merged by Claude, D-101 as amended) · Type: Product / Architecture · Tasks: AOS-905 · Builds on D-50, D-51, D-57, D-80, D-83
 - **When:** at or after the chosen local time (default 21:30), until local midnight; a missed evening is never sent the next day. A job polls every 15 minutes; a `coach_digests_sent` row per (user, kind, day) is the claim (claim then send, at most once).
@@ -1480,6 +1500,61 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - a trained tagger (no labelled data);
   - a batch save endpoint (it duplicates the intake);
   - server-side audio (dictation is free and keeps audio off our server).
+
+### D-106 — Messages the regexes can't read are read by a model, grounded, and wait in Review as proposals
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-705, AOS-706 · Builds on D-33, D-43, D-67, D-68
+- **Where:** only bank messages the parsers return as unrecognised, from a bank sender (TRAI business header or a WhatsApp bank name), that mention money. OTPs, failures, reminders, promotions and personal senders never reach it.
+- **What is sent:** the message, redacted (cards and accounts → last 4, also 5–8 digit numbers; phones, emails, VPAs, Aadhaar and PAN masked), as a JSON string value, plus the day it arrived.
+  - **Withheld, not sent:** a message over 1,000 characters, with hidden characters, with non-ASCII digits, or with model-directed text (instructions, JSON, markup).
+- **What is accepted:** the strict six-field schema, and only if grounded:
+  - the amount is the one non-balance money figure written in the text;
+  - the last 4 is an account or card ending in the text;
+  - the date is written in the text and within a day of arrival;
+  - the merchant is a span of the text;
+  - the direction agrees with D-43's words (extended with `Dr`/`Cr` and "debit/credit of"). Unclear words are rejected, never guessed.
+- **Where it goes:** a `message_proposals` row (structured fields only), shown in Review. **Confirm** creates an ordinary intake event (`extractedBy = ai:<model>:<prompt>`), so dedup and the pipeline apply. **Dismiss** keeps the row dismissed, so a resent message isn't read again. Nothing AI-read is in any total until confirmed.
+- **How it runs:**
+  - Redacted text waits in a bounded in-memory queue (≤ 200; lost on restart, never persisted, so it is not a D-33 "queue") and is read by a job every minute.
+  - A per-day limit (`AI_MESSAGES_DAILY_LIMIT`, default 100) applies, plus the gateway's cap, breaker and audit.
+  - An unavailable model is retried up to 3 times.
+- **Defaults:** off (`AI_MESSAGES_ENABLED`); the provider defaults to **ollama** for this feature, so cloud reading of message text needs `AI_MESSAGES_PROVIDER=anthropic` and logs a warning.
+- **Eval gate:**
+  - a synthetic golden set run through the shipped path;
+  - floors: transaction precision ≥ 0.99, amount exact ≥ 0.98, grounded accepted = 1.0, hostile held = 1.0, dropped never asked = 1.0;
+  - other metrics may not regress.
+- **Rejected:**
+  - flagging intake rows and filtering every total (one missed filter breaks D-67);
+  - reading inline (timeouts, bursts);
+  - persisting messages for a worker (D-33);
+  - accepting an unclear direction.
+
+### D-130 — The message-reading eval measures the fallback; routing is tested on its own
+2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-705 · Amends D-106's eval gate
+- **Context:** the eval ran every golden message through the regex intake first. After AOS-213/214/215 the rules read 106 of its 218 messages (`Dr.`/`Cr.` and more), so they never reached the fallback and the eval stopped measuring it. Every parser improvement would do that again.
+- **Decision:**
+  - `MessageEvaluation` offers each golden row to `MessageFallback` directly, as the unreadable bank message it stands for (sender's bank, user's zone, text). Only the 10 drop rows (OTPs, declines, promotions, people, reminders) still go through the shipped intake. The set (≥ 200 rows), the PII and hostile tests, the floors and the records are unchanged.
+  - `MessageRoutingTest` runs the same rows through the shipped SMS and WhatsApp intake against today's rules: a message the rules read or drop is never offered to the AI, and a bank message they can't read is offered once, as written.
+- **Rejected:** relabelling the rows the rules now read (the eval shrinks with every parser change and loses its PII and hostile rows); rewriting them into formats the rules can't read (stale again at the next parser change).
+- **Consequence:** parser improvements move rows between the routing test's two halves without touching the eval or its records.
+
+### D-107 — Confirmed AI readings teach message formats; approved formats are read by code before any model
+2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-706 · Builds on D-33, D-67, D-106
+- **What is kept:** only masked shapes. Every value is a slot (amount, balance, last 4, date, payee, other numbers, a greeting's name), and a shape with a digit is refused in code and by a database CHECK. No message text, amount or payee is stored in a shape.
+- **Learning:**
+  - only from readings the user **confirmed**;
+  - one sender (channel + bank) and direction per format;
+  - Drain-style merge (same length, ≤ 25% plain words differ, never a slot) turns differing words into `<ANY>`;
+  - proposed after 3 confirmations.
+- **Approval:** only the user approves a format. A rejected format is never proposed again. A decided format's shape never changes.
+- **Reading:**
+  - approved formats are tried before the AI reader, even with AI off;
+  - a template's reading must pass the same grounding validator as a model's;
+  - it goes straight into the intake with `parsedBy = template:<id>` (exact, like a regex parser), and anything else goes on to the AI reader;
+  - regexes are compiled from shapes with quoted literals and bounded slots (no ReDoS).
+- **Rejected:**
+  - Review for template reads (keeps the click it removes);
+  - generated parser code;
+  - LLM-written regexes (more data sent, unverified patterns).
 ### D-89 — Pay-later is counted like a card; gaps are shown, not guessed
 2026-10-18 · Accepted · Type: Product / Architecture · Tasks: AOS-909, AOS-901, AOS-902 · Builds on D-39, D-54, D-55, D-59
 - **Counting:**
@@ -1493,7 +1568,6 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
   - Provider email is decided by the sender's domain; shared domains (Amazon, Flipkart, Paytm) also need the provider's name in the subject.
 - **The gap is visible:** a bill larger than the purchases recorded for its period shows the difference in `GET /api/v1/pay-later` and in Review. It is never filled in by guessing.
 - **Debt outstanding** = unpaid pay-later bills + pay-later purchases since the provider's latest bill.
-- **Rejected:**
   - the cash model (category and timing lost);
   - a separate debt ledger (a second source of truth);
   - recognising provider SMS by sender header only (headers vary and aren't public).
@@ -1513,26 +1587,9 @@ Rejected: earliest verb (the bug); first anchored phrase wins (guesses on "debit
 - **Edits are the only stored state** (`trip_edits`, keyed by an ID derived from the first leg): name, added (that trip only), removed (never auto-added again), dismissed.
 - **Measured** like D-61: a synthetic eval set reports assignment and pairwise precision and recall. The baseline is committed (0.9688 / 0.8857 / 0.9839 / 0.8714), and a test fails below it.
 - **Privacy:** bookings keep brand, mode, journey date, amount and a SHA-256 of the PNR only.
-- **Rejected:**
   - materialised trips with a nightly job (stale, and hard to reconcile);
   - a 10-day chain gap (merged separate trips on the eval);
   - manual-only trips.
-### D-111 — Splitwise: import the CSV export; count the owner's share; settle-ups are settlements
-2026-10-18 · Accepted · Type: Architecture / Product · Tasks: AOS-911 · Builds on D-38, D-39, D-46, D-64, D-78, D-80
-- **Source:** the owner's Splitwise "Export as spreadsheet" CSV, uploaded with "which column is me". No credentials. The Splitwise API (OAuth 2, no read-only scope, full-access tokens) is a later adapter behind the same port (`SharedEntry`), only if manual exports prove tedious.
-- **Share rule:** from the owner's net change `n` on a row of cost `C`: `n > 0` → they paid it all, share `C − n`; `n < 0` → a friend paid, share `−n`; `n = 0` → no effect. Rows that don't balance are skipped.
-- **Effects:**
-  - a bill the owner paid sets `transactions.own_share` on its bank debit, and every total counts `COALESCE(own_share, amount)` (the bank amount is never changed);
-  - a friend-paid share becomes a `splitwise` spend with no personal data;
-  - a settle-up turns its UPI transfer into the new nature `settlement` (neither spending nor income).
-- **Matching `split-v1`:** exact amount; bills from 1 day before to 3 days after, settle-ups ±2 days; points with apply/suggest bands and an ambiguity margin of 3; a settle-up is applied only with the friend's name or UPI handle on the bank record; one transaction per entry; later bank records are offered to waiting entries.
-- **Review and undo:** confirm, pick another transaction, reject (remembered), ignore, undo one entry or a whole import.
-- **Privacy:** descriptions and counterparties are encrypted at rest (TokenEncryptor, row-bound), never logged, and never sent to a model. Splitwise rows are never deduplicated, refunded, bill-matched, detected as subscriptions, or AI-categorised.
-- **Measured:** a seeded synthetic eval set with a committed floor (`splits/baseline.json`, enforced by `SplitEvalTest`). On it: 1.00 precision for automatic matches, 0.73 automatic and 0.93 with-Review recall, spend error from ₹30,470 to ₹1,523.
-  - the API first (full-access token for a read need);
-  - a pasted personal API key;
-  - a synthetic "owed by friends" refund row;
-  - reusing `transfer` for settle-ups (D-39 means own accounts).
 ### D-114 — Gmail pushes are folded into a waiting sync
 2026-10-18 · Accepted · Type: Architecture · Tasks: AOS-630 · Extends D-63 · Builds on D-59, D-100
 - A verified Gmail push queues an incremental sync unless its history ID is at or before the stored one, or a Gmail sync of the connection is queued and not yet started (created within 10 minutes); then it is acknowledged (200, so Pub/Sub doesn't retry) and folded into that sync.

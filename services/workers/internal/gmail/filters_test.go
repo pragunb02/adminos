@@ -35,7 +35,7 @@ func TestSenderOrganisation(t *testing.T) {
 		"no-reply@accounts.google.com": "", // only the listed Google address
 		"alerts@hdfcbank.net.evil.com": "", // look-alike domain
 		"x@nothdfcbank.net":            "",
-		"ravi@gmail.com":               "",
+		"ravi@example.com":             "",
 		"@hdfcbank.net":                "",
 		"alerts@":                      "",
 		"":                             "",

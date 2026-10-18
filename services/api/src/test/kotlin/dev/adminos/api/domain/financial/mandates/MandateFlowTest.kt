@@ -31,7 +31,7 @@ import kotlin.test.assertTrue
 
 /** SMS → mandate → debit → recurring transaction, and GET /api/v1/mandates (AOS-502). */
 class MandateFlowTest {
-    private val user = User(id = UUID.randomUUID(), email = "pragun@example.in", googleId = "g-502")
+    private val user = User(id = UUID.randomUUID(), email = "owner@example.com", googleId = "g-502")
     private val events = InMemoryIngestEventRepository()
     private val transactions = InMemoryTransactionRepository()
     private val mandates = InMemoryMandateRepository()
