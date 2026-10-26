@@ -1,5 +1,5 @@
 # AdminOS encrypted backups (AOS-621): pg_dump → age → R2. Postgres 18 client tools match the server major.
-FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 
 # age: modern file encryption (X25519 + ChaCha20-Poly1305), D-98. curl: S3 uploads signed with SigV4.
 RUN apk add --no-cache "postgresql18-client~18" age bash coreutils curl jq tzdata \

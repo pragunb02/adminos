@@ -1,5 +1,5 @@
 # Pinned by digest (AOS-622); Dependabot proposes updates.
-FROM node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5 AS builder
+FROM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797 AS builder
 WORKDIR /app
 # Inlined/compiled at build time (next.config.js): proxy target and the public OAuth client id.
 ARG API_INTERNAL_URL=http://api-server:8080
@@ -10,7 +10,7 @@ RUN npm ci
 COPY . .
 RUN npm run build && npm prune --omit=dev   # the runtime image gets production dependencies only
 
-FROM node:26-alpine@sha256:6f08a523443ddedf52941874c203475b0ad503e859ad70cb26ab8be9a517dbd5
+FROM node:26-alpine@sha256:40cd011b55415bc894e45b02fdd5a5dfde056921b7d23a64c74f80497af48797
 ENV NODE_ENV=production
 # No package manager at run time (AOS-622): smaller surface, and npm's own bundled modules carry CVEs.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
