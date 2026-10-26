@@ -39,7 +39,7 @@ services:
 
   redis:
     <<: *hardened
-    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    image: redis:8.10.2-alpine@sha256:0bf6577d7774e592b29d093e3ac9390eb91e13d72c21e506afce736de5e0eeb0
     user: "999:1000"                  # the image's redis user
     networks: [backend]
     volumes:
@@ -271,7 +271,7 @@ services:
     # Its own network, shared only with the API: it can't reach Postgres or Redis.
     <<: *hardened
     profiles: ["ollama"]
-    image: ollama/ollama:0.40.6@sha256:265409e1d931028a8f7d5a32bcbafddd7bffbc6cc629d77efe9560adf692a5e7
+    image: ollama/ollama:0.40.9@sha256:5c6707fcf2e1a30cffe2ecb7e315584fc87747c389327e4bc711c4959aa1eecc
     networks: [ai]
     cap_drop: ["ALL"]                 # also in *hardened; kept explicit here (ComposeExposureTest, AOS-703)
     security_opt: ["no-new-privileges:true"]
