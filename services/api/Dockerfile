@@ -2,7 +2,7 @@
 # Official Gradle image pinned to the wrapper's version (gradle/wrapper/gradle-wrapper.properties), so the
 # build doesn't download Gradle (that download is slow and fails on some networks).
 # Base images are pinned by digest (AOS-622); Dependabot proposes updates.
-FROM gradle:9.8.1-jdk25@sha256:4a80c8083135754f689c3e31bb858a22282c66f5625cafb09ed217814b363ee5 AS build
+FROM gradle:9.8.2-jdk25@sha256:e46e15353757ef9c9be0197a243653e88d25ebcd4c3c841057cf839c11fcf898 AS build
 WORKDIR /src
 
 # Build scripts first, so dependency downloads are cached between code changes.
